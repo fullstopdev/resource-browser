@@ -17,9 +17,9 @@ export async function load({ fetch, params }) {
       versions[x.name]["status"] = x.schema.openAPIV3Schema.properties.status
 
       /// testing more than one version
-      versions["testVersion"] = {}
-      versions["testVersion"]["spec"] = x.schema.openAPIV3Schema.properties.status
-      versions["testVersion"]["status"] = x.schema.openAPIV3Schema.properties.spec
+      /// versions["testVersion"] = {}
+      /// versions["testVersion"]["spec"] = x.schema.openAPIV3Schema.properties.status
+      /// versions["testVersion"]["status"] = x.schema.openAPIV3Schema.properties.spec
     })
 
     return { group, kind, versions }

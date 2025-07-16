@@ -11,6 +11,7 @@
 
   const validVersions = Object.keys(versions)
   let versionOnFocus = validVersions[0]
+  expandAll.set(false)
 
   $: spec = versions[versionOnFocus].spec
   $: status = versions[versionOnFocus].status

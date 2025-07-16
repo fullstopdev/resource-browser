@@ -9,6 +9,11 @@
 }
 
 @layer components {
+  .has-header-img {
+    background: url(/images/background.jpg)center center;
+    background-size: cover;
+  }
+  
   :global(html) {
     scroll-behavior: smooth;
   }
