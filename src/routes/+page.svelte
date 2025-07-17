@@ -7,7 +7,7 @@
 	import type { CrdVersionsMap, OpenAPISchema, VersionSchema } from '$lib/structure'
   import crdResources from '$lib/resources.json'
 	
-  let currentPanel = "upload"
+  let currentPanel = "product"
   let files: FileList
   let crdUploaded: { versions: VersionSchema; name: string; }
 
