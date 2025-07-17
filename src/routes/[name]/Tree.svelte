@@ -1,35 +1,21 @@
 <script lang="ts">
   import { expandAll, expandAllScope, ulExpanded } from './store'
-	import { getDescription, getScope } from "./functions"
+	import { getDescription, getScope, hashExistDeep } from "./functions"
+	import type { Schema } from '$lib/structure'
 
+  export let hash: string
+  export let type: string
   export let key: string
-  export let folder: any
-  export let requiredList: string[]
+  export let folder: Schema
+  export let requiredList: string[] = []
   export let parent: string
+  export let expanded: boolean
 
-  let expanded: boolean = false
-
-  function updateExpandedList() {
-    const clickedElement = `${parent}.${key}`
-    if(expanded) {
-      ulExpanded.update(arr => [...arr, clickedElement])
-    } else {
-      ulExpanded.update(arr => arr.filter(x => x.indexOf(clickedElement) === -1))
-    }
-  }
-
-  $: {
-    if($expandAllScope === "global") {
-      expanded = $expandAll
-      expandAllScope.set("global")
-      updateExpandedList()
-    }
-  }
+  let currentId = `${parent}.${key}`
 
   function handleLocalExpand() {
     expanded = !expanded
     expandAllScope.set("local")
-    updateExpandedList()
   }
 
   function propExist() {
@@ -39,32 +25,51 @@
     }
     return scope.properties
   }
+
+  function updateHash(newHash: string) {
+    location.hash = newHash
+    window.location.reload()
+	}
+
+  $: {
+    if($expandAllScope === "global") {
+      expanded = $expandAll
+      expandAllScope.set("global")
+    }
+  }
+
+  $: {
+    if(expanded) {
+      ulExpanded.update(arr => [...arr, currentId])
+    } else {
+      ulExpanded.update(arr => arr.filter(x => x.indexOf(currentId) === -1))
+    }
+  }
 </script>
 
 <li class="pt-1 overflow-x-auto scroll-light dark:scroll-dark">
-  <div class="px-1 pt-2 flex items-center space-x-2 group">
-    <svg class="w-3 h-3 group-hover:text-gray-400 text-gray-800 dark:text-gray-200 transition-transform duration-200 svg-arrow {expanded ? 'rotate-90' : ''}"
-        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-    </svg>
+  <div id="{currentId}" class="px-1 pt-2 flex items-center space-x-2 group">
     <button class="text-gray-800 dark:text-gray-200 flex items-center space-x-2 cursor-pointer overflow-x-auto scroll-light dark:scroll-dark" 
       on:click={handleLocalExpand}>
-      <span class="group-hover:text-blue-500">{key}</span>
+      <svg class="w-3 h-3 group-hover:text-gray-400 text-gray-800 dark:text-gray-200 transition-transform duration-200 svg-arrow {expanded ? 'rotate-90' : ''}"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+      <span class="group-hover:text-blue-500 {hash === currentId ? 'text-green-600 dark:text-green-500' : ''}">{key}{#if requiredList.includes(key)}<sup class="text-red-400 dark:text-red-500 text-xs">*</sup>{/if}</span>
       {#if "type" in folder}
         <span class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-[10px]">{folder.type}</span>
       {/if}
-      {#if requiredList.includes(key)}
-        <span class="px-2 py-0.5 bg-gray-400 text-gray-900 dark:text-gray-800 rounded text-[10px]">required</span>
-      {/if}
-  </button>
+    </button>
+    <button on:click="{() => updateHash(`#${currentId}`)}" class="text-gray-400 dark:text-gray-500 cursor-pointer hidden group-hover:block hover:text-gray-700 dark:hover:text-gray-300">#</button>
   </div>
   {#if expanded}
-    <ul class="ml-2 px-3 pt-2 dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600">
+    <ul class="ml-[9px] px-3 pt-2 dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600">
       <li class="px-1 text-gray-400 dark:text-gray-500 text-sm font-nunito">{getDescription(folder)}</li>
       {#if folder.type === "object" || folder.type === "array"}
         {#each Object.entries(propExist()) as [subkey, subfolder]}
-          {@const requiredList = getScope(folder).required || []}
-          <svelte:self key={subkey} folder={subfolder} {requiredList} parent={`${parent}.${key}`} />
+          {@const scope = getScope(folder)}
+          {@const requiredList = ('required' in scope ? scope.required : [])}
+          <svelte:self {hash} {type} key={subkey} folder={subfolder} {requiredList} parent={currentId} expanded={hashExistDeep(hash, `${currentId}.${subkey}`)} />
         {/each}
       {/if}
     </ul>

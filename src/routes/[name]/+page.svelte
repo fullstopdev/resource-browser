@@ -1,19 +1,22 @@
 <script lang="ts">
+  import { page } from "$app/stores"
+
 	import Footer from "$lib/components/Footer.svelte"
 	import Navbar from "$lib/components/Navbar.svelte"
-	import Tree from "./Tree.svelte"
+  import Render from "./Render.svelte"
 
   import { expandAll, expandAllScope, ulExpanded } from './store'
-  import { getDescription, getScope } from "./functions"
 
   export let data
-  let { group, kind, versions } = data
+  let { name, group, kind, versions, versionOnFocus } = data
 
   expandAll.set(false)
+  expandAllScope.set("local")
+  ulExpanded.set([])
 
+  const hash = $page.url.hash?.substring(1)
   const validVersions = Object.keys(versions)
-  let versionOnFocus = validVersions[0]
-  
+
   $: spec = versions[versionOnFocus].spec
   $: status = versions[versionOnFocus].status
 
@@ -27,7 +30,7 @@
   }
 </script>
 
-<Navbar {group} {kind} {validVersions} bind:versionOnFocus />
+<Navbar {name} {group} {kind} {validVersions} bind:versionOnFocus />
 <div class="pt-[100px] px-6 pb-6 space-y-4">
   <div class="flex items-center space-x-2">
     <button class="px-2 py-1 text-xs rounded-lg cursor-pointer border 
@@ -38,31 +41,9 @@
       {$ulExpanded.length > 0 ? 'Collapse' : 'Expand'} All
     </button>
   </div>
-  <p class="py-1 mb-0 text-gray-800 dark:text-gray-200 text-sm">SPEC</p>
-  <ul class="ml-2 px-3 dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600">
-    <li class="px-1 pt-1.5 text-gray-400 dark:text-gray-500 text-sm font-nunito">{getDescription(spec)}</li>
-    {#if 'properties' in getScope(spec)}
-      <div class="font-fira">
-        {#each Object.entries(getScope(spec).properties) as [key, folder]}
-          {@const requiredList = getScope(spec).required || []}
-          <Tree {key} {folder} {requiredList} parent={"spec"} />
-        {/each}
-      </div>
-    {/if}
-  </ul>
+  <Render {hash} type={"spec"} data={spec} />
   <hr class="my-2 text-gray-300 dark:text-gray-600"/>
-  <p class="py-1 mb-0 text-gray-800 dark:text-gray-200 text-sm">STATUS</p>
-  <ul class="ml-2 px-3 dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600">
-    <li class="px-1 pt-1.5 text-gray-400 dark:text-gray-500 text-sm font-nunito">{getDescription(status)}</li>
-    {#if 'properties' in getScope(status)}
-      <div class="font-fira">
-        {#each Object.entries(getScope(status).properties) as [key, folder]}
-          {@const requiredList = getScope(status).required || []}
-          <Tree {key} {folder} {requiredList} parent={"status"} />
-        {/each}
-      </div>
-    {/if}
-  </ul>
+  <Render {hash} type={"status"} data={status} />
 </div>
 
 <Footer home={false}/>

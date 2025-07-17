@@ -1,7 +1,20 @@
-import { error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit'
+
+import type { CrdVersionsMap, OpenAPISchema, VersionSchema } from '$lib/structure'
+import crdResources from '$lib/resources.json'
+
+const resources = crdResources as CrdVersionsMap
 
 export async function load({ fetch, params }) {
-  const name = params.name
+  const [name, versionOnFocus] = params.name.split("_")
+
+  if(!Object.keys(resources).includes(name)) {
+    throw error(404, "Invalid resource name")
+  }
+
+  if(!resources[name].includes(versionOnFocus)) {
+    throw error(404, "Invalid version for the resource name")
+  }
 
   try {
     const resp = await fetch(`/resources/${name}/resource.json`)
@@ -9,20 +22,16 @@ export async function load({ fetch, params }) {
 
     const group = crd.spec.group
     const kind = crd.spec.names.kind
-    const versions = {}
+    const versions: VersionSchema = {}
 
-    crd.spec.versions.forEach(x => {
-      versions[x.name] = {}
-      versions[x.name]["spec"] = x.schema.openAPIV3Schema.properties.spec
-      versions[x.name]["status"] = x.schema.openAPIV3Schema.properties.status
-
-      /// testing more than one version
-      /// versions["testVersion"] = {}
-      /// versions["testVersion"]["spec"] = x.schema.openAPIV3Schema.properties.status
-      /// versions["testVersion"]["status"] = x.schema.openAPIV3Schema.properties.spec
+    crd.spec.versions.forEach((x: OpenAPISchema) => {
+      versions[x.name] = {
+        spec: x.schema.openAPIV3Schema.properties.spec,
+        status: x.schema.openAPIV3Schema.properties.status
+      }
     })
 
-    return { group, kind, versions }
+    return { name, group, kind, versions, versionOnFocus }
   } catch(e) {
     throw error(404, "Error fetching resource" + e)
   }

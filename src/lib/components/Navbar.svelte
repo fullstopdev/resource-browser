@@ -1,10 +1,17 @@
 <script lang="ts">
 	import Theme from "./Theme.svelte"
 
+  export let name: string
   export let kind: string
   export let group: string
   export let versionOnFocus: string
   export let validVersions: string[]
+
+  function handleVersionChange(event: Event) {
+    const select = event.target as HTMLSelectElement
+    const changedVersion = select.value
+    window.location.href = `/${name}_${changedVersion}`
+  }
 </script>
 
 <nav class="fixed top-0 z-20 pl-6 pr-4 py-4 w-screen font-nunito text-black dark:text-white backdrop-filter backdrop-blur-lg border-b border-gray-300 dark:border-gray-700">
@@ -17,7 +24,8 @@
           <span>{group}</span>
           <span>/</span>
           {#if validVersions.length > 1}
-            <select class="p-[1px] rounded-lg text-xs border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 bg-gray-50 dark:bg-gray-700" bind:value={versionOnFocus}>
+            <select class="p-[1px] rounded-lg text-xs border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 bg-gray-50 dark:bg-gray-700" 
+                bind:value={versionOnFocus} on:change={handleVersionChange}>
               {#each validVersions as version}
                 <option value="{version}">{version}</option>
               {/each}
