@@ -24,7 +24,7 @@
           <span>{group}</span>
           <span>/</span>
           {#if validVersions.length > 1}
-            <select class="p-[1px] rounded-lg text-xs border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 bg-gray-50 dark:bg-gray-700" 
+            <select class="p-[1px] rounded-lg text-xs focus:outline-none focus:ring-0 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 bg-gray-50 dark:bg-gray-700" 
                 bind:value={versionOnFocus} on:change={handleVersionChange}>
               {#each validVersions as version}
                 <option value="{version}">{version}</option>
