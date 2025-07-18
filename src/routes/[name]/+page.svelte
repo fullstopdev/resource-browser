@@ -3,9 +3,9 @@
 
 	import Footer from "$lib/components/Footer.svelte"
 	import Navbar from "$lib/components/Navbar.svelte"
-  import Render from "./Render.svelte"
+  import Render from "$lib/components/Render.svelte"
 
-  import { expandAll, expandAllScope, ulExpanded } from './store'
+  import { expandAll, expandAllScope, ulExpanded } from '$lib/store'
 
   export let data
   let { name, group, kind, versions, versionOnFocus } = data
