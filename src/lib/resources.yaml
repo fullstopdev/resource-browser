@@ -1,17 +1,17 @@
-addresspools.metallb.io:
-  group: metallb.io
-  kind: AddressPool
-  versions:
-    - v1alpha1
-    - v1beta1
 aggregateroutes.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: AggregateRoute
   versions:
+    - v1
     - v1alpha1
 alarms.core.eda.nokia.com:
   group: core.eda.nokia.com
   kind: Alarm
+  versions:
+    - v1
+appinstallers.appstore.eda.nokia.com:
+  group: appstore.eda.nokia.com
+  kind: AppInstaller
   versions:
     - v1
 artifacts.artifacts.eda.nokia.com:
@@ -19,6 +19,21 @@ artifacts.artifacts.eda.nokia.com:
   kind: Artifact
   versions:
     - v1
+aspathsetdeployments.routingpolicies.eda.nokia.com:
+  group: routingpolicies.eda.nokia.com
+  kind: ASPathSetDeployment
+  versions:
+    - v1alpha1
+aspathsets.routingpolicies.eda.nokia.com:
+  group: routingpolicies.eda.nokia.com
+  kind: ASPathSet
+  versions:
+    - v1alpha1
+attachmentlookups.routing.eda.nokia.com:
+  group: routing.eda.nokia.com
+  kind: AttachmentLookup
+  versions:
+    - v1alpha1
 backends.aifabrics.eda.nokia.com:
   group: aifabrics.eda.nokia.com
   kind: Backend
@@ -39,46 +54,35 @@ bannerstates.siteinfo.eda.nokia.com:
   kind: BannerState
   versions:
     - v1alpha1
-bfdprofiles.metallb.io:
-  group: metallb.io
-  kind: BFDProfile
-  versions:
-    - v1beta1
-bgpadvertisements.metallb.io:
-  group: metallb.io
-  kind: BGPAdvertisement
-  versions:
-    - v1beta1
 bgpgroupdeployments.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: BGPGroupDeployment
   versions:
+    - v1
     - v1alpha1
 bgpgroups.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: BGPGroup
   versions:
+    - v1
     - v1alpha1
 bgpgroupstates.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: BGPGroupState
   versions:
+    - v1
     - v1alpha1
-bgppeers.metallb.io:
-  group: metallb.io
-  kind: BGPPeer
-  versions:
-    - v1beta1
-    - v1beta2
 bgppeers.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: BGPPeer
   versions:
+    - v1
     - v1alpha1
 bgppeerstates.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: BGPPeerState
   versions:
+    - v1
     - v1alpha1
 breakouts.interfaces.eda.nokia.com:
   group: interfaces.eda.nokia.com
@@ -89,31 +93,31 @@ bridgedomaindeployments.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: BridgeDomainDeployment
   versions:
+    - v1
     - v1alpha1
 bridgedomains.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: BridgeDomain
   versions:
+    - v1
     - v1alpha1
 bridgedomainstates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: BridgeDomainState
   versions:
+    - v1
     - v1alpha1
 bridgeinterfaces.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: BridgeInterface
   versions:
+    - v1
     - v1alpha1
 bridgeinterfacestates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: BridgeInterfaceState
   versions:
-    - v1alpha1
-bundles.trust.cert-manager.io:
-  group: trust.cert-manager.io
-  kind: Bundle
-  versions:
+    - v1
     - v1alpha1
 catalogs.appstore.eda.nokia.com:
   group: appstore.eda.nokia.com
@@ -125,34 +129,30 @@ certificatechecks.certcheck.eda.nokia.com:
   kind: CertificateCheck
   versions:
     - v1alpha1
-certificaterequests.cert-manager.io:
-  group: cert-manager.io
-  kind: CertificateRequest
-  versions:
-    - v1
-certificates.cert-manager.io:
-  group: cert-manager.io
-  kind: Certificate
-  versions:
-    - v1
-challenges.acme.cert-manager.io:
-  group: acme.cert-manager.io
-  kind: Challenge
-  versions:
-    - v1
 chassis.components.eda.nokia.com:
   group: components.eda.nokia.com
   kind: Chassis
   versions:
     - v1
+checkdefaultbgppeerss.protocols.eda.nokia.com:
+  group: protocols.eda.nokia.com
+  kind: CheckDefaultBgpPeers
+  versions:
+    - v1
+    - v1alpha1
+checkinterfacess.interfaces.eda.nokia.com:
+  group: interfaces.eda.nokia.com
+  kind: CheckInterfaces
+  versions:
+    - v1alpha1
+cliplugins.environment.eda.nokia.com:
+  group: environment.eda.nokia.com
+  kind: CliPlugin
+  versions:
+    - v1alpha1
 clusterdiscoveries.components.eda.nokia.com:
   group: components.eda.nokia.com
   kind: ClusterDiscovery
-  versions:
-    - v1
-clusterissuers.cert-manager.io:
-  group: cert-manager.io
-  kind: ClusterIssuer
   versions:
     - v1
 clusterroles.core.eda.nokia.com:
@@ -160,11 +160,6 @@ clusterroles.core.eda.nokia.com:
   kind: ClusterRole
   versions:
     - v1
-communities.metallb.io:
-  group: metallb.io
-  kind: Community
-  versions:
-    - v1beta1
 communitysetdeployments.routingpolicies.eda.nokia.com:
   group: routingpolicies.eda.nokia.com
   kind: CommunitySetDeployment
@@ -206,11 +201,6 @@ cpuoverlays.components.eda.nokia.com:
   kind: CPUOverlay
   versions:
     - v1
-cpuutiloverlays.topologies.eda.nokia.com:
-  group: topologies.eda.nokia.com
-  kind: CPUUtilOverlay
-  versions:
-    - v1alpha1
 cxclusters.cx.eda.nokia.com:
   group: cx.eda.nokia.com
   kind: CxCluster
@@ -220,21 +210,25 @@ defaultaggregateroutes.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultAggregateRoute
   versions:
+    - v1
     - v1alpha1
 defaultbgpgroupdeployments.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultBGPGroupDeployment
   versions:
+    - v1
     - v1alpha1
 defaultbgpgroups.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultBGPGroup
   versions:
+    - v1
     - v1alpha1
 defaultbgppeers.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultBGPPeer
   versions:
+    - v1
     - v1alpha1
 defaultinterfaces.routing.eda.nokia.com:
   group: routing.eda.nokia.com
@@ -250,11 +244,13 @@ defaultroutereflectorclients.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultRouteReflectorClient
   versions:
+    - v1
     - v1alpha1
 defaultroutereflectors.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultRouteReflector
   versions:
+    - v1
     - v1alpha1
 defaultrouters.routing.eda.nokia.com:
   group: routing.eda.nokia.com
@@ -270,6 +266,7 @@ defaultstaticroutes.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: DefaultStaticRoute
   versions:
+    - v1
     - v1alpha1
 deployimages.os.eda.nokia.com:
   group: os.eda.nokia.com
@@ -300,6 +297,7 @@ dhcprelays.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: DHCPRelay
   versions:
+    - v1
     - v1alpha1
 discoveries.components.eda.nokia.com:
   group: components.eda.nokia.com
@@ -319,11 +317,6 @@ discoverystates.components.eda.nokia.com:
   versions:
     - v1
     - v1alpha1
-diskoverlays.topologies.eda.nokia.com:
-  group: topologies.eda.nokia.com
-  kind: DiskOverlay
-  versions:
-    - v1alpha1
 drains.routing.eda.nokia.com:
   group: routing.eda.nokia.com
   kind: Drain
@@ -339,10 +332,17 @@ edgeinterfaces.core.eda.nokia.com:
   kind: EdgeInterface
   versions:
     - v1
+edgepings.services.eda.nokia.com:
+  group: services.eda.nokia.com
+  kind: EdgePing
+  versions:
+    - v1
+    - v1alpha1
 egresspolicys.qos.eda.nokia.com:
   group: qos.eda.nokia.com
   kind: EgressPolicy
   versions:
+    - v1
     - v1alpha1
 engineconfigs.core.eda.nokia.com:
   group: core.eda.nokia.com
@@ -383,6 +383,7 @@ forwardingclasss.qos.eda.nokia.com:
   group: qos.eda.nokia.com
   kind: ForwardingClass
   versions:
+    - v1
     - v1alpha1
 globalconfigs.core.eda.nokia.com:
   group: core.eda.nokia.com
@@ -403,6 +404,7 @@ ingresspolicys.qos.eda.nokia.com:
   group: qos.eda.nokia.com
   kind: IngressPolicy
   versions:
+    - v1
     - v1alpha1
 inits.bootstrap.eda.nokia.com:
   group: bootstrap.eda.nokia.com
@@ -424,11 +426,6 @@ interfacestates.interfaces.eda.nokia.com:
   kind: InterfaceState
   versions:
     - v1alpha1
-ipaddresspools.metallb.io:
-  group: metallb.io
-  kind: IPAddressPool
-  versions:
-    - v1beta1
 ipallocationpools.core.eda.nokia.com:
   group: core.eda.nokia.com
   kind: IPAllocationPool
@@ -443,10 +440,17 @@ irbinterfaces.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: IRBInterface
   versions:
+    - v1
     - v1alpha1
 irbinterfacestates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: IRBInterfaceState
+  versions:
+    - v1
+    - v1alpha1
+islpings.fabrics.eda.nokia.com:
+  group: fabrics.eda.nokia.com
+  kind: IslPing
   versions:
     - v1alpha1
 isls.fabrics.eda.nokia.com:
@@ -459,11 +463,6 @@ islstates.fabrics.eda.nokia.com:
   kind: ISLState
   versions:
     - v1alpha1
-issuers.cert-manager.io:
-  group: cert-manager.io
-  kind: Issuer
-  versions:
-    - v1
 keychaindeployments.security.eda.nokia.com:
   group: security.eda.nokia.com
   kind: KeychainDeployment
@@ -474,11 +473,6 @@ keychains.security.eda.nokia.com:
   kind: Keychain
   versions:
     - v1alpha1
-l2advertisements.metallb.io:
-  group: metallb.io
-  kind: L2Advertisement
-  versions:
-    - v1beta1
 licenses.core.eda.nokia.com:
   group: core.eda.nokia.com
   kind: License
@@ -509,11 +503,6 @@ memoryoverlays.components.eda.nokia.com:
   kind: MemoryOverlay
   versions:
     - v1
-memoryoverlays.topologies.eda.nokia.com:
-  group: topologies.eda.nokia.com
-  kind: MemoryOverlay
-  versions:
-    - v1alpha1
 mirrorfilterdeployments.filters.eda.nokia.com:
   group: filters.eda.nokia.com
   kind: MirrorFilterDeployment
@@ -569,6 +558,11 @@ namespaces.core.eda.nokia.com:
   kind: Namespace
   versions:
     - v1
+newpings.oam.eda.nokia.com:
+  group: oam.eda.nokia.com
+  kind: NewPing
+  versions:
+    - v1alpha1
 nodeconfigs.core.eda.nokia.com:
   group: core.eda.nokia.com
   kind: NodeConfig
@@ -614,25 +608,17 @@ ntpclientstates.timing.eda.nokia.com:
   kind: NTPClientState
   versions:
     - v1alpha1
-orders.acme.cert-manager.io:
-  group: acme.cert-manager.io
-  kind: Order
-  versions:
-    - v1
-pings.oam.eda.nokia.com:
-  group: oam.eda.nokia.com
-  kind: Ping
-  versions:
-    - v1alpha1
 policyattachments.qos.eda.nokia.com:
   group: qos.eda.nokia.com
   kind: PolicyAttachment
   versions:
+    - v1
     - v1alpha1
 policydeployments.qos.eda.nokia.com:
   group: qos.eda.nokia.com
   kind: PolicyDeployment
   versions:
+    - v1
     - v1alpha1
 policydeployments.routingpolicies.eda.nokia.com:
   group: routingpolicies.eda.nokia.com
@@ -663,17 +649,13 @@ queues.qos.eda.nokia.com:
   group: qos.eda.nokia.com
   kind: Queue
   versions:
+    - v1
     - v1alpha1
 registries.appstore.eda.nokia.com:
   group: appstore.eda.nokia.com
   kind: Registry
   versions:
     - v1
-resourcegroups.kpt.dev:
-  group: kpt.dev
-  kind: ResourceGroup
-  versions:
-    - v1alpha1
 roles.core.eda.nokia.com:
   group: core.eda.nokia.com
   kind: Role
@@ -683,76 +665,87 @@ routedinterfaces.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: RoutedInterface
   versions:
+    - v1
     - v1alpha1
 routedinterfacestates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: RoutedInterfaceState
+  versions:
+    - v1
+    - v1alpha1
+routelookups.routing.eda.nokia.com:
+  group: routing.eda.nokia.com
+  kind: RouteLookup
   versions:
     - v1alpha1
 routerdeployments.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: RouterDeployment
   versions:
+    - v1
     - v1alpha1
 routereflectorclients.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: RouteReflectorClient
   versions:
+    - v1
     - v1alpha1
 routereflectorclientstates.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: RouteReflectorClientState
   versions:
+    - v1
     - v1alpha1
 routereflectors.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: RouteReflector
   versions:
+    - v1
     - v1alpha1
 routereflectorstates.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: RouteReflectorState
   versions:
+    - v1
     - v1alpha1
 routers.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: Router
   versions:
+    - v1
     - v1alpha1
 routerstates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: RouterState
   versions:
+    - v1
     - v1alpha1
-simlinks.test.eda.nokia.com:
-  group: test.eda.nokia.com
+setupenvs.environment.eda.nokia.com:
+  group: environment.eda.nokia.com
+  kind: SetupEnv
+  versions:
+    - v1alpha1
+simlinks.core.eda.nokia.com:
+  group: core.eda.nokia.com
   kind: SimLink
   versions:
     - v1
-simnodes.test.eda.nokia.com:
-  group: test.eda.nokia.com
+simnodes.core.eda.nokia.com:
+  group: core.eda.nokia.com
   kind: SimNode
-  versions:
-    - v1
-simtopologies.core.eda.nokia.com:
-  group: core.eda.nokia.com
-  kind: SimTopology
-  versions:
-    - v1
-simtoponodes.core.eda.nokia.com:
-  group: core.eda.nokia.com
-  kind: SimTopoNode
   versions:
     - v1
 stateconfigs.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: StateConfig
   versions:
+    - v1
     - v1alpha1
 staticroutes.protocols.eda.nokia.com:
   group: protocols.eda.nokia.com
   kind: StaticRoute
   versions:
+    - v1
     - v1alpha1
 subnetallocationpools.core.eda.nokia.com:
   group: core.eda.nokia.com
@@ -774,6 +767,11 @@ targetnodes.core.eda.nokia.com:
   kind: TargetNode
   versions:
     - v1
+techsupports.oam.eda.nokia.com:
+  group: oam.eda.nokia.com
+  kind: TechSupport
+  versions:
+    - v1alpha1
 thresholds.oam.eda.nokia.com:
   group: oam.eda.nokia.com
   kind: Threshold
@@ -804,11 +802,6 @@ topolinkstates.topologies.eda.nokia.com:
   kind: TopoLinkState
   versions:
     - v1alpha1
-topologies.core.eda.nokia.com:
-  group: core.eda.nokia.com
-  kind: Topology
-  versions:
-    - v1
 topologies.topologies.eda.nokia.com:
   group: topologies.eda.nokia.com
   kind: Topology
@@ -853,21 +846,25 @@ virtualnetworks.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: VirtualNetwork
   versions:
+    - v1
     - v1alpha1
 virtualnetworkstates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: VirtualNetworkState
   versions:
+    - v1
     - v1alpha1
 vlans.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: VLAN
   versions:
+    - v1
     - v1alpha1
 vlanstates.services.eda.nokia.com:
   group: services.eda.nokia.com
   kind: VLANState
   versions:
+    - v1
     - v1alpha1
 volumeoverlays.components.eda.nokia.com:
   group: components.eda.nokia.com
