@@ -21,40 +21,56 @@ mkdir -p "$output_dir"
 crd_meta_file="$src_lib_dir/resources.yaml"
 > "$crd_meta_file"
 
+# Create temp directory for metadata files
+temp_dir=$(mktemp -d)
+trap "rm -rf $temp_dir" EXIT
+
 # Function to process a single CRD
 process_crd() {
   local crd_name="$1"
   local output_dir="$2"
-  local temp_meta_file="$3"
-  
+  local temp_dir="$3"
+
   echo "Processing $crd_name"
-  
+
   crd_dir="$output_dir/$crd_name"
   mkdir -p "$crd_dir"
-  
-  # Save full CRD YAML
-  kubectl get crd "$crd_name" -o yaml > "$crd_dir/resource.yaml"
-  
-  # Extract group, kind, and versions
-  group=$(kubectl get crd "$crd_name" -o jsonpath='{.spec.group}')
-  kind=$(kubectl get crd "$crd_name" -o jsonpath='{.spec.names.kind}')
-  versions=$(kubectl get crd "$crd_name" -o jsonpath='{.spec.versions[*].name}')
-  
-  # Write formatted YAML block to temp file
-  {
-    echo "$crd_name:"
-    echo "  group: $group"
-    echo "  kind: $kind"
-    echo "  versions:"
-    for version in $versions; do
-      echo "    - $version"
-    done
-  } > "$temp_meta_file"
-}
 
-# Create temp directory for metadata files
-temp_dir=$(mktemp -d)
-trap "rm -rf $temp_dir" EXIT
+  # get full CRD in yaml
+  crd_yaml=$(kubectl get crd "$crd_name" -o yaml)
+
+  # metadata
+  group=$(echo "$crd_yaml" | yq eval '.spec.group')
+  kind=$(echo "$crd_yaml" | yq eval '.spec.names.kind')
+  versions=$(echo "$crd_yaml" | yq eval '.spec.versions[].name' | xargs)
+
+  # temp file for this CRD
+  tmp_file="$temp_dir/$crd_name.yaml"
+  > "$tmp_file"
+
+  # add CRD entry (2 spaces indent under group)
+  echo "- name: $crd_name" >> "$tmp_file"
+  echo "  group: $group" >> "$tmp_file"
+  echo "  kind: $kind" >> "$tmp_file"
+  echo "  versions:" >> "$tmp_file"
+
+  # per-version loop
+  for version in $versions; do
+    deprecated=$(echo "$crd_yaml" | yq eval ".spec.versions[] | select(.name == \"$version\") | .deprecated")
+    if [ -z "$deprecated" ] || [ "$deprecated" == "null" ]; then
+      deprecated=false
+    fi
+
+    # 4 spaces for version list
+    echo "    - name: $version" >> "$tmp_file"
+    echo "      deprecated: $deprecated" >> "$tmp_file"
+
+    # extract only this version block
+    echo "$crd_yaml" \
+      | yq eval ".spec.versions[] | select(.name == \"$version\")" \
+      | yq eval -P > "$crd_dir/$version.yaml"
+  done
+}
 
 # Get all CRD names and process them concurrently
 crd_names=()
@@ -67,27 +83,20 @@ while IFS= read -r crd_name; do
   fi
 done < <(kubectl get crds -o custom-columns=NAME:.metadata.name --no-headers)
 
-# Process CRDs in parallel
-pids=()
-for crd_name in "${crd_names[@]}"; do
-  temp_meta_file="$temp_dir/$crd_name.yaml"
-  process_crd "$crd_name" "$output_dir" "$temp_meta_file" &
-  pids+=($!)
-done
+# parallel CRD processing
+echo
+export -f process_crd
+printf "%s\n" "${crd_names[@]}" \
+  | xargs -P64 -I{} bash -c 'process_crd "$1" "$2" "$3"' _ {} "$output_dir" "$temp_dir"
 
-# Wait for all background jobs to complete
-echo "Waiting for all CRDs to be processed..."
-for pid in "${pids[@]}"; do
-  wait "$pid"
-done
+# Filter out files ending with 'states.eda.nokia.com.yaml' and cat only the non-states files
+find "$temp_dir" -name "*.yaml" -not -name "*states.*.eda.nokia.com.yaml" -exec cat {} \; \
+  | yq eval 'group_by(.group) | map({(.[0].group): (. | sort_by(.name))}) | .[] as $first | $first' - > "$crd_meta_file"
 
-# Combine all metadata files in sorted order
-for crd_name in $(printf '%s\n' "${crd_names[@]}" | sort); do
-  temp_meta_file="$temp_dir/$crd_name.yaml"
-  if [[ -f "$temp_meta_file" ]]; then
-    cat "$temp_meta_file" >> "$crd_meta_file"
-  fi
-done
+# Sort the top-level groups alphabetically
+yq eval 'to_entries | sort_by(.key) | from_entries' -i "$crd_meta_file"
+
+rm -rf "$temp_dir"
 
 echo
 echo "CRDs saved in $output_dir"

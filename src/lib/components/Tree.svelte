@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { copy } from 'svelte-copy'
+
   import { expandAll, expandAllScope, ulExpanded } from '$lib/store'
 	import { getDescription, getScope, hashExistDeep } from "./functions"
 	import type { Schema } from '$lib/structure'
@@ -12,6 +14,7 @@
   export let expanded: boolean
 
   let currentId = `${parent}.${key}`
+  let timeout: ReturnType<typeof setTimeout>
 
   function handleLocalExpand() {
     expanded = !expanded
@@ -61,7 +64,15 @@
       {/if}
     </button>
     {#if source !== "uploaded"}
-      <a href={`#${currentId}`} class="text-gray-400 dark:text-gray-500 cursor-pointer hidden group-hover:block group-active:block hover:text-gray-700 dark:hover:text-gray-300">#</a>
+      <a href={`#${currentId}`} class="text-gray-400 dark:text-gray-500 cursor-pointer hidden group-hover:block group-active:block hover:text-gray-700 dark:hover:text-gray-300" use:copy={{
+        text: window.location.origin + window.location.pathname + `#${currentId}`,
+        onCopy({event}) {
+          event.target.innerHTML = "&check;"
+          timeout = setTimeout(() => {
+            event.target.innerHTML = "#"
+          }, 500)
+        }
+      }}>#</a>
     {/if}
   </div>
   {#if expanded}
