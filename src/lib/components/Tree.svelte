@@ -12,6 +12,7 @@
   export let requiredList: string[] = []
   export let parent: string
   export let expanded: boolean
+  export let borderColor: string
 
   let currentId = `${parent}.${key}`
   let timeout: ReturnType<typeof setTimeout>
@@ -52,7 +53,7 @@
 
 <li id="{currentId}" class="pt-1 scroll-mt-[80px]">
   <div class="px-1 pt-2 flex items-center space-x-2 group">
-    <button class="text-gray-800 dark:text-gray-200 flex items-center space-x-2 cursor-pointer overflow-x-auto scroll-light dark:scroll-dark" 
+    <button class="text-gray-800 dark:text-gray-200 flex items-center space-x-2 cursor-pointer overflow-x-auto scroll-thin" 
       on:click={handleLocalExpand}>
       <svg class="w-3 h-3 group-hover:text-gray-400 text-gray-800 dark:text-gray-200 transition-transform duration-200 svg-arrow {expanded ? 'rotate-90' : ''}"
           fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +65,7 @@
       {/if}
     </button>
     {#if source !== "uploaded"}
-      <a href={`#${currentId}`} class="text-gray-400 dark:text-gray-500 cursor-pointer hidden group-hover:block group-active:block hover:text-gray-700 dark:hover:text-gray-300" use:copy={{
+      <a href={`#${currentId}`} class="text-gray-400 dark:text-gray-500 cursor-pointer {expanded ? 'block' : 'hidden'} md:hidden md:group-hover:block md:group-active:block hover:text-gray-700 dark:hover:text-gray-300" use:copy={{
         text: window.location.origin + window.location.pathname + `#${currentId}`,
         onCopy({event}) {
           event.target.innerHTML = "&check;"
@@ -76,15 +77,15 @@
     {/if}
   </div>
   {#if expanded}
-    <ul class="ml-[9px] px-3 pt-2 dark:bg-gray-800 border-l border-gray-300 dark:border-gray-600">
-      <li class="px-1 text-gray-400 dark:text-gray-500 text-sm font-nunito">{getDescription(folder)}</li>
+    <ul class="ml-[9px] px-3 pt-2 dark:bg-gray-800 border-l {borderColor}">
+      <li class="px-1 text-gray-400 dark:text-gray-500 text-sm font-nokia font-light">{getDescription(folder)}</li>
       {#if folder.type === "object" || folder.type === "array"}
         {@const props = propExist()}
         {#if typeof props === "object"}
           {#each Object.entries(props) as [subkey, subfolder]}
             {@const scope = getScope(folder)}
             {@const requiredList = ('required' in scope ? scope.required : [])}
-            <svelte:self {hash} {source} key={subkey} folder={subfolder} {requiredList} parent={currentId} expanded={hashExistDeep(hash, `${currentId}.${subkey}`)} />
+            <svelte:self {hash} {source} {borderColor} key={subkey} folder={subfolder} {requiredList} parent={currentId} expanded={hashExistDeep(hash, `${currentId}.${subkey}`)} />
           {/each}
         {/if}
       {/if}

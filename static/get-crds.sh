@@ -17,19 +17,26 @@ fi
 
 mkdir -p "$output_dir"
 
+uv --project ${SCRIPT_DIR} sync --all-groups
+
 # YAML dictionary for CRD versions + group + kind
 crd_meta_file="$src_lib_dir/resources.yaml"
-> "$crd_meta_file"
+crd_meta_tmp_file="$src_lib_dir/resources_tmp.yaml"
 
 # Create temp directory for metadata files
 temp_dir=$(mktemp -d)
 trap "rm -rf $temp_dir" EXIT
+
+# Get installed manifests
+manifests_file="$src_lib_dir/manifests.yaml"
+kubectl get -n eda-system manifests -o yaml > "$manifests_file"
 
 # Function to process a single CRD
 process_crd() {
   local crd_name="$1"
   local output_dir="$2"
   local temp_dir="$3"
+  local manifests="$(cat $4)"
 
   echo "Processing $crd_name"
 
@@ -65,6 +72,11 @@ process_crd() {
     echo "    - name: $version" >> "$tmp_file"
     echo "      deprecated: $deprecated" >> "$tmp_file"
 
+    appVersion=$(echo "$manifests" | yq eval ".items[] | select(.metadata.name == \"$group\" and .spec.version == \"$version\") | .metadata.annotations.[\"appstore.eda.nokia.com/version-value\"]")
+    if [ -n "$appVersion" ]; then
+      echo "      appVersion: $appVersion" >> "$tmp_file"
+    fi
+
     # extract only this version block
     echo "$crd_yaml" \
       | yq eval ".spec.versions[] | select(.name == \"$version\")" \
@@ -87,16 +99,27 @@ done < <(kubectl get crds -o custom-columns=NAME:.metadata.name --no-headers)
 echo
 export -f process_crd
 printf "%s\n" "${crd_names[@]}" \
-  | xargs -P64 -I{} bash -c 'process_crd "$1" "$2" "$3"' _ {} "$output_dir" "$temp_dir"
+  | xargs -P64 -I{} bash -c 'process_crd "$1" "$2" "$3" "$4"' _ {} "$output_dir" "$temp_dir" "$manifests_file"
+
+rm -rf "$manifests_file"
 
 # Filter out files ending with 'states.eda.nokia.com.yaml' and cat only the non-states files
 find "$temp_dir" -name "*.yaml" -not -name "*states.*.eda.nokia.com.yaml" -exec cat {} \; \
-  | yq eval 'group_by(.group) | map({(.[0].group): (. | sort_by(.name))}) | .[] as $first | $first' - > "$crd_meta_file"
+  | yq eval 'group_by(.group) | map({(.[0].group): (. | sort_by(.name))}) | .[] as $first | $first' > "$crd_meta_tmp_file"
+
+# Merging new CRD metadata into existing (if necessary)
+if [ -f "$crd_meta_file" ]; then
+  echo
+  echo "Merging meta file with new information..."
+  uv run ${SCRIPT_DIR}/merge-crds.py "$crd_meta_file" "$crd_meta_tmp_file" > "$crd_meta_file.tmp" \
+    && mv "$crd_meta_file.tmp" "$crd_meta_file"
+  rm -rf "$crd_meta_tmp_file"
+else
+  mv "$crd_meta_tmp_file" "$crd_meta_file"
+fi
 
 # Sort the top-level groups alphabetically
 yq eval 'to_entries | sort_by(.key) | from_entries' -i "$crd_meta_file"
-
-rm -rf "$temp_dir"
 
 echo
 echo "CRDs saved in $output_dir"
