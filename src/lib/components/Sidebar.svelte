@@ -196,7 +196,7 @@
 <!-- Hamburger Button (Mobile Only) - Shows hamburger/X toggle -->
 <button
 	on:click={toggleMobileMenu}
-	class="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+	class="lg:hidden fixed top-3 left-3 z-60 no-blur p-2 rounded-lg bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
 	aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
 >
 	<svg
@@ -216,7 +216,7 @@
 <!-- Overlay (Mobile Only) -->
 {#if isMobileMenuOpen}
 	<div
-		class="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+		class="lg:hidden fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
 		on:click={closeMobileMenu}
 		on:keydown={(e) => e.key === 'Escape' && closeMobileMenu()}
 		role="button"
@@ -231,7 +231,7 @@
 	bg-white dark:bg-gray-900 
 	flex flex-col shadow-2xl
 	lg:relative lg:translate-x-0
-	 fixed inset-y-0 left-0 z-20
+	fixed inset-y-0 left-0 z-40 lg:z-20
 	transform transition-transform duration-300 ease-in-out
 	{isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
 ">

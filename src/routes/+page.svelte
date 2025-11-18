@@ -501,7 +501,7 @@ function trapFocus(container: HTMLElement) {
 <div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-[64px]">
 	<div class="flex flex-1 flex-col lg:flex-row relative z-10">
 		{#if selectedResource}
-			<button on:click={toggleMobileMenu} class="fixed top-4 left-6 z-50 p-2 rounded-lg bg-blue-600 text-white shadow-lg" aria-label="Toggle menu">
+			<button on:click={toggleMobileMenu} class="fixed top-4 left-6 z-60 no-blur p-2 rounded-lg bg-blue-600 text-white shadow-xl" aria-label="Toggle menu">
 				<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					{#if mobileMenuOpen}<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 					{:else}<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />{/if}

@@ -340,4 +340,12 @@
   .select-pro:focus {
     @apply outline-none ring-2 ring-cyan-400;
   }
+
+  /* Utility to suppress blur/backdrop blur on UI elements (use for buttons that must remain sharp) */
+  .no-blur {
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
