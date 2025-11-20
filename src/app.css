@@ -316,6 +316,15 @@
     pointer-events: none; /* don't block clicks */
   }
 
+  /* When a header image is active, remove any border/backgrounds for top elements so the image shows through */
+  :global(.has-header-img) .sidebar-header,
+  :global(.has-header-img) .content-header {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    --tw-bg-opacity: 0 !important;
+  }
+
   /* slightly more visible on hover or when user is actively interacting*/
   .scroll-thin:hover + .sidebar-scroll-thumb, .sidebar-scroll-thumb:hover {
     background: rgba(255,255,255,0.18);

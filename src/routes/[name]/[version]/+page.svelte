@@ -382,7 +382,7 @@
 								
 								<!-- Deprecated Badge -->
 								{#if deprecated}
-									<div class="inline-flex items-center justify-center gap-2 rounded-lg md:rounded-xl bg-gradient-to-br from-orange-50 to-yellow-50 px-3 md:px-4 py-2 md:py-2.5 border-2 border-orange-200 shadow-sm dark:from-orange-900/20 dark:to-yellow-900/20 dark:border-orange-700 w-full sm:w-auto">
+									<div class="inline-flex items-center justify-center gap-2 rounded-lg md:rounded-xl bg-gradient-to-br from-orange-50 to-yellow-50 px-3 md:px-4 py-2 md:py-2.5 border-2 border-orange-200 shadow-sm dark:from-orange-900/20 dark:to-yellow-900/20 dark:border-orange-700 w-full sm:w-auto -translate-y-1 relative z-30">
 										<svg class="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-600 dark:text-orange-400 animate-pulse flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
 										</svg>
@@ -396,10 +396,10 @@
 
 				<!-- Schema Section -->
 				{#if viewMode === 'schema'}
-				<div class="mb-8 md:mb-10 space-y-6 md:space-y-8">
+				<div class="mb-8 md:mb-10 space-y-6 md:space-y-8 content-header">
 					<!-- Specification Section -->
 					<div class="rounded-lg md:rounded-xl bg-black/30 backdrop-blur-lg shadow-sm border border-white/10 overflow-hidden">
-						<div class="border-b border-white/10 bg-black/20 px-4 md:px-8 py-4 md:py-6">
+						<div class="content-header border-b border-white/10 bg-black/20 px-4 md:px-8 py-4 md:py-6">
 							<div class="flex items-center space-x-3 md:space-x-4">
 								<div class="flex h-10 md:h-12 w-10 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 text-white shadow-xl flex-shrink-0">
 									<svg class="h-5 md:h-6 w-5 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,7 +423,7 @@
 
 					<!-- Status Section -->
 					<div class="rounded-lg md:rounded-xl bg-black/30 backdrop-blur-lg shadow-sm border border-white/10 overflow-hidden">
-						<div class="border-b border-white/10 bg-black/20 px-4 md:px-8 py-4 md:py-6">
+						<div class="content-header border-b border-white/10 bg-black/20 px-4 md:px-8 py-4 md:py-6">
 							<div class="flex items-center space-x-3 md:space-x-4">
 								<div class="flex h-10 md:h-12 w-10 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-xl flex-shrink-0">
 									<svg class="h-5 md:h-6 w-5 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -450,7 +450,7 @@
 				<!-- Compare Section -->
 				{#if viewMode === 'compare'}
 				<div class="mt-6 md:mt-10 rounded-lg md:rounded-xl bg-black/30 backdrop-blur-lg shadow-sm border border-white/10 overflow-hidden">
-					<div class="border-b border-white/10 bg-black/20 px-4 md:px-8 py-4 md:py-6">
+					<div class="content-header border-b border-white/10 bg-black/20 px-4 md:px-8 py-4 md:py-6">
 						<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 							<div class="flex items-center space-x-3 md:space-x-4">
 								<div class="flex h-10 md:h-12 w-10 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-orange-600 to-amber-600 text-white shadow-xl flex-shrink-0">

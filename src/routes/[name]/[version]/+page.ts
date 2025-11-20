@@ -41,15 +41,18 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
     console.warn(`Could not load manifest for ${releaseFolder}, using fallback`)
   }
 
-  // Try to find resource in static resources.yaml first
-  let crdMeta = resources[rest]?.filter(x => x.name === name) || []
-  
-  // If not found and we have a manifest, try the manifest
-  if (crdMeta.length === 0 && releaseManifest.length > 0) {
+  // Prefer release manifest entries when available; fallback to static resources.yaml otherwise
+  let crdMeta: any[] = []
+  if (releaseManifest.length > 0) {
     const manifestEntry = releaseManifest.find(x => x.name === name)
     if (manifestEntry) {
       crdMeta = [manifestEntry]
     }
+  }
+
+  if (crdMeta.length === 0) {
+    // Try to find resource in static resources.yaml as a fallback
+    crdMeta = resources[rest]?.filter(x => x.name === name) || []
   }
   
   if(crdMeta.length !== 1) {
@@ -87,7 +90,28 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
 
     const spec = crd.schema.openAPIV3Schema.properties.spec
     const status = crd.schema.openAPIV3Schema.properties.status
-
+    // Determine the earliest release in which this specific version is marked deprecated
+    let deprecatedSince: string | null = null
+    // iterate from oldest to newest
+    const checkReleases = [...allReleases].reverse();
+    for (const r of checkReleases) {
+      try {
+        let manifest: any[] = []
+        if (r.name === selectedRelease.name && releaseManifest.length > 0) {
+          manifest = releaseManifest
+        } else {
+          const resp = await fetch(`/${r.folder}/manifest.json`)
+          if (!resp.ok) continue
+          manifest = await resp.json()
+        }
+        const entry = manifest.find((x: any) => x.name === name)
+        if (!entry || !entry.versions) continue
+        const v = entry.versions.find((vv: any) => vv.name === versionOnFocus)
+        if (v && v.deprecated) { deprecatedSince = r.label || r.name; break }
+      } catch (e) {
+        // ignore and continue
+      }
+    }
     return {
       name,
       versionOnFocus,
@@ -101,7 +125,8 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
       releaseLabel,
       releaseFolder,
       allReleases,
-      releaseManifest
+      releaseManifest,
+      deprecatedSince
     }
   } catch(e) {
     throw error(404, 'Error fetching resource' + e)

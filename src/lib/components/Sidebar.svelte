@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { writable, derived } from 'svelte/store';
+	import { sidebarOpen } from '$lib/store';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import yaml from 'js-yaml';
@@ -19,6 +20,7 @@
 	
 	// Mobile menu state
 	let isMobileMenuOpen = false;
+	// Desktop sidebar state (from store) — auto-subscribed via `$sidebarOpen`
 	let resourceListEl: HTMLElement | null = null;
 	let sidebarThumbEl: HTMLElement | null = null;
 	let hideThumbTimer: number | null = null;
@@ -157,11 +159,33 @@
 		// Close mobile menu after navigation
 		isMobileMenuOpen = false;
 	}
+
+	/**
+	 * Determine the preferred version used for navigation for a resource in the current release.
+	 * This uses the release manifest if available, and prefers the version hinted by `resDef.versions[0]`.
+	 */
+	function preferredVersionForResource(resDef: CrdResource) {
+		const manifestEntry = $crdMetaStore.find((r) => r.name === resDef.name) || resDef;
+		const pref = resDef?.versions?.[0]?.name;
+		if (manifestEntry && manifestEntry.versions && manifestEntry.versions.length) {
+			const found = manifestEntry.versions.find((v) => v.name === pref);
+			return found ? found.name : manifestEntry.versions[0].name;
+		}
+		return pref || '';
+	}
+
+	function isPreferredVersionDeprecated(resDef: CrdResource) {
+		const manifestEntry = $crdMetaStore.find((r) => r.name === resDef.name) || resDef;
+		const pv = preferredVersionForResource(resDef);
+		if (!pv || !manifestEntry.versions) return false;
+		const vobj = manifestEntry.versions.find((v) => v.name === pv);
+		return !!(vobj && vobj.deprecated);
+	}
 	
 	function toggleMobileMenu() {
 		isMobileMenuOpen = !isMobileMenuOpen;
 	}
-	
+
 	function closeMobileMenu() {
 		isMobileMenuOpen = false;
 	}
@@ -224,6 +248,8 @@
 	</svg>
 </button>
 
+<!-- (removed mini logo) -->
+
 <!-- Overlay (Mobile Only) -->
 {#if isMobileMenuOpen}
 	<div
@@ -241,13 +267,14 @@
 	lg:border-r border-gray-200 dark:border-gray-700 
 	bg-white dark:bg-gray-900 
 	flex flex-col shadow-2xl
-	lg:relative lg:translate-x-0
+	lg:relative
 	fixed inset-y-0 left-0 z-40 lg:z-20
 	transform transition-transform duration-300 ease-in-out
 	{isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+	{ $sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full' }
 ">
 	<!-- Header -->
-	<div class="p-3 md:p-4 pt-14 lg:pt-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+	<div class="sidebar-header relative p-3 md:p-4 pt-14 lg:pt-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
 		
 		<!-- Logo/Title - No close button here, removed justify-between -->
 		<div class="mb-4">
@@ -270,6 +297,25 @@
 				</div>
 			</button>
 		</div>
+
+		<!-- Desktop toggle placed top-right inside the sidebar header -->
+		<button
+			class="hidden lg:inline-flex absolute top-3 right-3 items-center justify-center p-2 rounded-md bg-white/80 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:opacity-95"
+			on:click={() => sidebarOpen.toggle()}
+			aria-label={$sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
+		>
+			{#if $sidebarOpen}
+				<!-- collapse icon -->
+				<svg class="h-4 w-4 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+				</svg>
+			{:else}
+				<!-- expand icon -->
+				<svg class="h-4 w-4 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+				</svg>
+			{/if}
+		</button>
 		
 		<!-- Release Selector -->
 		<div class="mb-4">
@@ -342,12 +388,17 @@
 			>
 				<div class="flex items-start justify-between gap-2">
 					<div class="flex-1 min-w-0">
-						<div class="text-sm font-semibold truncate transition-colors
-						            {isSelected 
-							? 'text-white' 
-							: 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'}">
-							{resDef.name.split('.')[0]}
-						</div>
+								<div class="flex items-center gap-2">
+									<div class="text-sm font-semibold truncate transition-colors
+												{isSelected 
+												? 'text-white' 
+												: 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'}">
+										{resDef.name.split('.')[0]}
+									</div>
+									{#if isPreferredVersionDeprecated(resDef)}
+										<span class="text-xs font-semibold text-orange-600 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-md">DEPRECATED</span>
+									{/if}
+								</div>
 						<div class="text-xs truncate
 						            {isSelected 
 							? 'text-blue-100' 

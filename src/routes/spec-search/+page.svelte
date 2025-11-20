@@ -332,8 +332,8 @@
     <div class="flex flex-1 flex-col lg:flex-row relative z-10">
       <div class="flex-1 overflow-auto pb-16">
         <div class="max-w-7xl mx-auto px-4 py-8">
-          <div class="flex items-center justify-between mb-6 gap-4">
-            <div class="flex items-center gap-4">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
               <a href="/" class="flex items-center gap-3 no-underline">
                 <img src="/images/eda.svg" alt="Nokia EDA" width="40" height="40" class="rounded" />
                 <div class="leading-tight">
