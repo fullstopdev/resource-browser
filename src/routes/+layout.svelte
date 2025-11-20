@@ -12,7 +12,7 @@
 	const isDetailPage = derived(page, $page => {
 		const path = $page.url.pathname || '/';
 		// Explicit exclusion for certain routes that should never show the sidebar
-		if (path.startsWith('/bulk-diff')) return false;
+		if (path.startsWith('/bulk-diff') || path.startsWith('/spec-search')) return false;
 		// Match two segments like /resource/version; do not show for single-segment paths
 		return /^\/[^\/]+\/[^\/]+$/.test(path);
 	});

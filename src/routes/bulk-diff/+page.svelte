@@ -26,8 +26,105 @@
 	let bulkDiffTargetVersionsLoading = false;
 	let expandedCrdNames: string[] = [];
 	let filteredBulkDiffCrds: any[] = [];
+	let bulkDiffSearch = '';
+	let bulkDiffSearchRegex = true;
+	let debouncedBulkDiffSearch = '';
+	let debounceTimeout: any = null;
+
+	function handleBulkSearchInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		if (!bulkDiffSearchRegex) {
+			debouncedBulkDiffSearch = bulkDiffSearch;
+		} else {
+			debounceTimeout = setTimeout(() => { debouncedBulkDiffSearch = bulkDiffSearch; }, 250);
+		}
+	}
+
+	$: if (!bulkDiffSearchRegex) { if (debounceTimeout) { clearTimeout(debounceTimeout); debounceTimeout = null; } debouncedBulkDiffSearch = bulkDiffSearch; }
 	let releaseAvailability: Map<string, boolean> = new Map();
 	let preventDropdownClose = false;
+	// Helper: escape HTML and highlight matches
+	function escapeHtml(s: string) {
+		const entityMap: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+		return String(s ?? '').replace(/[&<>"']/g, (c) => entityMap[c] ?? c);
+	}
+
+	function escapeRegExp(s: string) {
+		return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	}
+
+	 function highlightMatches(text: string, query: string, regexMode: boolean) {
+		 const q = String(query ?? '').trim();
+		 if (!q) return escapeHtml(text);
+		 const hay = String(text || '');
+		 if (regexMode) {
+			try {
+				const re = new RegExp(q, 'ig');
+				// Need to escape HTML first, but to replace matches, we'll split by regex and re-insert
+				// We'll iterate through matches to build highlighted HTML safely
+				let lastIndex = 0;
+				const parts: string[] = [];
+				let match: RegExpExecArray | null;
+				const safeHay = escapeHtml(hay);
+				// Use a plain re on unescaped hay to get accurate indices, then map to escaped string
+				const rawRe = new RegExp(q, 'ig');
+				while ((match = rawRe.exec(hay)) !== null) {
+					const start = match.index;
+					const end = rawRe.lastIndex;
+					parts.push(escapeHtml(hay.substring(lastIndex, start)));
+					parts.push(`<mark class=\"bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5\">${escapeHtml(hay.substring(start, end))}</mark>`);
+					lastIndex = end;
+					if (rawRe.lastIndex === match.index) rawRe.lastIndex++; // avoid infinite loop
+				}
+				parts.push(escapeHtml(hay.substring(lastIndex)));
+				return parts.join('');
+			} catch (e) {
+				// invalid regex, fallback to substring
+				const q = String(query ?? '').trim().toLowerCase();
+				const idx = hay.toLowerCase().indexOf(q);
+				if (idx === -1) return escapeHtml(hay);
+				return `${escapeHtml(hay.substring(0, idx))}<mark class=\"bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5\">${escapeHtml(hay.substring(idx, idx+q.length))}</mark>${escapeHtml(hay.substring(idx+q.length))}`;
+			}
+		} else {
+			const q = String(query ?? '').trim().toLowerCase();
+			if (!q) return escapeHtml(hay);
+			let result = '';
+			let i = 0;
+			const lower = hay.toLowerCase();
+			// If query is alphanumeric only, prefer whole-word match using word boundaries
+			const alphaOnly = /^[A-Za-z0-9_]+$/.test(q);
+			if (alphaOnly) {
+				try {
+					const rawRe = new RegExp(`\\b${escapeRegExp(q)}\\b`, 'ig');
+					let lastIndex = 0;
+					const parts: string[] = [];
+					let match: RegExpExecArray | null;
+					while ((match = rawRe.exec(hay)) !== null) {
+						const start = match.index; const end = rawRe.lastIndex;
+						parts.push(escapeHtml(hay.substring(lastIndex, start)));
+						parts.push(`<mark class=\"bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5\">${escapeHtml(hay.substring(start, end))}</mark>`);
+						lastIndex = end;
+						if (rawRe.lastIndex === match.index) rawRe.lastIndex++; // avoid infinite loop
+					}
+					parts.push(escapeHtml(hay.substring(lastIndex)));
+					return parts.join('');
+				} catch (e) {
+					// fallback to substring
+				}
+			}
+			while (true) {
+				const idx = lower.indexOf(q, i);
+				if (idx === -1) {
+					result += escapeHtml(hay.substring(i));
+					break;
+				}
+				result += escapeHtml(hay.substring(i, idx));
+				result += `<mark class=\"bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5\">${escapeHtml(hay.substring(idx, idx + q.length))}</mark>`;
+				i = idx + q.length;
+			}
+			return result;
+		}
+	}
 
 	// Local CRD store (we'll read manifest or fall back to resources.yaml similar to original implementation)
 	let crdMetaStore: CrdResource[] = [];
@@ -110,7 +207,38 @@ function handleSelectClose() {
 }
 
 // Always exclude CRDs with 'states' in their name from the UI filtered results
-$: filteredBulkDiffCrds = bulkDiffReport ? bulkDiffReport.crds.filter((crd: any) => bulkDiffStatusFilter.includes(crd.status) && !crd.name.includes('states')) : [];
+let effectiveBulkDiffSearch = '';
+$: effectiveBulkDiffSearch = bulkDiffSearchRegex ? debouncedBulkDiffSearch : bulkDiffSearch;
+
+$: filteredBulkDiffCrds = bulkDiffReport ? bulkDiffReport.crds.filter((crd: any) => {
+	if (!bulkDiffStatusFilter.includes(crd.status)) return false;
+	if (crd.name.includes('states')) return false;
+	const q = String(effectiveBulkDiffSearch ?? '').trim();
+	if (!q) return true;
+	const hay = `${crd.name} ${crd.details ? crd.details.join(' ') : ''}`;
+	if (bulkDiffSearchRegex) {
+		try {
+			const re = new RegExp(q, 'i');
+			return re.test(hay);
+		} catch (e) {
+			// invalid regex: fallback to substring
+			return hay.toLowerCase().includes(q.toLowerCase());
+		}
+	} else {
+		const alphaOnly = /^[A-Za-z0-9_]+$/.test(q);
+		if (alphaOnly) {
+			try {
+				const re = new RegExp(`\\b${escapeRegExp(q)}\\b`, 'i');
+				return re.test(hay);
+			} catch (e) {
+				// fallback to substring
+			}
+		}
+		return hay.toLowerCase().includes(q.toLowerCase());
+	}
+}) : [];
+
+// Debounce is implemented in handleBulkSearchInput to make the search reactive per keystroke
 
 $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count', { total: bulkDiffReport.crds.length, filtered: filteredBulkDiffCrds.length });
 
@@ -295,6 +423,99 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 		}
 
 	}
+
+	// --- Spec search (search inside CRD specs for a selected release+version) ---
+	let specSearchReleaseName = '';
+	let specSearchRelease: EdaRelease | null = null;
+	let specSearchVersion = '';
+	let specSearchVersions: string[] = [];
+	let specSearchLoading = false;
+	let specSearchQuery = '';
+	let specSearchResults: Array<{ name: string; kind?: string; snippet: string }> = [];
+
+	$: specSearchRelease = specSearchReleaseName ? releasesConfig.releases.find(r => r.name === specSearchReleaseName) || null : null;
+
+	async function loadSpecSearchVersions() {
+		if (!specSearchRelease) { specSearchVersions = []; specSearchVersion = ''; return; }
+		specSearchVersions = await loadVersionsForRelease(specSearchRelease);
+		if (!specSearchVersions.includes(specSearchVersion)) specSearchVersion = '';
+	}
+
+	function stripDescriptions(obj: any): any {
+		if (obj == null) return obj;
+		if (Array.isArray(obj)) return obj.map(stripDescriptions);
+		if (typeof obj === 'object') {
+			const out: any = {};
+			for (const k of Object.keys(obj)) {
+				if (k === 'description') continue;
+				out[k] = stripDescriptions(obj[k]);
+			}
+			return out;
+		}
+		return obj;
+	}
+
+	async function performSpecSearch() {
+		specSearchResults = [];
+		if (!specSearchRelease || !specSearchVersion || !specSearchQuery) return;
+		specSearchLoading = true;
+		try {
+			// load manifest for the release
+			const resp = await fetch(`/${specSearchRelease.folder}/manifest.json`);
+			if (!resp.ok) {
+				specSearchLoading = false;
+				return;
+			}
+			const manifest = await resp.json();
+			const q = String(specSearchQuery ?? '').trim();
+			let re: RegExp | null = null;
+			try { re = new RegExp(q, 'i'); } catch (e) { re = null; }
+
+			const promises = manifest.map(async (res: any) => {
+				const path = `/${specSearchRelease!.folder}/${res.name}/${specSearchVersion}.yaml`;
+				try {
+					const r = await fetch(path);
+					if (!r.ok) return null;
+					const txt = await r.text();
+					// parse YAML
+					const parsed = yaml.load(txt) as any;
+					const specSchema = parsed?.schema?.openAPIV3Schema?.properties?.spec;
+					if (!specSchema) return null;
+					const stripped = stripDescriptions(specSchema);
+					const hay = JSON.stringify(stripped);
+					let matched = false;
+					let snippet = '';
+					if (re) {
+						const m = re.exec(hay);
+						if (m) {
+							matched = true;
+							const idx = m.index;
+							const start = Math.max(0, idx - 80);
+							const end = Math.min(hay.length, idx + (m[0]?.length || q.length) + 80);
+							snippet = hay.substring(start, end);
+						}
+					} else {
+						const idx = hay.toLowerCase().indexOf(q.toLowerCase());
+						if (idx !== -1) {
+							matched = true;
+							const start = Math.max(0, idx - 80);
+							const end = Math.min(hay.length, idx + q.length + 80);
+							snippet = hay.substring(start, end);
+						}
+					}
+					if (matched) return { name: res.name, kind: res.kind, snippet };
+					return null;
+				} catch (e) {
+					return null;
+				}
+			});
+
+			const settled = await Promise.all(promises);
+			specSearchResults = settled.filter(Boolean) as any;
+		} finally {
+			specSearchLoading = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -421,7 +642,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 										<div class="w-6 h-6 flex items-center justify-center rounded-md bg-{item.color}-100 dark:bg-{item.color}-900/30">
 											<svg class="w-4 h-4 text-{item.color}-600 dark:text-{item.color}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={item.icon} /></svg>
 										</div>
-										<div class="font-semibold text-{item.color}-600 dark:text-{item.color}-400">{bulkDiffReport ? bulkDiffReport.crds.filter((c: any) => c.status === item.status && !c.name.includes('states')).length : 0}</div>
+										<div class="font-semibold text-{item.color}-600 dark:text-{item.color}-400">{bulkDiffReport ? bulkDiffReport.crds.filter((c: any) => c.status === item.status).length : 0}</div>
 										<div class="text-xs text-{item.color}-700 dark:text-{item.color}-300">{item.label}</div>
 									</button>
 								{/each}
@@ -453,6 +674,25 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 								</div>
 							</div>
 
+							<!-- Independent Search Bar (clean, pro) -->
+							<div class="mb-4">
+								<div class="flex items-center gap-3">
+									<div class="relative flex-1">
+										<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+											<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+										</div>
+										<input id="bulk-search" bind:value={bulkDiffSearch} on:input={handleBulkSearchInput} placeholder="Search CRD name or diff (supports regex)" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 pl-9 pr-10 py-3 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" />
+										{#if bulkDiffSearch}
+											<button aria-label="Clear search" on:click={() => { bulkDiffSearch = ''; debouncedBulkDiffSearch = ''; if (debounceTimeout) { clearTimeout(debounceTimeout); debounceTimeout = null; } }} class="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-200">
+												<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+											</button>
+										{/if}
+									</div>
+									<div class="flex items-center gap-3">
+										<div class="text-xs text-gray-500 dark:text-gray-400">{filteredBulkDiffCrds.length} matches</div>
+									</div>
+								</div>
+							</div>
 							<!-- Results Table -->
 							<div>
 								<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
@@ -478,7 +718,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 											<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
 												<div class="flex items-start justify-between gap-3">
 													<div class="min-w-0 mr-2">
-														<div class="text-sm font-semibold text-gray-900 dark:text-white break-words">{crd.name}</div>
+														<div class="text-sm font-semibold text-gray-900 dark:text-white break-words">{@html highlightMatches(crd.name, debouncedBulkDiffSearch, bulkDiffSearchRegex)}</div>
 														<div class="text-xs text-gray-600 dark:text-gray-300">{crd.kind}</div>
 													</div>
 													<div class="flex items-center gap-2">
@@ -503,21 +743,22 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 												{#if expandedCrdNames.includes(crd.name)}
 													<div class="mt-3 space-y-2">
 														{#if crd.details && crd.details.length > 0}
-															{#each crd.details as d}
+															{#key debouncedBulkDiffSearch}
+																{#each crd.details as d}
 																{#if d.startsWith('+')}
 																	<div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
 																		<svg class="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-																		<span class="text-green-800 dark:text-green-200 text-xs break-words">{d.replace(/^\+\s*[^:]+:\s*/, '')}</span>
+																		<span class="text-green-800 dark:text-green-200 text-xs break-words">{@html highlightMatches(d.replace(/^\+\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																	</div>
 																{:else if d.startsWith('-')}
 																	<div class="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2">
 																		<svg class="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-																		<span class="text-red-800 dark:text-red-200 text-xs break-words">{d.replace(/^\-\s*[^:]+:\s*/, '')}</span>
+																		<span class="text-red-800 dark:text-red-200 text-xs break-words">{@html highlightMatches(d.replace(/^\-\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																	</div>
 																{:else if d.startsWith('~')}
 																	<div class="flex items-start gap-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2">
 																		<svg class="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-																		<span class="text-yellow-800 dark:text-yellow-200 text-xs break-words">{d.replace(/^~\s*[^:]+:\s*/, '')}</span>
+																		<span class="text-yellow-800 dark:text-yellow-200 text-xs break-words">{@html highlightMatches(d.replace(/^~\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																	</div>
 																{:else}
 																	<div class="flex items-start gap-2 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
@@ -525,7 +766,8 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																		<span class="text-gray-800 dark:text-gray-200 text-xs break-words">{d}</span>
 																	</div>
 																{/if}
-															{/each}
+																{/each}
+															{/key}
 														{:else}
 															<div class="text-center py-2 text-xs text-gray-600 dark:text-gray-300">No details.</div>
 														{/if}
@@ -549,7 +791,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 											<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
 												{#each filteredBulkDiffCrds as crd}
 													<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-														<td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]">{crd.name}</td>
+															<td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]">{@html highlightMatches(crd.name, debouncedBulkDiffSearch, bulkDiffSearchRegex)}</td>
 														<td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap max-w-[20%]">{crd.kind}</td>
 														<td class="px-3 sm:px-6 py-3 sm:py-4">
 															<span class="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium {crd.status === 'added' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : crd.status === 'removed' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : crd.status === 'unchanged' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'} whitespace-nowrap break-words">
@@ -582,21 +824,22 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																<div class="space-y-2 sm:space-y-3">
 																	{#if crd.details && crd.details.length > 0}
 																		<div class="space-y-2">
-																			{#each crd.details as d}
+																			{#key debouncedBulkDiffSearch}
+																				{#each crd.details as d}
 																				{#if d.startsWith('+')}
 																					<div class="flex items-start gap-2 sm:gap-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2 sm:p-3">
 																						<svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-																						<span class="text-green-800 dark:text-green-200 text-xs sm:text-sm break-words">{d.replace(/^\+\s*[^:]+:\s*/, '')}</span>
+																						<span class="text-green-800 dark:text-green-200 text-xs sm:text-sm break-words">{@html highlightMatches(d.replace(/^\+\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																					</div>
 																				{:else if d.startsWith('-')}
 																					<div class="flex items-start gap-2 sm:gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2 sm:p-3">
 																						<svg class="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-																						<span class="text-red-800 dark:text-red-200 text-xs sm:text-sm break-words">{d.replace(/^\-\s*[^:]+:\s*/, '')}</span>
+																						<span class="text-red-800 dark:text-red-200 text-xs sm:text-sm break-words">{@html highlightMatches(d.replace(/^\-\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																					</div>
 																				{:else if d.startsWith('~')}
 																					<div class="flex items-start gap-2 sm:gap-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 sm:p-3">
 																						<svg class="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-																						<span class="text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm break-words">{d.replace(/^~\s*[^:]+:\s*/, '')}</span>
+																						<span class="text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm break-words">{@html highlightMatches(d.replace(/^~\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																					</div>
 																				{:else}
 																					<div class="flex items-start gap-2 sm:gap-3 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-2 sm:p-3">
@@ -605,6 +848,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																					</div>
 																				{/if}
 																			{/each}
+																		{/key}
 																		</div>
 																	{:else}
 																		<div class="text-center py-8 sm:py-12 bg-gray-50 dark:bg-gray-900/50 rounded-lg sm:rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700">
