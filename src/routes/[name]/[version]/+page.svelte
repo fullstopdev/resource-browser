@@ -308,7 +308,7 @@
 </svelte:head>
 
 {#key `${name}-${versionOnFocus}`}
-<Navbar {name} {versionOnFocus} {deprecated} {validVersions} />
+<Navbar {name} {versionOnFocus} {deprecated} {validVersions} {kind} />
 
 <div class="relative flex flex-col min-h-screen overflow-hidden pt-16 md:pt-[64px]">
 	<div class="relative flex-1">

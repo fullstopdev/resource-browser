@@ -313,10 +313,10 @@ function trapFocus(container: HTMLElement) {
 									<div class="space-y-2">
 										{#each groupedReleases as group}
 											<div>
-												<div class="text-sm font-semibold text-amber-300 mb-1">{group.label}</div>
+												<div class="text-sm font-semibold text-white mb-1">{group.label}</div>
 												<div class="flex flex-wrap gap-2">
 													{#each group.releases as release}
-														<button on:click={() => { selectedRelease.set(release); mobileReleasesOpen = false; goto(`/?release=${release.name}`); }} class="px-2 py-1 text-sm rounded-xl bg-gray-800/60 text-amber-200 hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro border-2 border-slate-700/30">{release.name}</button>
+														<button on:click={() => { selectedRelease.set(release); mobileReleasesOpen = false; goto(`/?release=${release.name}`); }} class="px-3 py-2 text-base rounded-xl bg-gray-800/60 text-white hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro border-2 border-slate-700/30">{release.name}</button>
 													{/each}
 												</div>
 											</div>
@@ -349,23 +349,23 @@ function trapFocus(container: HTMLElement) {
 										<p class="text-base text-gray-300 mt-4">Browse released EDA Custom Resource Definitions grouped by major version</p>
 										<div class="mt-4 space-y-6">
 											{#each groupedReleases as group}
-												<div class="flex items-start gap-4">
-													<div class="w-12 text-amber-300 font-semibold mt-1">{group.label}</div>
+												<div class="flex items-center gap-4">
+													<div class="w-14 text-white font-semibold mt-1 text-base">{group.label}</div>
 													<div class="flex-1">
 														<div class="flex flex-wrap gap-2">
 															{#each group.releases.slice(0,3) as release}
-																<button on:click={async () => { selectedRelease.set(release); const manifest = await loadCrdsForRelease(release); const firstResource = manifest && manifest.length ? manifest[0] : undefined; if (firstResource) { const firstVersion = firstResource.versions?.[0]?.name; if (firstVersion) { goto(`/${firstResource.name}/${firstVersion}?release=${release.name}`); } } mobileReleasesOpen = false; }} class="px-3 py-2 rounded-xl bg-gray-800/60 border-2 border-slate-700/30 text-amber-200 text-xs font-medium hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro">{release.name}</button>
+																<button on:click={async () => { selectedRelease.set(release); const manifest = await loadCrdsForRelease(release); const firstResource = manifest && manifest.length ? manifest[0] : undefined; if (firstResource) { const firstVersion = firstResource.versions?.[0]?.name; if (firstVersion) { goto(`/${firstResource.name}/${firstVersion}?release=${release.name}`); } } mobileReleasesOpen = false; }} class="px-4 py-3 rounded-xl bg-gray-800/60 border-2 border-slate-700/30 text-white text-sm font-medium hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro">{release.name}</button>
 															{/each}
 															{#if group.releases.length > 3}
 																<div class="relative inline-block">
 																	<button on:click={() => toggleGroupShow(group.label)} on:keydown={(e) => {
 																		if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroupShow(group.label); }
 																		if (e.key === 'ArrowDown') { e.preventDefault(); setGroupShow(group.label, true); setTimeout(() => { const menu = e.currentTarget.nextElementSibling as HTMLElement; if (menu) { const first = menu.querySelector<HTMLElement>('button[tabindex="0"]'); if (first) first.focus(); } }, 0); }
-																	}} tabindex="0" class="px-3 py-2 rounded-xl bg-gray-800/60 border-2 border-slate-700/30 text-amber-200 text-xs font-medium hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro">More ▾</button>
+																	}} tabindex="0" class="px-4 py-3 rounded-xl bg-gray-800/60 border-2 border-slate-700/30 text-white text-sm font-medium hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro">More ▾</button>
 																	{#if group.showMore}
 																		<div class="absolute mt-2 bg-gray-800 dark:bg-gray-900 border-2 border-gray-700 rounded-xl shadow-pro p-2 z-40 min-w-32 max-h-60 overflow-y-auto">
 																			{#each group.releases.slice(3) as r}
-																				<button tabindex="0" on:click={async () => { selectedRelease.set(r); const manifest = await loadCrdsForRelease(r); const firstResource = manifest && manifest.length ? manifest[0] : undefined; if (firstResource) { const firstVersion = firstResource.versions?.[0]?.name; if (firstVersion) { goto(`/${firstResource.name}/${firstVersion}?release=${r.name}`); } } mobileReleasesOpen = false; setGroupShow(group.label, false); }} class="block w-full text-left px-3 py-2 rounded-lg text-amber-200 hover:bg-gray-700 hover:text-amber-100 transition-colors text-sm">{r.name}</button>
+																				<button tabindex="0" on:click={async () => { selectedRelease.set(r); const manifest = await loadCrdsForRelease(r); const firstResource = manifest && manifest.length ? manifest[0] : undefined; if (firstResource) { const firstVersion = firstResource.versions?.[0]?.name; if (firstVersion) { goto(`/${firstResource.name}/${firstVersion}?release=${r.name}`); } } mobileReleasesOpen = false; setGroupShow(group.label, false); }} class="block w-full text-left px-4 py-3 rounded-lg text-white hover:bg-gray-700 hover:text-white transition-colors text-sm">{r.name}</button>
 																			{/each}
 																		</div>
 																	{/if}

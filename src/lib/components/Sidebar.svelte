@@ -13,6 +13,9 @@
 	export const selectedRelease = writable<EdaRelease>(defaultRelease);
 	export const crdMetaStore = writable<CrdResource[]>([]);
 	const resourceSearch = writable('');
+
+	// Filter for resource type: 'all' | 'state' | 'config'
+	export const resourceTypeFilter = writable<'all' | 'state' | 'config'>('all');
 	
 	// Mobile menu state
 	let isMobileMenuOpen = false;
@@ -52,12 +55,20 @@
 	$: loadCrdsForRelease($selectedRelease);
 	
 	const resourceSearchFilter = derived(
-		[resourceSearch, crdMetaStore],
-		([$resourceSearch, $crdMetaStore]) => {
+		[resourceSearch, crdMetaStore, resourceTypeFilter],
+		([$resourceSearch, $crdMetaStore, $resourceTypeFilter]) => {
 			const query = $resourceSearch.toLowerCase();
-			return $crdMetaStore.filter((x) =>
-				query.split(/\s+/).every((term) => x.name.includes(term))
+			let filtered = $crdMetaStore.filter((x) =>
+				query.split(/\s+/).every((term) => x.name.toLowerCase().includes(term))
 			);
+
+			if ($resourceTypeFilter === 'state') {
+				filtered = filtered.filter((x) => x.name.toLowerCase().includes('states'));
+			} else if ($resourceTypeFilter === 'config') {
+				filtered = filtered.filter((x) => !x.name.toLowerCase().includes('states'));
+			}
+
+			return filtered;
 		}
 	);
 	
@@ -300,6 +311,16 @@
 					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
 				/>
 			</svg>
+
+			<!-- Resource Type Filter -->
+			<div class="mt-3">
+				<label for="resource-type-filter" class="sr-only">Filter resources</label>
+				<select id="resource-type-filter" bind:value={$resourceTypeFilter} class="select-pro w-full">
+					<option value="all">All</option>
+					<option value="state">State</option>
+					<option value="config">Config</option>
+				</select>
+			</div>
 		</div>
 	</div>
 
