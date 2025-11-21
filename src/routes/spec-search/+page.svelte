@@ -44,9 +44,8 @@
 
   let loading = false;
   let results: Array<{ name: string; kind?: string; schema: any; version?: string; type?: 'spec'|'status' }> = [];
-  let filterType: 'all' | 'spec' | 'status' = 'all';
-
-  $: displayedResults = results.filter(r => filterType === 'all' || r.type === filterType);
+  // No filtering via dropdown - always show all results
+  $: displayedResults = results;
 
   $: release = releaseName ? releasesConfig.releases.find(r => r.name === releaseName) || null : null;
 
@@ -419,7 +418,7 @@
           </div>
       <!-- Independent Search Bar (clean, pro) like Bulk Diff (separate from result table) -->
       <div class="mb-4">
-        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3">
           <div class="relative flex-1">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
@@ -439,13 +438,7 @@
                 Search
               {/if}
             </button>
-            <div class="relative ml-2">
-              <select id="spec-filter" bind:value={filterType} class="appearance-none pl-3 pr-8 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-xs sm:text-sm text-gray-900 dark:text-white min-w-[92px] sm:min-w-[120px] h-10">
-                <option value="all">All</option>
-                <option value="spec">Spec</option>
-                <option value="status">Status</option>
-              </select>
-            </div>
+            <!-- Filter dropdown removed; all results are shown -->
             <button on:click={() => { expandAll.update(v => { const nv = !v; expandAllScope.set('global'); return nv }); }} class="px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium">
               {#if $expandAll}Collapse All{:else}Expand All{/if}
             </button>
