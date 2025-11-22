@@ -450,7 +450,7 @@
           </div>
           <div class="text-sm text-gray-500 dark:text-gray-400">{displayedResults.length} matches</div>
           <div class="ml-3 flex items-center gap-2">
-            <span class="text-xs text-gray-500 mr-2">View:</span>
+            <span class="text-xs text-gray-900 dark:text-gray-200 mr-2">View:</span>
             <button
               on:click={() => resultsViewMode = 'tree'}
               class="px-2 py-1 rounded-md text-xs font-semibold {resultsViewMode === 'tree' ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}"
@@ -492,7 +492,7 @@
                 </div>
               </div>
               <div class="mt-3">
-                <div class="text-xs text-gray-700 dark:text-gray-300 whitespace-normal break-words">
+                <div class="text-xs text-gray-900 dark:text-gray-200 whitespace-normal break-words">
                   {#if resultsViewMode === 'tree'}
                     <Render hash={`${r.name}.${r.version}`} source={release?.name || 'release'} type={r.type || 'spec'} data={r.schema} />
                   {:else}
@@ -520,7 +520,7 @@
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]"><div class="font-semibold">{r.kind}</div><div class="text-xs text-gray-500 dark:text-gray-300">{stripResourcePrefixFQDN(String(r.name))}</div></td>
                   <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap max-w-[12%]">{r.version}</td>
-                  <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 dark:text-gray-300 break-words whitespace-normal max-w-[40%]"><div class="pro-spec-preview max-h-[40rem] overflow-auto">
+                  <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-900 dark:text-gray-200 break-words whitespace-normal max-w-[40%]"><div class="pro-spec-preview max-h-[40rem] overflow-auto">
                     {#if resultsViewMode === 'tree'}
                       <Render hash={`${r.name}.${r.version}`} source={release?.name || 'release'} type={r.type || 'spec'} data={r.schema} />
                     {:else}

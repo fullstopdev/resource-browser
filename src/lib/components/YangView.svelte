@@ -164,6 +164,12 @@
     return stripResourcePrefixFQDN(item);
   }
 
+  function stripParens(s: string) {
+    if (!s || typeof s !== 'string') return s;
+    // Remove any parentheses characters anywhere in the string
+    return s.replace(/[()]/g, '');
+  }
+
   function openResource(path: string) {
     const ver = resourceVersion ? `/${resourceName}/${resourceVersion}` : `/${resourceName}`;
     const q = releaseName ? `?release=${encodeURIComponent(releaseName)}` : '';
@@ -179,7 +185,7 @@
   }
 </script>
 
-<ul class="space-y-1">
+<ul class="space-y-1 text-gray-900 dark:text-gray-200">
   {#if paths.length === 0}
     <li class="text-xs text-gray-500 dark:text-gray-300">No fields found for this entry.</li>
   {/if}
@@ -187,7 +193,7 @@
     <li class="flex items-start gap-2 justify-between py-1">
       <div class="min-w-0">
         <div class="flex items-center gap-2">
-          <button class="text-xs text-gray-800 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium hover:underline" on:click={() => openResource(p.path)}>
+          <button type="button" class="text-xs text-gray-800 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium hover:underline" on:click={() => openResource(p.path)}>
             <span class="max-w-[70%] break-words">{p.displayPath}{#if p.required}<sup class="text-xs font-bold text-red-500 dark:text-red-400">*</sup>{/if}</span>
           </button>
           {#if p.t}
@@ -227,38 +233,58 @@
           {@const defListStripped = defList ? defList.map(stripResourcePrefixItem) : null}
           {#if defList}
             {@const fieldId = `${p.path}:def`}
-            <div class="text-xs text-gray-800 dark:text-gray-200 font-mono px-2 py-0.5 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 max-w-[28rem] break-words whitespace-normal">
+            <div class="text-xs text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 max-w-[28rem] break-words whitespace-normal" title="default">
               {#if expandedFields[fieldId]}
-                {defListStripped!.join(', ')}
-                  <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldId)}>Show less</button>
+                <div class="flex flex-wrap gap-1">
+                  {#each defListStripped! as item}
+                    <code class="text-orange-900 dark:text-orange-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{stripParens(item)}</code>
+                  {/each}
+                </div>
+                <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldId)}>Show less</button>
               {:else}
-                {defListStripped!.slice(0, 4).join(', ')}{defListStripped!.length > 4 ? `, +${defListStripped!.length-4} more` : ''}
-                {#if defList.length > 4}
-                  <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldId)}>Show more</button>
-                {/if}
+                <div class="flex items-center gap-1">
+                  {#each defListStripped!.slice(0, 4) as item}
+                    <code class="text-orange-900 dark:text-orange-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{stripParens(item)}</code>
+                  {/each}
+                  {#if defListStripped!.length > 4}
+                    <span class="text-xs text-gray-600 dark:text-gray-400">, +{defListStripped!.length-4} more</span>
+                    <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldId)}>Show more</button>
+                  {/if}
+                </div>
               {/if}
             </div>
           {:else}
-            <div class="text-xs text-gray-600 dark:text-gray-300 font-mono px-2 py-0.5 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 max-w-[28rem] break-words whitespace-normal">{stripResourcePrefixItem(String(p.def))}</div>
+            <div class="text-xs text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 max-w-[28rem] break-words whitespace-normal" title="default">
+              <code class="text-orange-900 dark:text-orange-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{stripParens(stripResourcePrefixItem(String(p.def)))}</code>
+            </div>
           {/if}
         {/if}
         {#if p.enum}
           {@const enumItems = parseListValue(String(p.enum))}
           {@const enumItemsStripped = enumItems ? enumItems.map(stripResourcePrefixItem) : null}
           {@const fieldIdEnum = `${p.path}:enum`}
-          <div class="text-xs text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 max-w-[28rem] break-words whitespace-normal overflow-auto">
+          <div class="text-xs text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 max-w-[28rem] break-words whitespace-normal overflow-auto" title="enum">
             {#if enumItems}
                 {#if expandedFields[fieldIdEnum]}
-                {enumItemsStripped!.join(', ')}
+                <div class="flex flex-wrap gap-1">
+                  {#each enumItemsStripped! as item}
+                    <code class="text-violet-900 dark:text-violet-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{stripParens(item)}</code>
+                  {/each}
+                </div>
                 <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldIdEnum)}>Show less</button>
               {:else}
-                {enumItemsStripped!.slice(0, 4).join(', ')}{enumItemsStripped!.length > 4 ? `, +${enumItemsStripped!.length-4} more` : ''}
-                {#if enumItems.length > 4}
-                  <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldIdEnum)}>Show more</button>
-                {/if}
+                <div class="flex items-center gap-1">
+                  {#each enumItemsStripped!.slice(0, 4) as item}
+                    <code class="text-violet-900 dark:text-violet-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{stripParens(item)}</code>
+                  {/each}
+                  {#if enumItemsStripped!.length > 4}
+                    <span class="text-xs text-gray-600 dark:text-gray-400">, +{enumItemsStripped!.length-4} more</span>
+                    <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldIdEnum)}>Show more</button>
+                  {/if}
+                </div>
               {/if}
-            {:else}
-              {stripResourcePrefixItem(String(p.enum))}
+              {:else}
+              <code class="text-violet-900 dark:text-violet-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{stripParens(stripResourcePrefixItem(String(p.enum)))}</code>
             {/if}
           </div>
         {/if}
