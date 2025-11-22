@@ -258,7 +258,7 @@ function trapFocus(container: HTMLElement) {
 	<title>EDA Resource Browser{selectedResource ? ` | ${resourceInfo?.kind || selectedResource}` : ''}</title>
 </svelte:head>
 
-<div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-[64px]">
+<div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-16 md:pt-20">
 	<div class="flex flex-1 flex-col lg:flex-row relative z-10">
 		{#if selectedResource}
 			<button on:click={toggleMobileMenu} class="fixed top-4 left-6 z-60 no-blur p-2 rounded-lg bg-blue-600 text-white shadow-xl" aria-label="Toggle menu">

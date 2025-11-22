@@ -1,6 +1,6 @@
 <script lang="ts">
   import { copy } from 'svelte-copy';
-  import { getScope, getDescription, getFormat, getDefault, getEnum } from './functions';
+  import { getScope, getDescription, getFormat, getDefault, getEnum, stripResourcePrefixFQDN } from './functions';
   import type { Schema } from '$lib/structure';
 
   export let hash: string = '';
@@ -23,7 +23,7 @@
     desc?: string;
     format?: string;
     def?: string;
-    enum?: string[];
+    enum?: string | string[];
     required?: boolean;
   };
 
@@ -129,6 +129,40 @@
 
   let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
   let copiedPath: string | null = null;
+  $: { void hash; void source; }
+  // Track which fields' long values are expanded (use simple object for Svelte reactivity)
+  let expandedFields: Record<string, boolean> = {};
+
+  function isExpanded(fieldId: string) {
+    return !!expandedFields[fieldId];
+  }
+  function toggleExpanded(fieldId: string) {
+    expandedFields = { ...expandedFields, [fieldId]: !expandedFields[fieldId] };
+  }
+
+  function parseListValue(v: string): string[] | null {
+    if (!v) return null;
+    try {
+      // Trim surrounding brackets [] if present
+      const trimmed = v.trim();
+      let inner = trimmed;
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        inner = trimmed.substring(1, trimmed.length - 1);
+      }
+      // Now split on comma allowing numbers with dashes: use simple split
+      const parts = inner.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length <= 1) return null;
+      return parts;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Reuse shared helper to strip eda.nokia.com prefix
+  function stripResourcePrefixItem(item: string) {
+    if (!item || typeof item !== 'string') return item;
+    return stripResourcePrefixFQDN(item);
+  }
 
   function openResource(path: string) {
     const ver = resourceVersion ? `/${resourceName}/${resourceVersion}` : `/${resourceName}`;
@@ -147,21 +181,21 @@
 
 <ul class="space-y-1">
   {#if paths.length === 0}
-    <li class="text-xs text-gray-500">No fields found for this entry.</li>
+    <li class="text-xs text-gray-500 dark:text-gray-300">No fields found for this entry.</li>
   {/if}
   {#each paths as p}
     <li class="flex items-start gap-2 justify-between py-1">
       <div class="min-w-0">
         <div class="flex items-center gap-2">
-          <button class="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline" on:click={() => openResource(p.path)}>
+          <button class="text-xs text-gray-800 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium hover:underline" on:click={() => openResource(p.path)}>
             <span class="max-w-[70%] break-words">{p.displayPath}{#if p.required}<sup class="text-xs font-bold text-red-500 dark:text-red-400">*</sup>{/if}</span>
           </button>
           {#if p.t}
-            {@const typeColor = typeColors[p.t] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
+            {@const typeColor = typeColors[(p.t as unknown) as keyof typeof typeColors] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
             <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border {typeColor} font-mono">{p.t}</span>
           {/if}
-          <a
-            href={() => '#'}
+          <button
+            type="button"
             class="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 p-1 rounded text-sm font-semibold"
             on:click={(e) => { e.preventDefault(); openResource(p.path); }}
             use:copy={{
@@ -181,18 +215,52 @@
             title="Open resource and copy link"
           >
             {@html copiedPath === p.path ? '&check;' : '#'}
-          </a>
+          </button>
         </div>
         {#if p.desc}
-          <div class="text-xs text-gray-500 mt-0.5">{p.desc}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{p.desc}</div>
         {/if}
       </div>
       <div class="flex items-center gap-2">
         {#if p.def}
-          <div class="text-xs text-gray-600 dark:text-gray-300 font-mono px-2 py-0.5 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">{p.def}</div>
+          {@const defList = parseListValue(String(p.def))}
+          {@const defListStripped = defList ? defList.map(stripResourcePrefixItem) : null}
+          {#if defList}
+            {@const fieldId = `${p.path}:def`}
+            <div class="text-xs text-gray-800 dark:text-gray-200 font-mono px-2 py-0.5 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 max-w-[28rem] break-words whitespace-normal">
+              {#if expandedFields[fieldId]}
+                {defListStripped!.join(', ')}
+                  <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldId)}>Show less</button>
+              {:else}
+                {defListStripped!.slice(0, 4).join(', ')}{defListStripped!.length > 4 ? `, +${defListStripped!.length-4} more` : ''}
+                {#if defList.length > 4}
+                  <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldId)}>Show more</button>
+                {/if}
+              {/if}
+            </div>
+          {:else}
+            <div class="text-xs text-gray-600 dark:text-gray-300 font-mono px-2 py-0.5 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 max-w-[28rem] break-words whitespace-normal">{stripResourcePrefixItem(String(p.def))}</div>
+          {/if}
         {/if}
         {#if p.enum}
-          <div class="text-xs text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20">{p.enum}</div>
+          {@const enumItems = parseListValue(String(p.enum))}
+          {@const enumItemsStripped = enumItems ? enumItems.map(stripResourcePrefixItem) : null}
+          {@const fieldIdEnum = `${p.path}:enum`}
+          <div class="text-xs text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 max-w-[28rem] break-words whitespace-normal overflow-auto">
+            {#if enumItems}
+                {#if expandedFields[fieldIdEnum]}
+                {enumItemsStripped!.join(', ')}
+                <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldIdEnum)}>Show less</button>
+              {:else}
+                {enumItemsStripped!.slice(0, 4).join(', ')}{enumItemsStripped!.length > 4 ? `, +${enumItemsStripped!.length-4} more` : ''}
+                {#if enumItems.length > 4}
+                  <button type="button" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium" on:click={() => toggleExpanded(fieldIdEnum)}>Show more</button>
+                {/if}
+              {/if}
+            {:else}
+              {stripResourcePrefixItem(String(p.enum))}
+            {/if}
+          </div>
         {/if}
       </div>
     </li>

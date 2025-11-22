@@ -5,6 +5,7 @@
   import Footer from '$lib/components/Footer.svelte';
   import Render from '$lib/components/Render.svelte';
   import YangView from '$lib/components/YangView.svelte';
+  import { stripResourcePrefixFQDN } from '$lib/components/functions';
   import { expandAll, expandAllScope } from '$lib/store';
   import releasesYaml from '$lib/releases.yaml?raw';
   import type { EdaRelease, ReleasesConfig } from '$lib/structure';
@@ -379,7 +380,7 @@
 
 <TopHeader title="Search CRD Specs & Status" subtitle="Select a release and version (leave version blank to search all versions), then search inside CRD spec and status schemas (descriptions are ignored)." />
 
-<div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-[64px]">
+<div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-16 md:pt-20">
     <div class="flex flex-1 flex-col lg:flex-row relative z-10">
       <div class="flex-1 overflow-auto pb-16">
         <div class="max-w-7xl mx-auto px-4 py-8">
@@ -449,7 +450,7 @@
           </div>
           <div class="text-sm text-gray-500 dark:text-gray-400">{displayedResults.length} matches</div>
           <div class="ml-3 flex items-center gap-2">
-            <label class="text-xs text-gray-500 mr-2">View:</label>
+            <span class="text-xs text-gray-500 mr-2">View:</span>
             <button
               on:click={() => resultsViewMode = 'tree'}
               class="px-2 py-1 rounded-md text-xs font-semibold {resultsViewMode === 'tree' ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}"
@@ -482,7 +483,7 @@
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 mr-2">
                     <div class="text-sm font-semibold text-gray-900 dark:text-white break-words">{r.kind}</div>
-                    <div class="text-xs text-gray-600 dark:text-gray-300">{r.name}</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-300">{stripResourcePrefixFQDN(String(r.name))}</div>
                 </div>
                 <div class="flex items-center gap-2">
                   {#if r.version}
@@ -517,7 +518,7 @@
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {#each displayedResults as r}
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]"><div class="font-semibold">{r.kind}</div><div class="text-xs text-gray-500">{r.name}</div></td>
+                  <td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]"><div class="font-semibold">{r.kind}</div><div class="text-xs text-gray-500 dark:text-gray-300">{stripResourcePrefixFQDN(String(r.name))}</div></td>
                   <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap max-w-[12%]">{r.version}</td>
                   <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 dark:text-gray-300 break-words whitespace-normal max-w-[40%]"><div class="pro-spec-preview max-h-[40rem] overflow-auto">
                     {#if resultsViewMode === 'tree'}

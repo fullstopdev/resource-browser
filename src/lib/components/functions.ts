@@ -84,3 +84,14 @@ export function hashExistDeep(hash: string, currentId: string) {
   }
   return false
 }
+
+// Remove the first label of an eda.nokia.com FQDN: 'ntpclients.timing.eda.nokia.com' -> 'timing.eda.nokia.com'
+export function stripResourcePrefixFQDN(fqdn: string) {
+  if (!fqdn || typeof fqdn !== 'string') return fqdn;
+  const suffix = '.eda.nokia.com';
+  const trimmed = fqdn.trim();
+  if (!trimmed.endsWith(suffix)) return trimmed;
+  const parts = trimmed.split('.');
+  if (parts.length < 3) return trimmed; // not enough parts to strip
+  return parts.slice(1).join('.');
+}

@@ -6,6 +6,7 @@
 	import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import releasesYaml from '$lib/releases.yaml?raw';
+	import { stripResourcePrefixFQDN } from '$lib/components/functions';
 	import type { EdaRelease, ReleasesConfig, CrdResource } from '$lib/structure';
 
 	const releasesConfig = yaml.load(releasesYaml) as ReleasesConfig;
@@ -526,7 +527,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 <AnimatedBackground />
 <TopHeader title="Release Comparison" subtitle="Compare CRDs across two release versions to understand additions, removals, and modifications." />
 
-<div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-[64px]">
+<div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-16 md:pt-20">
 	<div class="flex flex-1 flex-col lg:flex-row relative z-10">
 		<div class="flex-1 overflow-auto pb-16">
 			<div class="max-w-7xl mx-auto px-4 py-8">
@@ -713,7 +714,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 											<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
 												<div class="flex items-start justify-between gap-3">
 													<div class="min-w-0 mr-2">
-														<div class="text-sm font-semibold text-gray-900 dark:text-white break-words">{@html highlightMatches(crd.name, debouncedBulkDiffSearch, bulkDiffSearchRegex)}</div>
+														<div class="text-sm font-semibold text-gray-900 dark:text-white break-words">{@html highlightMatches(stripResourcePrefixFQDN(crd.name), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</div>
 														<div class="text-xs text-gray-600 dark:text-gray-300">{crd.kind}</div>
 													</div>
 													<div class="flex items-center gap-2">
@@ -785,7 +786,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 											<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
 												{#each filteredBulkDiffCrds as crd}
 													<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-															<td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]"><div class="font-semibold">{crd.kind}</div><div class="text-xs text-gray-500">{@html highlightMatches(crd.name, debouncedBulkDiffSearch, bulkDiffSearchRegex)}</div></td>
+															<td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]"><div class="font-semibold">{crd.kind}</div><div class="text-xs text-gray-500 dark:text-gray-300">{@html highlightMatches(stripResourcePrefixFQDN(crd.name), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</div></td>
 														<td class="px-3 sm:px-6 py-3 sm:py-4">
 															<span class="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium {crd.status === 'added' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : crd.status === 'removed' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : crd.status === 'unchanged' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'} whitespace-nowrap break-words">
 																	{#if crd.status === 'added'}

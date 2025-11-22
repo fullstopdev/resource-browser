@@ -336,7 +336,7 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 {#key `${name}-${versionOnFocus}`}
 <TopHeader name={name} versionOnFocus={versionOnFocus} validVersions={validVersions} deprecated={deprecated} deprecatedSince={undefined} kind={kind} subtitle={releaseLabel} />
 
-<div class="relative flex flex-col min-h-screen overflow-hidden pt-16 md:pt-[64px]">
+<div class="relative flex flex-col min-h-screen overflow-hidden pt-16 md:pt-20">
 	<div class="relative flex-1">
 		<main class="flex-1 px-4 pt-4 pb-10 md:px-8 lg:px-12 md:pt-6">
 			<div class="mx-auto w-full max-w-7xl">

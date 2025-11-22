@@ -332,7 +332,7 @@
 				class="w-full px-3 py-2 pl-9 text-sm border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 bg-black/30 text-white placeholder-gray-400 transition-colors"
 			/>
 			<svg
-				class="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500"
+				class="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-300"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
