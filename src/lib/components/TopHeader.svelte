@@ -39,8 +39,8 @@
 </script>
 
 <nav class="fixed top-0 left-0 right-0 z-30 h-16 md:h-20 border-b border-white/10 dark:border-white/10 bg-white/5 dark:bg-transparent backdrop-blur-sm shadow-lg">
-  <!-- Logo / app identity stays pinned to the far left edge -->
-  <div class="absolute left-0 inset-y-0 flex items-center pl-4 sm:pl-20">
+  <!-- Logo / app identity stays pinned to the far left edge (desktop only) -->
+  <div class="absolute left-0 inset-y-0 flex items-center pl-4 sm:pl-20 hidden sm:flex">
     <a href="/" class="flex items-center gap-3 no-underline">
       <img src="/images/eda.svg" alt="Nokia EDA" width="40" height="40" class="rounded" />
       <div class="leading-tight hidden sm:block">
@@ -66,10 +66,20 @@
   <div class="max-w-7xl mx-auto px-4 pl-4 sm:pl-20 md:pl-24 lg:pl-28 h-full">
     <div class="flex items-center justify-center sm:justify-between gap-3 h-full">
       <div class="min-w-0 text-center sm:text-left">
+          <!-- Mobile: compact app identity (left-aligned, smaller text) -->
+          <div class="block sm:hidden w-full mb-0.5">
+            <a href="/" class="inline-flex items-center gap-3 no-underline text-white dark:text-white">
+              <img src="/images/eda.svg" alt="Nokia EDA" width="24" height="24" class="w-6 h-6 rounded" />
+              <div class="leading-tight text-left">
+                <div class="text-xs font-semibold text-white">Nokia EDA</div>
+                <div class="text-[11px] text-white/80">Resource Browser</div>
+              </div>
+            </a>
+          </div>
         {#if title}
-          <div class="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white w-full text-center sm:text-left sm:w-auto">{title}</div>
+          <div class="text-base sm:text-xl font-extrabold text-gray-900 dark:text-white w-full text-center sm:text-left sm:w-auto">{title}</div>
           {#if subtitle}
-              <div class="text-sm text-gray-600 dark:text-gray-300 mt-1 w-full text-center sm:text-left sm:w-auto">{subtitle}</div>
+              <div class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 w-full text-center sm:text-left sm:w-auto">{subtitle}</div>
             {/if}
         {:else if name}
           <div class="flex items-center gap-4 justify-center sm:justify-start">

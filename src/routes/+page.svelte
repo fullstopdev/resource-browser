@@ -310,47 +310,47 @@ function trapFocus(container: HTMLElement) {
 	                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 	                                    </button>
 	                                </div>
-									<div class="space-y-2">
-										{#each groupedReleases as group}
-											<div>
-												<div class="text-sm font-semibold text-white mb-1">{group.label}</div>
-												<div class="flex flex-wrap gap-2">
-													{#each group.releases as release}
-														<button on:click={() => { selectedRelease.set(release); mobileReleasesOpen = false; goto(`/?release=${release.name}`); }} class="px-3 py-2 text-base rounded-xl bg-gray-800/60 text-white hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro border-2 border-slate-700/30">{release.name}</button>
-													{/each}
-												</div>
-											</div>
-										{/each}
-									</div>
+                                                    <div class="space-y-2">
+                                        			{#each groupedReleases as group}
+                                        				<div>
+                                        					<div class="text-sm font-semibold text-white mb-1">{group.label}</div>
+                                        					<div class="flex flex-wrap gap-2">
+                                        						{#each group.releases as release}
+                                        							<button on:click={() => { selectedRelease.set(release); mobileReleasesOpen = false; goto(`/?release=${release.name}`); }} class="px-3 py-2 text-xs sm:text-base rounded-xl bg-gray-800/60 text-white hover:bg-gray-800/80 hover:border-amber-500 dark:hover:border-amber-400 transition-all duration-200 shadow-pro border-2 border-slate-700/30">{release.name}</button>
+                                        						{/each}
+                                        					</div>
+                                        				</div>
+                                        			{/each}
+                                    			</div>
 								</div>
 	                        </div>
 	                    {/if}
 
 					<!-- Main Content -->
 					<div class="relative">
-						<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+						<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:py-12">
 							<!-- YANG-style Releases + Info two-column hero -->
 							<div class="mb-8">
 								<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 									<!-- Left: grouped releases -->
 									<div class="space-y-6">
-										<div class="flex items-center gap-6">
+										<div class="flex items-center gap-4 ml-0 sm:ml-0 justify-start flex-nowrap">
 											<div class="flex items-center gap-3 mr-2">
-												<img src="/images/bird-logo.svg" alt="Nokia" class="w-24 h-24" />
-												<img src="/images/eda.svg" alt="EDA" class="w-20 h-20" />
+												<img src="/images/bird-logo.svg" alt="Nokia" class="w-14 h-14 sm:w-24 sm:h-24" />
+												<img src="/images/eda.svg" alt="EDA" class="w-12 h-12 sm:w-20 sm:h-20" />
 											</div>
 											<div>
-												<h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold font-nokia-headline text-yellow-400 leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
+												<h1 class="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold font-nokia-headline text-yellow-400 leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] text-left">
 													Nokia EDA
 												</h1>
-												<p class="text-xl md:text-2xl text-white mt-1 font-light font-nokia-headline tracking-tight">Resource Browser</p>
+												<p class="text-base sm:text-xl md:text-2xl text-white mt-1 font-light font-nokia-headline tracking-tight text-left">Resource Browser</p>
 											</div>
 										</div>
-										<p class="text-base text-gray-300 mt-4">Browse released EDA Custom Resource Definitions grouped by major version</p>
+										<p class="text-sm sm:text-base text-gray-300 mt-4">Browse released EDA Custom Resource Definitions grouped by major version</p>
 										<div class="mt-4 space-y-6">
 											{#each groupedReleases as group}
 												<div class="flex items-center gap-4">
-													<div class="w-14 text-white font-semibold mt-1 text-base">{group.label}</div>
+													<div class="w-14 text-white font-semibold mt-1 text-sm sm:text-base">{group.label}</div>
 													<div class="flex-1">
 														<div class="flex flex-wrap gap-2">
 															{#each group.releases.slice(0,3) as release}
@@ -379,9 +379,9 @@ function trapFocus(container: HTMLElement) {
 									</div>
 									<!-- Right: info panel -->
 									<div class="flex items-center">
-											<div class="w-full bg-transparent dark:bg-black/20 rounded-xl p-6 border border-white/10 dark:border-white/10 shadow-pro">
-												<h3 class="text-xl font-semibold text-yellow-400 mb-3">About Nokia EDA</h3>
-												<div class="text-lg text-gray-200 dark:text-gray-200 leading-relaxed">
+											<div class="w-full bg-transparent dark:bg-black/20 rounded-xl p-5 sm:p-6 border border-white/10 dark:border-white/10 shadow-pro">
+												<h3 class="text-lg sm:text-xl font-semibold text-yellow-400 mb-3">About Nokia EDA</h3>
+												<div class="text-base sm:text-lg text-gray-200 dark:text-gray-200 leading-relaxed">
 													{@html nokiaEdaDescription.split('\n\n').map(p => `<p class="mb-2">${p}</p>`).join('')}
 												</div>
 											</div>
@@ -403,10 +403,10 @@ function trapFocus(container: HTMLElement) {
 												</svg>
 											</div>
 											<div class="flex-1">
-												<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+												<h3 class="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
 													Release Comparison
 												</h3>
-												<p class="text-sm text-gray-600 dark:text-gray-300">
+												<p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
 													Compare CRDs across different EDA releases and generate detailed diff reports
 												</p>
 											</div>
@@ -426,10 +426,10 @@ function trapFocus(container: HTMLElement) {
 												</svg>
 											</div>
 											<div class="flex-1">
-												<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+												<h3 class="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
 													Spec Search
 												</h3>
-												<p class="text-sm text-gray-600 dark:text-gray-300">
+												<p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
 													Quickly search and find specific CRD schema properties and elements
 												</p>
 											</div>
