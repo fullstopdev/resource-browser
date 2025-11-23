@@ -481,7 +481,7 @@ function trapFocus(container: HTMLElement) {
 							
 							<div class="p-6">
 								{#if viewMode === 'schema'}
-									<Render hash="" source="eda" type="spec" data={resourceData.schema.openAPIV3Schema.properties.spec} />
+									<Render hash="" source="eda" type="spec" data={resourceData.schema.openAPIV3Schema.properties.spec} showType={false} />
 								{:else}
 									<div class="space-y-4">
 										<div>

@@ -217,7 +217,9 @@ $: filteredBulkDiffCrds = bulkDiffReport ? bulkDiffReport.crds.filter((crd: any)
 	if (crd.name.includes('states')) return false;
 	const q = String(effectiveBulkDiffSearch ?? '').trim();
 	if (!q) return true;
-	const hay = `${crd.name} ${crd.details ? crd.details.join(' ') : ''}`;
+	// Sanitize details to make search match more robust: remove the 'spec.' and 'status.' prefixes
+	const details = crd.details ? crd.details.map((d: string) => d.replace(/\b(spec|status)\./ig, '')).join(' ') : '';
+	const hay = `${crd.name} ${details}`;
 	if (bulkDiffSearchRegex) {
 		try {
 			const re = new RegExp(q, 'i');
@@ -750,7 +752,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																							<div>
 																								<div class="text-xs font-semibold text-blue-600 mb-2">SPEC</div>
 																								{#key debouncedBulkDiffSearch}
-																								{#each crd.details.filter(d => d.toLowerCase().includes('spec.')) as d}
+																								{#each crd.details.filter((d: any) => String(d).toLowerCase().includes('spec.')) as d}
 																									{#if d.startsWith('+')}
 																										<div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
@@ -779,7 +781,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																							<div>
 																								<div class="text-xs font-semibold text-indigo-500 mb-2">STATUS</div>
 																								{#key debouncedBulkDiffSearch}
-																								{#each crd.details.filter(d => d.toLowerCase().includes('status.')) as d}
+																								{#each crd.details.filter((d: any) => String(d).toLowerCase().includes('status.')) as d}
 																									{#if d.startsWith('+')}
 																										<div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>

@@ -194,9 +194,9 @@
 				{$ulExpanded.length > 0 ? 'Collapse' : 'Expand'} All
 			</button>
 		</div>
-		<Render source={'uploaded'} type={'spec'} data={spec} />
+		<Render source={'uploaded'} type={'spec'} data={spec} showType={false} />
 		<div class="my-10"></div>
-		<Render source={'uploaded'} type={'status'} data={status} />
+		<Render source={'uploaded'} type={'status'} data={status} showType={false} />
 	{/if}
 </div>
 
