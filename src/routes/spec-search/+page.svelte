@@ -499,7 +499,7 @@
         <!-- Mobile stacked grouped cards (SPEC + STATUS together) -->
         <div class="space-y-3 sm:hidden">
           {#each groupedResults as g}
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 relative isolate overflow-hidden z-0">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 mr-2">
                   <div class="text-sm font-semibold text-gray-900 dark:text-white break-words">{g.kind}</div>
@@ -517,21 +517,29 @@
                     <div class="min-w-[640px] {g.spec && g.status ? 'grid grid-cols-2 gap-4' : 'grid grid-cols-1'}">
                       {#if g.spec}
                         <div>
-                          <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">SPEC</div>
+                          <div class="text-xs font-semibold text-cyan-600 dark:text-cyan-400 mb-1">SPEC</div>
                             {#if resultsViewMode === 'tree'}
-                              <Render hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} showType={false} />
+                              <div class="relative isolate overflow-hidden">
+                                <Render hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} showType={false} />
+                              </div>
                           {:else}
-                            <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                            <div class="relative isolate overflow-hidden">
+                              <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                            </div>
                           {/if}
                         </div>
                       {/if}
                       {#if g.status}
                         <div>
-                          <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">STATUS</div>
+                          <div class="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">STATUS</div>
                           {#if resultsViewMode === 'tree'}
-                            <Render hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} showType={false} />
+                            <div class="relative isolate overflow-hidden">
+                              <Render hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} showType={false} />
+                            </div>
                           {:else}
-                            <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                            <div class="relative isolate overflow-hidden">
+                              <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                            </div>
                           {/if}
                         </div>
                       {/if}
@@ -559,29 +567,37 @@
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {#each groupedResults as g}
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%]"><div class="font-semibold">{g.kind}</div><div class="text-xs text-gray-500 dark:text-gray-300">{stripResourcePrefixFQDN(String(g.name))}</div></td>
-                  <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap max-w-[12%]">{g.version}</td>
-                  <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-900 dark:text-gray-200 break-words whitespace-normal">
-                    <div class="pro-spec-preview max-h-[40rem]">
+                  <td class="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 dark:text-white break-words whitespace-pre-wrap max-w-[40%] relative isolate overflow-hidden z-0"><div class="font-semibold">{g.kind}</div><div class="text-xs text-gray-500 dark:text-gray-300">{stripResourcePrefixFQDN(String(g.name))}</div></td>
+                  <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 dark:text-gray-300 break-words whitespace-pre-wrap max-w-[12%] relative isolate overflow-hidden z-0">{g.version}</td>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-gray-900 dark:text-gray-200 break-words whitespace-normal">
+                    <div class="pro-spec-preview max-h-[40rem] relative isolate overflow-hidden z-0">
                       <div class="overflow-x-auto">
                         <div class="min-w-[640px] space-y-4">
                           {#if g.spec}
                             <div>
-                              <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">SPEC</div>
+                              <div class="text-xs font-semibold text-cyan-600 dark:text-cyan-400 mb-1">SPEC</div>
                               {#if resultsViewMode === 'tree'}
-                                <Render hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} showType={false} />
+                                <div class="relative isolate overflow-hidden">
+                                  <Render hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} showType={false} />
+                                </div>
                               {:else}
-                                <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                                <div class="relative isolate overflow-hidden">
+                                  <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                                </div>
                               {/if}
                             </div>
                           {/if}
                           {#if g.status}
                             <div>
-                              <div class="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">STATUS</div>
+                              <div class="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">STATUS</div>
                               {#if resultsViewMode === 'tree'}
-                                <Render hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} showType={false} />
+                                <div class="relative isolate overflow-hidden">
+                                  <Render hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} showType={false} />
+                                </div>
                               {:else}
-                                <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                                <div class="relative isolate overflow-hidden">
+                                  <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                                </div>
                               {/if}
                             </div>
                           {/if}

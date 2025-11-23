@@ -139,15 +139,15 @@
 	}
 </script>
 
-<li id={currentId} tabindex="-1" class="scroll-mt-[80px] pt-1 {showDiffIndicator ? (
-		nestedDiffStatus === 'added' ? 'bg-green-100/70 dark:bg-green-900/10 border-l-3 border-green-600 dark:border-green-500 pl-2 -ml-2 rounded-md' :
-		nestedDiffStatus === 'removed' ? 'bg-red-100/70 dark:bg-red-900/10 border-l-3 border-red-600 dark:border-red-500 pl-2 -ml-2 rounded-md' :
-		nestedDiffStatus === 'modified' ? 'bg-amber-100/70 dark:bg-yellow-900/10 border-l-3 border-amber-600 dark:border-yellow-500 pl-2 -ml-2 rounded-md' :
+<li id={currentId} tabindex="-1" class="scroll-mt-[80px] pt-1 relative z-0 {showDiffIndicator ? (
+		nestedDiffStatus === 'added' ? 'bg-green-100/70 dark:bg-green-900/10 border-l-3 border-green-600 dark:border-green-500 pl-3 rounded-md' :
+		nestedDiffStatus === 'removed' ? 'bg-red-100/70 dark:bg-red-900/10 border-l-3 border-red-600 dark:border-red-500 pl-3 rounded-md' :
+		nestedDiffStatus === 'modified' ? 'bg-amber-100/70 dark:bg-yellow-900/10 border-l-3 border-amber-600 dark:border-yellow-500 pl-3 rounded-md' :
 		''
 	) : ''} focus:bg-orange-50 dark:focus:bg-orange-900/20 focus:ring-2 focus:ring-orange-400 focus:rounded-md">
 	<div class="group flex items-center space-x-2 px-2 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative">
 		{#if showDiffIndicator}
-			<span class="absolute -left-3 top-2 text-xs font-bold {
+			<span class="absolute left-0 top-2 z-10 text-xs font-bold {
 				nestedDiffStatus === 'added' ? 'text-green-700 dark:text-green-400' :
 				nestedDiffStatus === 'removed' ? 'text-red-700 dark:text-red-400' :
 				'text-amber-700 dark:text-yellow-400'

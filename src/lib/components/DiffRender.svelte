@@ -97,9 +97,9 @@
 					}
 					return null;
 				})() : null}
-				<div class="relative {bgClass} {bgClass ? 'pl-2 -ml-2 my-1 rounded-md' : ''}">
+				<div class="relative {bgClass} {bgClass ? 'pl-3 my-1 rounded-md' : ''}">
 					{#if diffStatus !== 'unchanged'}
-						<span class="absolute -left-1 top-1 text-xs font-bold {
+						<span class="absolute left-0 top-1 z-10 text-xs font-bold {
 							diffStatus === 'added' ? 'text-green-700 dark:text-green-400' :
 							diffStatus === 'removed' ? 'text-red-700 dark:text-red-400' :
 							'text-amber-700 dark:text-yellow-400'

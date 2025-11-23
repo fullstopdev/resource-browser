@@ -750,28 +750,18 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																						<div class="min-w-[640px] grid grid-cols-1 md:grid-cols-2 gap-3">
 																							<!-- SPEC changes column -->
 																							<div>
-																								<div class="text-xs font-semibold text-blue-600 mb-2">SPEC</div>
+																								<div class="text-xs font-semibold text-cyan-600 mb-2">SPEC</div>
 																								{#key debouncedBulkDiffSearch}
 																								{#each crd.details.filter((d: any) => String(d).toLowerCase().includes('spec.')) as d}
 																									{#if d.startsWith('+')}
 																										<div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-																											<span class="text-green-800 dark:text-green-200 text-xs whitespace-pre min-w-max">{@html highlightMatches(d.replace(/^\+\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
-																										</div>
-																									{:else if d.startsWith('-')}
-																										<div class="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2">
-																											<svg class="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-																											<span class="text-red-800 dark:text-red-200 text-xs whitespace-pre min-w-max">{@html highlightMatches(d.replace(/^\-\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
-																										</div>
-																									{:else if d.startsWith('~')}
-																										<div class="flex items-start gap-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2">
-																											<svg class="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-																											<span class="text-yellow-800 dark:text-yellow-200 text-xs whitespace-pre min-w-max">{@html highlightMatches(d.replace(/^~\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
+																											<span class="text-green-800 dark:text-green-200 text-xs whitespace-pre-wrap break-words min-w-max">{@html highlightMatches(d.replace(/^\+\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																										</div>
 																									{:else}
 																										<div class="flex items-start gap-2 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-gray-600 dark:text-gray-300 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-																											<span class="text-gray-800 dark:text-gray-200 text-xs whitespace-pre min-w-max">{d}</span>
+																											<span class="text-gray-800 dark:text-gray-200 text-xs whitespace-pre-wrap break-words min-w-max">{d}</span>
 																										</div>
 																									{/if}
 																								{/each}
@@ -779,28 +769,28 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 																							</div>
 																							<!-- STATUS changes column -->
 																							<div>
-																								<div class="text-xs font-semibold text-indigo-500 mb-2">STATUS</div>
+																								<div class="text-xs font-semibold text-green-600 mb-2">STATUS</div>
 																								{#key debouncedBulkDiffSearch}
 																								{#each crd.details.filter((d: any) => String(d).toLowerCase().includes('status.')) as d}
 																									{#if d.startsWith('+')}
 																										<div class="flex items-start gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-																											<span class="text-green-800 dark:text-green-200 text-xs whitespace-pre min-w-max">{@html highlightMatches(d.replace(/^\+\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
+																											<span class="text-green-800 dark:text-green-200 text-xs whitespace-pre-wrap break-words min-w-max">{@html highlightMatches(d.replace(/^\+\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																										</div>
 																									{:else if d.startsWith('-')}
 																										<div class="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
-																											<span class="text-red-800 dark:text-red-200 text-xs whitespace-pre min-w-max">{@html highlightMatches(d.replace(/^\-\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
+																											<span class="text-red-800 dark:text-red-200 text-xs whitespace-pre-wrap break-words min-w-max">{@html highlightMatches(d.replace(/^\-\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																										</div>
 																									{:else if d.startsWith('~')}
 																										<div class="flex items-start gap-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-																											<span class="text-yellow-800 dark:text-yellow-200 text-xs whitespace-pre min-w-max">{@html highlightMatches(d.replace(/^~\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
+																											<span class="text-yellow-800 dark:text-yellow-200 text-xs whitespace-pre-wrap break-words min-w-max">{@html highlightMatches(d.replace(/^~\s*[^:]+:\s*/, ''), debouncedBulkDiffSearch, bulkDiffSearchRegex)}</span>
 																										</div>
 																									{:else}
 																										<div class="flex items-start gap-2 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
 																											<svg class="w-4 h-4 text-gray-600 dark:text-gray-300 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-																											<span class="text-gray-800 dark:text-gray-200 text-xs whitespace-pre min-w-max">{d}</span>
+																											<span class="text-gray-800 dark:text-gray-200 text-xs whitespace-pre-wrap break-words min-w-max">{d}</span>
 																										</div>
 																									{/if}
 																								{/each}
@@ -858,7 +848,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 													</tr>
 													{#if expandedCrdNames.includes(crd.name)}
 														<tr class="bg-gray-50 dark:bg-gray-900/50">
-															<td colspan="4" id={`details-${crd.name}`} class="px-3 sm:px-6 py-4 sm:py-6">
+															<td colspan="3" id={`details-${crd.name}`} class="px-3 sm:px-6 py-4 sm:py-6">
 																<div class="space-y-2 sm:space-y-3">
 																	{#if crd.details && crd.details.length > 0}
 																		<div class="space-y-2">
