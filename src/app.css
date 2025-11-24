@@ -250,7 +250,10 @@
 	/* Positioned hero image element (inline) that contributes to LCP; it sits behind .has-header-img.
      The actual image is inserted in the layout as an <img> with fetchpriority="high". */
 	.header-bg-container {
-		position: absolute;
+		/* Keep the hero background anchored to the viewport so it always
+		   covers the visible area and doesn't reveal the animated bg
+		   below when the page content scrolls. */
+		position: fixed;
 		inset: 0;
 		z-index: 0;
 		overflow: hidden;
@@ -259,14 +262,12 @@
 	}
 	.header-bg-img {
 		position: absolute;
-		left: 50%;
-		top: 50%;
-		transform: translate(-50%, -50%);
+		inset: 0;
 		width: 100%;
-		height: 100%;
+		height: 100vh; /* ensure the image always covers the viewport height */
 		object-fit: cover;
 		object-position: center;
-		min-height: 100%;
+		min-height: 100vh;
 		min-width: 100%;
 		display: block;
 	}
