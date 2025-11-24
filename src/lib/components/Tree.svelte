@@ -14,6 +14,7 @@
 	export let expanded: boolean;
 	export let borderColor: string;
 	export let compact: boolean = false;
+	export let onResourcePage: boolean = false;
 	$: desc = getDescription(folder);
 	$: compactRowPadding = compact ? 'px-1 py-0.5' : 'px-2 py-2';
 
@@ -309,8 +310,7 @@
 						const url = `${window.location.origin}/${resName}/${resVersion}${releaseParam ? `?release=${encodeURIComponent(releaseParam)}` : ''}#${currentId}`;
 						// Determine whether we are already on the resource page for this resource.
 						// If so, just update the hash to highlight and scroll to this field rather than opening a new page.
-						const { resName: parsedResName, resVersion: parsedResVersion } = parseResourceFromHash(hash || '');
-						const isOnResourcePage = pathParts.length >= 2 && pathParts[0] === parsedResName && (!parsedResVersion || pathParts[1] === parsedResVersion);
+						const isOnResourcePage = onResourcePage && pathParts.length >= 2 && pathParts[0] === resName && (!resVersion || pathParts[1] === resVersion);
 						// Construct the URL using parsed resName/resVersion from `hash` if possible
 						const verPath = parsedResVersion ? `/${parsedResVersion}` : '';
 						const resourcePath = parsedResName || '';
