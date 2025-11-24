@@ -3,8 +3,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto, afterNavigate } from '$app/navigation';
 	// Ajv is used only for YAML validation; load dynamically to avoid increasing main bundle size
-	import Footer from '$lib/components/Footer.svelte';
+
 	import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
+	import PageCredits from '$lib/components/PageCredits.svelte';
 	import Render from '$lib/components/Render.svelte';
 	import DiffRender from '$lib/components/DiffRender.svelte';
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
@@ -558,4 +559,7 @@ function trapFocus(container: HTMLElement) {
 		</div>
 	</div>
         
+	<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+		<PageCredits />
+	</div>
 </div>

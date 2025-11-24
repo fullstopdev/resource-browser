@@ -1,7 +1,7 @@
 <script lang="ts">
 	import yaml from 'js-yaml';
 
-	import Footer from '$lib/components/Footer.svelte';
+	import PageCredits from '$lib/components/PageCredits.svelte';
 	import Render from '$lib/components/Render.svelte';
 
 	import type { OpenAPISchema, Schema, VersionSchema } from '$lib/structure';
@@ -201,3 +201,9 @@
 </div>
 
     
+
+<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+	<PageCredits />
+</div>
+
+

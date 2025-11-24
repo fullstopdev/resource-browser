@@ -2,7 +2,8 @@
   import yaml from 'js-yaml';
   import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
   import TopHeader from '$lib/components/TopHeader.svelte';
-  import Footer from '$lib/components/Footer.svelte';
+  import PageCredits from '$lib/components/PageCredits.svelte';
+  
   import Render from '$lib/components/Render.svelte';
   import YangView from '$lib/components/YangView.svelte';
   import { stripResourcePrefixFQDN } from '$lib/components/functions';
@@ -400,6 +401,8 @@
 <div class="max-w-7xl mx-auto px-4 py-2">
 </div>
 
+<!-- (PageCredits moved inside the scrolling container to render at the bottom) -->
+
 <div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-12 md:pt-14">
     <div class="flex flex-1 flex-col lg:flex-row relative z-10">
       <div class="flex-1 overflow-auto pb-16">
@@ -627,8 +630,16 @@
           </div>
         </div>
       {/if}
+
+      <!-- Page credits at bottom of scrollable content -->
+      <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <PageCredits />
+        </div>
+      </div>
+
     </div>
   </div>
   </div>
-  <Footer />
+  
 </div>

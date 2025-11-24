@@ -5,7 +5,7 @@
 	// Ajv and js-yaml are used only by validation flow; load dynamically to reduce initial bundle
 	import type { ErrorObject } from 'ajv';
 
-	import Footer from '$lib/components/Footer.svelte';
+	import PageCredits from '$lib/components/PageCredits.svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import Render from '$lib/components/Render.svelte';
 	import DiffRender from '$lib/components/DiffRender.svelte';
@@ -803,6 +803,9 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 				{/if}
 			</div>
 		</main>
+		<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+			<PageCredits />
+		</div>
         
 	</div>
 </div>

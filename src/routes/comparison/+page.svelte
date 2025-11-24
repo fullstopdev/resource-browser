@@ -2,9 +2,10 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import yaml from 'js-yaml';
-	import Footer from '$lib/components/Footer.svelte';
+    
 	import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
+    import PageCredits from '$lib/components/PageCredits.svelte';
 	import releasesYaml from '$lib/releases.yaml?raw';
 	import { stripResourcePrefixFQDN } from '$lib/components/functions';
 	import type { EdaRelease, ReleasesConfig, CrdResource } from '$lib/structure';
@@ -531,8 +532,11 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 
 <!-- Inline page description moved out of the fixed header to improve readability -->
 <div class="max-w-7xl mx-auto px-4 py-2">
-</div>
+	<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        
+	</div>
 
+</div>
 <div class="relative flex flex-col lg:min-h-screen overflow-y-auto lg:overflow-hidden pt-12 md:pt-14">
 	<div class="flex flex-1 flex-col lg:flex-row relative z-10">
 		<div class="flex-1 overflow-auto pb-16">
@@ -930,5 +934,11 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 		</div>
 	</div>
 </div>
+<!-- Page credits at bottom -->
+<div class="max-w-7xl mx-auto px-4 py-6">
+	<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+		<PageCredits />
+	</div>
+</div>
 
-<Footer />
+

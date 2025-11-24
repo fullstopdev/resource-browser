@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import Footer from '$lib/components/Footer.svelte'
+ 
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	 let AnimatedBackground: any = $state(null);
 	import { onMount } from 'svelte';
@@ -17,6 +17,9 @@
 		// Match two segments like /resource/version; do not show for single-segment paths
 		return /^\/[^\/]+\/[^\/]+$/.test(path);
 	});
+
+	// Only show the global footer on the homepage
+		// no special-case: show credits on all pages
 	onMount(async () => {
 		const m = await import('$lib/components/AnimatedBackground.svelte');
 		AnimatedBackground = m.default;
@@ -29,8 +32,6 @@
 
 {#if $isDetailPage}
 	<div class="flex h-screen has-header-img pt-16 md:pt-20">
-		<!-- Place compact footer text above the sidebar for detail pages -->
-		<Footer placement="sidebar" />
 		<Sidebar />
 		<div class="flex-1 overflow-auto pb-16">
 			{@render children()}
@@ -40,8 +41,4 @@
 	<div class="pt-16 md:pt-20 pb-16 has-header-img">
 		{@render children()}
 	</div>
-{/if}
-
-{#if !$isDetailPage}
-	<Footer />
 {/if}
