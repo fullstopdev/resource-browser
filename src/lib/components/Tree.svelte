@@ -13,6 +13,86 @@
 	export let parent: string;
 	export let expanded: boolean;
 	export let borderColor: string;
+	export let compact: boolean = false;
+	$: desc = getDescription(folder);
+	$: compactRowPadding = compact ? 'px-1 py-0.5' : 'px-2 py-2';
+
+	// Portal action for tooltip (mount tooltip nodes to document.body)
+	function portal(node: HTMLElement) {
+		if (typeof document === 'undefined') return { destroy() {} };
+		const target = document.body;
+		target.appendChild(node);
+		return {
+			destroy() {
+				try { if (node.parentNode) node.parentNode.removeChild(node); } catch (e) { /* ignore */ }
+			}
+		};
+	}
+
+	let showTooltip = false;
+	let tooltipStyle = '';
+	let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function showTooltipAt(el: HTMLElement) {
+		try {
+			const rect = el.getBoundingClientRect();
+			const scrollX = window.scrollX || window.pageXOffset || 0;
+			const scrollY = window.scrollY || window.pageYOffset || 0;
+			// estimate our preferred tooltip width
+			const estWidth = Math.min(window.innerWidth * 0.5, 420);
+			const rightSpace = window.innerWidth - rect.right;
+			const leftSpace = rect.left;
+			const bottomSpace = window.innerHeight - rect.bottom;
+			const topSpace = rect.top;
+
+			let left: number;
+			let top: number;
+			let transform = '';
+
+			// Prefer to place tooltip to the right if there's enough room
+			if (rightSpace > estWidth + 32) {
+				left = rect.right + 8 + scrollX;
+				top = rect.top + (rect.height / 2) + scrollY;
+				transform = 'translateY(-50%)';
+			} else if (bottomSpace > 120) {
+				// place centered below element
+				left = rect.left + rect.width / 2 + scrollX;
+				top = rect.bottom + 8 + scrollY;
+				transform = 'translateX(-50%)';
+			} else if (topSpace > 120) {
+				// place centered above element
+				left = rect.left + rect.width / 2 + scrollX;
+				top = rect.top - 8 + scrollY;
+				transform = 'translateX(-50%) translateY(-100%)';
+			} else {
+				// fallback centered below
+				left = rect.left + rect.width / 2 + scrollX;
+				top = rect.bottom + 8 + scrollY;
+				transform = 'translateX(-50%)';
+			}
+
+			tooltipStyle = `position:absolute; left:${left}px; top:${top}px; transform: ${transform}; z-index:2147483650;`;
+			showTooltip = true;
+		} catch (e) {
+			showTooltip = false;
+		}
+	}
+
+	function hideTooltipSoon() {
+		if (tooltipTimer) clearTimeout(tooltipTimer);
+		tooltipTimer = setTimeout(() => { showTooltip = false; tooltipTimer = null; }, 100);
+	}
+
+	function parseResourceFromHash(h: string) {
+		// Remove trailing .spec or .status if present
+		let hh = String(h || '');
+		hh = hh.replace(/\.spec$|\.status$/, '');
+		const idx = hh.lastIndexOf('.');
+		if (idx === -1) return { resName: hh, resVersion: '' };
+		const resName = hh.substring(0, idx);
+		const resVersion = hh.substring(idx + 1);
+		return { resName, resVersion };
+	}
 	
 	// Diff mode props
 	export let diffMode: boolean = false;
@@ -28,6 +108,7 @@
 
 	let currentId = `${parent}.${key}`;
 	let timeout: ReturnType<typeof setTimeout>;
+	let copiedPath: string | null = null;
 	let defaultVal: string = '';
 	let formatVal: string = '';
 	let minVal: number | undefined = undefined;
@@ -145,7 +226,7 @@
 		nestedDiffStatus === 'modified' ? 'bg-amber-100/70 dark:bg-yellow-900/10 border-l-3 border-amber-600 dark:border-yellow-500 pl-3 rounded-md' :
 		''
 	) : ''} focus:bg-orange-50 dark:focus:bg-orange-900/20 focus:ring-2 focus:ring-orange-400 focus:rounded-md">
-	<div class="group flex items-center space-x-2 px-2 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors relative">
+	<div class="group relative flex items-center space-x-2 {compactRowPadding} rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
 		{#if showDiffIndicator}
 			<span class="absolute left-0 top-2 z-10 text-xs font-bold {
 				nestedDiffStatus === 'added' ? 'text-green-700 dark:text-green-400' :
@@ -158,9 +239,14 @@
 		<button
 			class="scroll-thin flex cursor-pointer items-center space-x-2.5 overflow-x-auto text-gray-800 dark:text-gray-300"
 			on:click={handleLocalExpand}
+			on:mouseenter={(e) => { if (compact && desc) showTooltipAt(e.currentTarget as HTMLElement); }}
+			on:mouseleave={() => { if (compact && desc) hideTooltipSoon(); }}
+			on:focusin={(e) => { if (compact && desc) showTooltipAt(e.currentTarget as HTMLElement); }}
+			on:focusout={() => { if (compact) hideTooltipSoon(); }}
+			aria-describedby={compact ? `${currentId}-tooltip` : undefined}
 		>
 			<svg
-				class="svg-arrow h-3.5 w-3.5 text-gray-600 transition-all duration-200 group-hover:text-blue-600 dark:text-gray-300 dark:group-hover:text-blue-400 {expanded
+				class="svg-arrow h-3 w-3 text-gray-600 transition-all duration-200 group-hover:text-blue-600 dark:text-gray-300 dark:group-hover:text-blue-400 {expanded
 					? 'rotate-90'
 					: ''}"
 				fill="none"
@@ -170,12 +256,12 @@
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
 			</svg>
 			<span
-				class="font-medium transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400 {hash === currentId
+				class="font-medium {compact ? 'text-sm' : ''} transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400 {hash === currentId
 					? 'text-green-600 dark:text-green-400'
 					: ''}"
 				>{key}{#if requiredList.includes(key)}<sup class="text-xs font-bold text-red-500 dark:text-red-400"
 						>*</sup
-					>{/if}</span
+						>{/if}</span
 			>
 			{#if 'type' in folder}
 				{@const typeColors = {
@@ -187,18 +273,24 @@
 					'array': 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
 				}}
 				{@const typeColor = typeColors[folder.type] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
-				<span class="inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-medium border {typeColor}"
+				<span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border {typeColor} {compact ? 'text-[9px] px-1' : ''}"
 					>{folder.type}</span
 				>
 			{/if}
+			<!-- removed group-hover tooltip; replaced by portal tooltip below -->
 		</button>
+		{#if compact && showTooltip}
+				<div use:portal id={`${currentId}-tooltip`} role="tooltip" class="inline-block absolute z-[2147483650] max-w-[80%] px-3 py-2 rounded-md shadow-lg bg-slate-800 text-white text-sm leading-tight whitespace-normal" style={tooltipStyle} on:mouseenter={() => { if (tooltipTimer) clearTimeout(tooltipTimer); }} on:mouseleave={() => hideTooltipSoon()}>
+				{getDescription(folder)}
+			</div>
+		{/if}
 		{#if source !== 'uploaded'}
 				<button
 					type="button"
 					class="cursor-pointer text-gray-400 dark:text-gray-500 {expanded
 						? 'block'
 						: 'hidden'} hover:text-gray-700 md:hidden md:group-hover:block md:group-active:block dark:hover:text-gray-300"
-					on:click={(e) => {
+					on:click|capture={(e) => {
 						// Prefer using the current page path/search when available (resource view)
 						const pathParts = window.location.pathname.split('/').filter(Boolean);
 						let resName = '';
@@ -217,8 +309,39 @@
 						// it represents a real release name (avoid fallback `release` string).
 						const releaseParam = selectedReleaseParam || (source && source !== 'release' ? source : '');
 						const url = `${window.location.origin}/${resName}/${resVersion}${releaseParam ? `?release=${encodeURIComponent(releaseParam)}` : ''}#${currentId}`;
-						// open in a new tab/window so search results are not lost
-						window.open(url, '_blank');
+						// Determine whether we are already on the resource page for this resource.
+						// If so, just update the hash to highlight and scroll to this field rather than opening a new page.
+						const { resName: parsedResName, resVersion: parsedResVersion } = parseResourceFromHash(hash || '');
+						const isOnResourcePage = pathParts.length >= 2 && pathParts[0] === parsedResName && (!parsedResVersion || pathParts[1] === parsedResVersion);
+						// Construct the URL using parsed resName/resVersion from `hash` if possible
+						const verPath = parsedResVersion ? `/${parsedResVersion}` : '';
+						const resourcePath = parsedResName || '';
+						const base = window.location.origin;
+						const fullUrl = `${base}/${resourcePath}${verPath}${releaseParam ? `?release=${encodeURIComponent(releaseParam)}` : ''}#${currentId}`;
+						if (isOnResourcePage) {
+							// Navigate to the element hash in-place without opening a new page
+							const newUrl = `${window.location.pathname}${window.location.search}#${currentId}`;
+							history.pushState(null, '', newUrl);
+							const el = document.getElementById(currentId);
+							if (el && typeof el.scrollIntoView === 'function') {
+								el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+								// Optionally focus the element for accessibility
+								try { (el as HTMLElement).focus(); } catch (e) { /* ignore */ }
+								// Add temporary highlight to make the selected field visually distinct AND copy link
+								try {
+									el.classList.add('bg-amber-100', 'dark:bg-amber-900/10');
+									// set copy indication
+									copiedPath = currentId;
+									if (timeout) clearTimeout(timeout);
+									timeout = setTimeout(() => { if (copiedPath === currentId) copiedPath = null; }, 500);
+									try { navigator.clipboard.writeText(fullUrl); } catch (e) { /* ignore */ }
+									setTimeout(() => { el.classList.remove('bg-amber-100', 'dark:bg-amber-900/10'); }, 1800);
+								} catch (e) { /* ignore */ }
+							}
+						} else {
+							// Open in a new tab/window so search results are not lost
+							window.open(fullUrl, '_blank');
+						}
 						e.preventDefault();
 					}}
 						use:copy={{
@@ -252,10 +375,12 @@
 		{/if}
 	</div>
 	{#if expanded}
-		<ul class="ml-[9px] border-l-2 px-4 pt-2 pb-1 dark:bg-gray-800/30 {borderColor}">
-			<li class="font-nokia px-2 py-1.5 text-sm font-light text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-800/50 rounded-md whitespace-normal">
+		<ul class="ml-[8px] border-l-2 px-2 pt-1 pb-1 dark:bg-gray-800/30 {borderColor}">
+			{#if !compact}
+			<li class="font-nokia px-1 py-1 text-xs font-light text-gray-600 dark:text-gray-300 leading-tight bg-gray-50 dark:bg-gray-800/50 rounded-md whitespace-normal">
 				{getDescription(folder)}
 			</li>
+			{/if}
 			
 			<!-- Metadata Section -->
 			<div class="mt-2 space-y-1.5">
@@ -316,6 +441,7 @@
 							diffCompareData={subCompareData}
 							diffCurrentData={subCurrentData}
 							{diffSide}
+							compact={compact}
 						/>
 					{/each}
 				{/if}

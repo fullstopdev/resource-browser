@@ -524,7 +524,7 @@
                               </div>
                           {:else}
                             <div class="relative isolate overflow-hidden">
-                              <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                              <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} kind={g.kind} />
                             </div>
                           {/if}
                         </div>
@@ -538,7 +538,7 @@
                             </div>
                           {:else}
                             <div class="relative isolate overflow-hidden">
-                              <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                              <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} kind={g.kind} />
                             </div>
                           {/if}
                         </div>
@@ -582,7 +582,7 @@
                                 </div>
                               {:else}
                                 <div class="relative isolate overflow-hidden">
-                                  <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                                  <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} kind={g.kind} />
                                 </div>
                               {/if}
                             </div>
@@ -596,7 +596,7 @@
                                 </div>
                               {:else}
                                 <div class="relative isolate overflow-hidden">
-                                  <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} />
+                                  <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} releaseName={releaseName} kind={g.kind} />
                                 </div>
                               {/if}
                             </div>

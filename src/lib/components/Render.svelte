@@ -9,6 +9,8 @@
 	export let type: string;
 	export let data: Schema;
 	export let showType: boolean = true;
+	export let compact: boolean = false;
+	export let onResourcePage: boolean = false;
 
 	const desc = getDescription(data);
 	const scope = getScope(data);
@@ -41,6 +43,8 @@
 						{borderColor}
 						parent={type}
 						expanded={hashExistDeep(hash, `${type}.${key}`)}
+						{compact}
+						onResourcePage={onResourcePage}
 					/>
 				{/each}
 			</div>
