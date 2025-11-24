@@ -3,7 +3,10 @@
 
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
 	import { getDescription, getScope, hashExistDeep, getDefault, getEnum, getFormat, getMinimum, getMaximum } from './functions';
+	import EnumDisplay from './EnumDisplay.svelte';
 	import type { Schema } from '$lib/structure';
+
+	import { onMount } from 'svelte';
 
 	export let hash: string;
 	export let source: string;
@@ -100,6 +103,8 @@
 	export let diffCompareData: Schema | null = null;
 	export let diffSide: 'left' | 'right' = 'left';
 	export let diffCurrentData: Schema | null = null;
+	// When true, render the node as a ghost: invisible but keeps layout space
+	export let ghost: boolean = false;
 
 	// reference exported prop so Svelte treats it as used (it's passed from parent/children)
 	$: {
@@ -136,10 +141,13 @@
 		if ('maximum' in schema) normalized.maximum = schema.maximum;
 		if ('required' in schema) normalized.required = schema.required;
 		
-		// For objects and arrays, compare structure
+		// For objects and arrays, compare structure (including nested structure)
 		const scope = getScope(schema);
 		if ('properties' in scope) {
-			normalized.properties = Object.keys(scope.properties).sort();
+			normalized.properties = {};
+			for (const [pname, pschema] of Object.entries(scope.properties || {})) {
+				normalized.properties[pname] = normalizeForComparison(pschema as Schema);
+			}
 		}
 		if ('items' in scope) {
 			normalized.items = normalizeForComparison(scope.items);
@@ -187,6 +195,27 @@
 	$: nestedDiffStatus = getNestedDiffStatus();
 	$: showDiffIndicator = diffMode && nestedDiffStatus !== 'unchanged';
 
+// Helper to detect nested changes by comparing normalized representations
+function hasNestedChanges(a: Schema | null, b: Schema | null): boolean {
+	const na = normalizeForComparison(a as Schema);
+	const nb = normalizeForComparison(b as Schema);
+	try {
+		return JSON.stringify(na) !== JSON.stringify(nb);
+	} catch (e) {
+		return false;
+	}
+}
+
+let _initExpanded = false;
+// Initialize expanded state once so users can still toggle it later
+$: if (!_initExpanded) {
+	// If in diff mode and this node or any descendant differs, expand by default
+	if (diffMode && hasNestedChanges(diffCurrentData ?? folder, diffCompareData)) {
+		expanded = true;
+	}
+	_initExpanded = true;
+}
+
 	function handleLocalExpand() {
 		expanded = !expanded;
 		expandAllScope.set('local');
@@ -222,20 +251,14 @@
 </script>
 
 <li id={currentId} tabindex="-1" class="scroll-mt-[80px] pt-1 relative z-0 {showDiffIndicator ? (
-		nestedDiffStatus === 'added' ? 'bg-green-100/70 dark:bg-green-900/10 border-l-3 border-green-600 dark:border-green-500 pl-3 rounded-md' :
-		nestedDiffStatus === 'removed' ? 'bg-red-100/70 dark:bg-red-900/10 border-l-3 border-red-600 dark:border-red-500 pl-3 rounded-md' :
-		nestedDiffStatus === 'modified' ? 'bg-amber-100/70 dark:bg-yellow-900/10 border-l-3 border-amber-600 dark:border-yellow-500 pl-3 rounded-md' :
+		nestedDiffStatus === 'added' ? 'bg-green-100/70 dark:bg-green-900/10 border-l-3 border-green-600 dark:border-green-500 rounded-md' :
+		nestedDiffStatus === 'removed' ? 'bg-red-100/70 dark:bg-red-900/10 border-l-3 border-red-600 dark:border-red-500 rounded-md' :
+		nestedDiffStatus === 'modified' ? 'bg-amber-100/70 dark:bg-yellow-900/10 border-l-3 border-amber-600 dark:border-yellow-500 rounded-md' :
 		''
-	) : ''} focus:bg-orange-50 dark:focus:bg-orange-900/20 focus:ring-2 focus:ring-orange-400 focus:rounded-md">
+	) : ''}{ghost ? ' opacity-0 pointer-events-none select-none' : ''} focus:bg-orange-50 dark:focus:bg-orange-900/20 focus:ring-2 focus:ring-orange-400 focus:rounded-md">
 	<div class="group relative flex items-center space-x-2 {compactRowPadding} rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
 		{#if showDiffIndicator}
-			<span class="absolute left-0 top-2 z-10 text-xs font-bold {
-				nestedDiffStatus === 'added' ? 'text-green-700 dark:text-green-400' :
-				nestedDiffStatus === 'removed' ? 'text-red-700 dark:text-red-400' :
-				'text-amber-700 dark:text-yellow-400'
-			}">
-				{nestedDiffStatus === 'added' ? '+' : nestedDiffStatus === 'removed' ? '−' : '~'}
-			</span>
+			<!-- Diff indicator glyph removed; color/highlight retained -->
 		{/if}
 		<button
 			class="scroll-thin flex cursor-pointer items-center space-x-2.5 overflow-x-auto text-gray-800 dark:text-gray-300"
@@ -395,17 +418,31 @@
 							<span class="font-semibold text-amber-800 dark:text-amber-400">default:</span> 
 							<code class="text-orange-900 dark:text-orange-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{defaultVal}</code>
 						</li>
+					{:else if diffMode && diffCompareData && getDefault(diffCompareData)}
+						<li class="font-fira px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 rounded-md border-l-3 border-amber-500 dark:border-amber-600">
+							<code class="text-transparent px-1.5 py-0.5 rounded">&nbsp;</code>
+						</li>
 					{/if}
 					{#if getEnum(folder)}
+						<li class="font-fira px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 rounded-md border-l-3 border-purple-500 dark:border-purple-600 flex items-center space-x-2">
+							<span class="font-semibold text-purple-800 dark:text-purple-400">enum:</span>
+							<div class="flex-1">
+								<EnumDisplay text={getEnum(folder)} />
+							</div>
+						</li>
+					{:else if diffMode && diffCompareData && getEnum(diffCompareData)}
 						<li class="font-fira px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 rounded-md border-l-3 border-purple-500 dark:border-purple-600">
-							<span class="font-semibold text-purple-800 dark:text-purple-400">enum:</span> 
-							<code class="text-violet-900 dark:text-violet-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{getEnum(folder)}</code>
+							<code class="text-transparent px-1.5 py-0.5 rounded">&nbsp;</code>
 						</li>
 					{/if}
 					{#if formatVal}
 						<li class="font-fira px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 rounded-md border-l-3 border-blue-500 dark:border-blue-600">
 							<span class="font-semibold text-blue-800 dark:text-blue-400">format:</span> 
 							<code class="text-cyan-900 dark:text-cyan-300 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded">{formatVal}</code>
+						</li>
+					{:else if diffMode && diffCompareData && getFormat(diffCompareData)}
+						<li class="font-fira px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 rounded-md border-l-3 border-blue-500 dark:border-blue-600">
+							<code class="text-transparent px-1.5 py-0.5 rounded">&nbsp;</code>
 						</li>
 					{/if}
 					{#if minVal !== undefined || maxVal !== undefined}
@@ -417,38 +454,68 @@
 								{#if maxVal !== undefined}max: {maxVal}{/if}
 							</code>
 						</li>
+					{:else if diffMode && diffCompareData && (getMinimum(diffCompareData) !== undefined || getMaximum(diffCompareData) !== undefined)}
+						<li class="font-fira px-3 py-1.5 text-xs bg-gray-50 dark:bg-gray-800/50 rounded-md border-l-3 border-green-500 dark:border-green-600">
+							<code class="text-transparent px-1.5 py-0.5 rounded">&nbsp;</code>
+						</li>
 					{/if}
 			</div>
 			
 			{#if folder.type === 'object' || folder.type === 'array'}
 				{@const props = propExist()}
 				{#if typeof props === 'object'}
-					{#each Object.entries(props) as [subkey, subfolder]}
-						{@const scope = getScope(folder)}
-						{@const requiredList = 'required' in scope ? scope.required : []}
-						{@const subCompareData = diffMode && diffCompareData ? (() => {
-							const compareScope = getScope(diffCompareData);
-							if ('properties' in compareScope && subkey in compareScope.properties) {
-								return compareScope.properties[subkey];
-							}
-							return null;
-						})() : null}
-						{@const subCurrentData = diffMode && folder ? subfolder : null}
-						<svelte:self
-							{hash}
-							{source}
-							{borderColor}
-							key={subkey}
-							folder={subfolder}
-							{requiredList}
-							parent={currentId}
-							expanded={hashExistDeep(hash, `${currentId}.${subkey}`)}
-							{diffMode}
-							diffCompareData={subCompareData}
-							diffCurrentData={subCurrentData}
-							{diffSide}
-							compact={compact}
-						/>
+					{@const thisScope = getScope(folder)}
+					{@const localCompareScope = diffMode && diffCompareData ? getScope(diffCompareData) : null}
+					{@const canonical = (diffMode && diffSide === 'left' && localCompareScope) ? localCompareScope : thisScope}
+					{@const baseKeys = (canonical && 'properties' in canonical) ? Object.keys((canonical as any).properties) : ('properties' in thisScope ? Object.keys((thisScope as any).properties) : [])}
+					{@const otherScope = canonical === thisScope ? localCompareScope : thisScope}
+					{@const otherKeys = (otherScope && 'properties' in otherScope) ? Object.keys(otherScope.properties) : []}
+					{@const combinedKeys = (() => {
+						const arr: string[] = [...baseKeys];
+						for (const k of otherKeys) if (!arr.includes(k)) arr.push(k);
+						return arr;
+					})()}
+					{#each combinedKeys as subkey}
+						{@const requiredList = 'required' in thisScope ? thisScope.required : []}
+						{@const existsHere = 'properties' in thisScope && subkey in (thisScope.properties || {})}
+						{@const subfolder = existsHere ? thisScope.properties[subkey] : null}
+						{@const subCompareData = diffMode && localCompareScope && 'properties' in localCompareScope && subkey in localCompareScope.properties ? localCompareScope.properties[subkey] : null}
+						{@const subCurrentData = diffMode && existsHere ? subfolder : null}
+						{#if existsHere}
+							<svelte:self
+								{hash}
+								{source}
+								{borderColor}
+								key={subkey}
+								folder={subfolder}
+								{requiredList}
+								parent={currentId}
+								expanded={hashExistDeep(hash, `${currentId}.${subkey}`)}
+								{diffMode}
+								diffCompareData={subCompareData}
+								diffCurrentData={subCurrentData}
+								{diffSide}
+								compact={compact}
+							/>
+						{:else}
+							<!-- Render ghost child to preserve spacing when this key exists only on the other side -->
+							<svelte:self
+								{hash}
+								{source}
+								{borderColor}
+								key={subkey}
+								folder={subCompareData}
+								{requiredList}
+								parent={currentId}
+								expanded={true}
+								{diffMode}
+								diffCompareData={null}
+								diffCurrentData={null}
+								{diffSide}
+								compact={compact}
+								ghost={true}
+							/>
+						{/if}
 					{/each}
 				{/if}
 			{/if}
