@@ -1,14 +1,23 @@
 <script lang="ts">
 	import { version } from '$app/environment';
-	
+
 	// Import version data at runtime to avoid build issues
 	const appVersion = '1.0.0';
 	const crdVersion = 'v4.0.0';
+
+	export let placement: 'bottom' | 'sidebar' = 'bottom';
 </script>
 
-<footer class="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 dark:border-white/10 bg-transparent dark:bg-transparent backdrop-blur-sm shadow-lg">
-	<div class="max-w-full mx-auto px-6 py-3">
-		<div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+{#if placement === 'sidebar'}
+	<div class="sidebar-footer">
+		<div class="flex items-center gap-6 text-xs">
+			<div class="text-gray-200 italic">Not an official Nokia product</div>
+		</div>
+	</div>
+{:else}
+	<footer class="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 dark:border-white/10 bg-white/5 dark:bg-gray-900/70 shadow-lg">
+		<div class="max-w-full mx-auto px-6 py-3">
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
 			<!-- Links -->
 			<div class="flex items-center gap-6">
 				<a
@@ -47,10 +56,11 @@
 				</a>
 			</div>
 			
-			<!-- Disclaimer -->
-			<div class="text-gray-600 dark:text-gray-300 italic">
-				Not an official Nokia product
-			</div>
+				<!-- Disclaimer -->
+				<div class="text-gray-600 dark:text-gray-300 italic">
+					Not an official Nokia product
+				</div>
 		</div>
 	</div>
-</footer>
+	</footer>
+{/if}

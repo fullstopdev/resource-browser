@@ -340,6 +340,32 @@
     --tw-bg-opacity: 0 !important;
   }
 
+  /* Sidebar footer (compact) - shown above the sidebar on resource pages */
+  .sidebar-footer {
+    position: fixed;
+    left: 0;
+    top: 4rem; /* below the header (mobile/default) */
+    width: 20rem; /* match w-80 on small screens & default */
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    pointer-events: auto;
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.95);
+    border-right: 1px solid rgba(255,255,255,0.04);
+    font-size: 0.75rem; /* text-xs */
+    font-style: italic;
+  }
+  /* Ensure footer clears the larger header padding on medium+ screens */
+  @media (min-width: 768px) {
+    .sidebar-footer { top: 5rem; /* matches md:pt-20 in layouts */ }
+  }
+  @media (min-width: 1024px) {
+    .sidebar-footer { width: 16rem; /* match lg:w-64 */ }
+  }
+
   /* slightly more visible on hover or when user is actively interacting*/
   .scroll-thin:hover + .sidebar-scroll-thumb, .sidebar-scroll-thumb:hover {
     background: rgba(255,255,255,0.18);

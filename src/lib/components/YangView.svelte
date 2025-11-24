@@ -268,7 +268,7 @@
       // If we still don't have resource YAML, try to locate it in other releases
       if (!resp.ok) {
         try {
-          const yamlLib = (await import('js-yaml')).default;
+          yamlLib = yamlLib || (await import('js-yaml')).default;
           const releasesConfig = yamlLib.load(releasesYaml) as ReleasesConfig;
           for (const r of releasesConfig.releases) {
             try {

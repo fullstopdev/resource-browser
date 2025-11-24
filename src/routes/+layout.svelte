@@ -29,6 +29,8 @@
 
 {#if $isDetailPage}
 	<div class="flex h-screen has-header-img pt-16 md:pt-20">
+		<!-- Place compact footer text above the sidebar for detail pages -->
+		<Footer placement="sidebar" />
 		<Sidebar />
 		<div class="flex-1 overflow-auto pb-16">
 			{@render children()}
@@ -40,4 +42,6 @@
 	</div>
 {/if}
 
-<Footer />
+{#if !$isDetailPage}
+	<Footer />
+{/if}

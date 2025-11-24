@@ -306,12 +306,7 @@ function trapFocus(container: HTMLElement) {
 		{#if mobileMenuOpen && selectedResource}<button class="lg:hidden fixed inset-0 bg-black/50 z-30" on:click={() => mobileMenuOpen = false} aria-label="Close"></button>{/if}
 		
 		<div id="main-scroll" class="relative flex-1 overflow-y-auto flex flex-col has-header-img">
-			<!-- LCP background image as an actual <picture> so we can set fetchpriority and loading attributes -->
-			<picture aria-hidden="true" class="pointer-events-none absolute inset-0 z-0 w-full h-full">
-				<source media="(max-width: 768px)" srcset="/images/background.webp">
-				<source media="(min-width: 769px)" srcset="/images/background-crd.webp">
-				<img loading="eager" fetchpriority="high" src="/images/background-crd.webp" alt="" class="w-full h-full object-cover" />
-			</picture>
+			<!-- Background is provided by CSS class .has-header-img; single background only (keep consistent with other pages) -->
 			{#if !selectedResource && !showBrowseMode}
 				<!-- YANG-Style Homepage -->
 				<div class="block">
@@ -352,16 +347,14 @@ function trapFocus(container: HTMLElement) {
 									<!-- Left: grouped releases -->
 									<div class="space-y-6">
 										<div class="flex items-center gap-4 ml-0 sm:ml-0 justify-start flex-nowrap">
-											<div class="flex items-center gap-3 mr-2">
-												<img src="/images/bird-logo.svg" alt="Nokia" class="w-14 h-14 sm:w-24 sm:h-24" loading="eager" fetchpriority="high" />
-												<img src="/images/eda.svg" alt="EDA" class="w-12 h-12 sm:w-20 sm:h-20" loading="eager" fetchpriority="high" />
-											</div>
-											<div>
-												<h1 class="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold font-nokia-headline text-yellow-400 leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] text-left">
-													Nokia EDA
-												</h1>
-												<p class="text-base sm:text-xl md:text-2xl text-white mt-1 font-light font-nokia-headline tracking-tight text-left">Resource Browser</p>
-											</div>
+											<img src="/images/bird-logo.svg" alt="Nokia" class="w-14 h-14 sm:w-24 sm:h-24" loading="eager" fetchpriority="high" />
+											<img src="/images/eda.svg" alt="EDA" class="w-12 h-12 sm:w-20 sm:h-20" loading="eager" fetchpriority="high" />
+										</div>
+										<div>
+											<h1 class="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold font-nokia-headline text-yellow-400 leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] text-left">
+												Nokia EDA
+											</h1>
+											<p class="text-base sm:text-xl md:text-2xl text-white mt-1 font-light font-nokia-headline tracking-tight text-left">Resource Browser</p>
 										</div>
 										<p class="text-sm sm:text-base text-gray-300 mt-4">Browse released EDA Custom Resource Definitions grouped by major version</p>
 										<div class="mt-4 space-y-6">
