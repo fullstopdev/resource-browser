@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { derived, writable } from 'svelte/store';
-	import { onDestroy } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	// Ajv and js-yaml are used only by validation flow; load dynamically to reduce initial bundle
 	import type { ErrorObject } from 'ajv';
 
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import Render from '$lib/components/Render.svelte';
-	import DiffRender from '$lib/components/DiffRender.svelte';
+	// Load DiffRender lazily to avoid including it in the initial bundle; it's only needed for compare view
+	let DiffRender: any = null;
 
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
 
@@ -28,9 +29,41 @@
 	let releaseLabel: string;
 	let allReleases: any[];
 	let releaseManifest: any[];
+
+	let clientDeprecatedSince: string | null = null;
 	
 	// Make data reactive - update when data changes
 	$: ({ name, versionOnFocus, kind, group, deprecated, appVersion, validVersions, spec, status, releaseFolder, releaseLabel, allReleases, releaseManifest } = data);
+	$: clientDeprecatedSince = (data && 'deprecatedSince' in data) ? data.deprecatedSince : null;
+
+	onMount(() => {
+		// If no SSR value for deprecatedSince, compute it lazily in the background
+		if (clientDeprecatedSince == null && deprecated) {
+			const compute = async () => {
+				try {
+					// iterate releases in chronological order (old to new), same as before
+					const releases = allReleases?.slice?.(0) || [];
+					for (const r of releases) {
+						try {
+							const res = await fetch(`/${r.folder}/manifest.json`);
+							if (!res.ok) continue;
+							const manifest = await res.json();
+							const entry = manifest.find((x: any) => x.name === name);
+							if (!entry || !entry.versions) continue;
+							const v = entry.versions.find((vv: any) => vv.name === versionOnFocus);
+							if (v && v.deprecated) { clientDeprecatedSince = r.label || r.name; break; }
+						} catch (e) { /* ignore and continue */ }
+					}
+				} catch (e) { /* ignore */ }
+			};
+
+			if (typeof (window as any).requestIdleCallback === 'function') {
+				(window as any).requestIdleCallback(() => compute());
+			} else {
+				setTimeout(() => compute(), 1000);
+			}
+		}
+	});
 
 	$: hash = $page.url.hash?.substring(1);
 
@@ -318,7 +351,23 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 
 	$: if (compareVersion || compareRelease) {
 		handleVersionChange();
-	}
+		}
+		$: if (viewMode === 'compare') {
+			// Load diff renderer lazily to avoid heavy initial bundle/hydration
+			if (!DiffRender) {
+				if (typeof (window as any).requestIdleCallback === 'function') {
+					(window as any).requestIdleCallback(async () => {
+						const m = await import('$lib/components/DiffRender.svelte');
+						DiffRender = m.default;
+					});
+				} else {
+					setTimeout(async () => {
+						const m = await import('$lib/components/DiffRender.svelte');
+						DiffRender = m.default;
+					}, 200);
+				}
+			}
+		}
 
 	$: if (name || versionOnFocus) {
 		compareVersion = null;
@@ -336,7 +385,7 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 </svelte:head>
 
 {#key `${name}-${versionOnFocus}`}
-<TopHeader name={name} versionOnFocus={versionOnFocus} validVersions={validVersions} deprecated={deprecated} deprecatedSince={undefined} kind={kind} subtitle={releaseLabel} />
+<TopHeader name={name} versionOnFocus={versionOnFocus} validVersions={validVersions} deprecated={deprecated} deprecatedSince={clientDeprecatedSince} kind={kind} subtitle={releaseLabel} />
 
 <div class="relative flex flex-col min-h-screen overflow-hidden pt-16 md:pt-20">
 	<div class="relative flex-1">
@@ -587,30 +636,38 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 											<h4 class="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
 												{versionOnFocus}
 											</h4>
-											<div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 md:p-3 overflow-x-auto">
-												<DiffRender
-													hash=""
-													source="eda"
-													type="spec"
-													leftData={spec}
-													rightData={comparisonResult.compareSpec}
-													side="left"
-												/>
-											</div>
+																						<div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 md:p-3 overflow-x-auto">
+																							{#if DiffRender}
+																								<svelte:component this={DiffRender}
+																										hash=""
+																										source="eda"
+																										type="spec"
+																										leftData={spec}
+																										rightData={comparisonResult.compareSpec}
+																										side="left"
+																								/>
+																							{:else}
+																								<div class="text-sm text-gray-600 dark:text-gray-400">Loading comparison UI…</div>
+																							{/if}
+																						</div>
 										</div>
 										<div class="space-y-2 md:space-y-3">
 											<h4 class="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
 												{compareVersion}
 											</h4>
 											<div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 md:p-3 overflow-x-auto">
-												<DiffRender
+																								{#if DiffRender}
+																								<svelte:component this={DiffRender}
 													hash=""
 													source="eda"
 													type="spec"
 													leftData={spec}
 													rightData={comparisonResult.compareSpec}
 													side="right"
-												/>
+																								/>
+																								{:else}
+																									<div class="text-sm text-gray-600 dark:text-gray-400">Loading comparison UI…</div>
+																								{/if}
 											</div>
 										</div>
 									</div>
@@ -630,14 +687,18 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 												{versionOnFocus}
 											</h4>
 											<div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 md:p-3 overflow-x-auto">
-												<DiffRender
+																								{#if DiffRender}
+																								<svelte:component this={DiffRender}
 													hash=""
 													source="eda"
 													type="status"
 													leftData={status}
 													rightData={comparisonResult.compareStatus}
 													side="left"
-												/>
+																								/>
+																								{:else}
+																									<div class="text-sm text-gray-600 dark:text-gray-400">Loading comparison UI…</div>
+																								{/if}
 											</div>
 										</div>
 										<div class="space-y-2 md:space-y-3">
@@ -645,14 +706,18 @@ $: if (typeof hash !== 'undefined' && hash && hash.length > 0) {
 												{compareVersion}
 											</h4>
 											<div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 md:p-3 overflow-x-auto">
-												<DiffRender
+																								{#if DiffRender}
+																								<svelte:component this={DiffRender}
 													hash=""
 													source="eda"
 													type="status"
 													leftData={status}
 													rightData={comparisonResult.compareStatus}
 													side="right"
-												/>
+																								/>
+																								{:else}
+																									<div class="text-sm text-gray-600 dark:text-gray-400">Loading comparison UI…</div>
+																								{/if}
 											</div>
 										</div>
 									</div>

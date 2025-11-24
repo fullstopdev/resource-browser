@@ -68,4 +68,31 @@ Contributing
 - Open issues and PRs welcome. Please include a short description and screenshots where helpful.
 
 
+### Performance notes
+
+We changed the hero/background handling to improve LCP:
+
+- The primary hero is now an inline <img> (via a <picture> element) inserted early in the layout for accurate LCP measurement and preloading control. The CSS now uses gradients only; the image sits behind the page content.
+- Fonts: we prefer WOFF2 for smaller payloads and preloaded critical hero fonts. If you need to generate WOFF2 assets from the existing TTF fonts in `/static/fonts`, run:
+
+```bash
+pnpm install -D ttf2woff2
+pnpm run generate:woff2
+
+Note: `ttf2woff2` reads from stdin and writes a compressed WOFF2 to stdout. The `generate:woff2` script wraps this in a loop and pipes each TTF into the converter. If you prefer a one-off command, you can run:
+
+```bash
+npx ttf2woff2 < static/fonts/NokiaPureText_Rg.ttf > static/fonts/NokiaPureText_Rg.woff2
+```
+
+Or to convert all TTFs at once using a shell loop (same as the script):
+
+```bash
+for f in static/fonts/*.ttf; do npx ttf2woff2 < "$f" > "${f%.ttf}.woff2"; done
+```
+```
+
+That converts TTF files in `static/fonts` to WOFF2. After that, update the `app.html` preloads if you change filenames.
+
+
 

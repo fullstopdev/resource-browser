@@ -1,6 +1,6 @@
 <script lang="ts">
   import yaml from 'js-yaml';
-  import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
+  // AnimatedBackground is dynamically imported/rendered by the layout; avoid importing here to keep it lazy
   import TopHeader from '$lib/components/TopHeader.svelte';
   import PageCredits from '$lib/components/PageCredits.svelte';
   
@@ -393,7 +393,7 @@
   <title>EDA Resource Browser | Search CRD Specs</title>
 </svelte:head>
 
-<AnimatedBackground />
+<!-- AnimatedBackground is provided by the layout and is dynamically imported on mount -->
 
 <TopHeader title="Search CRD Specs & Status" />
 

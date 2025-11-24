@@ -4,10 +4,10 @@
 	import { goto, afterNavigate } from '$app/navigation';
 	// Ajv is used only for YAML validation; load dynamically to avoid increasing main bundle size
 
-	import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
+	// AnimatedBackground is provided by the layout and imported dynamically there to improve LCP
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import Render from '$lib/components/Render.svelte';
-	import DiffRender from '$lib/components/DiffRender.svelte';
+	// Avoid importing DiffRender on the home page — it is only useful on detail pages and is lazily loaded there
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
 	import type { CrdVersionsMap } from '$lib/structure';
 	import yaml from 'js-yaml';

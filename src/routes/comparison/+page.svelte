@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import yaml from 'js-yaml';
     
-	import AnimatedBackground from '$lib/components/AnimatedBackground.svelte';
+	// AnimatedBackground is dynamically imported/rendered by the layout; avoid importing here to keep it lazy
 	import TopHeader from '$lib/components/TopHeader.svelte';
     import PageCredits from '$lib/components/PageCredits.svelte';
 	import releasesYaml from '$lib/releases.yaml?raw';
@@ -527,7 +527,7 @@ $: if (bulkDiffReport) console.debug('[diagnostic] bulk-diff page filtered count
 	<title>EDA Resource Browser | Release Comparison</title>
 </svelte:head>
 
-<AnimatedBackground />
+<!-- AnimatedBackground is provided by the layout and is dynamically imported on mount -->
 <TopHeader title="Release Comparison" />
 
 <!-- Inline page description moved out of the fixed header to improve readability -->

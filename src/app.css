@@ -7,7 +7,7 @@
    ============================================ */
 @font-face {
   font-family: "NokiaPureText";
-  src: url("/fonts/NokiaPureText_Lt.ttf");
+  src: url("/fonts/NokiaPureText_Lt.woff2") format("woff2"), url("/fonts/NokiaPureText_Lt.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -15,7 +15,7 @@
 
 @font-face {
   font-family: "NokiaPureText";
-  src: url("/fonts/NokiaPureText_Rg.ttf");
+  src: url("/fonts/NokiaPureText_Rg.woff2") format("woff2"), url("/fonts/NokiaPureText_Rg.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -23,7 +23,7 @@
 
 @font-face {
   font-family: "NokiaPureText";
-  src: url("/fonts/NokiaPureText_Md.ttf");
+  src: url("/fonts/NokiaPureText_Md.woff2") format("woff2"), url("/fonts/NokiaPureText_Md.ttf") format("truetype");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -31,7 +31,7 @@
 
 @font-face {
   font-family: "NokiaPureText";
-  src: url("/fonts/NokiaPureText_Bd.ttf");
+  src: url("/fonts/NokiaPureText_Bd.woff2") format("woff2"), url("/fonts/NokiaPureText_Bd.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -39,7 +39,7 @@
 
 @font-face {
   font-family: "NokiaPureHeadline";
-  src: url("/fonts/NokiaPureHeadline_ULt.ttf");
+  src: url("/fonts/NokiaPureHeadline_ULt.woff2") format("woff2"), url("/fonts/NokiaPureHeadline_ULt.ttf") format("truetype");
   font-weight: 200;
   font-style: normal;
   font-display: swap;
@@ -47,7 +47,7 @@
 
 @font-face {
   font-family: "NokiaPureHeadline";
-  src: url("/fonts/NokiaPureHeadline_Lt.ttf");
+  src: url("/fonts/NokiaPureHeadline_Lt.woff2") format("woff2"), url("/fonts/NokiaPureHeadline_Lt.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -55,7 +55,7 @@
 
 @font-face {
   font-family: "NokiaPureHeadline";
-  src: url("/fonts/NokiaPureHeadline_Rg.ttf");
+  src: url("/fonts/NokiaPureHeadline_Rg.woff2") format("woff2"), url("/fonts/NokiaPureHeadline_Rg.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -63,7 +63,7 @@
 
 @font-face {
   font-family: "NokiaPureHeadline";
-  src: url("/fonts/NokiaPureHeadline_Bd.ttf");
+  src: url("/fonts/NokiaPureHeadline_Bd.woff2") format("woff2"), url("/fonts/NokiaPureHeadline_Bd.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -71,7 +71,7 @@
 
 @font-face {
   font-family: "NokiaPureHeadline";
-  src: url("/fonts/NokiaPureHeadline_XBd..ttf");
+  src: url("/fonts/NokiaPureHeadline_XBd.woff2") format("woff2"), url("/fonts/NokiaPureHeadline_XBd..ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -196,18 +196,46 @@
 
   /* Background with header image */
   .has-header-img {
+    position: relative;
+    z-index: 1;
+    /* Gradient overlay only; the hero background image is now an explicitly positioned <img>
+       in the layout to allow better control over LCP and preload behavior. */
     background-image:
       linear-gradient(120deg, rgba(2,10,35,0.42), rgba(4,45,120,0.48)),
-      linear-gradient(60deg, rgba(7,36,120,0.25), rgba(18,164,228,0.2)),
-      url('/images/background-crd.webp');
+      linear-gradient(60deg, rgba(7,36,120,0.25), rgba(18,164,228,0.2));
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-attachment: fixed;
+    /* Avoid 'fixed' attachment as it can cause heavy repaints and delay LCP; use 'scroll' for better performance */
+    background-attachment: scroll;
     /* Use overlay to keep the blue tones visible while providing a darkened foreground for contrast */
     background-blend-mode: overlay, screen, normal;
     /* Use a light foreground text color when over the header image to better contrast with darker background */
     color: rgba(255, 255, 255, 0.95);
+  }
+
+  /* Positioned hero image element (inline) that contributes to LCP; it sits behind .has-header-img.
+     The actual image is inserted in the layout as an <img> with fetchpriority="high". */
+  .header-bg-container {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+  }
+  .header-bg-img {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    min-height: 100%;
+    min-width: 100%;
+    display: block;
   }
 
   /* Mobile - use lighter background image and scroll attachment to reduce performance cost */

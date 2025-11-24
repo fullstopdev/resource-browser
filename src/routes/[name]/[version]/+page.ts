@@ -59,7 +59,7 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
     throw error(404, "Invalid resource name")
   }
 
-  const crdMetaVersion = crdMeta[0].versions.filter(x => x.name === versionOnFocus)
+  const crdMetaVersion = crdMeta[0].versions.filter((x: any) => x.name === versionOnFocus)
   if(crdMetaVersion.length == 0) {
     throw error(404, "Invalid version for the resource name")
   }
@@ -86,31 +86,21 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
     // Get valid versions for this resource from the manifest (release-specific)
     // Fall back to crdMeta if manifest doesn't have it
     const manifestResource = releaseManifest.find((r: any) => r.name === name)
-    const validVersions = manifestResource?.versions?.map((v: any) => v.name) || crdMeta[0].versions.map(x => x.name)
+    const validVersions = manifestResource?.versions?.map((v: any) => v.name) || crdMeta[0].versions.map((x: any) => x.name)
 
     const spec = crd.schema.openAPIV3Schema.properties.spec
     const status = crd.schema.openAPIV3Schema.properties.status
-    // Determine the earliest release in which this specific version is marked deprecated
+    // Determine earliest release in which this specific version is marked deprecated.
+    // For LCP optimization: avoid fetching manifest.json across all releases during SSR
+    // (which can add significant latency) — instead, derive `deprecatedSince` from the
+    // current releaseManifest or fallback data, and compute a full deprecation history
+    // lazily on the client if needed.
     let deprecatedSince: string | null = null
-    // iterate from oldest to newest
-    const checkReleases = [...allReleases].reverse();
-    for (const r of checkReleases) {
-      try {
-        let manifest: any[] = []
-        if (r.name === selectedRelease.name && releaseManifest.length > 0) {
-          manifest = releaseManifest
-        } else {
-          const resp = await fetch(`/${r.folder}/manifest.json`)
-          if (!resp.ok) continue
-          manifest = await resp.json()
-        }
-        const entry = manifest.find((x: any) => x.name === name)
-        if (!entry || !entry.versions) continue
-        const v = entry.versions.find((vv: any) => vv.name === versionOnFocus)
-        if (v && v.deprecated) { deprecatedSince = r.label || r.name; break }
-      } catch (e) {
-        // ignore and continue
-      }
+    // Use the releaseManifest (selected release) if it marks the version deprecated.
+    const manifestEntry = releaseManifest.find((r: any) => r.name === name)
+    const manifestVersion = manifestEntry?.versions?.find((v: any) => v.name === versionOnFocus)
+    if (manifestVersion && manifestVersion.deprecated) {
+      deprecatedSince = selectedRelease.label || selectedRelease.name || null
     }
     return {
       name,
