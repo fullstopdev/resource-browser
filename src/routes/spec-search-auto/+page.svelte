@@ -225,7 +225,12 @@
                         .replace(/([a-z])([A-Z])/g, '$1 $2')
                         .replace(/[_.\-]/g, ' ')
                         .toLowerCase();
-                    if (normalizedName.includes(q.toLowerCase())) {
+                    // Also consider a spaceless/compact form so queries like "maclimit"
+                    // match camelCase names like "macLimit" (which normalize to "mac limit").
+                    const normalizedNameNoSpace = normalizedName.replace(/\s+/g, '');
+                    const qLower = q.toLowerCase();
+                    const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
+                    if (normalizedName.includes(qLower) || normalizedNameNoSpace.includes(qNoSpace)) {
                         props[pname] = stripDescriptions(pval);
                         matched = true;
                         nameMatched = true;
@@ -280,7 +285,10 @@
             if (k in node && node[k] !== undefined && q) {
                 const s = String(node[k]);
                 const sNorm = s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_.\-]/g, ' ').toLowerCase();
-                if (sNorm.includes(q.toLowerCase())) {
+                const qLower = q.toLowerCase();
+                const sNormNoSpace = sNorm.replace(/\s+/g, '');
+                const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
+                if (sNorm.includes(qLower) || sNormNoSpace.includes(qNoSpace)) {
                     out[k] = node[k];
                     matched = true;
                 }
