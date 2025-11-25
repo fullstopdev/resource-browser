@@ -740,7 +740,7 @@
 				</div>
 			</div>
 			<div
-				class="scrollbar-thin flex flex-col gap-4 overflow-auto bg-white p-3 md:p-4 dark:bg-gray-900"
+				class="scrollbar-thin flex flex-col gap-4 overflow-y-auto overflow-x-hidden bg-white p-3 md:p-4 dark:bg-gray-900"
 				style="max-height: calc(100vh - 220px); overflow-y: auto;"
 			>
 				<div

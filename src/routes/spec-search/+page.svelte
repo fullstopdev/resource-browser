@@ -508,7 +508,7 @@
 <!-- (PageCredits moved inside the scrolling container to render at the bottom) -->
 
 <div
-	class="relative flex flex-col overflow-y-auto pt-12 md:pt-14 min-h-screen h-screen"
+	class="relative flex flex-col pt-12 md:pt-14 min-h-screen overflow-hidden"
 >
 	<div class="relative z-10 flex flex-1 flex-col lg:flex-row">
 		<div class="flex-1 overflow-auto pb-16">
@@ -725,13 +725,15 @@
 														</div>
 														{#if resultsViewMode === 'tree'}
 															<div class="relative isolate overflow-hidden">
-																<Render
+																<div class="overflow-x-hidden">
+																	<Render
 																	hash={`${g.name}.${g.version}.spec`}
 																	source={release?.name || 'release'}
 																	type={'spec'}
 																	data={g.spec}
 																	showType={false}
 																/>
+																</div>
 															</div>
 														{:else}
 															<div class="relative isolate overflow-hidden">
@@ -758,13 +760,15 @@
 														</div>
 														{#if resultsViewMode === 'tree'}
 															<div class="relative isolate overflow-hidden">
-																<Render
+																<div class="overflow-x-hidden">
+																	<Render
 																	hash={`${g.name}.${g.version}.status`}
 																	source={release?.name || 'release'}
 																	type={'status'}
 																	data={g.status}
 																	showType={false}
 																/>
+																</div>
 															</div>
 														{:else}
 															<div class="relative isolate overflow-hidden">
@@ -838,7 +842,7 @@
 											<div
 												class="pro-spec-preview relative isolate z-0 max-h-[40rem] overflow-hidden"
 											>
-												<div class="overflow-x-auto">
+												<div class="overflow-visible">
 													<div class="min-w-[960px] space-y-4">
 														{#if g.spec}
 															<div>
@@ -849,13 +853,15 @@
 																</div>
 																{#if resultsViewMode === 'tree'}
 																	<div class="relative isolate overflow-hidden">
-																		<Render
+																		<div class="overflow-x-hidden">
+																			<Render
 																			hash={`${g.name}.${g.version}.spec`}
 																			source={release?.name || 'release'}
 																			type={'spec'}
 																			data={g.spec}
 																			showType={false}
 																		/>
+																		</div>
 																	</div>
 																{:else}
 																	<div class="relative isolate overflow-hidden">
@@ -882,13 +888,15 @@
 																</div>
 																{#if resultsViewMode === 'tree'}
 																	<div class="relative isolate overflow-hidden">
-																		<Render
+																		<div class="overflow-x-hidden">
+																			<Render
 																			hash={`${g.name}.${g.version}.status`}
 																			source={release?.name || 'release'}
 																			type={'status'}
 																			data={g.status}
 																			showType={false}
 																		/>
+																		</div>
 																	</div>
 																{:else}
 																	<div class="relative isolate overflow-hidden">
