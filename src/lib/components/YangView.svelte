@@ -5,7 +5,7 @@
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
 	import releasesYaml from '$lib/releases.yaml?raw';
 	import type { ReleasesConfig } from '$lib/structure';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, createEventDispatcher } from 'svelte';
 	import { getScope } from './functions';
 	// (ulExpanded imported above)
 	import type { Schema } from '$lib/structure';
@@ -34,6 +34,10 @@
 	export let kind: string | null = null;
 	export let resourceVersion: string | null = null;
 	export let releaseName: string | null = null;
+	export let clickToSearch: boolean = false;
+
+	// dispatch events for parent components (e.g. pages that want to use clicks for search)
+	const dispatch = createEventDispatcher();
 
 	function shortKind(k: string | null) {
 		if (!k) return '';
@@ -446,7 +450,23 @@
 					<button
 						type="button"
 						class="text-sm font-medium text-gray-900 hover:text-cyan-700 hover:underline dark:text-gray-100 dark:hover:text-cyan-400"
-						on:click={() => openResource(p.path)}
+						on:click={() => {
+							// emit a path click event so a parent page can use it for auto-search
+							try {
+								dispatch('pathclick', { path: p.path, displayPath: p.displayPath });
+								// also emit a DOM event for global listeners
+								try {
+									document.dispatchEvent(
+										new CustomEvent('yang:pathclick', { detail: { path: p.path, displayPath: p.displayPath } })
+									);
+								} catch (err) {
+									/* ignore: some environments may not allow document events */
+								}
+							} catch (e) {
+								/* ignore */
+							}
+							if (!clickToSearch) openResource(p.path);
+						}}
 					>
 						<span class="max-w-[70%] break-words"
 							>{p.displayPath}{#if p.required}<sup
@@ -466,7 +486,7 @@
 					<button
 						type="button"
 						class="rounded p-1 text-sm font-semibold text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
-						on:click={(e) => {
+								on:click={(e) => {
 							// If we are already on a resource page for this resource (resourceName/resourceVersion),
 							// just update the hash to highlight the field rather than opening a new page.
 							try {
@@ -486,6 +506,13 @@
 									// Copy url to clipboard and set UI indicator
 									try {
 										navigator.clipboard.writeText(url);
+									} catch (err) {
+										/* ignore */
+									}
+									try {
+										document.dispatchEvent(
+											new CustomEvent('yang:pathclick', { detail: { path: p.path, displayPath: p.displayPath } })
+										);
 									} catch (err) {
 										/* ignore */
 									}
@@ -514,6 +541,12 @@
 									try {
 										fetch(url, { mode: 'same-origin', cache: 'reload' });
 									} catch (err) {
+										/* ignore */
+									}
+									// emit a path click event so a parent page can use it for search
+									try {
+										dispatch('pathclick', { path: p.path, displayPath: p.displayPath });
+									} catch (e) {
 										/* ignore */
 									}
 									window.open(url, '_blank');
@@ -562,6 +595,11 @@
 										copyTimeout = setTimeout(() => {
 											if (copiedPath === p.path) copiedPath = null;
 										}, 500);
+										try {
+											dispatch('pathclick', { path: p.path, displayPath: p.displayPath });
+										} catch (e) {
+											/* ignore */
+										}
 									}
 								} as any)}
 						title="Open resource in new page (also copy link)"
