@@ -23,8 +23,8 @@
     let loadingVersions = false;
 
     let query = '';
+    let searchInDescription = false;
     let selectedTokens = new Set<string>();
-    let resultsViewMode: 'tree' | 'yang' = 'yang';
     let selectedResource: string | null = null;
     let isModalOpen = false;
     let modalData: { name: string; kind?: string; version?: string; spec?: any; status?: any; fullSpec?: any; fullStatus?: any; markedFull?: { spec?: any; status?: any } } | null = null;
@@ -32,13 +32,44 @@
     let modalExpandAll = false;
 
     // Extract all property paths from a schema object to determine what should be expanded
-    function extractPaths(obj: any, prefix: string = '', paths: string[] = []): string[] {
+    function extractPaths(obj: any, prefix: string = '', paths: any[] = []): any[] {
         if (!obj || typeof obj !== 'object') return paths;
         
         if (obj.properties) {
             for (const key of Object.keys(obj.properties)) {
                 const path = prefix ? `${prefix}.${key}` : key;
-                paths.push(path);
+                const prop = obj.properties[key];
+                
+                // A node is a leaf if it has NO nested properties AND NO items (array children)
+                const hasNestedProperties = prop.properties && Object.keys(prop.properties).length > 0;
+                const hasArrayItems = prop.items && (prop.items.properties || prop.items.items);
+                const isLeaf = !hasNestedProperties && !hasArrayItems;
+                
+                if (isLeaf) {
+                    const pathInfo: any = { path };
+                    
+                    // Add type info
+                    if (prop.type) pathInfo.type = prop.type;
+                    
+                    // Add enum if present
+                    if (prop.enum && Array.isArray(prop.enum)) pathInfo.enum = prop.enum;
+                    
+                    // Add default value if present
+                    if (prop.default !== undefined) pathInfo.default = prop.default;
+                    
+                    // Add constraints
+                    const constraints: string[] = [];
+                    if (prop.minimum !== undefined) constraints.push(`min: ${prop.minimum}`);
+                    if (prop.maximum !== undefined) constraints.push(`max: ${prop.maximum}`);
+                    if (prop.minLength !== undefined) constraints.push(`minLen: ${prop.minLength}`);
+                    if (prop.maxLength !== undefined) constraints.push(`maxLen: ${prop.maxLength}`);
+                    if (prop.pattern) constraints.push(`pattern: ${prop.pattern}`);
+                    if (constraints.length > 0) pathInfo.constraints = constraints;
+                    
+                    paths.push(pathInfo);
+                }
+                
+                // Always recurse to find nested leaves
                 extractPaths(obj.properties[key], path, paths);
             }
         }
@@ -79,21 +110,25 @@
         return result;
     }
 
-    // Initialize from URL parameters
+    // Initialize from URL parameters only once on mount
+    let initialized = false;
     $: {
-        const urlRelease = $page.url.searchParams.get('release');
-        const urlVersion = $page.url.searchParams.get('version');
-        const urlQuery = $page.url.searchParams.get('q');
-        
-        if (urlRelease && !releaseName) {
-            releaseName = urlRelease;
-            loadVersions();
-        }
-        if (urlVersion && !version) {
-            version = urlVersion;
-        }
-        if (urlQuery && !query) {
-            query = urlQuery;
+        if (!initialized) {
+            const urlRelease = $page.url.searchParams.get('release');
+            const urlVersion = $page.url.searchParams.get('version');
+            const urlQuery = $page.url.searchParams.get('q');
+            
+            if (urlRelease) {
+                releaseName = urlRelease;
+                loadVersions();
+            }
+            if (urlVersion) {
+                version = urlVersion;
+            }
+            if (urlQuery) {
+                query = urlQuery;
+            }
+            initialized = true;
         }
     }
 
@@ -102,10 +137,12 @@
         const params = new URLSearchParams();
         if (releaseName) params.set('release', releaseName);
         if (version) params.set('version', version);
-        if (query) params.set('q', query);
+        if (query && query.trim()) params.set('q', query);
         
-        const newUrl = params.toString() ? `?${params.toString()}` : '/spec-search-auto';
-        goto(newUrl, { replaceState: true, noScroll: true, keepFocus: true });
+        const targetUrl = `/spec-search-auto${params.toString() ? `?${params.toString()}` : ''}`;
+        
+        // Always update to ensure URL reflects current state
+        goto(targetUrl, { replaceState: true, noScroll: true, keepFocus: true });
     }
 
     $: selectedTokens = new Set(query.split(/\s+/).filter(Boolean));
@@ -147,7 +184,8 @@
         version?: string;
         type?: 'spec' | 'status';
     }> = [];
-    $: displayedResults = results;
+    const MAX_RESULTS = 100; // Limit results for performance
+    $: displayedResults = results.slice(0, MAX_RESULTS);
 
     // Simple in-memory caches to avoid refetching manifests and YAML repeatedly
     const manifestCache: Map<string, any> = new Map();
@@ -297,10 +335,9 @@
         return node;
     }
 
-    function pruneSchema(node: any, re: RegExp | null, q: string): any | null {
+    function pruneSchema(node: any, re: RegExp | null, q: string, includeDesc: boolean = false): any | null {
         // Only match structural paths (property names / titles) by default.
-        // Avoid matching descriptions, format, enum values, or other internal fields
-        // unless a regex is explicitly provided that matches those values.
+        // Optionally include descriptions if includeDesc is true.
         if (node == null) return null;
         if (typeof node !== 'object' || (Array.isArray(node) === true && node.length === 0)) {
             // Do not match primitive leaf values by default (prevents matching enum values, formats, etc.)
@@ -309,11 +346,23 @@
         const out: any = {};
         let matched = false;
         function copyMeta(src: any, dst: any) {
-            const keys = ['type', 'format', 'enum', 'default', 'minimum', 'maximum', 'pattern', 'title'];
+            const keys = ['type', 'format', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'title'];
             for (const k of keys) {
                 if (k in src && src[k] !== undefined) dst[k] = src[k];
             }
         }
+        
+        // Check if description matches (if includeDesc is true)
+        if (includeDesc && node.description && typeof node.description === 'string' && q) {
+            const descLower = node.description.toLowerCase();
+            const qLower = q.toLowerCase();
+            if (descLower.includes(qLower)) {
+                matched = true;
+                copyMeta(node, out);
+                if (node.description) out.description = node.description;
+            }
+        }
+        
         if (node.properties && typeof node.properties === 'object') {
             const props: any = {};
             for (const [pname, pval] of Object.entries(node.properties)) {
@@ -338,7 +387,7 @@
 
                 // If name didn't match, recurse into the property's schema to find deeper property-name matches
                 if (!nameMatched) {
-                    const pr = pruneSchema(pval as any, re, q);
+                    const pr = pruneSchema(pval as any, re, q, includeDesc);
                     if (pr != null) {
                         props[pname] = pr;
                         matched = true;
@@ -351,7 +400,7 @@
             }
         }
         if (node.items) {
-            const pr = pruneSchema(node.items, re, q);
+            const pr = pruneSchema(node.items, re, q, includeDesc);
             if (pr != null) {
                 out.items = pr;
                 if (node.type) out.type = node.type;
@@ -362,7 +411,7 @@
             if (Array.isArray(node[comb])) {
                 const arr: any[] = [];
                 for (const el of node[comb]) {
-                    const pr = pruneSchema(el, re, q);
+                    const pr = pruneSchema(el, re, q, includeDesc);
                     if (pr != null) {
                         arr.push(pr);
                         matched = true;
@@ -372,7 +421,7 @@
             }
         }
         if (node.additionalProperties && typeof node.additionalProperties === 'object') {
-            const pr = pruneSchema(node.additionalProperties, re, q);
+            const pr = pruneSchema(node.additionalProperties, re, q, includeDesc);
             if (pr != null) {
                 out.additionalProperties = pr;
                 matched = true;
@@ -490,8 +539,8 @@
                         });
 
                         if (spec) {
-                            const stripped = stripDescriptions(spec);
-                            const pruned = pruneSchema(stripped, re, q);
+                            const stripped = searchInDescription ? spec : stripDescriptions(spec);
+                            const pruned = pruneSchema(stripped, re, q, searchInDescription);
                             if (pruned) {
                                 let readySchema = pruned;
                                 try {
@@ -520,8 +569,8 @@
                             }
                         }
                         if (status) {
-                            const strippedStatus = stripDescriptions(status);
-                            const prunedStatus = pruneSchema(strippedStatus, re, q);
+                            const strippedStatus = searchInDescription ? status : stripDescriptions(status);
+                            const prunedStatus = pruneSchema(strippedStatus, re, q, searchInDescription);
                             if (prunedStatus) {
                                 let readyStatus = prunedStatus;
                                 try { readyStatus = restoreDescriptions(readyStatus, status, true); } catch (e) {}
@@ -563,11 +612,9 @@
         if (!query || query.trim().length === 0) {
             results = [];
             loading = false;
+            updateURL(); // Update URL to remove query parameter
             return;
         }
-        
-        // Update URL with current parameters
-        updateURL();
         
         // Clear old results immediately when query changes to avoid showing stale data
         results = [];
@@ -576,7 +623,8 @@
         debounceTimer = setTimeout(() => {
             debounceTimer = null;
             performSearch();
-        }, 150); // Faster: reduced from 300ms to 150ms
+            updateURL(); // Update URL after search is triggered
+        }, 100); // Ultra-fast: reduced to 100ms for instant feel
     }
 
     // Watch query changes reactively to trigger search on any change (typing, clear button, etc.)
@@ -585,6 +633,15 @@
         // This reactive block re-runs whenever query changes
         if (query !== previousQuery) {
             previousQuery = query;
+            scheduleSearch();
+        }
+    }
+
+    // Trigger search when searchInDescription toggle changes
+    let previousSearchInDescription = false;
+    $: {
+        if (searchInDescription !== previousSearchInDescription && query) {
+            previousSearchInDescription = searchInDescription;
             scheduleSearch();
         }
     }
@@ -623,54 +680,68 @@
 </script>
 
 <svelte:head>
-    <title>EDA Resource Browser | Interactive Path Search</title>
-    </svelte:head>
-
-<TopHeader title="Interactive Path Search" />
+    <title>EDA Resource Browser | Resource Search</title>
+</svelte:head><TopHeader title="Resource Search" />
 
 <div class="relative flex min-h-screen flex-col pt-12 md:pt-14">
-    <div class="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+    <div class="mx-auto w-full max-w-7xl flex-1 px-4 py-4">
         
-        <!-- Compact Filters at Top -->
-        <div class="mb-5 flex flex-wrap items-end gap-3">
-            <div class="flex-1 min-w-[200px]">
-                <label for="spec-release" class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Release
-                </label>
-                <select 
-                    id="spec-release" 
-                    bind:value={releaseName} 
-                    on:change={loadVersions} 
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all hover:border-gray-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:border-gray-500 dark:focus:border-cyan-400"
-                >
-                    <option value="">Select release...</option>
-                    {#each releasesConfig.releases as r}
-                        <option value={r.name}>{r.label}</option>
-                    {/each}
-                </select>
-            </div>
-            <div class="flex-1 min-w-[200px]">
-                <label for="spec-version" class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Version
-                </label>
-                <select 
-                    id="spec-version" 
-                    bind:value={version} 
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm transition-all hover:border-gray-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:border-gray-500 dark:focus:border-cyan-400" 
-                    disabled={!release || versions.length === 0 || loadingVersions}
-                >
-                    <option value="">{loadingVersions ? 'Loading...' : 'All versions'}</option>
-                    {#each versions as v}
-                        <option value={v}>{v}</option>
-                    {/each}
-                </select>
-            </div>
+        <!-- Ultra-Compact Filters -->
+        <div class="mb-4 flex flex-wrap items-center gap-2">
+            <select 
+                id="spec-release" 
+                bind:value={releaseName} 
+                on:change={loadVersions} 
+                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 shadow-sm transition-all hover:border-cyan-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:border-gray-500 dark:focus:border-cyan-400"
+            >
+                <option value="">Select release...</option>
+                {#each releasesConfig.releases as r}
+                    <option value={r.name}>{r.label}</option>
+                {/each}
+            </select>
+            
+            <select 
+                id="spec-version" 
+                bind:value={version}
+                on:change={() => {
+                    updateURL();
+                    if (query && query.trim()) {
+                        scheduleSearch();
+                    }
+                }}
+                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 shadow-sm transition-all hover:border-cyan-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:border-gray-500 dark:focus:border-cyan-400" 
+                disabled={!release || versions.length === 0 || loadingVersions}
+            >
+                <option value="">{loadingVersions ? 'Loading...' : 'All versions'}</option>
+                {#each versions as v}
+                    <option value={v}>{v}</option>
+                {/each}
+            </select>
+            
+            <label class="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm transition-all hover:border-cyan-400 dark:border-gray-600 dark:bg-gray-800">
+                <input 
+                    type="checkbox" 
+                    bind:checked={searchInDescription}
+                    class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-700"
+                />
+                <span class="text-gray-700 dark:text-gray-300">Search descriptions</span>
+            </label>
+            
+            {#if groupedResults.length > 0}
+                <div class="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                    {groupedResults.length} resource{groupedResults.length !== 1 ? 's' : ''} found
+                    {#if results.length > MAX_RESULTS}
+                        <span class="text-amber-600 dark:text-amber-400">(showing first {MAX_RESULTS})</span>
+                    {/if}
+                </div>
+            {/if}
         </div>
-        <!-- Enhanced Search Input -->
-        <div class="mb-5 space-y-3">
+
+        <!-- Compact Search Input -->
+        <div class="mb-4">
             <div class="relative">
-                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
                     </svg>
                 </div>
@@ -687,8 +758,8 @@
                             performSearch();
                         }
                     }}
-                    placeholder="Type to search paths, or click paths below to build your query..."
-                    class="w-full rounded-xl border border-gray-300 bg-white py-3.5 pl-11 pr-11 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 hover:border-gray-400 focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-500 dark:hover:border-gray-500 dark:focus:border-cyan-400"
+                    placeholder="Search property paths..."
+                    class="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 hover:border-cyan-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:hover:border-gray-500 dark:focus:border-cyan-400"
                 />
                 {#if query}
                     <button 
@@ -702,7 +773,7 @@
                             selectedTokens = new Set();
                             updateURL();
                         }} 
-                        class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -710,78 +781,20 @@
                     </button>
                 {/if}
             </div>
-
-            <!-- Better Token/Path Display -->
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                {#if query}
-                    <div class="flex flex-wrap gap-2">
-                        {#each query.split(/\s+/).filter(Boolean) as token}
-                            <button
-                                class="group inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 px-3 py-1.5 text-xs font-medium text-cyan-700 shadow-sm transition-all hover:from-cyan-100 hover:to-blue-100 hover:shadow dark:from-cyan-900/30 dark:to-blue-900/30 dark:text-cyan-300 dark:hover:from-cyan-900/50 dark:hover:to-blue-900/50"
-                                on:click={() => { 
-                                    const toks = query.split(/\s+/).filter(Boolean); 
-                                    query = toks.filter(t => t !== token).join(' '); 
-                                }}
-                            >
-                                <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                </svg>
-                                <span class="font-mono">{token}</span>
-                                <svg class="h-3.5 w-3.5 opacity-60 transition-opacity group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        {/each}
-                    </div>
-                {:else}
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                        <span class="hidden sm:inline">💡 Select a release and start typing, or click paths in results</span>
-                        <span class="sm:hidden">💡 Click paths to search</span>
-                    </div>
-                {/if}
-                
-                {#if displayedResults.length > 0}
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-medium text-gray-900 dark:text-gray-200">View:</span>
-                        <button
-                            on:click={() => (resultsViewMode = 'yang')}
-                            class="rounded-md px-3 py-1.5 text-sm font-semibold transition-colors {resultsViewMode === 'yang'
-                                ? 'bg-cyan-600 text-white shadow-sm'
-                                : 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-                        >YANG</button>
-                        <button
-                            on:click={() => (resultsViewMode = 'tree')}
-                            class="rounded-md px-3 py-1.5 text-sm font-semibold transition-colors {resultsViewMode === 'tree'
-                                ? 'bg-purple-600 text-white shadow-sm'
-                                : 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-                        >Tree</button>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 px-3 py-1.5 shadow-sm dark:from-purple-900/30 dark:to-pink-900/30">
-                            <svg class="h-4 w-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                            <span class="text-sm font-semibold text-purple-700 dark:text-purple-300">
-                                {groupedResults.length} {groupedResults.length === 1 ? 'match' : 'matches'}
-                            </span>
-                        </div>
-                    </div>
-                {/if}
-            </div>
         </div>
 
         <!-- Loading Indicator -->
         {#if loading}
-            <div class="mb-5">
-                <div class="flex items-center justify-center gap-3 rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 px-4 py-3 dark:border-cyan-800 dark:from-cyan-900/20 dark:to-blue-900/20">
-                    <div class="h-5 w-5 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600 dark:border-cyan-700 dark:border-t-cyan-400"></div>
+            <div class="mb-4">
+                <div class="flex items-center justify-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 dark:border-cyan-800 dark:bg-cyan-900/20">
+                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600 dark:border-cyan-700 dark:border-t-cyan-400"></div>
                     <span class="text-sm font-medium text-cyan-700 dark:text-cyan-300">Searching...</span>
                 </div>
             </div>
         {/if}
 
-                <!-- Results Section -->
-                {#if loading && query}
+        <!-- Results Section -->
+        {#if loading}
                     <!-- Loading Skeleton -->
                     <div class="space-y-4">
                         {#each [1, 2, 3] as _}
@@ -803,28 +816,26 @@
                         {/each}
                     </div>
                 {:else if displayedResults.length > 0}
-                    <div class="space-y-3 sm:hidden">
+                    <!-- Mobile Cards -->
+                    <div class="space-y-2 sm:hidden">
                         {#each groupedResults as g}
                             <button
-                                type="button"
-                                class="w-full text-left relative isolate z-0 overflow-hidden rounded-lg border border-gray-200 bg-white p-3 transition-all duration-200 hover:border-cyan-400 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:hover:border-cyan-500"
-                                on:click|preventDefault|stopPropagation={(e) => {
+                                on:click={(e) => {
                                     e.preventDefault();
                                     expandedPaths = [];
                                     const matchedPaths = new Set<string>();
                                     
                                     if (g.spec) {
                                         const specPaths = extractPaths(g.spec, 'spec');
-                                        expandedPaths.push(...specPaths);
-                                        specPaths.forEach(p => matchedPaths.add(p));
+                                        expandedPaths.push(...specPaths.map(p => typeof p === 'string' ? p : p.path));
+                                        specPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
                                     }
                                     if (g.status) {
                                         const statusPaths = extractPaths(g.status, 'status');
-                                        expandedPaths.push(...statusPaths);
-                                        statusPaths.forEach(p => matchedPaths.add(p));
+                                        expandedPaths.push(...statusPaths.map(p => typeof p === 'string' ? p : p.path));
+                                        statusPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
                                     }
                                     
-                                    // Mark matching nodes in full schema for amber highlighting
                                     const markedFull = {
                                         spec: g.fullSpec ? markMatchingNodes(g.fullSpec, matchedPaths, 'spec') : g.fullSpec,
                                         status: g.fullStatus ? markMatchingNodes(g.fullStatus, matchedPaths, 'status') : g.fullStatus
@@ -834,175 +845,92 @@
                                     modalData = { ...g, markedFull };
                                     isModalOpen = true;
                                 }}
-                            >
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="mr-2 min-w-0">
-                                        <div class="text-sm font-semibold break-words text-gray-900 dark:text-white">
-                                            {g.kind}
+                                class="w-full overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-colors hover:border-cyan-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-cyan-600 dark:hover:bg-gray-700/50">
+                                <div class="p-3">
+                                    <div class="mb-2 flex items-start justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-semibold text-gray-900 dark:text-white">{g.kind}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{stripResourcePrefixFQDN(String(g.name))}</div>
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-gray-300">
-                                            {stripResourcePrefixFQDN(String(g.name))}
+                                        <div class="flex items-center gap-2">
+                                            {#if g.version}
+                                                <span class="rounded px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">{g.version}</span>
+                                            {/if}
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        {#if g.version}
-                                            <div
-                                                class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                                            >
-                                                {g.version}
+                                    <!-- Schema badges and paths -->
+                                    <div class="space-y-1.5">
+                                        {#if g.spec}
+                                            {@const paths = extractPaths(g.spec, 'spec')}
+                                            <div>
+                                                <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                                                    Spec
+                                                </span>
+                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                    {#each paths as pathInfo}
+                                                        <span class="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                            {typeof pathInfo === 'string' ? pathInfo : pathInfo.path}
+                                                        </span>
+                                                    {/each}
+                                                </div>
                                             </div>
                                         {/if}
-                                    </div>
-                                </div>
-                                <div class="mt-3">
-                                    <div
-                                        class="text-xs break-words whitespace-normal text-gray-900 dark:text-gray-200"
-                                    >
-                                        <div class="overflow-x-auto">
-                                            <div
-                                                class="min-w-[960px] {g.spec && g.status
-                                                    ? 'grid grid-cols-2 gap-4'
-                                                    : 'grid grid-cols-1'}"
-                                            >
-                                                {#if g.spec}
-                                                    <div>
-                                                        <div
-                                                            class="mb-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400"
-                                                        >
-                                                            SPEC
-                                                        </div>
-                                                        {#if resultsViewMode === 'tree'}
-                                                            <div class="relative isolate overflow-hidden">
-                                                                <div class="overflow-x-hidden">
-                                                                    <Render
-                                                                        hash={`${g.name}.${g.version}.spec`}
-                                                                        source={release?.name || 'release'}
-                                                                        type={'spec'}
-                                                                        data={g.spec}
-                                                                        showType={false}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        {:else}
-                                                            <div class="relative isolate overflow-hidden">
-                                                                <YangView
-                                                                    hash={`${g.name}.${g.version}.spec`}
-                                                                    source={release?.name || 'release'}
-                                                                    type={'spec'}
-                                                                    data={g.spec}
-                                                                    resourceName={g.name}
-                                                                    resourceVersion={g.version}
-                                                                    {releaseName}
-                                                                    kind={g.kind}
-                                                                    clickToSearch={true}
-                                                                    on:pathclick={(e) => { const token = e.detail.displayPath || e.detail.path; const toks = query.split(/\s+/).filter(Boolean); if (toks.includes(token)) query = toks.filter(t => t !== token).join(' '); else { toks.push(token); query = toks.join(' '); } if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; } performSearch(); }}
-                                                                />
-                                                            </div>
-                                                        {/if}
-                                                    </div>
-                                                {/if}
-                                                {#if g.status}
-                                                    <div>
-                                                        <div
-                                                            class="mb-1 text-xs font-semibold text-green-600 dark:text-green-400"
-                                                        >
-                                                            STATUS
-                                                        </div>
-                                                        {#if resultsViewMode === 'tree'}
-                                                            <div class="relative isolate overflow-hidden">
-                                                                <div class="overflow-x-hidden">
-                                                                    <Render
-                                                                        hash={`${g.name}.${g.version}.status`}
-                                                                        source={release?.name || 'release'}
-                                                                        type={'status'}
-                                                                        data={g.status}
-                                                                        showType={false}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        {:else}
-                                                            <div class="relative isolate overflow-hidden">
-                                                                <YangView
-                                                                    hash={`${g.name}.${g.version}.status`}
-                                                                    source={release?.name || 'release'}
-                                                                    type={'status'}
-                                                                    data={g.status}
-                                                                    resourceName={g.name}
-                                                                    resourceVersion={g.version}
-                                                                    {releaseName}
-                                                                    kind={g.kind}
-                                                                    clickToSearch={true}
-                                                                    on:pathclick={(e) => { const token = e.detail.displayPath || e.detail.path; const toks = query.split(/\s+/).filter(Boolean); if (toks.includes(token)) query = toks.filter(t => t !== token).join(' '); else { toks.push(token); query = toks.join(' '); } if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; } performSearch(); }}
-                                                                />
-                                                            </div>
-                                                        {/if}
-                                                    </div>
-                                                {/if}
-                                                {#if !g.spec && !g.status}
-                                                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                        No matching content
-                                                    </div>
-                                                {/if}
+                                        {#if g.status}
+                                            {@const paths = extractPaths(g.status, 'status')}
+                                            <div>
+                                                <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                                    Status
+                                                </span>
+                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                    {#each paths as pathInfo}
+                                                        <span class="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                            {typeof pathInfo === 'string' ? pathInfo : pathInfo.path}
+                                                        </span>
+                                                    {/each}
+                                                </div>
                                             </div>
-                                        </div>
+                                        {/if}
                                     </div>
                                 </div>
                             </button>
                         {/each}
                     </div>
 
-                    <!-- Enhanced Desktop Table -->
-                    <div class="hidden overflow-hidden rounded-xl border border-gray-200 shadow-md sm:block dark:border-gray-700">
-                        <table class="w-full table-auto">
-                            <thead>
-                                <tr class="border-b border-gray-200 bg-gradient-to-r from-gray-50 via-white to-gray-50 dark:border-gray-700 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800">
-                                    <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                                        <div class="flex items-center gap-2">
-                                            <svg class="h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                            </svg>
-                                            Resource
-                                        </div>
+                    <!-- Compact Professional Desktop Table -->
+                    <div class="hidden overflow-hidden rounded-lg border border-gray-200 shadow-sm sm:block dark:border-gray-700">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        Resource
                                     </th>
-                                    <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                                        <div class="flex items-center gap-2">
-                                            <svg class="h-4 w-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            Version
-                                        </div>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        Version
                                     </th>
-                                    <th class="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                                        <div class="flex items-center gap-2">
-                                            <svg class="h-4 w-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                            Schema
-                                        </div>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        Matched Paths
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 bg-white dark:divide-gray-700/50 dark:bg-gray-800">
-                                {#each groupedResults as g}
-                                    <tr 
-                                        class="cursor-pointer transition-all duration-200 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-blue-50/50 dark:hover:from-cyan-900/10 dark:hover:to-blue-900/10"
-                                        on:click|preventDefault|stopPropagation={(e) => {
+                                {#each groupedResults as g, idx}
+                                    <tr
+                                        on:click={(e) => {
                                             e.preventDefault();
                                             expandedPaths = [];
                                             const matchedPaths = new Set<string>();
                                             
                                             if (g.spec) {
                                                 const specPaths = extractPaths(g.spec, 'spec');
-                                                expandedPaths.push(...specPaths);
-                                                specPaths.forEach(p => matchedPaths.add(p));
+                                                expandedPaths.push(...specPaths.map(p => typeof p === 'string' ? p : p.path));
+                                                specPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
                                             }
                                             if (g.status) {
                                                 const statusPaths = extractPaths(g.status, 'status');
-                                                expandedPaths.push(...statusPaths);
-                                                statusPaths.forEach(p => matchedPaths.add(p));
+                                                expandedPaths.push(...statusPaths.map(p => typeof p === 'string' ? p : p.path));
+                                                statusPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
                                             }
                                             
-                                            // Mark matching nodes in full schema for amber highlighting
                                             const markedFull = {
                                                 spec: g.fullSpec ? markMatchingNodes(g.fullSpec, matchedPaths, 'spec') : g.fullSpec,
                                                 status: g.fullStatus ? markMatchingNodes(g.fullStatus, matchedPaths, 'status') : g.fullStatus
@@ -1012,69 +940,182 @@
                                             modalData = { ...g, markedFull };
                                             isModalOpen = true;
                                         }}
+                                        class="cursor-pointer transition-colors {idx % 2 === 0 ? '' : 'bg-gray-50/50 dark:bg-gray-900/20'} hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
                                     >
-                                        <td class="relative isolate z-0 max-w-[40%] overflow-hidden px-3 py-3 font-medium break-words whitespace-pre-wrap text-gray-900 sm:px-6 sm:py-4 dark:text-white">
-                                            <div class="flex items-start gap-2">
-                                                <div class="min-w-0">
-                                                    <div class="font-semibold">{g.kind}</div>
-                                                    <div class="text-xs text-gray-500 dark:text-gray-300">{stripResourcePrefixFQDN(String(g.name))}</div>
-                                                </div>
+                                        <td class="px-4 py-2.5">
+                                            <div class="flex flex-col gap-0.5">
+                                                <div class="text-sm font-semibold text-gray-900 dark:text-white">{g.kind}</div>
+                                                <div class="text-xs text-gray-500 dark:text-gray-400">{stripResourcePrefixFQDN(String(g.name))}</div>
                                             </div>
                                         </td>
-                                        <td class="relative isolate z-0 max-w-[12%] overflow-hidden px-3 py-3 break-words whitespace-pre-wrap text-gray-600 sm:px-6 sm:py-4 dark:text-gray-300">{g.version}</td>
-                                        <td class="px-3 py-3 break-words whitespace-normal text-gray-900 sm:px-6 sm:py-4 dark:text-gray-200">
-                                            <div class="pro-spec-preview relative isolate z-0 max-h-[40rem] overflow-hidden">
-                                                <div class="overflow-x-auto">
-                                                    <div class="min-w-[640px] space-y-4">
-                                                        {#if g.spec}
-                                                            <div>
-                                                                <div class="mb-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400">SPEC</div>
-                                                                {#if resultsViewMode === 'tree'}
-                                                                    <div class="relative isolate overflow-hidden">
-                                                                        <div class="overflow-x-hidden">
-                                                                            <Render
-                                                                                hash={`${g.name}.${g.version}.spec`}
-                                                                                source={release?.name || 'release'}
-                                                                                type={'spec'}
-                                                                                data={g.spec}
-                                                                                showType={false}
-                                                                            />
-                                                                        </div>
+                                        <td class="px-4 py-2.5">
+                                            {#if g.version}
+                                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">{g.version}</span>
+                                            {/if}
+                                        </td>
+                                        <td class="px-4 py-2.5">
+                                            <div class="space-y-1.5">
+                                                {#if g.spec}
+                                                    {@const paths = extractPaths(g.spec, 'spec')}
+                                                    {#if paths.length > 0}
+                                                        <div class="rounded border border-cyan-200 bg-cyan-50/30 p-1.5 dark:border-cyan-800 dark:bg-cyan-900/20">
+                                                            <div class="mb-1 text-xs font-semibold text-cyan-700 dark:text-cyan-400">Spec</div>
+                                                            <div class="space-y-0.5">
+                                                                {#each paths as pathInfo}
+                                                                    <div class="group relative flex items-center gap-1.5 flex-wrap">
+                                                                        <span class="text-xs font-mono text-amber-700 dark:text-amber-300">{typeof pathInfo === 'string' ? pathInfo : pathInfo.path}</span>
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.type}
+                                                                            {@const typeColors = {
+                                                                                string: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+                                                                                integer: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+                                                                                number: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800',
+                                                                                boolean: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+                                                                                object: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800',
+                                                                                array: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
+                                                                            }}
+                                                                            {@const typeColor = typeColors[pathInfo.type as keyof typeof typeColors] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
+                                                                            <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium {typeColor}">{pathInfo.type}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.enum}
+                                                                            {#each pathInfo.enum.slice(0, 3) as e}
+                                                                                <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                            {/each}
+                                                                            {#if pathInfo.enum.length > 3}
+                                                                                <span class="text-[10px] text-purple-500 dark:text-purple-400">+{pathInfo.enum.length - 3} more</span>
+                                                                            {/if}
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.default !== undefined}
+                                                                            <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">default: {JSON.stringify(pathInfo.default)}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.constraints}
+                                                                            {#each pathInfo.constraints as constraint}
+                                                                                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                            {/each}
+                                                                        {/if}
+                                                                        
+                                                                        <!-- Hover tooltip with all metadata grouped -->
+                                                                        {#if typeof pathInfo === 'object' && (pathInfo.enum || pathInfo.default !== undefined || pathInfo.constraints)}
+                                                                            <div class="pointer-events-none absolute left-0 top-full z-[100] mt-1 hidden group-hover:block">
+                                                                                <div class="w-max max-w-md rounded-lg border border-gray-300 bg-white p-2.5 shadow-xl dark:border-gray-600 dark:bg-gray-800">
+                                                                                    <div class="space-y-2">
+                                                                                        {#if pathInfo.enum}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">Enum Values</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.enum as e}
+                                                                                                        <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.default !== undefined}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Default Value</div>
+                                                                                                <span class="inline-block rounded bg-indigo-100 px-2 py-1 text-xs font-mono text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{JSON.stringify(pathInfo.default)}</span>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.constraints}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Constraints</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.constraints as constraint}
+                                                                                                        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        {/if}
                                                                     </div>
-                                                                {:else}
-                                                                    <div class="relative isolate overflow-hidden">
-                                                                        <YangView hash={`${g.name}.${g.version}.spec`} source={release?.name || 'release'} type={'spec'} data={g.spec} resourceName={g.name} resourceVersion={g.version} {releaseName} kind={g.kind} clickToSearch={true} on:pathclick={(e) => { const token = e.detail.displayPath || e.detail.path; const toks = query.split(/\s+/).filter(Boolean); if (toks.includes(token)) query = toks.filter(t => t !== token).join(' '); else { toks.push(token); query = toks.join(' '); } scheduleSearch(); }} />
-                                                                    </div>
-                                                                {/if}
+                                                                {/each}
                                                             </div>
-                                                        {/if}
-                                                        {#if g.status}
-                                                            <div>
-                                                                <div class="mb-1 text-xs font-semibold text-green-600 dark:text-green-400">STATUS</div>
-                                                                {#if resultsViewMode === 'tree'}
-                                                                    <div class="relative isolate overflow-hidden">
-                                                                        <div class="overflow-x-hidden">
-                                                                            <Render
-                                                                                hash={`${g.name}.${g.version}.status`}
-                                                                                source={release?.name || 'release'}
-                                                                                type={'status'}
-                                                                                data={g.status}
-                                                                                showType={false}
-                                                                            />
-                                                                        </div>
+                                                        </div>
+                                                    {/if}
+                                                {/if}
+                                                {#if g.status}
+                                                    {@const paths = extractPaths(g.status, 'status')}
+                                                    {#if paths.length > 0}
+                                                        <div class="rounded border border-green-200 bg-green-50/30 p-1.5 dark:border-green-800 dark:bg-green-900/20">
+                                                            <div class="mb-1 text-xs font-semibold text-green-700 dark:text-green-400">Status</div>
+                                                            <div class="space-y-0.5">
+                                                                {#each paths as pathInfo}
+                                                                    <div class="group relative flex items-center gap-1.5 flex-wrap">
+                                                                        <span class="text-xs font-mono text-amber-700 dark:text-amber-300">{typeof pathInfo === 'string' ? pathInfo : pathInfo.path}</span>
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.type}
+                                                                            {@const typeColors = {
+                                                                                string: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+                                                                                integer: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+                                                                                number: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800',
+                                                                                boolean: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+                                                                                object: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800',
+                                                                                array: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
+                                                                            }}
+                                                                            {@const typeColor = typeColors[pathInfo.type as keyof typeof typeColors] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
+                                                                            <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium {typeColor}">{pathInfo.type}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.enum}
+                                                                            {#each pathInfo.enum.slice(0, 3) as e}
+                                                                                <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                            {/each}
+                                                                            {#if pathInfo.enum.length > 3}
+                                                                                <span class="text-[10px] text-purple-500 dark:text-purple-400">+{pathInfo.enum.length - 3} more</span>
+                                                                            {/if}
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.default !== undefined}
+                                                                            <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">default: {JSON.stringify(pathInfo.default)}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.constraints}
+                                                                            {#each pathInfo.constraints as constraint}
+                                                                                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                            {/each}
+                                                                        {/if}
+                                                                        
+                                                                        <!-- Hover tooltip with all metadata grouped -->
+                                                                        {#if typeof pathInfo === 'object' && (pathInfo.enum || pathInfo.default !== undefined || pathInfo.constraints)}
+                                                                            <div class="pointer-events-none absolute left-0 top-full z-[100] mt-1 hidden group-hover:block">
+                                                                                <div class="w-max max-w-md rounded-lg border border-gray-300 bg-white p-2.5 shadow-xl dark:border-gray-600 dark:bg-gray-800">
+                                                                                    <div class="space-y-2">
+                                                                                        {#if pathInfo.enum}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">Enum Values</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.enum as e}
+                                                                                                        <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.default !== undefined}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Default Value</div>
+                                                                                                <span class="inline-block rounded bg-indigo-100 px-2 py-1 text-xs font-mono text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{JSON.stringify(pathInfo.default)}</span>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.constraints}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Constraints</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.constraints as constraint}
+                                                                                                        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        {/if}
                                                                     </div>
-                                                                {:else}
-                                                                    <div class="relative isolate overflow-hidden">
-                                                                        <YangView hash={`${g.name}.${g.version}.status`} source={release?.name || 'release'} type={'status'} data={g.status} resourceName={g.name} resourceVersion={g.version} {releaseName} kind={g.kind} clickToSearch={true} on:pathclick={(e) => { const token = e.detail.displayPath || e.detail.path; const toks = query.split(/\s+/).filter(Boolean); if (toks.includes(token)) query = toks.filter(t => t !== token).join(' '); else { toks.push(token); query = toks.join(' '); } scheduleSearch(); }} />
-                                                                    </div>
-                                                                {/if}
+                                                                {/each}
                                                             </div>
-                                                        {/if}
-                                                        {#if !g.spec && !g.status}
-                                                            <div class="text-xs text-gray-500 dark:text-gray-400">No matching content</div>
-                                                        {/if}
-                                                    </div>
-                                                </div>
+                                                        </div>
+                                                    {/if}
+                                                {/if}
+                                                {#if !g.spec && !g.status}
+                                                    <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+                                                {/if}
                                             </div>
                                         </td>
                                     </tr>
@@ -1158,7 +1199,7 @@
                 <div class="flex items-center gap-3">
                     {#if version}
                         <span class="rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 px-3 py-1 text-sm font-mono font-semibold text-cyan-300">
-                            v{version}
+                            {version}
                         </span>
                     {/if}
                     <button

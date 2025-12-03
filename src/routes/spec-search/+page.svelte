@@ -1,1011 +1,1317 @@
 <script lang="ts">
-	import yaml from 'js-yaml';
-	// AnimatedBackground is dynamically imported/rendered by the layout; avoid importing here to keep it lazy
-	import TopHeader from '$lib/components/TopHeader.svelte';
-	import PageCredits from '$lib/components/PageCredits.svelte';
+    import yaml from 'js-yaml';
+    import { onMount, onDestroy } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { page } from '$app/stores';
+    // AnimatedBackground is dynamically imported/rendered by the layout; avoid importing here to keep it lazy
+    import TopHeader from '$lib/components/TopHeader.svelte';
+    import PageCredits from '$lib/components/PageCredits.svelte';
 
-	import Render from '$lib/components/Render.svelte';
-	import YangView from '$lib/components/YangView.svelte';
-	import { stripResourcePrefixFQDN } from '$lib/components/functions';
-	import { expandAll, expandAllScope } from '$lib/store';
-	import releasesYaml from '$lib/releases.yaml?raw';
-	import type { EdaRelease, ReleasesConfig } from '$lib/structure';
+    import Render from '$lib/components/Render.svelte';
+    import YangView from '$lib/components/YangView.svelte';
+    import { stripResourcePrefixFQDN } from '$lib/components/functions';
+    // expandAll controls removed from this auto-search page (no UI button)
+    import releasesYaml from '$lib/releases.yaml?raw';
+    import type { EdaRelease, ReleasesConfig } from '$lib/structure';
 
-	const releasesConfig = yaml.load(releasesYaml) as ReleasesConfig;
+    const releasesConfig = yaml.load(releasesYaml) as ReleasesConfig;
 
-	let releaseName = '';
-	let release: EdaRelease | null = null;
-	let versions: string[] = [];
-	let version = '';
-	let loadingVersions = false;
+    let releaseName = '';
+    let release: EdaRelease | null = null;
+    let versions: string[] = [];
+    let version = '';
+    let loadingVersions = false;
 
-	let query = '';
-	let includeEnum = false;
+    let query = '';
+    let searchInDescription = false;
+    let selectedTokens = new Set<string>();
+    let selectedResource: string | null = null;
+    let isModalOpen = false;
+    let modalData: { name: string; kind?: string; version?: string; spec?: any; status?: any; fullSpec?: any; fullStatus?: any; markedFull?: { spec?: any; status?: any } } | null = null;
+    let expandedPaths: string[] = [];
+    let modalExpandAll = false;
 
-	let selectedTokens = new Set<string>();
-	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	// Monotonic search id to ignore stale async search results
-	let searchId = 0;
+    // Extract all property paths from a schema object to determine what should be expanded
+    function extractPaths(obj: any, prefix: string = '', paths: any[] = []): any[] {
+        if (!obj || typeof obj !== 'object') return paths;
+        
+        if (obj.properties) {
+            for (const key of Object.keys(obj.properties)) {
+                const path = prefix ? `${prefix}.${key}` : key;
+                const prop = obj.properties[key];
+                
+                // A node is a leaf if it has NO nested properties AND NO items (array children)
+                const hasNestedProperties = prop.properties && Object.keys(prop.properties).length > 0;
+                const hasArrayItems = prop.items && (prop.items.properties || prop.items.items);
+                const isLeaf = !hasNestedProperties && !hasArrayItems;
+                
+                if (isLeaf) {
+                    const pathInfo: any = { path };
+                    
+                    // Add type info
+                    if (prop.type) pathInfo.type = prop.type;
+                    
+                    // Add enum if present
+                    if (prop.enum && Array.isArray(prop.enum)) pathInfo.enum = prop.enum;
+                    
+                    // Add default value if present
+                    if (prop.default !== undefined) pathInfo.default = prop.default;
+                    
+                    // Add constraints
+                    const constraints: string[] = [];
+                    if (prop.minimum !== undefined) constraints.push(`min: ${prop.minimum}`);
+                    if (prop.maximum !== undefined) constraints.push(`max: ${prop.maximum}`);
+                    if (prop.minLength !== undefined) constraints.push(`minLen: ${prop.minLength}`);
+                    if (prop.maxLength !== undefined) constraints.push(`maxLen: ${prop.maxLength}`);
+                    if (prop.pattern) constraints.push(`pattern: ${prop.pattern}`);
+                    if (constraints.length > 0) pathInfo.constraints = constraints;
+                    
+                    paths.push(pathInfo);
+                }
+                
+                // Always recurse to find nested leaves
+                extractPaths(obj.properties[key], path, paths);
+            }
+        }
+        
+        if (obj.items) {
+            extractPaths(obj.items, prefix, paths);
+        }
+        
+        return paths;
+    }
 
-	function ensureRenderable(schema: any) {
-		if (!schema || typeof schema !== 'object') return schema;
-		// If schema already has explicit type or properties/items, return as-is
-		if ('type' in schema || 'properties' in schema || 'items' in schema) {
-			// Common malformed wrapper: { properties: { spec: { properties: {...} }, ... } }
-			// If we detect a top-level properties that contains a `spec` entry that itself
-			// looks like a schema, unwrap it so the renderer shows the actual spec fields.
-			try {
-				if (
-					schema.properties &&
-					schema.properties.spec &&
-					(schema.properties.spec.properties || schema.properties.spec.items)
-				) {
-					return ensureRenderable(schema.properties.spec);
-				}
-			} catch (e) {
-				// ignore and fall through to return schema as-is
-			}
-			return schema;
-		}
-		// Otherwise treat the object as properties map
-		try {
-			return { type: 'object', properties: schema };
-		} catch (e) {
-			return schema;
-		}
-	}
+    // Mark nodes in full schema that match the search by adding diff status
+    function markMatchingNodes(fullSchema: any, matchedPaths: Set<string>, currentPath: string = ''): any {
+        if (!fullSchema || typeof fullSchema !== 'object') return fullSchema;
+        
+        const result = { ...fullSchema };
+        
+        if (result.properties) {
+            const newProps: any = {};
+            for (const [key, value] of Object.entries(result.properties)) {
+                const path = currentPath ? `${currentPath}.${key}` : key;
+                const markedValue = markMatchingNodes(value, matchedPaths, path);
+                
+                // Mark as 'modified' (amber highlight) if this path matches search
+                if (matchedPaths.has(path)) {
+                    newProps[key] = { ...markedValue, __diffStatus: 'modified' };
+                } else {
+                    newProps[key] = markedValue;
+                }
+            }
+            result.properties = newProps;
+        }
+        
+        if (result.items) {
+            result.items = markMatchingNodes(result.items, matchedPaths, currentPath);
+        }
+        
+        return result;
+    }
 
-	let loading = false;
-	let results: Array<{
-		name: string;
-		kind?: string;
-		schema: any;
-		version?: string;
-		type?: 'spec' | 'status';
-	}> = [];
-	// No filtering via dropdown - always show all results
-	$: displayedResults = results;
+    // Initialize from URL parameters only once on mount
+    let initialized = false;
+    $: {
+        if (!initialized) {
+            const urlRelease = $page.url.searchParams.get('release');
+            const urlVersion = $page.url.searchParams.get('version');
+            const urlQuery = $page.url.searchParams.get('q');
+            
+            if (urlRelease) {
+                releaseName = urlRelease;
+                loadVersions();
+            }
+            if (urlVersion) {
+                version = urlVersion;
+            }
+            if (urlQuery) {
+                query = urlQuery;
+            }
+            initialized = true;
+        }
+    }
 
-	// token set for UI chips
-	$: selectedTokens = new Set(query.split(/\s+/).filter(Boolean));
+    // Update URL when parameters change
+    function updateURL() {
+        const params = new URLSearchParams();
+        if (releaseName) params.set('release', releaseName);
+        if (version) params.set('version', version);
+        if (query && query.trim()) params.set('q', query);
+        
+        const targetUrl = `/spec-search-auto${params.toString() ? `?${params.toString()}` : ''}`;
+        
+        // Always update to ensure URL reflects current state
+        goto(targetUrl, { replaceState: true, noScroll: true, keepFocus: true });
+    }
 
-	// schedule debounced search when user types
-	function scheduleSearch() {
-		if (debounceTimer) clearTimeout(debounceTimer);
-		
-		// If query is empty, clear results immediately
-		if (!query || query.trim().length === 0) {
-			results = [];
-			loading = false;
-			return;
-		}
-		
-		// Clear old results immediately when query changes to avoid showing stale data
-		results = [];
-		loading = true;
-		
-		// quick debug/log to observe input-driven searches
-		if (typeof console !== 'undefined') console.debug('scheduleSearch() fired, query=', query, 'releaseName=', releaseName);
-		debounceTimer = setTimeout(() => {
-			debounceTimer = null;
-			performSearch();
-		}, 300);
-	}
+    $: selectedTokens = new Set(query.split(/\s+/).filter(Boolean));
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// Watch query changes reactively to trigger search on any change (typing, clear button, etc.)
-	$: {
-		// This reactive block re-runs whenever query changes
-		void query; // reference query to make it reactive
-		scheduleSearch();
-	}
+    function ensureRenderable(schema: any) {
+        if (!schema || typeof schema !== 'object') return schema;
+        // If schema already has explicit type or properties/items, return as-is
+        if ('type' in schema || 'properties' in schema || 'items' in schema) {
+            // Common malformed wrapper: { properties: { spec: { properties: {...} }, ... } }
+            // If we detect a top-level properties that contains a `spec` entry that itself
+            // looks like a schema, unwrap it so the renderer shows the actual spec fields.
+            try {
+                if (
+                    schema.properties &&
+                    schema.properties.spec &&
+                    (schema.properties.spec.properties || schema.properties.spec.items)
+                ) {
+                    return ensureRenderable(schema.properties.spec);
+                }
+            } catch (e) {
+                // ignore and fall through to return schema as-is
+            }
+            return schema;
+        }
+        // Otherwise treat the object as properties map
+        try {
+            return { type: 'object', properties: schema };
+        } catch (e) {
+            return schema;
+        }
+    }
 
-	// simple in-memory caches to reduce repeated network fetches during fast typing
-	const manifestCache: Map<string, any> = new Map();
-	const yamlCache: Map<string, string> = new Map();
+    let loading = false;
+    let results: Array<{
+        name: string;
+        kind?: string;
+        schema: any;
+        version?: string;
+        type?: 'spec' | 'status';
+    }> = [];
+    const MAX_RESULTS = 100; // Limit results for performance
+    $: displayedResults = results.slice(0, MAX_RESULTS);
 
-	// Group results by resource name + version so we can show SPEC and STATUS together
-	type GroupedResult = { name: string; kind?: string; version?: string; spec?: any; status?: any };
-	let groupedResults: GroupedResult[] = [];
-	$: groupedResults = (() => {
-		const map = new Map<string, GroupedResult>();
-		for (const r of displayedResults) {
-			const key = `${r.name}::${r.version || ''}`;
-			if (!map.has(key))
-				map.set(key, {
-					name: r.name,
-					kind: r.kind,
-					version: r.version,
-					spec: undefined,
-					status: undefined
-				});
-			const entry = map.get(key)!;
-			if (r.type === 'spec') entry.spec = entry.spec || r.schema;
-			if (r.type === 'status') entry.status = entry.status || r.schema;
-		}
-		return Array.from(map.values());
-	})();
+    // Simple in-memory caches to avoid refetching manifests and YAML repeatedly
+    const manifestCache: Map<string, any> = new Map();
+    const yamlCache: Map<string, string> = new Map();
 
-	// Results view mode: 'tree' shows Render, 'yang' shows dotted path view
-	// Default to YANG view for search results as it's generally more compact and focused
-	let resultsViewMode: 'tree' | 'yang' = 'yang';
+    // Prefetch manifest for the currently-selected release to reduce first-search latency
+    $: if (release && release.folder && !manifestCache.has(release.folder)) {
+        fetch(`/${release.folder}/manifest.json`)
+            .then((r) => { if (r.ok) return r.json(); return null; })
+            .then((j) => { if (j) manifestCache.set(release.folder, j); })
+            .catch(() => { /* ignore prefetch errors */ });
+    }
 
-	$: release = releaseName
-		? releasesConfig.releases.find((r) => r.name === releaseName) || null
-		: null;
+    type GroupedResult = { name: string; kind?: string; version?: string; spec?: any; status?: any; fullSpec?: any; fullStatus?: any };
+    let groupedResults: GroupedResult[] = [];
+    let fullSchemas = new Map<string, { spec?: any; status?: any }>();
+    
+    $: groupedResults = (() => {
+        const map = new Map<string, GroupedResult>();
+        for (const r of displayedResults) {
+            const key = `${r.name}::${r.version || ''}`;
+            if (!map.has(key)) {
+                const fullSchema = fullSchemas.get(key) || {};
+                map.set(key, {
+                    name: r.name,
+                    kind: r.kind,
+                    version: r.version,
+                    spec: undefined,
+                    status: undefined,
+                    fullSpec: fullSchema.spec,
+                    fullStatus: fullSchema.status
+                });
+            }
+            const entry = map.get(key)!;
+            if (r.type === 'spec') entry.spec = entry.spec || r.schema;
+            if (r.type === 'status') entry.status = entry.status || r.schema;
+        }
+        return Array.from(map.values());
+    })();
 
-	async function loadVersions() {
-		// Ensure we use the freshly selected release even if the reactive `release` hasn't updated yet
-		const rel =
-			release ||
-			(releaseName ? releasesConfig.releases.find((r) => r.name === releaseName) || null : null);
-		if (!rel) {
-			versions = [];
-			version = '';
-			return;
-		}
-		loadingVersions = true;
-		try {
-			const resp = await fetch(`/${rel.folder}/manifest.json`);
-			if (resp.ok) {
-				const manifest = await resp.json();
-				const versionSet = new Set<string>();
-				manifest.forEach((resource: any) => {
-					resource.versions?.forEach((v: any) => {
-						if (v && v.name) versionSet.add(v.name);
-					});
-				});
-				versions = Array.from(versionSet).sort();
-			}
+    // The page attaches an event listener for `yang:pathclick` further down.
 
-			// If manifest fetch failed or produced no versions, fall back to resources.yaml
-			if (!versions || versions.length === 0) {
-				try {
-					const res = await import('$lib/resources.yaml?raw');
-					const resources = yaml.load(res.default) as any;
-					// resources may be an object with arrays; flatten and collect versions
-					const allResources = Object.values(resources).flat();
-					const fallbackSet = new Set<string>();
-					allResources.forEach((r: any) => {
-						r.versions?.forEach((v: any) => {
-							if (v && v.name) fallbackSet.add(v.name);
-						});
-					});
-					versions = Array.from(fallbackSet).sort();
-				} catch (e) {
-					// keep versions empty
-					versions = [];
-				}
-			}
+    // Results are YANG-only for auto-search page
 
-			if (!versions.includes(version)) version = '';
-		} catch (e) {
-			versions = [];
-			version = '';
-		} finally {
-			loadingVersions = false;
-		}
-	}
-	function stripDescriptions(obj: any): any {
-		if (obj == null) return obj;
-		if (Array.isArray(obj)) return obj.map(stripDescriptions);
-		if (typeof obj === 'object') {
-			const out: any = {};
-			for (const k of Object.keys(obj)) {
-				if (k === 'description') continue;
-				out[k] = stripDescriptions(obj[k]);
-			}
-			return out;
-		}
-		return obj;
-	}
+    $: release = releaseName
+        ? releasesConfig.releases.find((r) => r.name === releaseName) || null
+        : null;
 
-	// Restore description fields from original spec into a pruned/focused schema
-	// `isRoot` indicates whether `node` is the top-level spec root; when true we
-	// do NOT copy the root `description` (we only want parameter/property descriptions).
-	function restoreDescriptions(node: any, original: any, isRoot = false) {
-		if (!node || typeof node !== 'object') return node;
-		if (!original || typeof original !== 'object') return node;
-		try {
-			if (
-				!isRoot &&
-				'description' in original &&
-				original.description &&
-				!('description' in node)
-			) {
-				node.description = original.description;
-			}
-		} catch (e) {
-			// ignore
-		}
-		// Restore properties
-		if (node.properties && original.properties) {
-			for (const k of Object.keys(node.properties)) {
-				try {
-					node.properties[k] = restoreDescriptions(
-						node.properties[k],
-						original.properties ? original.properties[k] : undefined,
-						false
-					);
-				} catch (e) {
-					// ignore per-field
-				}
-			}
-		}
-		// Restore items for arrays
-		if (node.items && original.items) {
-			node.items = restoreDescriptions(node.items, original.items, false);
-		}
-		return node;
-	}
+    async function loadVersions() {
+        const rel =
+            release ||
+            (releaseName ? releasesConfig.releases.find((r) => r.name === releaseName) || null : null);
+        if (!rel) {
+            versions = [];
+            version = '';
+            return;
+        }
+        loadingVersions = true;
+        try {
+            const resp = await fetch(`/${rel.folder}/manifest.json`);
+            if (resp.ok) {
+                const manifest = await resp.json();
+                const versionSet = new Set<string>();
+                manifest.forEach((resource: any) => {
+                    resource.versions?.forEach((v: any) => {
+                        if (v && v.name) versionSet.add(v.name);
+                    });
+                });
+                versions = Array.from(versionSet).sort();
+            }
+            if (!versions || versions.length === 0) {
+                try {
+                    const res = await import('$lib/resources.yaml?raw');
+                    const resources = yaml.load(res.default) as any;
+                    const allResources = Object.values(resources).flat();
+                    const fallbackSet = new Set<string>();
+                    allResources.forEach((r: any) => {
+                        r.versions?.forEach((v: any) => {
+                            if (v && v.name) fallbackSet.add(v.name);
+                        });
+                    });
+                    versions = Array.from(fallbackSet).sort();
+                } catch (e) {
+                    versions = [];
+                }
+            }
 
-	// Prune schema to include only nodes that match the query (or contain matching descendants)
-	// This implementation traverses all common schema branches and returns a schema
-	// containing the full ancestor path(s) down to any matching leaf nodes.
-	function pruneSchema(node: any, re: RegExp | null, q: string): any | null {
-		// Only match structural paths (property names / titles) by default.
-		// Avoid matching descriptions, format, enum values, or other internal fields
-		// unless a regex is explicitly provided that matches those values.
-		if (node == null) return null;
-		if (typeof node !== 'object' || (Array.isArray(node) === true && node.length === 0)) {
-			// Do not match primitive leaf values by default (prevents matching enum values, formats, etc.)
-			return null;
-		}
-		const out: any = {};
-		let matched = false;
-		function copyMeta(src: any, dst: any) {
-			const keys = ['type', 'format', 'enum', 'default', 'minimum', 'maximum', 'pattern', 'title'];
-			for (const k of keys) {
-				if (k in src && src[k] !== undefined) dst[k] = src[k];
-			}
-		}
-		if (node.properties && typeof node.properties === 'object') {
-			const props: any = {};
-			for (const [pname, pval] of Object.entries(node.properties)) {
-				// First, check if the property name itself matches the query (normalize camelCase/underscores)
-				let nameMatched = false;
-				if (q) {
-					const normalizedName = String(pname)
-						.replace(/([a-z])([A-Z])/g, '$1 $2')
-						.replace(/[_.\-]/g, ' ')
-						.toLowerCase();
-					// Also consider a spaceless/compact form so queries like "maclimit"
-					// match camelCase names like "macLimit" (which normalize to "mac limit").
-					const normalizedNameNoSpace = normalizedName.replace(/\s+/g, '');
-					const qLower = q.toLowerCase();
-					const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
-					if (normalizedName.includes(qLower) || normalizedNameNoSpace.includes(qNoSpace)) {
-						props[pname] = stripDescriptions(pval);
-						matched = true;
-						nameMatched = true;
-					}
-				}
+            if (!versions.includes(version)) version = '';
+            updateURL();
+        } catch (e) {
+            versions = [];
+            version = '';
+            updateURL();
+        } finally {
+            loadingVersions = false;
+        }
+    }
+    
+    // Update URL when version changes
+    $: if (version !== undefined && release) {
+        updateURL();
+    }
+    
+    function stripDescriptions(obj: any): any {
+        if (obj == null) return obj;
+        if (Array.isArray(obj)) return obj.map(stripDescriptions);
+        if (typeof obj === 'object') {
+            const out: any = {};
+            for (const k of Object.keys(obj)) {
+                if (k === 'description') continue;
+                out[k] = stripDescriptions(obj[k]);
+            }
+            return out;
+        }
+        return obj;
+    }
 
-				// If name didn't match, recurse into the property's schema to find deeper property-name matches
-				if (!nameMatched) {
-					const pr = pruneSchema(pval as any, re, q);
-					if (pr != null) {
-						props[pname] = pr;
-						matched = true;
-					}
-				}
-			}
-			if (Object.keys(props).length > 0) {
-				out.properties = props;
-				if (node.type) out.type = node.type;
-			}
-		}
-		if (node.items) {
-			const pr = pruneSchema(node.items, re, q);
-			if (pr != null) {
-				out.items = pr;
-				if (node.type) out.type = node.type;
-				matched = true;
-			}
-		}
-		for (const comb of ['allOf', 'anyOf', 'oneOf']) {
-			if (Array.isArray(node[comb])) {
-				const arr: any[] = [];
-				for (const el of node[comb]) {
-					const pr = pruneSchema(el, re, q);
-					if (pr != null) {
-						arr.push(pr);
-						matched = true;
-					}
-				}
-				if (arr.length > 0) out[comb] = arr;
-			}
-		}
-		if (node.additionalProperties && typeof node.additionalProperties === 'object') {
-			const pr = pruneSchema(node.additionalProperties, re, q);
-			if (pr != null) {
-				out.additionalProperties = pr;
-				matched = true;
-			}
-		}
-		// Only consider 'title' as a scalar-key match target by default (titles are descriptive labels)
-		const scalarKeys = includeEnum ? ['enum', 'title', 'format', 'pattern', 'const'] : ['title'];
-		for (const k of scalarKeys) {
-			if (k in node && node[k] !== undefined && q) {
-				const s = String(node[k]);
-				const sNorm = s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_.\-]/g, ' ').toLowerCase();
-				if (sNorm.includes(q.toLowerCase())) {
-					out[k] = node[k];
-					matched = true;
-				}
-			}
-		}
-		if (!matched) return null;
-		copyMeta(node, out);
-		return out;
-	}
+    function restoreDescriptions(node: any, original: any, isRoot = false) {
+        if (!node || typeof node !== 'object') return node;
+        if (!original || typeof original !== 'object') return node;
+        try {
+            if (
+                !isRoot &&
+                'description' in original &&
+                original.description &&
+                !('description' in node)
+            ) {
+                node.description = original.description;
+            }
+        } catch (e) { }
+        if (node.properties && original.properties) {
+            for (const k of Object.keys(node.properties)) {
+                try {
+                    node.properties[k] = restoreDescriptions(
+                        node.properties[k],
+                        original.properties ? original.properties[k] : undefined,
+                        false
+                    );
+                } catch (e) {
+                    // ignore per-field
+                }
+            }
+        }
+        if (node.items && original.items) {
+            node.items = restoreDescriptions(node.items, original.items, false);
+        }
+        return node;
+    }
 
-	function escapeHtml(s: string) {
-		const entityMap: Record<string, string> = {
-			'&': '&amp;',
-			'<': '&lt;',
-			'>': '&gt;',
-			'"': '&quot;',
-			"'": '&#39;'
-		};
-		return String(s ?? '').replace(/[&<>"']/g, (c) => entityMap[c] ?? c);
-	}
-	function escapeRegExp(s: string) {
-		return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	}
+    function pruneSchema(node: any, re: RegExp | null, q: string, includeDesc: boolean = false): any | null {
+        // Only match structural paths (property names / titles) by default.
+        // Optionally include descriptions if includeDesc is true.
+        if (node == null) return null;
+        if (typeof node !== 'object' || (Array.isArray(node) === true && node.length === 0)) {
+            // Do not match primitive leaf values by default (prevents matching enum values, formats, etc.)
+            return null;
+        }
+        const out: any = {};
+        let matched = false;
+        function copyMeta(src: any, dst: any) {
+            const keys = ['type', 'format', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'title'];
+            for (const k of keys) {
+                if (k in src && src[k] !== undefined) dst[k] = src[k];
+            }
+        }
+        
+        // Check if description matches (if includeDesc is true)
+        if (includeDesc && node.description && typeof node.description === 'string' && q) {
+            const descLower = node.description.toLowerCase();
+            const qLower = q.toLowerCase();
+            if (descLower.includes(qLower)) {
+                matched = true;
+                copyMeta(node, out);
+                if (node.description) out.description = node.description;
+            }
+        }
+        
+        if (node.properties && typeof node.properties === 'object') {
+            const props: any = {};
+            for (const [pname, pval] of Object.entries(node.properties)) {
+                // First, check if the property name itself matches the query (normalize camelCase/underscores)
+                let nameMatched = false;
+                if (q) {
+                    const normalizedName = String(pname)
+                        .replace(/([a-z])([A-Z])/g, '$1 $2')
+                        .replace(/[_.\-]/g, ' ')
+                        .toLowerCase();
+                    // Also consider a spaceless/compact form so queries like "maclimit"
+                    // match camelCase names like "macLimit" (which normalize to "mac limit").
+                    const normalizedNameNoSpace = normalizedName.replace(/\s+/g, '');
+                    const qLower = q.toLowerCase();
+                    const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
+                    if (normalizedName.includes(qLower) || normalizedNameNoSpace.includes(qNoSpace)) {
+                        props[pname] = stripDescriptions(pval);
+                        matched = true;
+                        nameMatched = true;
+                    }
+                }
 
-	function highlightMatches(text: string, q: string) {
-		const query = String(q ?? '').trim();
-		if (!query) return escapeHtml(text);
-		const hay = String(text || '');
-		try {
-			const re = new RegExp(query, 'ig');
-			let lastIndex = 0;
-			const parts: string[] = [];
-			let match: RegExpExecArray | null;
-			while ((match = re.exec(hay)) !== null) {
-				const start = match.index;
-				const end = re.lastIndex;
-				parts.push(escapeHtml(hay.substring(lastIndex, start)));
-				parts.push(
-					`<mark class="bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5">${escapeHtml(hay.substring(start, end))}</mark>`
-				);
-				lastIndex = end;
-				if (re.lastIndex === match.index) re.lastIndex++; // guard
-			}
-			parts.push(escapeHtml(hay.substring(lastIndex)));
-			return parts.join('');
-		} catch (e) {
-			// fallback substring
-			const idx = hay.toLowerCase().indexOf(query.toLowerCase());
-			if (idx === -1) return escapeHtml(hay);
-			return `${escapeHtml(hay.substring(0, idx))}<mark class="bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5">${escapeHtml(hay.substring(idx, idx + query.length))}</mark>${escapeHtml(hay.substring(idx + query.length))}`;
-		}
-	}
+                // If name didn't match, recurse into the property's schema to find deeper property-name matches
+                if (!nameMatched) {
+                    const pr = pruneSchema(pval as any, re, q, includeDesc);
+                    if (pr != null) {
+                        props[pname] = pr;
+                        matched = true;
+                    }
+                }
+            }
+            if (Object.keys(props).length > 0) {
+                out.properties = props;
+                if (node.type) out.type = node.type;
+            }
+        }
+        if (node.items) {
+            const pr = pruneSchema(node.items, re, q, includeDesc);
+            if (pr != null) {
+                out.items = pr;
+                if (node.type) out.type = node.type;
+                matched = true;
+            }
+        }
+        for (const comb of ['allOf', 'anyOf', 'oneOf']) {
+            if (Array.isArray(node[comb])) {
+                const arr: any[] = [];
+                for (const el of node[comb]) {
+                    const pr = pruneSchema(el, re, q, includeDesc);
+                    if (pr != null) {
+                        arr.push(pr);
+                        matched = true;
+                    }
+                }
+                if (arr.length > 0) out[comb] = arr;
+            }
+        }
+        if (node.additionalProperties && typeof node.additionalProperties === 'object') {
+            const pr = pruneSchema(node.additionalProperties, re, q, includeDesc);
+            if (pr != null) {
+                out.additionalProperties = pr;
+                matched = true;
+            }
+        }
+        // Only consider 'title' as a scalar-key match target by default (titles are descriptive labels)
+        const scalarKeys = ['title'];
+        for (const k of scalarKeys) {
+            if (k in node && node[k] !== undefined && q) {
+                const s = String(node[k]);
+                const sNorm = s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_.\-]/g, ' ').toLowerCase();
+                const qLower = q.toLowerCase();
+                const sNormNoSpace = sNorm.replace(/\s+/g, '');
+                const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
+                if (sNorm.includes(qLower) || sNormNoSpace.includes(qNoSpace)) {
+                    out[k] = node[k];
+                    matched = true;
+                }
+            }
+        }
+        if (!matched) return null;
+        copyMeta(node, out);
+        return out;
+    }
 
-	async function performSearch() {
-		const mySearchId = ++searchId;
-		// resolve release at time of search to avoid reactive timing issues
-		const rel = release || (releaseName ? releasesConfig.releases.find((r) => r.name === releaseName) || null : null);
-		// debug log to help diagnose why debounced searches may return early
-		if (typeof console !== 'undefined') console.debug('performSearch() start', { releaseName, resolvedRelease: rel && rel.name, query, mySearchId });
-		// If there's no release or no query, clear results only if this is still the latest search
-		if (!rel || !query) {
-			if (mySearchId === searchId) results = [];
-			return;
-		}
-		if (mySearchId === searchId) loading = true;
-		try {
-			let manifest: any;
-			if (manifestCache.has(rel.folder)) {
-				manifest = manifestCache.get(rel.folder);
-			} else {
-				const resp = await fetch(`/${rel.folder}/manifest.json`);
-				if (!resp.ok) return;
-				manifest = await resp.json();
-				manifestCache.set(rel.folder, manifest);
-			}
-			const q = String(query ?? '').trim();
-			let re: RegExp | null = null;
-			try {
-				re = new RegExp(q, 'i');
-			} catch (e) {
-				re = null;
-			}
-			const promises = manifest.flatMap(async (res: any) => {
-				if (!res || !res.name) return [];
-				// Skip CRDs that are states
-				if (String(res.name).toLowerCase().includes('states')) return [];
-				// select candidate versions according to flag
-				const candidateVersions = version
-					? [version]
-					: res.versions
-						? res.versions.map((v: any) => v.name)
-						: [];
-				const matches: Array<any> = [];
-				for (const ver of candidateVersions) {
-					try {
-						const path = `/${rel.folder}/${res.name}/${ver}.yaml`;
-						let txt: string | undefined = undefined;
-						if (yamlCache.has(path)) {
-							txt = yamlCache.get(path);
-						} else {
-							const r = await fetch(path);
-							if (!r.ok) continue;
-							txt = await r.text();
-							yamlCache.set(path, txt);
-						}
-						const parsed = yaml.load(txt) as any;
-						const spec = parsed?.schema?.openAPIV3Schema?.properties?.spec;
-						const status = parsed?.schema?.openAPIV3Schema?.properties?.status;
+    function escapeHtml(s: string) {
+        const entityMap: Record<string, string> = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return String(s ?? '').replace(/[&<>"']/g, (c) => entityMap[c] ?? c);
+    }
+    function escapeRegExp(s: string) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
 
-						// search spec
-						if (spec) {
-							const stripped = stripDescriptions(spec);
-							const pruned = pruneSchema(stripped, re, q);
-							if (pruned) {
-								let readySchema = pruned;
-								try {
-									if (
-										(!pruned.properties || Object.keys(pruned.properties).length === 0) &&
-										Array.isArray(pruned.required) &&
-										stripped &&
-										stripped.properties
-									) {
-										const focusedProps: any = {};
-										for (const rk of pruned.required) {
-											if (rk in stripped.properties) focusedProps[rk] = stripped.properties[rk];
-										}
-										if (Object.keys(focusedProps).length > 0) {
-											readySchema = {
-												type: 'object',
-												properties: focusedProps,
-												required: pruned.required
-											};
-										}
-									}
-								} catch (e) {
-									readySchema = pruned;
-								}
-								try {
-									readySchema = restoreDescriptions(readySchema, spec, true);
-								} catch (e) {
-									/* ignore */
-								}
-								const ready = ensureRenderable(readySchema);
-								matches.push({
-									name: res.name,
-									kind: res.kind,
-									schema: ready,
-									version: ver,
-									type: 'spec'
-								});
-							}
-						}
+    function highlightMatches(text: string, q: string) {
+        const query = String(q ?? '').trim();
+        if (!query) return escapeHtml(text);
+        const hay = String(text || '');
+        try {
+            const re = new RegExp(query, 'ig');
+            let lastIndex = 0;
+            const parts: string[] = [];
+            let match: RegExpExecArray | null;
+            while ((match = re.exec(hay)) !== null) {
+                const start = match.index;
+                const end = re.lastIndex;
+                parts.push(escapeHtml(hay.substring(lastIndex, start)));
+                parts.push(
+                    ` <mark class="bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5">${escapeHtml(hay.substring(start, end))}</mark>`
+                );
+                lastIndex = end;
+                if (re.lastIndex === match.index) re.lastIndex++;
+            }
+            parts.push(escapeHtml(hay.substring(lastIndex)));
+            return parts.join('');
+        } catch (e) {
+            const idx = hay.toLowerCase().indexOf(query.toLowerCase());
+            if (idx === -1) return escapeHtml(hay);
+            return `${escapeHtml(hay.substring(0, idx))}<mark class="bg-yellow-200 dark:bg-yellow-700/30 rounded px-0.5">${escapeHtml(hay.substring(idx, idx + query.length))}</mark>${escapeHtml(hay.substring(idx + query.length))}`;
+        }
+    }
 
-						// search status
-						if (status) {
-							const strippedStatus = stripDescriptions(status);
-							const prunedStatus = pruneSchema(strippedStatus, re, q);
-							if (prunedStatus) {
-								let readyStatus = prunedStatus;
-								try { readyStatus = restoreDescriptions(readyStatus, status, true); } catch (e) { /* ignore */ }
-								const ensured = ensureRenderable(readyStatus);
-								matches.push({ name: res.name, kind: res.kind, schema: ensured, version: ver, type: 'status' });
-							}
-						}
-					} catch (e) {
-						// ignore and continue to next version
-					}
-				}
-				return matches;
-			});
-			const settled = await Promise.all(promises);
-			const newResults = settled.flat().filter(Boolean) as any;
-			// If another search started after we began, discard these results
-			if (mySearchId !== searchId) {
-				if (typeof console !== 'undefined') console.debug('performSearch() - discarding stale results', { mySearchId, latest: searchId });
-				return;
-			}
-			results = newResults;
-		} finally {
-			if (mySearchId === searchId) loading = false;
-		}
-	}
+    async function performSearch() {
+        results = [];
+        if (!release || !query) return;
+        loading = true;
+        try {
+            let manifest: any;
+            if (manifestCache.has(release.folder)) {
+                manifest = manifestCache.get(release.folder);
+            } else {
+                const resp = await fetch(`/${release.folder}/manifest.json`);
+                if (!resp.ok) return;
+                manifest = await resp.json();
+                manifestCache.set(release.folder, manifest);
+            }
+            const q = String(query ?? '').trim();
+            let re: RegExp | null = null;
+            try { re = new RegExp(q, 'i'); } catch (e) { re = null; }
+            const promises = manifest.flatMap(async (res: any) => {
+                if (!res || !res.name) return [];
+                if (String(res.name).toLowerCase().includes('states')) return [];
+                const candidateVersions = version
+                    ? [version]
+                    : res.versions
+                        ? res.versions.map((v: any) => v.name)
+                        : [];
+                const matches: Array<any> = [];
+                for (const ver of candidateVersions) {
+                    try {
+                        const path = `/${release.folder}/${res.name}/${ver}.yaml`;
+                        let txt: string | undefined = undefined;
+                        if (yamlCache.has(path)) {
+                            txt = yamlCache.get(path);
+                        } else {
+                            const r = await fetch(path);
+                            if (!r.ok) continue;
+                            txt = await r.text();
+                            yamlCache.set(path, txt);
+                        }
+                        const parsed = yaml.load(txt) as any;
+                        const spec = parsed?.schema?.openAPIV3Schema?.properties?.spec;
+                        const status = parsed?.schema?.openAPIV3Schema?.properties?.status;
+
+                        // Store full unfiltered schemas
+                        const resourceKey = `${res.name}::${ver}`;
+                        fullSchemas.set(resourceKey, {
+                            spec: spec ? ensureRenderable(spec) : undefined,
+                            status: status ? ensureRenderable(status) : undefined
+                        });
+
+                        if (spec) {
+                            const stripped = searchInDescription ? spec : stripDescriptions(spec);
+                            const pruned = pruneSchema(stripped, re, q, searchInDescription);
+                            if (pruned) {
+                                let readySchema = pruned;
+                                try {
+                                    if (
+                                        (!pruned.properties || Object.keys(pruned.properties).length === 0) &&
+                                        Array.isArray(pruned.required) &&
+                                        stripped &&
+                                        stripped.properties
+                                    ) {
+                                        const focusedProps: any = {};
+                                        for (const rk of pruned.required) {
+                                            if (rk in stripped.properties) focusedProps[rk] = stripped.properties[rk];
+                                        }
+                                        if (Object.keys(focusedProps).length > 0) {
+                                            readySchema = {
+                                                type: 'object',
+                                                properties: focusedProps,
+                                                required: pruned.required
+                                            };
+                                        }
+                                    }
+                                } catch (e) { readySchema = pruned; }
+                                try { readySchema = restoreDescriptions(readySchema, spec, true); } catch (e) { }
+                                const ready = ensureRenderable(readySchema);
+                                matches.push({ name: res.name, kind: res.kind, schema: ready, version: ver, type: 'spec' });
+                            }
+                        }
+                        if (status) {
+                            const strippedStatus = searchInDescription ? status : stripDescriptions(status);
+                            const prunedStatus = pruneSchema(strippedStatus, re, q, searchInDescription);
+                            if (prunedStatus) {
+                                let readyStatus = prunedStatus;
+                                try { readyStatus = restoreDescriptions(readyStatus, status, true); } catch (e) {}
+                                const ensured = ensureRenderable(readyStatus);
+                                matches.push({ name: res.name, kind: res.kind, schema: ensured, version: ver, type: 'status' });
+                            }
+                        }
+                    } catch (e) {}
+                }
+                return matches;
+            });
+            const settled = await Promise.all(promises);
+            results = settled.flat().filter(Boolean) as any;
+        } finally { loading = false; }
+    }
+
+    function toggleToken(token: string) {
+        const toks = query.split(/\s+/).filter(Boolean);
+        if (toks.includes(token)) {
+            query = toks.filter((t) => t !== token).join(' ');
+        } else {
+            toks.push(token);
+            query = toks.join(' ');
+        }
+    }
+
+    // schedule debounced search when user types
+    function scheduleSearch() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        
+        // Don't search without a release selected
+        if (!release || !releaseName) {
+            results = [];
+            loading = false;
+            return;
+        }
+        
+        // If query is empty, clear results immediately
+        if (!query || query.trim().length === 0) {
+            results = [];
+            loading = false;
+            updateURL(); // Update URL to remove query parameter
+            return;
+        }
+        
+        // Clear old results immediately when query changes to avoid showing stale data
+        results = [];
+        loading = true;
+        
+        debounceTimer = setTimeout(() => {
+            debounceTimer = null;
+            performSearch();
+            updateURL(); // Update URL after search is triggered
+        }, 100); // Ultra-fast: reduced to 100ms for instant feel
+    }
+
+    // Watch query changes reactively to trigger search on any change (typing, clear button, etc.)
+    let previousQuery = '';
+    $: {
+        // This reactive block re-runs whenever query changes
+        if (query !== previousQuery) {
+            previousQuery = query;
+            scheduleSearch();
+        }
+    }
+
+    // Trigger search when searchInDescription toggle changes
+    let previousSearchInDescription = false;
+    $: {
+        if (searchInDescription !== previousSearchInDescription && query) {
+            previousSearchInDescription = searchInDescription;
+            scheduleSearch();
+        }
+    }
+
+    // Global listener for YangView pathclick document events.
+    // This covers any cases where YangView also emits `yang:pathclick` on document
+    // (in addition to component-level `pathclick`). It toggles token selection
+    // and schedules a search so results update automatically.
+    let _yangHandler: any = null;
+    if (typeof window !== 'undefined') {
+        _yangHandler = (e: any) => {
+            try {
+                const token = (e?.detail?.displayPath || e?.detail?.path) as string;
+                if (!token) return;
+                const toks = query.split(/\s+/).filter(Boolean);
+                if (toks.includes(token)) query = toks.filter((t: string) => t !== token).join(' ');
+                else {
+                    toks.push(token);
+                    query = toks.join(' ');
+                }
+                // Immediately run search for a more responsive UX when user clicks YANG paths
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = null;
+                }
+                performSearch();
+            } catch (err) {
+                /* ignore */
+            }
+        };
+        document.addEventListener('yang:pathclick', _yangHandler);
+    }
+    onDestroy(() => {
+        if (typeof window !== 'undefined' && _yangHandler) document.removeEventListener('yang:pathclick', _yangHandler);
+    });
 </script>
 
 <svelte:head>
-	<title>EDA Resource Browser | Search CRD Specs</title>
-</svelte:head>
+    <title>EDA Resource Browser | Resource Search</title>
+</svelte:head><TopHeader title="Resource Search" />
 
-<!-- AnimatedBackground is provided by the layout and is dynamically imported on mount -->
+<div class="relative flex min-h-screen flex-col pt-12 md:pt-14">
+    <div class="mx-auto w-full max-w-7xl flex-1 px-4 py-4">
+        
+        <!-- Ultra-Compact Filters -->
+        <div class="mb-4 flex flex-wrap items-center gap-2">
+            <select 
+                id="spec-release" 
+                bind:value={releaseName} 
+                on:change={loadVersions} 
+                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 shadow-sm transition-all hover:border-cyan-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:border-gray-500 dark:focus:border-cyan-400"
+            >
+                <option value="">Select release...</option>
+                {#each releasesConfig.releases as r}
+                    <option value={r.name}>{r.label}</option>
+                {/each}
+            </select>
+            
+            <select 
+                id="spec-version" 
+                bind:value={version}
+                on:change={() => {
+                    updateURL();
+                    if (query && query.trim()) {
+                        scheduleSearch();
+                    }
+                }}
+                class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 shadow-sm transition-all hover:border-cyan-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:border-gray-500 dark:focus:border-cyan-400" 
+                disabled={!release || versions.length === 0 || loadingVersions}
+            >
+                <option value="">{loadingVersions ? 'Loading...' : 'All versions'}</option>
+                {#each versions as v}
+                    <option value={v}>{v}</option>
+                {/each}
+            </select>
+            
+            <label class="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm transition-all hover:border-cyan-400 dark:border-gray-600 dark:bg-gray-800">
+                <input 
+                    type="checkbox" 
+                    bind:checked={searchInDescription}
+                    class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-700"
+                />
+                <span class="text-gray-700 dark:text-gray-300">Search descriptions</span>
+            </label>
+            
+            {#if groupedResults.length > 0}
+                <div class="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                    {groupedResults.length} resource{groupedResults.length !== 1 ? 's' : ''} found
+                    {#if results.length > MAX_RESULTS}
+                        <span class="text-amber-600 dark:text-amber-400">(showing first {MAX_RESULTS})</span>
+                    {/if}
+                </div>
+            {/if}
+        </div>
 
-<TopHeader title="Search CRD Specs & Status" />
+        <!-- Compact Search Input -->
+        <div class="mb-4">
+            <div class="relative">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                    </svg>
+                </div>
+                <input
+                    id="spec-query"
+                    bind:value={query}
+                    on:keydown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (debounceTimer) {
+                                clearTimeout(debounceTimer);
+                                debounceTimer = null;
+                            }
+                            performSearch();
+                        }
+                    }}
+                    placeholder="Search property paths..."
+                    class="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 shadow-sm transition-all placeholder:text-gray-400 hover:border-cyan-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500 dark:hover:border-gray-500 dark:focus:border-cyan-400"
+                />
+                {#if query}
+                    <button 
+                        type="button"
+                        aria-label="Clear search" 
+                        on:click|preventDefault|stopPropagation={() => { 
+                            query = ''; 
+                            previousQuery = '';
+                            results = []; 
+                            selectedResource = null;
+                            selectedTokens = new Set();
+                            updateURL();
+                        }} 
+                        class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                    >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                {/if}
+            </div>
+        </div>
 
-<!-- Inline page description moved out of the fixed header to improve readability -->
-<div class="mx-auto max-w-7xl px-4 py-2"></div>
+        <!-- Loading Indicator -->
+        {#if loading}
+            <div class="mb-4">
+                <div class="flex items-center justify-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 dark:border-cyan-800 dark:bg-cyan-900/20">
+                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-cyan-200 border-t-cyan-600 dark:border-cyan-700 dark:border-t-cyan-400"></div>
+                    <span class="text-sm font-medium text-cyan-700 dark:text-cyan-300">Searching...</span>
+                </div>
+            </div>
+        {/if}
 
-<!-- (PageCredits moved inside the scrolling container to render at the bottom) -->
+        <!-- Results Section -->
+        {#if loading}
+                    <!-- Loading Skeleton -->
+                    <div class="space-y-4">
+                        {#each [1, 2, 3] as _}
+                            <div class="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                                <div class="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white px-5 py-4 dark:border-gray-700 dark:from-gray-800 dark:to-gray-800">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="h-5 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                        <div class="h-7 w-16 rounded-lg bg-gray-200 dark:bg-gray-700"></div>
+                                    </div>
+                                </div>
+                                <div class="p-5">
+                                    <div class="space-y-2">
+                                        <div class="h-4 w-full rounded bg-gray-100 dark:bg-gray-700/50"></div>
+                                        <div class="h-4 w-5/6 rounded bg-gray-100 dark:bg-gray-700/50"></div>
+                                        <div class="h-4 w-4/6 rounded bg-gray-100 dark:bg-gray-700/50"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {:else if displayedResults.length > 0}
+                    <!-- Mobile Cards -->
+                    <div class="space-y-2 sm:hidden">
+                        {#each groupedResults as g}
+                            <button
+                                on:click={(e) => {
+                                    e.preventDefault();
+                                    expandedPaths = [];
+                                    const matchedPaths = new Set<string>();
+                                    
+                                    if (g.spec) {
+                                        const specPaths = extractPaths(g.spec, 'spec');
+                                        expandedPaths.push(...specPaths.map(p => typeof p === 'string' ? p : p.path));
+                                        specPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
+                                    }
+                                    if (g.status) {
+                                        const statusPaths = extractPaths(g.status, 'status');
+                                        expandedPaths.push(...statusPaths.map(p => typeof p === 'string' ? p : p.path));
+                                        statusPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
+                                    }
+                                    
+                                    const markedFull = {
+                                        spec: g.fullSpec ? markMatchingNodes(g.fullSpec, matchedPaths, 'spec') : g.fullSpec,
+                                        status: g.fullStatus ? markMatchingNodes(g.fullStatus, matchedPaths, 'status') : g.fullStatus
+                                    };
+                                    
+                                    modalExpandAll = false;
+                                    modalData = { ...g, markedFull };
+                                    isModalOpen = true;
+                                }}
+                                class="w-full overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-colors hover:border-cyan-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-cyan-600 dark:hover:bg-gray-700/50">
+                                <div class="p-3">
+                                    <div class="mb-2 flex items-start justify-between gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-semibold text-gray-900 dark:text-white">{g.kind}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{stripResourcePrefixFQDN(String(g.name))}</div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            {#if g.version}
+                                                <span class="rounded px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">{g.version}</span>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                    <!-- Schema badges and paths -->
+                                    <div class="space-y-1.5">
+                                        {#if g.spec}
+                                            {@const paths = extractPaths(g.spec, 'spec')}
+                                            <div>
+                                                <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                                                    Spec
+                                                </span>
+                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                    {#each paths as pathInfo}
+                                                        <span class="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                            {typeof pathInfo === 'string' ? pathInfo : pathInfo.path}
+                                                        </span>
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                        {/if}
+                                        {#if g.status}
+                                            {@const paths = extractPaths(g.status, 'status')}
+                                            <div>
+                                                <span class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                                    Status
+                                                </span>
+                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                    {#each paths as pathInfo}
+                                                        <span class="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                                            {typeof pathInfo === 'string' ? pathInfo : pathInfo.path}
+                                                        </span>
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                        {/if}
+                                    </div>
+                                </div>
+                            </button>
+                        {/each}
+                    </div>
 
-<div
-	class="relative flex flex-col pt-12 md:pt-14 min-h-screen overflow-hidden"
->
-	<div class="relative z-10 flex flex-1 flex-col lg:flex-row">
-		<div class="flex-1 overflow-auto pb-16">
-			<div class="mx-auto max-w-7xl px-4 py-4">
-				<div
-					class="mb-2 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center"
-				>
-					<!-- Header moved to TopHeader component (fixed top) -->
-				</div>
+                    <!-- Compact Professional Desktop Table -->
+                    <div class="hidden overflow-hidden rounded-lg border border-gray-200 shadow-sm sm:block dark:border-gray-700">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-gray-900">
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        Resource
+                                    </th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        Version
+                                    </th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                        Matched Paths
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 bg-white dark:divide-gray-700/50 dark:bg-gray-800">
+                                {#each groupedResults as g, idx}
+                                    <tr
+                                        on:click={(e) => {
+                                            e.preventDefault();
+                                            expandedPaths = [];
+                                            const matchedPaths = new Set<string>();
+                                            
+                                            if (g.spec) {
+                                                const specPaths = extractPaths(g.spec, 'spec');
+                                                expandedPaths.push(...specPaths.map(p => typeof p === 'string' ? p : p.path));
+                                                specPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
+                                            }
+                                            if (g.status) {
+                                                const statusPaths = extractPaths(g.status, 'status');
+                                                expandedPaths.push(...statusPaths.map(p => typeof p === 'string' ? p : p.path));
+                                                statusPaths.forEach(p => matchedPaths.add(typeof p === 'string' ? p : p.path));
+                                            }
+                                            
+                                            const markedFull = {
+                                                spec: g.fullSpec ? markMatchingNodes(g.fullSpec, matchedPaths, 'spec') : g.fullSpec,
+                                                status: g.fullStatus ? markMatchingNodes(g.fullStatus, matchedPaths, 'status') : g.fullStatus
+                                            };
+                                            
+                                            modalExpandAll = false;
+                                            modalData = { ...g, markedFull };
+                                            isModalOpen = true;
+                                        }}
+                                        class="cursor-pointer transition-colors {idx % 2 === 0 ? '' : 'bg-gray-50/50 dark:bg-gray-900/20'} hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                                    >
+                                        <td class="px-4 py-2.5">
+                                            <div class="flex flex-col gap-0.5">
+                                                <div class="text-sm font-semibold text-gray-900 dark:text-white">{g.kind}</div>
+                                                <div class="text-xs text-gray-500 dark:text-gray-400">{stripResourcePrefixFQDN(String(g.name))}</div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-2.5">
+                                            {#if g.version}
+                                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-mono bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">{g.version}</span>
+                                            {/if}
+                                        </td>
+                                        <td class="px-4 py-2.5">
+                                            <div class="space-y-1.5">
+                                                {#if g.spec}
+                                                    {@const paths = extractPaths(g.spec, 'spec')}
+                                                    {#if paths.length > 0}
+                                                        <div class="rounded border border-cyan-200 bg-cyan-50/30 p-1.5 dark:border-cyan-800 dark:bg-cyan-900/20">
+                                                            <div class="mb-1 text-xs font-semibold text-cyan-700 dark:text-cyan-400">Spec</div>
+                                                            <div class="space-y-0.5">
+                                                                {#each paths as pathInfo}
+                                                                    <div class="group relative flex items-center gap-1.5 flex-wrap">
+                                                                        <span class="text-xs font-mono text-amber-700 dark:text-amber-300">{typeof pathInfo === 'string' ? pathInfo : pathInfo.path}</span>
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.type}
+                                                                            {@const typeColors = {
+                                                                                string: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+                                                                                integer: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+                                                                                number: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800',
+                                                                                boolean: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+                                                                                object: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800',
+                                                                                array: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
+                                                                            }}
+                                                                            {@const typeColor = typeColors[pathInfo.type as keyof typeof typeColors] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
+                                                                            <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium {typeColor}">{pathInfo.type}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.enum}
+                                                                            {#each pathInfo.enum.slice(0, 3) as e}
+                                                                                <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                            {/each}
+                                                                            {#if pathInfo.enum.length > 3}
+                                                                                <span class="text-[10px] text-purple-500 dark:text-purple-400">+{pathInfo.enum.length - 3} more</span>
+                                                                            {/if}
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.default !== undefined}
+                                                                            <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">default: {JSON.stringify(pathInfo.default)}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.constraints}
+                                                                            {#each pathInfo.constraints as constraint}
+                                                                                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                            {/each}
+                                                                        {/if}
+                                                                        
+                                                                        <!-- Hover tooltip with all metadata grouped -->
+                                                                        {#if typeof pathInfo === 'object' && (pathInfo.enum || pathInfo.default !== undefined || pathInfo.constraints)}
+                                                                            <div class="pointer-events-none absolute left-0 top-full z-[100] mt-1 hidden group-hover:block">
+                                                                                <div class="w-max max-w-md rounded-lg border border-gray-300 bg-white p-2.5 shadow-xl dark:border-gray-600 dark:bg-gray-800">
+                                                                                    <div class="space-y-2">
+                                                                                        {#if pathInfo.enum}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">Enum Values</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.enum as e}
+                                                                                                        <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.default !== undefined}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Default Value</div>
+                                                                                                <span class="inline-block rounded bg-indigo-100 px-2 py-1 text-xs font-mono text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{JSON.stringify(pathInfo.default)}</span>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.constraints}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Constraints</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.constraints as constraint}
+                                                                                                        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        {/if}
+                                                                    </div>
+                                                                {/each}
+                                                            </div>
+                                                        </div>
+                                                    {/if}
+                                                {/if}
+                                                {#if g.status}
+                                                    {@const paths = extractPaths(g.status, 'status')}
+                                                    {#if paths.length > 0}
+                                                        <div class="rounded border border-green-200 bg-green-50/30 p-1.5 dark:border-green-800 dark:bg-green-900/20">
+                                                            <div class="mb-1 text-xs font-semibold text-green-700 dark:text-green-400">Status</div>
+                                                            <div class="space-y-0.5">
+                                                                {#each paths as pathInfo}
+                                                                    <div class="group relative flex items-center gap-1.5 flex-wrap">
+                                                                        <span class="text-xs font-mono text-amber-700 dark:text-amber-300">{typeof pathInfo === 'string' ? pathInfo : pathInfo.path}</span>
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.type}
+                                                                            {@const typeColors = {
+                                                                                string: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+                                                                                integer: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+                                                                                number: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800',
+                                                                                boolean: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+                                                                                object: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800',
+                                                                                array: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
+                                                                            }}
+                                                                            {@const typeColor = typeColors[pathInfo.type as keyof typeof typeColors] || 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-800'}
+                                                                            <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium {typeColor}">{pathInfo.type}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.enum}
+                                                                            {#each pathInfo.enum.slice(0, 3) as e}
+                                                                                <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                            {/each}
+                                                                            {#if pathInfo.enum.length > 3}
+                                                                                <span class="text-[10px] text-purple-500 dark:text-purple-400">+{pathInfo.enum.length - 3} more</span>
+                                                                            {/if}
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.default !== undefined}
+                                                                            <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">default: {JSON.stringify(pathInfo.default)}</span>
+                                                                        {/if}
+                                                                        {#if typeof pathInfo === 'object' && pathInfo.constraints}
+                                                                            {#each pathInfo.constraints as constraint}
+                                                                                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                            {/each}
+                                                                        {/if}
+                                                                        
+                                                                        <!-- Hover tooltip with all metadata grouped -->
+                                                                        {#if typeof pathInfo === 'object' && (pathInfo.enum || pathInfo.default !== undefined || pathInfo.constraints)}
+                                                                            <div class="pointer-events-none absolute left-0 top-full z-[100] mt-1 hidden group-hover:block">
+                                                                                <div class="w-max max-w-md rounded-lg border border-gray-300 bg-white p-2.5 shadow-xl dark:border-gray-600 dark:bg-gray-800">
+                                                                                    <div class="space-y-2">
+                                                                                        {#if pathInfo.enum}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">Enum Values</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.enum as e}
+                                                                                                        <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{e}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.default !== undefined}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Default Value</div>
+                                                                                                <span class="inline-block rounded bg-indigo-100 px-2 py-1 text-xs font-mono text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{JSON.stringify(pathInfo.default)}</span>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                        {#if pathInfo.constraints}
+                                                                                            <div>
+                                                                                                <div class="mb-1 text-[9px] font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Constraints</div>
+                                                                                                <div class="flex flex-wrap gap-1">
+                                                                                                    {#each pathInfo.constraints as constraint}
+                                                                                                        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-400">{constraint}</span>
+                                                                                                    {/each}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {/if}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        {/if}
+                                                                    </div>
+                                                                {/each}
+                                                            </div>
+                                                        </div>
+                                                    {/if}
+                                                {/if}
+                                                {#if !g.spec && !g.status}
+                                                    <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
+                                                {/if}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                {:else}
+                    <div class="overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 via-white to-gray-50 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+                        <div class="px-6 py-12 text-center sm:py-16">
+                            <div class="mx-auto flex max-w-md flex-col items-center gap-4">
+                                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-inner dark:from-gray-800 dark:to-gray-700">
+                                    <svg class="h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+                                    </svg>
+                                </div>
+                                <div class="space-y-2">
+                                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">No Results Found</h3>
+                                    <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                                        {#if !release || !releaseName}
+                                            Please select a release to begin searching.
+                                        {:else if !query}
+                                            Start typing to search across CRD schemas.
+                                        {:else}
+                                            No matches found for your query. Try different search terms.
+                                        {/if}
+                                    </p>
+                                </div>
+                                {#if query}
+                                    <button 
+                                        on:click={() => { query = ''; results = []; }}
+                                        class="mt-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:from-cyan-600 hover:to-blue-700 hover:shadow focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                                    >
+                                        Clear Search
+                                    </button>
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                {/if}
 
-				<div class="space-y-2 sm:space-y-4">
-					<div>
-						<p class="mb-2 text-sm leading-relaxed text-white sm:text-base">
-							Select a release and version (leave the version blank to search all versions), then
-							search inside CRD spec and status schemas. Descriptions are ignored to focus matches
-							on parameters and values.
-						</p>
-						<label
-							for="spec-release"
-							class="mb-1 block text-base font-semibold text-gray-900 sm:mb-2 sm:text-lg dark:text-white"
-							>Release & Version</label
-						>
-						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6">
-							<div class="relative">
-								<select
-									id="spec-release"
-									aria-label="Select release"
-									bind:value={releaseName}
-									on:change={loadVersions}
-									class="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-purple-500 focus:ring-2 focus:ring-purple-500 sm:px-4 sm:py-3 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-									style="z-index:1000;"
-								>
-									<option value="">Select release...</option>
-									{#each releasesConfig.releases as r}
-										<option value={r.name}>{r.label}</option>
-									{/each}
-								</select>
-							</div>
-							<div class="relative">
-								<select
-									id="spec-version"
-									aria-label="Select resource version"
-									bind:value={version}
-									class="w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-purple-500 focus:ring-2 focus:ring-purple-500 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-3 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-									style="z-index:1000;"
-									disabled={!release || versions.length === 0 || loadingVersions}
-								>
-									<option value=""
-										>{loadingVersions ? 'Loading versions...' : 'All versions'}</option
-									>
-									{#each versions as v}
-										<option value={v}>{v}</option>
-									{/each}
-								</select>
-							</div>
-							<!-- By default we search all versions if none selected -->
-						</div>
-
-						<div class="relative pt-2">
-							<!-- divider moved below search row -->
-						</div>
-					</div>
-				</div>
-				<!-- Independent Search Bar (clean, pro) like Bulk Diff (separate from result table) -->
-				<div class="mb-2">
-					<div class="flex items-center gap-3">
-							<div class="relative flex-1">
-							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-								<svg
-									class="h-4 w-4 text-gray-400"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-									/></svg
-								>
-							</div>
-						<input
-							id="spec-query"
-							bind:value={query}
-							on:input={() => {
-								selectedTokens = new Set(query.split(/\s+/).filter(Boolean));
-							}}
-							on:keydown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									if (debounceTimer) {
-										clearTimeout(debounceTimer);
-										debounceTimer = null;
-									}
-									performSearch();
-								}
-							}}
-							placeholder="Search in real-time..."
-							class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-10 pl-9 text-sm text-gray-900 shadow-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-						/>
-							{#if query}
-								<button
-									aria-label="Clear search"
-									on:click={() => {
-										query = '';
-										results = [];
-									}}
-									class="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-gray-100 p-1 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
-								>
-									<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-									</svg>
-								</button>
-							{/if}
-						</div>
-						<div class="flex items-center gap-3">
-							<!-- Filter dropdown removed; all results are shown -->
-							<button
-								on:click={() => {
-									expandAll.update((v) => {
-										const nv = !v;
-										expandAllScope.set('global');
-										return nv;
-									});
-								}}
-								class="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 sm:px-4 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							>
-								{#if $expandAll}Collapse All{:else}Expand All{/if}
-							</button>
-						</div>
-						<div class="text-sm text-gray-500 dark:text-gray-400">
-							{groupedResults.length} matches
-						</div>
-						<div class="ml-3 flex items-center gap-2">
-						<button
-							aria-pressed={includeEnum}
-							on:click={() => {
-								includeEnum = !includeEnum;
-								if (query && query.trim().length > 0) {
-									scheduleSearch();
-								}
-							}}
-							class="{includeEnum ? 'bg-purple-600 text-white shadow-sm dark:bg-purple-500' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'} rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:shadow-md sm:px-4"
-							title="Include enum / constant / pattern values in search"
-							style="z-index:1"
-						>
-								{#if includeEnum}
-									<svg class="inline-block h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Enums On
-								{:else}
-									Include enums
-								{/if}
-							</button>
-							<span class="mr-2 text-sm font-medium text-gray-900 sm:text-base dark:text-gray-200"
-								>View:</span
-							>
-							<button
-								on:click={() => (resultsViewMode = 'yang')}
-								class="rounded-md px-3 py-1.5 text-sm font-semibold transition-colors sm:text-base {resultsViewMode ===
-								'yang'
-									? 'bg-cyan-600 text-white shadow-sm'
-									: 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-								>YANG</button
-							>
-							<button
-								on:click={() => (resultsViewMode = 'tree')}
-								class="rounded-md px-3 py-1.5 text-sm font-semibold transition-colors sm:text-base {resultsViewMode ===
-								'tree'
-									? 'bg-purple-600 text-white shadow-sm'
-									: 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-								>Tree</button
-							>
-						</div>
-					</div>
-				</div>
-
-				<!-- Divider / progress bar under search row -->
-				<div class="relative border-t border-gray-200 pt-4">
-					{#if loading}
-						<div class="pointer-events-none absolute -top-1 right-0 left-0 h-1">
-							<div class="h-1 w-full bg-gray-200 dark:bg-gray-700">
-								<div class="h-1 rounded-full bg-purple-600" style="width: 100%"></div>
-							</div>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Results -->
-				{#if displayedResults.length > 0}
-					<!-- Mobile stacked grouped cards (SPEC + STATUS together) -->
-					<div class="space-y-3 sm:hidden">
-						{#each groupedResults as g}
-							<div
-								class="relative isolate z-0 overflow-hidden rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
-							>
-								<div class="flex items-start justify-between gap-3">
-									<div class="mr-2 min-w-0">
-										<div class="text-sm font-semibold break-words text-gray-900 dark:text-white">
-											{g.kind}
-										</div>
-										<div class="text-xs text-gray-600 dark:text-gray-300">
-											{stripResourcePrefixFQDN(String(g.name))}
-										</div>
-									</div>
-									<div class="flex items-center gap-2">
-										{#if g.version}
-											<div
-												class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-											>
-												{g.version}
-											</div>
-										{/if}
-									</div>
-								</div>
-								<div class="mt-3">
-									<div
-										class="text-xs break-words whitespace-normal text-gray-900 dark:text-gray-200"
-									>
-										<div class="overflow-x-auto">
-											<div
-												class="min-w-[960px] {g.spec && g.status
-													? 'grid grid-cols-2 gap-4'
-													: 'grid grid-cols-1'}"
-											>
-												{#if g.spec}
-													<div>
-														<div
-															class="mb-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400"
-														>
-															SPEC
-														</div>
-														{#if resultsViewMode === 'tree'}
-															<div class="relative isolate overflow-hidden">
-																<div class="overflow-x-hidden">
-																	<Render
-																	hash={`${g.name}.${g.version}.spec`}
-																	source={release?.name || 'release'}
-																	type={'spec'}
-																	data={g.spec}
-																	showType={false}
-																/>
-																</div>
-															</div>
-														{:else}
-															<div class="relative isolate overflow-hidden">
-																<YangView
-																	hash={`${g.name}.${g.version}.spec`}
-																	source={release?.name || 'release'}
-																	type={'spec'}
-																	data={g.spec}
-																	resourceName={g.name}
-																	resourceVersion={g.version}
-																	{releaseName}
-																	kind={g.kind}
-																/>
-															</div>
-														{/if}
-													</div>
-												{/if}
-												{#if g.status}
-													<div>
-														<div
-															class="mb-1 text-xs font-semibold text-green-600 dark:text-green-400"
-														>
-															STATUS
-														</div>
-														{#if resultsViewMode === 'tree'}
-															<div class="relative isolate overflow-hidden">
-																<div class="overflow-x-hidden">
-																	<Render
-																	hash={`${g.name}.${g.version}.status`}
-																	source={release?.name || 'release'}
-																	type={'status'}
-																	data={g.status}
-																	showType={false}
-																/>
-																</div>
-															</div>
-														{:else}
-															<div class="relative isolate overflow-hidden">
-																<YangView
-																	hash={`${g.name}.${g.version}.status`}
-																	source={release?.name || 'release'}
-																	type={'status'}
-																	data={g.status}
-																	resourceName={g.name}
-																	resourceVersion={g.version}
-																	{releaseName}
-																	kind={g.kind}
-																/>
-															</div>
-														{/if}
-													</div>
-												{/if}
-												{#if !g.spec && !g.status}
-													<div class="text-xs text-gray-500 dark:text-gray-400">
-														No matching content
-													</div>
-												{/if}
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-						{/each}
-					</div>
-
-					<!-- Desktop table -->
-					<div
-						class="hidden overflow-x-auto rounded-lg border border-gray-200 shadow-sm sm:block sm:rounded-xl dark:border-gray-700"
-					>
-						<table class="w-full table-auto text-xs sm:text-sm">
-							<thead class="bg-gray-50 dark:bg-gray-900">
-								<tr>
-									<th
-										class="px-3 py-3 text-left font-semibold text-gray-900 sm:px-6 sm:py-4 dark:text-white"
-										>Resource</th
-									>
-									<th
-										class="px-3 py-3 text-left font-semibold text-gray-900 sm:px-6 sm:py-4 dark:text-white"
-										>Version</th
-									>
-									<th
-										class="px-3 py-3 text-left font-semibold text-gray-900 sm:px-6 sm:py-4 dark:text-white"
-										>Match</th
-									>
-								</tr>
-							</thead>
-							<tbody
-								class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800"
-							>
-								{#each groupedResults as g}
-									<tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
-										<td
-											class="relative isolate z-0 max-w-[40%] overflow-hidden px-3 py-3 font-medium break-words whitespace-pre-wrap text-gray-900 sm:px-6 sm:py-4 dark:text-white"
-											><div class="font-semibold">{g.kind}</div>
-											<div class="text-xs text-gray-500 dark:text-gray-300">
-												{stripResourcePrefixFQDN(String(g.name))}
-											</div></td
-										>
-										<td
-											class="relative isolate z-0 max-w-[12%] overflow-hidden px-3 py-3 break-words whitespace-pre-wrap text-gray-600 sm:px-6 sm:py-4 dark:text-gray-300"
-											>{g.version}</td
-										>
-										<td
-											class="px-3 py-3 break-words whitespace-normal text-gray-900 sm:px-6 sm:py-4 dark:text-gray-200"
-										>
-											<div
-												class="pro-spec-preview relative isolate z-0 max-h-[40rem] overflow-hidden"
-											>
-												<div class="overflow-visible">
-													<div class="min-w-[960px] space-y-4">
-														{#if g.spec}
-															<div>
-																<div
-																	class="mb-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400"
-																>
-																	SPEC
-																</div>
-																{#if resultsViewMode === 'tree'}
-																	<div class="relative isolate overflow-hidden">
-																		<div class="overflow-x-hidden">
-																			<Render
-																			hash={`${g.name}.${g.version}.spec`}
-																			source={release?.name || 'release'}
-																			type={'spec'}
-																			data={g.spec}
-																			showType={false}
-																		/>
-																		</div>
-																	</div>
-																{:else}
-																	<div class="relative isolate overflow-hidden">
-																		<YangView
-																			hash={`${g.name}.${g.version}.spec`}
-																			source={release?.name || 'release'}
-																			type={'spec'}
-																			data={g.spec}
-																			resourceName={g.name}
-																			resourceVersion={g.version}
-																			{releaseName}
-																			kind={g.kind}
-																		/>
-																	</div>
-																{/if}
-															</div>
-														{/if}
-														{#if g.status}
-															<div>
-																<div
-																	class="mb-1 text-xs font-semibold text-green-600 dark:text-green-400"
-																>
-																	STATUS
-																</div>
-																{#if resultsViewMode === 'tree'}
-																	<div class="relative isolate overflow-hidden">
-																		<div class="overflow-x-hidden">
-																			<Render
-																			hash={`${g.name}.${g.version}.status`}
-																			source={release?.name || 'release'}
-																			type={'status'}
-																			data={g.status}
-																			showType={false}
-																		/>
-																		</div>
-																	</div>
-																{:else}
-																	<div class="relative isolate overflow-hidden">
-																		<YangView
-																			hash={`${g.name}.${g.version}.status`}
-																			source={release?.name || 'release'}
-																			type={'status'}
-																			data={g.status}
-																			resourceName={g.name}
-																			resourceVersion={g.version}
-																			{releaseName}
-																			kind={g.kind}
-																		/>
-																	</div>
-																{/if}
-															</div>
-														{/if}
-														{#if !g.spec && !g.status}
-															<div class="text-xs text-gray-500 dark:text-gray-400">
-																No matching content
-															</div>
-														{/if}
-													</div>
-												</div>
-											</div>
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{:else}
-					<div
-						class="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-8 text-center sm:rounded-xl sm:py-12 dark:border-gray-700 dark:bg-gray-900/50"
-					>
-						<div class="flex flex-col items-center gap-3 sm:gap-4">
-							<div
-								class="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 sm:h-16 sm:w-16 dark:bg-gray-800"
-							>
-								<svg
-									class="h-7 w-7 text-gray-400 sm:h-8 sm:w-8"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									><path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-									/></svg
-								>
-							</div>
-							<div>
-								<h3
-									class="mb-1 text-base font-medium text-gray-900 sm:mb-2 sm:text-lg dark:text-white"
-								>
-									No Results Found
-								</h3>
-								<p class="text-xs text-gray-600 sm:text-sm dark:text-gray-300">
-									No CRD spec/status matches the selected release/version (or all versions) and
-									query. Try adjusting your query.
-								</p>
-							</div>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Page credits at bottom of scrollable content -->
-				<div class="mx-auto max-w-7xl px-4 py-6">
-					<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-						<PageCredits />
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+        <!-- Footer Credits -->
+        <div class="mt-8">
+            <PageCredits />
+        </div>
+    </div>
 </div>
+
+<!-- Modal for Resource Details -->
+{#if isModalOpen && modalData}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div 
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        on:click|self={() => { isModalOpen = false; modalData = null; modalExpandAll = false; }}
+        style="animation: fadeIn 0.2s ease-out;"
+    >
+        <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+        <div 
+            class="relative w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+            on:click|stopPropagation
+            on:keydown={(e) => { if (e.key === 'Escape') { isModalOpen = false; modalData = null; modalExpandAll = false; } }}
+            role="dialog"
+            aria-modal="true"
+            tabindex="-1"
+            style="animation: slideUp 0.3s ease-out;"
+        >
+            <!-- Modal Header -->
+            <div class="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 dark:border-gray-700 dark:from-slate-900 dark:to-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">{modalData.kind}</h2>
+                        <p class="text-sm text-cyan-300">{stripResourcePrefixFQDN(String(modalData.name))}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    {#if version}
+                        <span class="rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 px-3 py-1 text-sm font-mono font-semibold text-cyan-300">
+                            {version}
+                        </span>
+                    {/if}
+                    <button
+                        on:click={() => { modalExpandAll = !modalExpandAll; }}
+                        class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg"
+                    >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {#if modalExpandAll}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                            {:else}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            {/if}
+                        </svg>
+                        {modalExpandAll ? 'Collapse All' : 'Expand All'}
+                    </button>
+                    <button
+                        on:click={() => { isModalOpen = false; modalData = null; modalExpandAll = false; }}
+                        class="rounded-lg p-2 text-gray-400 transition-all hover:bg-white/10 hover:text-white"
+                        aria-label="Close modal"
+                    >
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="overflow-y-auto bg-slate-50 p-6 dark:bg-slate-900" style="max-height: calc(90vh - 80px);">
+                <div class="space-y-6">
+                    {#if modalData.fullSpec}
+                        <div class="rounded-xl border-2 border-cyan-200 bg-white shadow-sm dark:border-cyan-800/50 dark:bg-slate-800">
+                            <div class="border-b border-cyan-100 bg-gradient-to-r from-cyan-50 to-blue-50 px-5 py-3 dark:border-cyan-900/50 dark:from-cyan-950/30 dark:to-blue-950/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600">
+                                        <svg class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-cyan-900 dark:text-cyan-100">Spec Schema</h3>
+                                        <p class="text-xs text-cyan-700 dark:text-cyan-400">Resource specification and configuration</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-5">
+                                {#key modalExpandAll}
+                                    <Render
+                                        hash={expandedPaths.join('|')}
+                                        source={release?.name || 'release'}
+                                        type={'spec'}
+                                        data={modalData.markedFull?.spec || modalData.fullSpec}
+                                        showType={false}
+                                        showDiffIndicator={true}
+                                        forceExpandAll={modalExpandAll}
+                                    />
+                                {/key}
+                            </div>
+                        </div>
+                    {/if}
+                    {#if modalData.fullStatus}
+                        <div class="rounded-xl border-2 border-green-200 bg-white shadow-sm dark:border-green-800/50 dark:bg-slate-800">
+                            <div class="border-b border-green-100 bg-gradient-to-r from-green-50 to-emerald-50 px-5 py-3 dark:border-green-900/50 dark:from-green-950/30 dark:to-emerald-950/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600">
+                                        <svg class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-green-900 dark:text-green-100">Status Schema</h3>
+                                        <p class="text-xs text-green-700 dark:text-green-400">Observed state and runtime information</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-5">
+                                {#key modalExpandAll}
+                                    <Render
+                                        hash={expandedPaths.join('|')}
+                                        source={release?.name || 'release'}
+                                        type={'status'}
+                                        data={modalData.markedFull?.status || modalData.fullStatus}
+                                        showType={false}
+                                        showDiffIndicator={true}
+                                        forceExpandAll={modalExpandAll}
+                                    />
+                                {/key}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+        from { 
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace; }
+</style>
