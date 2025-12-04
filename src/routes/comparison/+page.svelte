@@ -711,9 +711,9 @@
 <div class="mx-auto max-w-7xl px-3 py-2 sm:px-4">
 	<div class="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6"></div>
 </div>
-<div class="relative flex h-full flex-col overflow-y-auto pt-12 md:pt-14 lg:overflow-hidden">
+<div class="relative flex h-full flex-col overflow-y-auto pt-12 md:pt-14">
 	<div class="relative z-10 flex flex-1 flex-col lg:flex-row">
-		<div class="flex-1 overflow-auto pb-16">
+		<div class="flex-1 pb-16">
 			<div class="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
 				<div
 					class="mb-2 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center"

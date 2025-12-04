@@ -503,3 +503,73 @@
 		-webkit-backdrop-filter: none !important;
 	}
 }
+
+/* Theme toggle pill (matching reference style) */
+.theme-toggle {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px;
+	background: transparent;
+	border-radius: 9999px;
+	cursor: pointer;
+}
+.theme-track {
+	display: block;
+	width: 48px;
+	height: 28px;
+	border-radius: 9999px;
+	background: linear-gradient(180deg, #f3f4f6, #e5e7eb);
+	border: 1px solid rgba(15, 23, 42, 0.06);
+	position: relative;
+	transition: background 200ms ease, border-color 200ms ease;
+}
+.theme-thumb {
+	width: 22px;
+	height: 22px;
+	border-radius: 9999px;
+	background: white;
+	box-shadow: 0 6px 12px rgba(16,24,40,0.12);
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: #f59e0b; /* amber for sun */
+	transition: transform 200ms cubic-bezier(.2,.9,.2,1), background 200ms ease, color 200ms ease;
+}
+.theme-thumb.is-dark {
+	transform: translateX(20px);
+	background: #0b1220; /* dark thumb */
+	color: #fef3c7; /* soft yellow moon color */
+	box-shadow: 0 6px 14px rgba(2,6,23,0.6);
+}
+
+/* Dark track styling when dark mode is active on root */
+:global(.dark) .theme-track {
+	background: linear-gradient(180deg, #0f172a, #0b1220);
+	border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Focus state */
+.theme-toggle:focus .theme-track,
+.theme-toggle:focus-visible .theme-track {
+	outline: none;
+	box-shadow: 0 0 0 4px rgba(59,130,246,0.14);
+}
+
+/* Make icons slightly smaller on small screens */
+@media (max-width: 640px) {
+	.theme-track {
+		width: 44px;
+		height: 26px;
+	}
+	.theme-thumb {
+		width: 20px;
+		height: 20px;
+		left: 3px;
+	}
+	.theme-thumb.is-dark {
+		transform: translateX(18px);
+	}
+}

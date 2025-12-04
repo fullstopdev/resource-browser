@@ -431,20 +431,21 @@
 		<div class="relative flex-1">
 			<main class="px-3 pt-3 pb-8 md:px-6 md:pt-4 lg:px-8">
 				<div class="mx-auto w-full max-w-7xl">
-					<!-- Ultra-Compact Control Panel -->
+					<!-- Enhanced Control Panel -->
 					<div
-						class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+						class="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 shadow-md transition-all dark:border-gray-700 dark:from-gray-800 dark:to-gray-900 md:flex-row md:items-center md:justify-between md:p-5"
 					>
 						<!-- View Mode Tabs -->
-						<div class="flex items-center gap-1.5 rounded-md bg-gray-100 p-1 dark:bg-gray-900/50">
+						<div class="flex items-center gap-2 rounded-lg bg-gray-100 p-1.5 dark:bg-gray-900/50">
 							<button
 								on:click={() => (viewMode = 'schema')}
-								class="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all {viewMode ===
+								class="inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 md:text-base {viewMode ===
 								'schema'
-									? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-sm'
-									: 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'}"
+									? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
+									: 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow dark:text-gray-300 dark:hover:bg-gray-800'}"
+								title="View CRD schema definition"
 							>
-								<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -452,16 +453,17 @@
 										d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 									/>
 								</svg>
-								<span>Schema</span>
+								<span class="hidden sm:inline">Schema</span>
 							</button>
 							<button
 								on:click={() => (viewMode = 'compare')}
-								class="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all {viewMode ===
+								class="inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 md:text-base {viewMode ===
 								'compare'
-									? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-sm'
-									: 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'}"
+									? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg'
+									: 'text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow dark:text-gray-300 dark:hover:bg-gray-800'}"
+								title="Compare with other versions"
 							>
-								<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -469,37 +471,21 @@
 										d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
 									/>
 								</svg>
-								<span>Compare</span>
-							</button>
-							<button
-								on:click={() => (viewMode = 'validate')}
-								class="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all {viewMode ===
-								'validate'
-									? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm'
-									: 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'}"
-							>
-								<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-									/>
-								</svg>
-								<span>Validate</span>
+								<span class="hidden sm:inline">Compare</span>
 							</button>
 						</div>
 
 						<!-- Expand/Collapse Button -->
 						<button
-							class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold transition-all hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20 {$ulExpanded.length >
+							class="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all duration-200 md:text-base {$ulExpanded.length >
 							0
-								? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300'
-								: 'border-cyan-500 bg-cyan-600 text-white hover:bg-cyan-700 dark:bg-cyan-600'}"
+								? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+								: 'border-cyan-500 bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md hover:shadow-lg dark:bg-cyan-600'}"
 							on:click={handleGlobalExpand}
+							title={$ulExpanded.length > 0 ? 'Collapse all fields' : 'Expand all fields'}
 						>
 							<svg
-								class="h-3.5 w-3.5 transition-transform {$ulExpanded.length > 0
+								class="h-4 w-4 transition-transform {$ulExpanded.length > 0
 									? 'rotate-180'
 									: 'rotate-0'}"
 								fill="none"
@@ -601,18 +587,18 @@
 					<!-- Compare Section -->
 					{#if viewMode === 'compare'}
 						<div
-							class="mt-6 overflow-hidden rounded-lg border border-white/10 bg-black/30 shadow-sm backdrop-blur-lg md:mt-10 md:rounded-xl"
+							class="overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 shadow-lg transition-all dark:border-gray-700 dark:from-gray-800 dark:to-gray-900"
 						>
 							<div
-								class="content-header border-b border-white/10 bg-black/20 px-4 py-4 md:px-8 md:py-6"
+								class="border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-5 dark:border-gray-700 dark:from-orange-900/20 dark:to-amber-900/20 sm:px-6 md:py-6"
 							>
-								<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-									<div class="flex items-center space-x-3 md:space-x-4">
+								<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+									<div class="flex items-center space-x-3">
 										<div
-											class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-600 to-amber-600 text-white shadow-xl md:h-12 md:w-12 md:rounded-xl"
+											class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-600 to-amber-600 text-white shadow-lg"
 										>
 											<svg
-												class="h-5 w-5 md:h-6 md:w-6"
+												class="h-5 w-5"
 												fill="none"
 												stroke="currentColor"
 												viewBox="0 0 24 24"
@@ -625,87 +611,61 @@
 												/>
 											</svg>
 										</div>
-										<div class="min-w-0">
-											<h2 class="text-lg font-semibold text-white md:text-2xl">Comparison</h2>
-											<p class="mt-0.5 text-xs text-gray-300 md:text-sm">
-												Compare schemas across versions
+										<div>
+											<h2 class="text-lg font-bold text-gray-900 dark:text-white">Schema Comparison</h2>
+											<p class="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
+												Compare with other versions
 											</p>
 										</div>
 									</div>
 									<!-- Selectors -->
-									<div class="flex w-full flex-col gap-3 sm:flex-row sm:gap-3 md:w-auto">
-										<div class="flex flex-col gap-1.5">
-											<div class="text-xs font-semibold tracking-wide text-gray-300 uppercase">
+									<div class="flex flex-col gap-4 sm:flex-row sm:gap-4">
+										<div class="flex-1 sm:flex-initial">
+											<label for="release-select" class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
 												Release
-											</div>
+											</label>
 											<div class="relative">
 												<select
+													id="release-select"
 													bind:value={compareRelease}
 													on:change={() => {
 														compareVersion = null;
 													}}
-													class="w-full cursor-pointer appearance-none rounded-lg border border-white/20 bg-black/30 py-2 pr-8 pl-3 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:border-cyan-400 hover:shadow-lg focus:border-cyan-400 focus:ring-4 focus:ring-cyan-400/20 focus:outline-none sm:min-w-[140px] md:min-w-[180px] md:rounded-xl md:py-2.5 md:pr-10 md:pl-4 md:text-sm"
+													class="w-full appearance-none rounded-lg border border-gray-300 bg-white py-2.5 pr-10 pl-4 text-sm font-medium text-gray-900 shadow-sm transition-all hover:border-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
 												>
-													<option value="" class="bg-gray-900 text-white"
-														>Current ({releaseLabel})</option
-													>
 													{#each allReleases as release}
-														{#if release.label !== releaseLabel}
-															<option value={release.name} class="bg-gray-900 text-white"
-																>{release.label}</option
-															>
-														{/if}
+														<option value={release.name}>{release.label}</option>
 													{/each}
 												</select>
-												<div
-													class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 md:pr-3"
-												>
-													<svg
-														class="h-4 w-4 text-gray-400 md:h-5 md:w-5 dark:text-gray-500"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M19 9l-7 7-7-7"
-														/>
+												<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+													<svg class="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 													</svg>
 												</div>
 											</div>
 										</div>
-										<div class="flex flex-col gap-1.5">
-											<div class="text-xs font-semibold tracking-wide text-gray-300 uppercase">
+										<div class="flex-1 sm:flex-initial">
+											<label for="version-select" class="mb-3 block text-sm font-semibold text-gray-700 dark:text-gray-300">
 												Version
-											</div>
+											</label>
 											<div class="relative">
 												<select
+													id="version-select"
 													bind:value={compareVersion}
-													class="w-full cursor-pointer appearance-none rounded-lg border border-gray-200 bg-white py-2 pr-8 pl-3 text-xs font-semibold text-gray-900 shadow-sm transition-all duration-200 hover:border-blue-400 hover:shadow-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-200 disabled:hover:shadow-sm sm:min-w-[130px] md:min-w-[160px] md:rounded-xl md:py-2.5 md:pr-10 md:pl-4 md:text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-blue-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/10 dark:disabled:hover:border-gray-700"
+													class="w-full appearance-none rounded-lg border border-gray-300 bg-white py-2.5 pr-10 pl-4 text-sm font-medium text-gray-900 shadow-sm transition-all hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-white"
 													disabled={compareReleaseVersions.length === 0}
 													aria-label="Select version to compare"
 												>
-													<option
-														value=""
-														class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100"
-													>
-														{compareReleaseVersions.length === 0 ? 'No versions' : 'Select...'}
-													</option>
+													<option value="">Select version</option>
 													{#each compareReleaseVersions as version}
-														<option
-															value={version}
-															class="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100"
-															>{version}</option
-														>
+														<option value={version}>{version}</option>
 													{/each}
 												</select>
 												<div
-													class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 md:pr-3"
+													class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
 												>
 													<svg
-														class="h-4 w-4 text-gray-400 md:h-5 md:w-5 dark:text-gray-500"
+														class="h-5 w-5 text-gray-400 dark:text-gray-500"
 														fill="none"
 														stroke="currentColor"
 														viewBox="0 0 24 24"
@@ -723,7 +683,7 @@
 									</div>
 								</div>
 							</div>
-							<div class="overflow-x-auto bg-white p-4 md:p-8 dark:bg-gray-800">
+							<div class="overflow-x-auto bg-white p-4 sm:p-6 dark:bg-gray-800">
 								{#if !compareVersion}
 									<div class="flex flex-col items-center justify-center py-8 text-center md:py-12">
 										<svg
@@ -954,267 +914,6 @@
 										</div>
 									</div>
 								{/if}
-							</div>
-						</div>
-					{/if}
-
-					<!-- Validation Section -->
-					{#if viewMode === 'validate'}
-						<div
-							class="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm md:mt-10 md:rounded-xl dark:border-gray-700/60 dark:bg-gray-800/90 dark:shadow-xl"
-						>
-							<div
-								class="border-b border-gray-200 bg-gray-50 px-4 py-4 md:px-8 md:py-6 dark:border-gray-700 dark:bg-gray-800"
-							>
-								<div class="flex items-center space-x-3 md:space-x-4">
-									<div
-										class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-xl md:h-12 md:w-12 md:rounded-xl"
-									>
-										<svg
-											class="h-5 w-5 md:h-6 md:w-6"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-											/>
-										</svg>
-									</div>
-									<div class="min-w-0">
-										<h2 class="text-lg font-semibold text-gray-900 md:text-2xl dark:text-white">
-											YAML Validation
-										</h2>
-										<p class="mt-0.5 text-xs text-gray-600 md:text-sm dark:text-gray-300">
-											Validate YAML against CRD schema
-										</p>
-									</div>
-								</div>
-							</div>
-							<div class="bg-white p-4 md:p-8 dark:bg-gray-800">
-								<div class="space-y-4 md:space-y-6">
-									<!-- Instructions -->
-									<div
-										class="rounded-lg border border-blue-200 bg-blue-50 p-3 md:p-4 dark:border-blue-800 dark:bg-blue-900/20"
-									>
-										<div class="flex items-start space-x-2 md:space-x-3">
-											<svg
-												class="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 md:h-5 md:w-5 dark:text-blue-400"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-												/>
-											</svg>
-											<div class="text-xs text-blue-800 md:text-sm dark:text-blue-200">
-												<p class="mb-1 font-medium">How to use:</p>
-												<ul
-													class="list-inside list-disc space-y-0.5 text-blue-700 dark:text-blue-300"
-												>
-													<li>Paste your complete YAML manifest</li>
-													<li>
-														Or paste just the <code
-															class="rounded bg-blue-100 px-1 text-xs dark:bg-blue-800">spec</code
-														> section
-													</li>
-													<li>
-														Supports multiple documents separated by <code
-															class="rounded bg-blue-100 px-1 text-xs dark:bg-blue-800">---</code
-														>
-													</li>
-												</ul>
-											</div>
-										</div>
-									</div>
-
-									<!-- YAML Input -->
-									<div>
-										<label
-											for="yaml-input"
-											class="mb-2 block text-xs font-medium text-gray-700 md:text-sm dark:text-gray-300"
-										>
-											YAML Configuration
-										</label>
-										<textarea
-											id="yaml-input"
-											bind:value={yamlInput}
-											placeholder={`apiVersion: ${group}/${versionOnFocus}\nkind: ${kind}\nmetadata:\n  name: example\nspec:`}
-											rows="12"
-											class="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 placeholder-gray-500 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none md:px-4 md:py-3 md:text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
-										></textarea>
-									</div>
-
-									<!-- Validate Button -->
-									<div
-										class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4"
-									>
-										<button
-											on:click={validateYaml}
-											disabled={isValidating}
-											class="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg transition-all duration-200 hover:from-purple-700 hover:to-indigo-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:rounded-xl md:px-6 md:py-3 md:text-sm"
-										>
-											{#if isValidating}
-												<svg
-													class="h-3.5 w-3.5 animate-spin md:h-4 md:w-4"
-													fill="none"
-													viewBox="0 0 24 24"
-												>
-													<circle
-														class="opacity-25"
-														cx="12"
-														cy="12"
-														r="10"
-														stroke="currentColor"
-														stroke-width="4"
-													></circle>
-													<path
-														class="opacity-75"
-														fill="currentColor"
-														d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-													></path>
-												</svg>
-												<span>Validating...</span>
-											{:else}
-												<svg
-													class="h-3.5 w-3.5 md:h-4 md:w-4"
-													fill="none"
-													stroke="currentColor"
-													viewBox="0 0 24 24"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-													/>
-												</svg>
-												<span>Validate</span>
-											{/if}
-										</button>
-
-										{#if validationResult}
-											<div class="flex items-center justify-center gap-2">
-												{#if validationResult === 'valid'}
-													<div class="flex items-center gap-2 text-green-600 dark:text-green-400">
-														<svg
-															class="h-4 w-4"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-															/>
-														</svg>
-														<span class="text-xs font-medium md:text-sm">Valid</span>
-													</div>
-												{:else}
-													<div class="flex items-center gap-2 text-red-600 dark:text-red-400">
-														<svg
-															class="h-4 w-4"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-															/>
-														</svg>
-														<span class="text-xs font-medium md:text-sm">Invalid</span>
-													</div>
-												{/if}
-											</div>
-										{/if}
-									</div>
-
-									<!-- Validation Results -->
-									{#if validationErrors.length > 0}
-										{#if validationResult === 'valid'}
-											<div
-												class="rounded-lg border border-green-200 bg-green-50 p-3 md:p-4 dark:border-green-800 dark:bg-green-900/20"
-											>
-												<div class="flex items-start gap-2 md:gap-3">
-													<svg
-														class="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600 md:h-5 md:w-5 dark:text-green-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-														/>
-													</svg>
-													<p
-														class="text-xs font-medium text-green-800 md:text-sm dark:text-green-200"
-													>
-														{validationErrors[0].message}
-													</p>
-												</div>
-											</div>
-										{:else}
-											<div
-												class="rounded-lg border border-red-200 bg-red-50 p-3 md:p-4 dark:border-red-800 dark:bg-red-900/20"
-											>
-												<div class="flex items-start gap-2 md:gap-3">
-													<svg
-														class="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 md:h-5 md:w-5 dark:text-red-400"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-														/>
-													</svg>
-													<div class="min-w-0 flex-1">
-														<h4
-															class="mb-2 text-xs font-medium text-red-800 md:text-sm dark:text-red-200"
-														>
-															Errors ({validationErrors.length})
-														</h4>
-														<ul class="space-y-1.5">
-															{#each validationErrors as error}
-																<li class="text-xs text-red-700 md:text-sm dark:text-red-300">
-																	<div
-																		class="overflow-x-auto rounded bg-red-100 p-2 font-mono text-xs dark:bg-red-900/30"
-																	>
-																		{#if (error as any).instancePath || (error as any).dataPath}
-																			<span class="font-semibold"
-																				>{(error as any).instancePath ||
-																					(error as any).dataPath}</span
-																			>:
-																		{/if}
-																		{error.message}
-																	</div>
-																</li>
-															{/each}
-														</ul>
-													</div>
-												</div>
-											</div>
-										{/if}
-									{/if}
-								</div>
 							</div>
 						</div>
 					{/if}
