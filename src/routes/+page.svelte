@@ -43,6 +43,7 @@ This browser makes it easier to find, validate and compare definitions for Nokia
 
 	// Group releases by major version (e.g., 25 -> v25)
 	// Add a `showMore` property to each group for dropdown toggles.
+	// Use numeric version comparison to ensure newest releases sort first (by major, minor, patch).
 	let groupedReleases = (() => {
 		const groups: Record<string, any[]> = {};
 		(releasesConfig.releases || []).forEach((r) => {
@@ -51,12 +52,32 @@ This browser makes it easier to find, validate and compare definitions for Nokia
 			groups[label] = groups[label] || [];
 			groups[label].push(r);
 		});
+
+		function parseVersion(name: string) {
+			return String(name)
+				.split('.')
+				.map((n) => parseInt(n, 10) || 0);
+		}
+
+		function compareReleaseDesc(a: { name: string }, b: { name: string }) {
+			const pa = parseVersion(a.name);
+			const pb = parseVersion(b.name);
+			const len = Math.max(pa.length, pb.length);
+			for (let i = 0; i < len; i++) {
+				const na = pa[i] || 0;
+				const nb = pb[i] || 0;
+				if (na > nb) return -1; // a is newer -> come first
+				if (na < nb) return 1; // b is newer -> a after b
+			}
+			return 0;
+		}
+
 		// sort groups by major desc
 		return Object.entries(groups)
 			.sort((a, b) => parseInt(b[0].replace('v', '')) - parseInt(a[0].replace('v', '')))
 			.map(([label, releases]) => ({
 				label,
-				releases: releases.sort((a, b) => b.name.localeCompare(a.name)),
+				releases: releases.sort(compareReleaseDesc),
 				showMore: false
 			}));
 	})();
