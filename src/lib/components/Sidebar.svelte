@@ -185,10 +185,9 @@
 
 	function isPreferredVersionDeprecated(resDef: CrdResource) {
 		const manifestEntry = $crdMetaStore.find((r) => r.name === resDef.name) || resDef;
-		const pv = preferredVersionForResource(resDef);
-		if (!pv || !manifestEntry.versions) return false;
-		const vobj = manifestEntry.versions.find((v) => v.name === pv);
-		return !!(vobj && vobj.deprecated);
+		if (!manifestEntry.versions || manifestEntry.versions.length === 0) return false;
+		// Only show DEPRECATED if every available version is deprecated (i.e. no newer version exists)
+		return manifestEntry.versions.every((v) => v.deprecated);
 	}
 
 	function toggleMobileMenu() {
