@@ -1,6 +1,5 @@
 <script lang="ts">
 	import yaml from 'js-yaml';
-	import { onMount } from 'svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import releasesYaml from '$lib/releases.yaml?raw';
@@ -22,6 +21,126 @@
 
 	// Simple in-memory cache for manifests
 	const manifestCache: Map<string, any> = new Map();
+
+	function parseVersionName(versionName: string) {
+		const m = /^v(\d+)(?:(alpha|beta)(\d+)?)?$/.exec(versionName || '');
+		if (!m) {
+			return { major: -1, stage: -1, stageNum: -1, raw: versionName };
+		}
+
+		const stage = m[2] === 'alpha' ? 1 : m[2] === 'beta' ? 2 : 3;
+		const stageNum = Number(m[3] || 0);
+		return { major: Number(m[1]), stage, stageNum, raw: versionName };
+	}
+
+	function compareVersionDesc(a: string, b: string) {
+		const pa = parseVersionName(a);
+		const pb = parseVersionName(b);
+		if (pa.major !== pb.major) return pb.major - pa.major;
+		if (pa.stage !== pb.stage) return pb.stage - pa.stage;
+		if (pa.stageNum !== pb.stageNum) return pb.stageNum - pa.stageNum;
+		return pb.raw.localeCompare(pa.raw);
+	}
+
+	function formatVersionLabel(versionEntry: any) {
+		if (!versionEntry?.name) return '';
+		return versionEntry.deprecated ? `${versionEntry.name} (deprecated)` : versionEntry.name;
+	}
+
+	function getLatestVersion(resourceEntry: any): string {
+		const versions = Array.isArray(resourceEntry?.versions) ? resourceEntry.versions : [];
+		const nonDeprecated = versions.filter((v: any) => v?.name && !v?.deprecated);
+		const target = nonDeprecated.length > 0 ? nonDeprecated : versions.filter((v: any) => v?.name);
+		const sorted = target.map((v: any) => v.name).sort(compareVersionDesc);
+		return sorted[0] || '';
+	}
+
+	function getErrorTone(error: ErrorObject) {
+		const msg = (error.message || '').toLowerCase();
+		if (msg.includes('deprecated')) {
+			return {
+				row: 'border border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20',
+				icon: 'text-amber-600 dark:text-amber-400',
+				text: 'text-amber-900 dark:text-amber-100',
+				path: 'text-amber-700 dark:text-amber-300',
+				iconType: 'warning'
+			};
+		}
+
+		if (error.keyword === 'enum') {
+			return {
+				row: 'border border-fuchsia-200 bg-fuchsia-50/70 dark:border-fuchsia-800 dark:bg-fuchsia-900/20',
+				icon: 'text-fuchsia-600 dark:text-fuchsia-400',
+				text: 'text-fuchsia-900 dark:text-fuchsia-100',
+				path: 'text-fuchsia-700 dark:text-fuchsia-300',
+				iconType: 'error'
+			};
+		}
+
+		if (error.keyword === 'required') {
+			return {
+				row: 'border border-rose-200 bg-rose-50/70 dark:border-rose-800 dark:bg-rose-900/20',
+				icon: 'text-rose-600 dark:text-rose-400',
+				text: 'text-rose-900 dark:text-rose-100',
+				path: 'text-rose-700 dark:text-rose-300',
+				iconType: 'error'
+			};
+		}
+
+		if (error.keyword === 'const') {
+			return {
+				row: 'border border-sky-200 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-900/20',
+				icon: 'text-sky-600 dark:text-sky-400',
+				text: 'text-sky-900 dark:text-sky-100',
+				path: 'text-sky-700 dark:text-sky-300',
+				iconType: 'error'
+			};
+		}
+
+		return {
+			row: 'border border-red-200 bg-white/70 dark:border-red-800 dark:bg-black/20',
+			icon: 'text-red-500 dark:text-red-400',
+			text: 'text-red-900 dark:text-red-100',
+			path: 'text-red-700 dark:text-red-300',
+			iconType: 'error'
+		};
+	}
+
+	function extractAllowedValues(message: string) {
+		const m = message.match(/Allowed values:\s*([^.]*)/i);
+		return m ? m[1].trim() : '';
+	}
+
+	function extractDeprecatedValues(message: string) {
+		const m = message.match(/Deprecated versions:\s*([^.]*)/i);
+		return m ? m[1].trim() : '';
+	}
+
+	function hasDeprecatedFlag(message: string) {
+		return /\bdeprecated\b/i.test(message);
+	}
+
+	function stripHighlightClauses(message: string) {
+		return message
+			.replace(/\.?\s*Allowed values:\s*[^.]*/i, '')
+			.replace(/\.?\s*Deprecated versions:\s*[^.]*/i, '')
+			.trim();
+	}
+
+	async function getManifest(selectedRelease: EdaRelease) {
+		if (manifestCache.has(selectedRelease.folder)) {
+			return manifestCache.get(selectedRelease.folder);
+		}
+
+		const resp = await fetch(`/${selectedRelease.folder}/manifest.json`);
+		if (!resp.ok) {
+			throw new Error('Failed to load release manifest');
+		}
+
+		const manifest = await resp.json();
+		manifestCache.set(selectedRelease.folder, manifest);
+		return manifest;
+	}
 
 	async function validateYaml() {
 		const [{ default: Ajv }] = await Promise.all([import('ajv')]);
@@ -52,29 +171,7 @@
 		validationResult = null;
 
 		try {
-			// Load manifest for the release
-			let manifest: any;
-			if (manifestCache.has(release.folder)) {
-				manifest = manifestCache.get(release.folder);
-			} else {
-				const resp = await fetch(`/${release.folder}/manifest.json`);
-				if (!resp.ok) {
-					validationErrors = [
-						{
-							message: 'Failed to load release manifest',
-							instancePath: '',
-							schemaPath: '',
-							keyword: 'manifest',
-							params: {}
-						} as ErrorObject
-					];
-					validationResult = 'invalid';
-					isValidating = false;
-					return;
-				}
-				manifest = await resp.json();
-				manifestCache.set(release.folder, manifest);
-			}
+			const manifest = await getManifest(release);
 
 			// Parse YAML documents (separated by ---)
 			const yamlDocs = yamlInput.split(/^---$/m).filter((doc) => doc.trim());
@@ -211,9 +308,14 @@
 					}
 			}
 
-			// Find the resource in manifest by kind
-			// First try exact kind match, then fallback to name matching
-			let resourceEntry = manifest.find((r: any) => r.kind === parsedYaml.kind);
+				// Find the resource in manifest by kind and group first
+				let resourceEntry = manifest.find(
+					(r: any) => r.kind === parsedYaml.kind && (!r.group || r.group === group)
+				);
+
+				if (!resourceEntry) {
+					resourceEntry = manifest.find((r: any) => r.kind === parsedYaml.kind);
+				}
 			
 			if (!resourceEntry) {
 				// Fallback: try to find by checking if kind appears in the resource name
@@ -236,14 +338,92 @@
 				} as ErrorObject);
 				valid = false;
 				continue;
-			}				// Load the CRD schema for the specific version
+			}
+
+				const supportedVersions = (resourceEntry.versions || [])
+					.map((v: any) => v?.name)
+					.filter(Boolean);
+				const supportedVersionsDetailed = (resourceEntry.versions || [])
+					.map((v: any) => formatVersionLabel(v))
+					.filter(Boolean);
+				const nonDeprecatedVersions = (resourceEntry.versions || [])
+					.filter((v: any) => v?.name && !v?.deprecated)
+					.map((v: any) => v.name);
+				const deprecatedVersions = (resourceEntry.versions || [])
+					.filter((v: any) => v?.name && v?.deprecated)
+					.map((v: any) => v.name);
+				const matchedVersionEntry = (resourceEntry.versions || []).find(
+					(v: any) => v?.name === version
+				);
+				const latestVersion = getLatestVersion(resourceEntry);
+
+				if (!matchedVersionEntry) {
+					const supportedText =
+						nonDeprecatedVersions.length > 0
+							? `Supported versions: ${nonDeprecatedVersions.join(', ')}`
+							: `Supported versions: ${supportedVersionsDetailed.join(', ')}`;
+					const deprecatedText =
+						deprecatedVersions.length > 0
+							? `. Deprecated versions: ${deprecatedVersions.join(', ')}`
+							: '';
+					errors.push({
+						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is not supported for kind '${parsedYaml.kind}' in release ${release.label}. ${supportedText}${deprecatedText}`,
+						instancePath: '/apiVersion',
+						schemaPath: '#/properties/apiVersion/enum',
+						keyword: 'enum',
+						params: { allowedValues: supportedVersions }
+					} as ErrorObject);
+					valid = false;
+					continue;
+				}
+
+				if (matchedVersionEntry.deprecated) {
+					errors.push({
+						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is deprecated for kind '${parsedYaml.kind}'. Latest version is '${group}/${latestVersion}'`,
+						instancePath: '/apiVersion',
+						schemaPath: '#/properties/apiVersion/deprecated',
+						keyword: 'deprecated',
+						params: { latestVersion }
+					} as ErrorObject);
+					valid = false;
+				}
+
+				if (latestVersion && version !== latestVersion && !matchedVersionEntry.deprecated) {
+					errors.push({
+						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is not the latest for kind '${parsedYaml.kind}'. Latest version is '${group}/${latestVersion}'`,
+						instancePath: '/apiVersion',
+						schemaPath: '#/properties/apiVersion/latest',
+						keyword: 'const',
+						params: { latestVersion }
+					} as ErrorObject);
+					valid = false;
+				}
+
+				if (!latestVersion) {
+					errors.push({
+						message: `${docPrefix}No API versions found for kind '${parsedYaml.kind}' in release ${release.label}`,
+						instancePath: '/apiVersion',
+						schemaPath: '#/properties/apiVersion',
+						keyword: 'enum',
+						params: {}
+					} as ErrorObject);
+					valid = false;
+					continue;
+				}
+
+				// Load the CRD schema for the latest API version in this release
 				try {
-					const path = `/${release.folder}/${resourceEntry.name}/${version}.yaml`;
+					const path = `/${release.folder}/${resourceEntry.name}/${latestVersion}.yaml`;
 					const schemaResp = await fetch(path);
 					if (!schemaResp.ok) {
-						warnings.push(
-							`${docPrefix}Could not find schema for ${parsedYaml.kind} version ${version}`
-						);
+						errors.push({
+							message: `${docPrefix}Could not find schema for ${parsedYaml.kind} version ${latestVersion}`,
+							instancePath: '/apiVersion',
+							schemaPath: '#/properties/apiVersion',
+							keyword: 'schema',
+							params: {}
+						} as ErrorObject);
+						valid = false;
 						continue;
 					}
 
@@ -263,6 +443,12 @@
 							let message = err.message || 'validation error';
 							if (err.keyword === 'required' && spec.required) {
 								message = `${message}. Required fields in spec: ${spec.required.join(', ')}`;
+							}
+							if (err.keyword === 'enum') {
+								const allowedValues = err.params?.allowedValues;
+								if (Array.isArray(allowedValues) && allowedValues.length > 0) {
+									message = `${message}. Allowed values: ${allowedValues.join(', ')}`;
+								}
 							}
 							return {
 								...err,
@@ -321,7 +507,7 @@
 						: '✓ Valid Nokia EDA CRD configuration';
 				validationErrors = [
 					{
-						message: successMsg,
+						message: `${successMsg} (release: ${release.label}, validation mode: latest API per CRD)`,
 						instancePath: '',
 						schemaPath: '',
 						keyword: 'success',
@@ -375,6 +561,10 @@
 			<select
 				id="validation-release"
 				bind:value={releaseName}
+				on:change={() => {
+					validationErrors = [];
+					validationResult = null;
+				}}
 				class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 shadow-sm transition-all hover:border-purple-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:border-gray-500 dark:focus:border-purple-400"
 			>
 				<option value="">Select release...</option>
@@ -423,7 +613,7 @@
 									<svg class="mt-0.5 h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
 										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
 									</svg>
-									<span><strong>apiVersion</strong> must match selected release version</span>
+									<span><strong>apiVersion</strong> is checked against latest version for each CRD in the selected release</span>
 								</li>
 								<li class="flex items-start gap-2">
 									<svg class="mt-0.5 h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -576,16 +766,42 @@ spec:
 										</h4>
 										<ul class="space-y-2">
 											{#each validationErrors as error}
-												<li class="flex items-start gap-2 rounded-md bg-white/50 p-2 text-xs dark:bg-black/20">
-													<svg class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-														<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-													</svg>
+												{@const tone = getErrorTone(error)}
+												{@const rawMessage = error.message || ''}
+												{@const cleanMessage = stripHighlightClauses(rawMessage)}
+												{@const allowedValues = extractAllowedValues(rawMessage)}
+												{@const deprecatedValues = extractDeprecatedValues(rawMessage)}
+												{@const deprecatedFlag = hasDeprecatedFlag(rawMessage)}
+												<li class={`flex items-start gap-2 rounded-md p-2 text-xs ${tone.row}`}>
+													{#if tone.iconType === 'warning'}
+														<svg class={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${tone.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+														</svg>
+													{:else}
+														<svg class={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${tone.icon}`} fill="currentColor" viewBox="0 0 20 20">
+															<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+														</svg>
+													{/if}
 													<div class="flex-1">
-														<p class="font-medium text-red-900 dark:text-red-100">
-															{error.message}
+														<p class={`font-medium ${tone.text}`}>
+															{cleanMessage || rawMessage}
 														</p>
+														{#if allowedValues}
+															<p class="mt-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-800 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-200">
+																Allowed values: {allowedValues}
+															</p>
+														{/if}
+														{#if deprecatedValues}
+															<p class="mt-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+																Deprecated versions: {deprecatedValues}
+															</p>
+														{:else if deprecatedFlag}
+															<p class="mt-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+																Deprecated
+															</p>
+														{/if}
 														{#if (error as any).instancePath || (error as any).dataPath}
-															<p class="mt-0.5 font-mono text-[10px] text-red-700 dark:text-red-300">
+															<p class={`mt-0.5 font-mono text-[10px] ${tone.path}`}>
 																Path: {(error as any).instancePath || (error as any).dataPath}
 															</p>
 														{/if}
