@@ -14,6 +14,15 @@
 	let validationErrors: ErrorObject[] = [];
 	let validationResult: 'valid' | 'invalid' | null = null;
 	let isValidating = false;
+	type ValidationSummary = {
+		totalDocs: number;
+		docsWithErrors: number;
+		docsWithWarnings: number;
+		validDocs: number;
+		totalErrors: number;
+		totalWarnings: number;
+	};
+	let validationSummary: ValidationSummary | null = null;
 
 	$: release = releaseName
 		? releasesConfig.releases.find((r) => r.name === releaseName) || null
@@ -57,13 +66,23 @@
 
 	function getErrorTone(error: ErrorObject) {
 		const msg = (error.message || '').toLowerCase();
+		if (error.keyword === 'warning') {
+			return {
+				row: 'border border-yellow-200 bg-yellow-50/70 dark:border-yellow-800 dark:bg-yellow-900/20',
+				icon: 'text-yellow-600 dark:text-yellow-400',
+				text: 'text-yellow-900 dark:text-yellow-100',
+				path: 'text-yellow-700 dark:text-yellow-300',
+				iconType: 'warning'
+			};
+		}
+
 		if (msg.includes('deprecated')) {
 			return {
-				row: 'border border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/20',
-				icon: 'text-amber-600 dark:text-amber-400',
-				text: 'text-amber-900 dark:text-amber-100',
-				path: 'text-amber-700 dark:text-amber-300',
-				iconType: 'warning'
+				row: 'border border-red-200 bg-white/70 dark:border-red-800 dark:bg-black/20',
+				icon: 'text-red-500 dark:text-red-400',
+				text: 'text-red-900 dark:text-red-100',
+				path: 'text-red-700 dark:text-red-300',
+				iconType: 'error'
 			};
 		}
 
@@ -106,13 +125,61 @@
 		};
 	}
 
-	function extractAllowedValues(message: string) {
-		const m = message.match(/Allowed values:\s*([^.]*)/i);
-		return m ? m[1].trim() : '';
+	function extractAllMarksFromYaml(obj: any, docStartLine: number, prefix = ''): Map<string, { line: number; column: number }> {
+		const marks = new Map<string, { line: number; column: number }>();
+		
+		function walk(current: any, path: string) {
+			if (current === null || current === undefined) return;
+			
+			// Extract mark from current node if available
+			if (typeof current === 'object' && current !== null) {
+				if ((current as any).startMark) {
+					const mark = (current as any).startMark;
+					marks.set(path, { line: docStartLine + mark.line, column: mark.column });
+				}
+				
+				// Recurse into properties
+				if (!Array.isArray(current)) {
+					for (const key of Object.keys(current)) {
+						const newPath = path ? `${path}/${key}` : `/${key}`;
+						walk(current[key], newPath);
+					}
+				} else {
+					for (let i = 0; i < current.length; i++) {
+						const newPath = path ? `${path}/${i}` : `/${i}`;
+						walk(current[i], newPath);
+					}
+				}
+			}
+		}
+		
+		walk(obj, prefix);
+		return marks;
+	}
+
+	function getFieldMark(fieldMarks: Map<string, { line: number; column: number }>, fieldPath: string): { line: number; column: number } | undefined {
+		// Try exact path first
+		let mark = fieldMarks.get(fieldPath);
+		if (mark) return mark;
+		
+		// Try parent paths (e.g., for /spec/foo try /spec)
+		const parts = fieldPath.split('/').filter(Boolean);
+		for (let i = parts.length - 1; i > 0; i--) {
+			const parentPath = '/' + parts.slice(0, i).join('/');
+			mark = fieldMarks.get(parentPath);
+			if (mark) return mark;
+		}
+		
+		return undefined;
 	}
 
 	function extractDeprecatedValues(message: string) {
-		const m = message.match(/Deprecated versions:\s*([^.]*)/i);
+		const m = message.match(/Deprecated versions:\s*([^(]*)/i);
+		return m ? m[1].trim() : '';
+	}
+
+	function extractAllowedValues(message: string) {
+		const m = message.match(/Allowed values:\s*([^(]*)/i);
 		return m ? m[1].trim() : '';
 	}
 
@@ -120,11 +187,75 @@
 		return /\bdeprecated\b/i.test(message);
 	}
 
+	function extractLocationInfo(message: string): string | null {
+		const m = message.match(/\(Line\s+(\d+)\)/i) || message.match(/\bLine\s+(\d+)\b/i);
+		return m ? `Line ${m[1]}` : null;
+	}
+
 	function stripHighlightClauses(message: string) {
 		return message
-			.replace(/\.?\s*Allowed values:\s*[^.]*/i, '')
-			.replace(/\.?\s*Deprecated versions:\s*[^.]*/i, '')
+			.replace(/\.?\s*Allowed values:\s*[^(]*/i, '')
+			.replace(/\.?\s*Deprecated versions:\s*[^(]*/i, '')
+			.replace(/\s*\(Line\s+\d+\)/i, '')
 			.trim();
+	}
+
+	function getValueByPointer(data: any, pointer: string) {
+		if (!pointer) return data;
+		const parts = pointer.split('/').filter(Boolean);
+		let current = data;
+		for (const p of parts) {
+			const key = p.replace(/~1/g, '/').replace(/~0/g, '~');
+			if (current === null || current === undefined) return undefined;
+			current = current[key];
+		}
+		return current;
+	}
+
+	function docIndexFromMessage(message: string, totalDocs: number) {
+		const m = message.match(/^\[Doc\s+(\d+)\]/i);
+		if (m) return Number(m[1]);
+		return totalDocs === 1 ? 1 : null;
+	}
+
+	function buildSummary(totalDocs: number, errors: ErrorObject[], warnings: ErrorObject[]): ValidationSummary {
+		const errorDocs = new Set<number>();
+		const warningDocs = new Set<number>();
+
+		for (const err of errors) {
+			const idx = docIndexFromMessage(err.message || '', totalDocs);
+			if (idx) errorDocs.add(idx);
+		}
+
+		for (const warn of warnings) {
+			const idx = docIndexFromMessage(warn.message || '', totalDocs);
+			if (idx) warningDocs.add(idx);
+		}
+
+		for (let i = 1; i <= totalDocs; i++) {
+			if (errorDocs.has(i)) warningDocs.delete(i);
+		}
+
+		return {
+			totalDocs,
+			docsWithErrors: errorDocs.size,
+			docsWithWarnings: warningDocs.size,
+			validDocs: Math.max(totalDocs - errorDocs.size - warningDocs.size, 0),
+			totalErrors: errors.length,
+			totalWarnings: warnings.length
+		};
+	}
+
+	function isWarningEntry(error: ErrorObject) {
+		return error.keyword === 'warning';
+	}
+
+	function countErrors(items: ErrorObject[]) {
+		return items.filter((item) => !isWarningEntry(item) && item.keyword !== 'success').length;
+	}
+
+	function countWarnings(items: ErrorObject[]) {
+		return items.filter((item) => isWarningEntry(item)).length;
 	}
 
 	async function getManifest(selectedRelease: EdaRelease) {
@@ -142,56 +273,104 @@
 		return manifest;
 	}
 
-	async function validateYaml() {
-		const [{ default: Ajv }] = await Promise.all([import('ajv')]);
-		const yamlLib = (await import('js-yaml')).default;
+function formatLocationInfo(line?: number, column?: number): string {
+			if (line !== undefined) {
+				return ` (Line ${line + 1})`;
+			}
+			return '';
+		}
 
-		if (!yamlInput.trim()) {
+		function findLineForPointerInDoc(docText: string, pointer: string): number | undefined {
+			const parts = pointer.split('/').filter(Boolean);
+			if (parts.length === 0) return undefined;
+
+			let key = parts[parts.length - 1];
+			if (/^\d+$/.test(key) && parts.length > 1) {
+				key = parts[parts.length - 2];
+			}
+
+			const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const keyRegex = new RegExp(`^\\s*["']?${escapedKey}["']?\\s*:`, 'i');
+			const lines = docText.split('\n');
+			for (let i = 0; i < lines.length; i++) {
+				if (keyRegex.test(lines[i])) return i;
+			}
+
+			return undefined;
+		}
+
+		async function validateYaml() {
+			const [{ default: Ajv }] = await Promise.all([import('ajv')]);
+			const yamlLib = (await import('js-yaml')).default;
+
+			if (!yamlInput.trim()) {
+				validationErrors = [];
+				validationResult = null;
+				return;
+			}
+
+			if (!release) {
+				validationErrors = [
+					{
+						message: 'Please select a release first',
+						instancePath: '',
+						schemaPath: '',
+						keyword: 'required',
+						params: {}
+					} as ErrorObject
+				];
+				validationResult = 'invalid';
+				return;
+			}
+
+			isValidating = true;
 			validationErrors = [];
 			validationResult = null;
-			return;
-		}
+			validationSummary = null;
 
-		if (!release) {
-			validationErrors = [
-				{
-					message: 'Please select a release first',
-					instancePath: '',
-					schemaPath: '',
-					keyword: 'required',
-					params: {}
-				} as ErrorObject
-			];
-			validationResult = 'invalid';
-			return;
-		}
+			try {
+				const manifest = await getManifest(release);
 
-		isValidating = true;
-		validationErrors = [];
-		validationResult = null;
+				// Parse YAML documents (separated by ---)
+				const yamlDocs = yamlInput.split(/^---$/m).filter((doc) => doc.trim());
+				const parsedDocs: any[] = [];
+				const rawDocs: string[] = [];
+				const docStartLines: number[] = [];
+				const docMarks: Map<any, { line: number; column: number }> = new Map();
+			const fieldMarksPerDoc: Map<number, Map<string, { line: number; column: number }>> = new Map();
 
-		try {
-			const manifest = await getManifest(release);
-
-			// Parse YAML documents (separated by ---)
-			const yamlDocs = yamlInput.split(/^---$/m).filter((doc) => doc.trim());
-			const parsedDocs: any[] = [];
-
+			let currentLine = 0;
 			for (const doc of yamlDocs) {
 				try {
 					const parsed = yamlLib.load(doc.trim());
 					if (parsed) {
+						// Store line number based on position in input
+						rawDocs.push(doc);
+						docStartLines.push(currentLine);
+						docMarks.set(parsed, { line: currentLine, column: 0 });
+						
+						// Extract all field marks from this document
+						const fieldMarks = extractAllMarksFromYaml(parsed, currentLine);
+						fieldMarksPerDoc.set(parsedDocs.length, fieldMarks);
+						
 						parsedDocs.push(parsed);
+						// Count lines in this doc for next iteration
+						currentLine += doc.split('\n').length + 1; // +1 for the --- separator
 					}
 				} catch (e) {
 					const allDocs = yamlLib.loadAll(doc.trim());
-					parsedDocs.push(...allDocs.filter((d: any) => d !== null && d !== undefined));
+					for (const d of allDocs) {
+						if (d !== null && d !== undefined) {
+							rawDocs.push(doc);
+							docStartLines.push(currentLine);
+							docMarks.set(d, { line: currentLine, column: 0 });
+							const fieldMarks = extractAllMarksFromYaml(d, currentLine);
+							fieldMarksPerDoc.set(parsedDocs.length, fieldMarks);
+							parsedDocs.push(d);
+						}
+					}
+					currentLine += doc.split('\n').length + 1;
 				}
-			}
-
-			if (parsedDocs.length === 0) {
-				const allDocs = yamlLib.loadAll(yamlInput);
-				parsedDocs.push(...allDocs.filter((d: any) => d !== null && d !== undefined));
 			}
 
 			if (parsedDocs.length === 0) {
@@ -221,15 +400,36 @@
 			const errors: ErrorObject[] = [];
 			const warnings: string[] = [];
 
+			const getDocMark = (doc: any) => docMarks.get(doc);
+
 			// Validate each document
 			for (let index = 0; index < parsedDocs.length; index++) {
 				const parsedYaml = parsedDocs[index];
 				const docPrefix = parsedDocs.length > 1 ? `[Doc ${index + 1}] ` : '';
+				const mark = getDocMark(parsedYaml);
+				const locationInfo = formatLocationInfo(mark?.line, mark?.column);
+				const fieldMarks = fieldMarksPerDoc.get(index) || new Map();
+				const rawDoc = rawDocs[index] || '';
+				const docStartLine = docStartLines[index] || 0;
+				
+				const getFieldLocationInfo = (fieldPath: string) => {
+					const fieldMark = getFieldMark(fieldMarks, fieldPath);
+					if (fieldMark?.line !== undefined) {
+						return formatLocationInfo(fieldMark.line, fieldMark.column);
+					}
+
+					const docRelativeLine = findLineForPointerInDoc(rawDoc, fieldPath);
+					if (docRelativeLine !== undefined) {
+						return formatLocationInfo(docStartLine + docRelativeLine, 0);
+					}
+
+					return '';
+				};
 
 				// 1. Check apiVersion
 				if (!parsedYaml.apiVersion) {
 					errors.push({
-						message: `${docPrefix}Missing required 'apiVersion' field`,
+							message: `${docPrefix}Missing required 'apiVersion' field${locationInfo}`,
 						instancePath: '/apiVersion',
 						schemaPath: '#/required',
 						keyword: 'required',
@@ -243,7 +443,7 @@
 				const apiVersionParts = parsedYaml.apiVersion.split('/');
 				if (apiVersionParts.length !== 2) {
 					errors.push({
-						message: `${docPrefix}Invalid apiVersion format: '${parsedYaml.apiVersion}' (expected 'group/version')`,
+							message: `${docPrefix}Invalid apiVersion format: '${parsedYaml.apiVersion}' (expected 'group/version')${locationInfo}`,
 						instancePath: '/apiVersion',
 						schemaPath: '#/properties/apiVersion/pattern',
 						keyword: 'pattern',
@@ -259,7 +459,7 @@
 				// 2. Check kind
 				if (!parsedYaml.kind) {
 					errors.push({
-						message: `${docPrefix}Missing required 'kind' field`,
+							message: `${docPrefix}Missing required 'kind' field${locationInfo}`,
 						instancePath: '/kind',
 						schemaPath: '#/required',
 						keyword: 'required',
@@ -272,7 +472,7 @@
 				// 3. Check metadata
 				if (!parsedYaml.metadata) {
 					errors.push({
-						message: `${docPrefix}Missing required 'metadata' field`,
+							message: `${docPrefix}Missing required 'metadata' field${locationInfo}`,
 						instancePath: '/metadata',
 						schemaPath: '#/required',
 						keyword: 'required',
@@ -282,7 +482,7 @@
 				} else {
 					if (!parsedYaml.metadata.name) {
 						errors.push({
-							message: `${docPrefix}Missing required 'metadata.name' field`,
+							message: `${docPrefix}Missing required 'metadata.name' field${locationInfo}`,
 							instancePath: '/metadata/name',
 							schemaPath: '#/properties/metadata/required',
 							keyword: 'required',
@@ -298,7 +498,7 @@
 						)
 					) {
 						errors.push({
-							message: `${docPrefix}metadata.name must be a valid DNS subdomain (lowercase alphanumeric, hyphens, dots)`,
+							message: `${docPrefix}metadata.name must be a valid DNS subdomain (lowercase alphanumeric, hyphens, dots)${locationInfo}`,
 							instancePath: '/metadata/name',
 							schemaPath: '#/properties/metadata/properties/name/pattern',
 							keyword: 'pattern',
@@ -367,7 +567,7 @@
 							? `. Deprecated versions: ${deprecatedVersions.join(', ')}`
 							: '';
 					errors.push({
-						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is not supported for kind '${parsedYaml.kind}' in release ${release.label}. ${supportedText}${deprecatedText}`,
+							message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is not supported for kind '${parsedYaml.kind}' in release ${release.label}. ${supportedText}${deprecatedText}${locationInfo}`,
 						instancePath: '/apiVersion',
 						schemaPath: '#/properties/apiVersion/enum',
 						keyword: 'enum',
@@ -378,30 +578,25 @@
 				}
 
 				if (matchedVersionEntry.deprecated) {
-					errors.push({
-						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is deprecated for kind '${parsedYaml.kind}'. Latest version is '${group}/${latestVersion}'`,
-						instancePath: '/apiVersion',
-						schemaPath: '#/properties/apiVersion/deprecated',
-						keyword: 'deprecated',
-						params: { latestVersion }
-					} as ErrorObject);
-					valid = false;
-				}
+				errors.push({
+						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is deprecated for kind '${parsedYaml.kind}'. Latest version is '${group}/${latestVersion}'${locationInfo}`,
+					instancePath: '/apiVersion',
+					schemaPath: '#/properties/apiVersion',
+					keyword: 'deprecated',
+					params: {}
+				} as ErrorObject);
+				valid = false;
+			}
 
 				if (latestVersion && version !== latestVersion && !matchedVersionEntry.deprecated) {
-					errors.push({
-						message: `${docPrefix}apiVersion '${parsedYaml.apiVersion}' is not the latest for kind '${parsedYaml.kind}'. Latest version is '${group}/${latestVersion}'`,
-						instancePath: '/apiVersion',
-						schemaPath: '#/properties/apiVersion/latest',
-						keyword: 'const',
-						params: { latestVersion }
-					} as ErrorObject);
-					valid = false;
+					warnings.push(
+						`${docPrefix}apiVersion '${parsedYaml.apiVersion}' is not the latest for kind '${parsedYaml.kind}'. Latest version is '${group}/${latestVersion}'${locationInfo}`
+					);
 				}
 
 				if (!latestVersion) {
 					errors.push({
-						message: `${docPrefix}No API versions found for kind '${parsedYaml.kind}' in release ${release.label}`,
+						message: `${docPrefix}No API versions found for kind '${parsedYaml.kind}' in release ${release.label}${locationInfo}`,
 						instancePath: '/apiVersion',
 						schemaPath: '#/properties/apiVersion',
 						keyword: 'enum',
@@ -417,7 +612,7 @@
 					const schemaResp = await fetch(path);
 					if (!schemaResp.ok) {
 						errors.push({
-							message: `${docPrefix}Could not find schema for ${parsedYaml.kind} version ${latestVersion}`,
+							message: `${docPrefix}Could not find schema for ${parsedYaml.kind} version ${latestVersion}${locationInfo}`,
 							instancePath: '/apiVersion',
 							schemaPath: '#/properties/apiVersion',
 							keyword: 'schema',
@@ -446,13 +641,19 @@
 							}
 							if (err.keyword === 'enum') {
 								const allowedValues = err.params?.allowedValues;
+								const providedValue = getValueByPointer(parsedYaml.spec, err.instancePath);
+								if (providedValue !== undefined) {
+									message = `${message}. Provided value: ${String(providedValue)}`;
+								}
 								if (Array.isArray(allowedValues) && allowedValues.length > 0) {
 									message = `${message}. Allowed values: ${allowedValues.join(', ')}`;
 								}
 							}
+							// Get field-specific location info
+							const fieldLocationInfo = getFieldLocationInfo(`/spec${err.instancePath}`);
 							return {
 								...err,
-								message: `${docPrefix}spec${err.instancePath}: ${message}`,
+								message: `${docPrefix}spec${err.instancePath}: ${message}${fieldLocationInfo}`,
 								instancePath: `/spec${err.instancePath}`
 							};
 						});
@@ -464,7 +665,7 @@
 					const isSpecRequired = topLevelSchema?.required?.includes('spec');
 					if (isSpecRequired || spec) {
 						errors.push({
-							message: `${docPrefix}Missing required 'spec' field`,
+								message: `${docPrefix}Missing required 'spec' field${locationInfo}`,
 							instancePath: '/spec',
 							schemaPath: '#/required',
 							keyword: 'required',
@@ -478,7 +679,10 @@
 						if (!statusValidator(parsedYaml.status)) {
 							// Status validation failures are warnings, not errors
 							const statusErrors = (statusValidator.errors || []).map(
-								(err: any) => `${docPrefix}status${err.instancePath}: ${err.message}`
+								(err: any) => {
+									const fieldLocationInfo = getFieldLocationInfo(`/status${err.instancePath}`);
+									return `${docPrefix}status${err.instancePath}: ${err.message}${fieldLocationInfo}`;
+								}
 							);
 							warnings.push(...statusErrors);
 						}
@@ -490,14 +694,27 @@
 						(k) => !allowedTopLevel.includes(k)
 					);
 					if (unexpectedFields.length > 0) {
-						warnings.push(`${docPrefix}Unexpected top-level fields: ${unexpectedFields.join(', ')}`);
+						warnings.push(`${docPrefix}Unexpected top-level fields: ${unexpectedFields.join(', ')}${locationInfo}`);
 					}
 				} catch (e) {
 					warnings.push(
-						`${docPrefix}Error loading schema for ${parsedYaml.kind}: ${e instanceof Error ? e.message : String(e)}`
+						`${docPrefix}Error loading schema for ${parsedYaml.kind}: ${e instanceof Error ? e.message : String(e)}${locationInfo}`
 					);
 				}
 			}
+
+			const warningObjects: ErrorObject[] = warnings.map(
+				(w) =>
+					({
+						message: w,
+						instancePath: '',
+						schemaPath: '',
+						keyword: 'warning',
+						params: {}
+					}) as ErrorObject
+			);
+
+			validationSummary = buildSummary(parsedDocs.length, errors, warningObjects);
 
 			if (valid) {
 				validationResult = 'valid';
@@ -515,19 +732,11 @@
 					} as ErrorObject
 				];
 				// Add warnings if any
-				if (warnings.length > 0) {
-					warnings.forEach((w) => {
-						validationErrors.push({
-							message: `⚠ ${w}`,
-							instancePath: '',
-							schemaPath: '',
-							keyword: 'warning',
-							params: {}
-						} as ErrorObject);
-					});
+				if (warningObjects.length > 0) {
+					validationErrors.push(...warningObjects);
 				}
 			} else {
-				validationErrors = errors;
+				validationErrors = [...errors, ...warningObjects];
 				validationResult = 'invalid';
 			}
 		} catch (error) {
@@ -725,6 +934,27 @@ spec:
 				</div>
 
 				<div class="p-4 md:p-5">
+					{#if validationSummary}
+						<div class="mb-3 grid grid-cols-2 gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900 md:grid-cols-4">
+							<div>
+								<p class="text-gray-500 dark:text-gray-400">Documents</p>
+								<p class="font-semibold text-gray-900 dark:text-gray-100">{validationSummary.totalDocs}</p>
+							</div>
+							<div>
+								<p class="text-green-600 dark:text-green-400">Valid</p>
+								<p class="font-semibold text-green-700 dark:text-green-300">{validationSummary.validDocs}</p>
+							</div>
+							<div>
+								<p class="text-red-600 dark:text-red-400">Docs With Errors</p>
+								<p class="font-semibold text-red-700 dark:text-red-300">{validationSummary.docsWithErrors}</p>
+							</div>
+							<div>
+								<p class="text-yellow-600 dark:text-yellow-400">Docs With Warnings</p>
+								<p class="font-semibold text-yellow-700 dark:text-yellow-300">{validationSummary.docsWithWarnings}</p>
+							</div>
+						</div>
+					{/if}
+
 					{#if validationErrors.length > 0}
 						{#if validationResult === 'valid'}
 							<div class="space-y-3 rounded-lg border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-3 md:p-4 dark:border-green-800 dark:from-green-900/20 dark:to-emerald-900/20">
@@ -762,7 +992,7 @@ spec:
 									</svg>
 									<div class="min-w-0 flex-1">
 										<h4 class="mb-2 text-sm font-semibold text-red-900 md:text-base dark:text-red-100">
-											Validation Failed ({validationErrors.length} error{validationErrors.length > 1 ? 's' : ''})
+											Validation Failed ({countErrors(validationErrors)} error{countErrors(validationErrors) > 1 ? 's' : ''}{countWarnings(validationErrors) > 0 ? `, ${countWarnings(validationErrors)} warning${countWarnings(validationErrors) > 1 ? 's' : ''}` : ''})
 										</h4>
 										<ul class="space-y-2">
 											{#each validationErrors as error}
@@ -772,6 +1002,7 @@ spec:
 												{@const allowedValues = extractAllowedValues(rawMessage)}
 												{@const deprecatedValues = extractDeprecatedValues(rawMessage)}
 												{@const deprecatedFlag = hasDeprecatedFlag(rawMessage)}
+												{@const locationInfo = extractLocationInfo(rawMessage)}
 												<li class={`flex items-start gap-2 rounded-md p-2 text-xs ${tone.row}`}>
 													{#if tone.iconType === 'warning'}
 														<svg class={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${tone.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -786,6 +1017,11 @@ spec:
 														<p class={`font-medium ${tone.text}`}>
 															{cleanMessage || rawMessage}
 														</p>
+														{#if locationInfo}
+															<p class="mt-1 font-mono text-[10px] font-semibold text-gray-600 dark:text-gray-400">
+																Line: {locationInfo}
+															</p>
+														{/if}
 														{#if allowedValues}
 															<p class="mt-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-800 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-200">
 																Allowed values: {allowedValues}
