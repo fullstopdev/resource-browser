@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { derived, writable } from 'svelte/store';
-	import { onMount, onDestroy } from 'svelte';
-	import { goto, afterNavigate } from '$app/navigation';
-	// Ajv is used only for YAML validation; load dynamically to avoid increasing main bundle size
+import { onMount, onDestroy } from 'svelte';
+import { page } from '$app/stores';
+import { goto, afterNavigate } from '$app/navigation';
 
-	// AnimatedBackground is provided by the layout and imported dynamically there to improve LCP
+// AnimatedBackground is provided by the layout and imported dynamically there to improve LCP
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import Render from '$lib/components/Render.svelte';
 	import Theme from '$lib/components/Theme.svelte';
@@ -493,6 +493,12 @@ This browser makes it easier to find, validate and compare definitions for Nokia
 			? ` | ${resourceInfo?.kind || selectedResource}`
 			: ''}</title
 	>
+	<meta
+		name="description"
+		content="Browse Nokia EDA Custom Resource Definitions (CRDs), compare versions, and validate resource YAML in a single searchable interface."
+	/>
+	<meta name="robots" content="index, follow" />
+	<link rel="canonical" href="{$page.url.href}" />
 </svelte:head>
 
 <div

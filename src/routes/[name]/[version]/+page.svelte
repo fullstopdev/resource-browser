@@ -414,6 +414,12 @@
 
 <svelte:head>
 	<title>EDA Resource Browser | {name} {versionOnFocus}</title>
+	<meta
+		name="description"
+		content="View the CRD definition, spec and status schema for {name} {versionOnFocus} in the Nokia EDA Resource Browser."
+	/>
+	<meta name="robots" content="index, follow" />
+	<link rel="canonical" href="{$page.url.href}" />
 </svelte:head>
 
 {#key `${name}-${versionOnFocus}`}

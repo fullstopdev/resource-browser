@@ -73,6 +73,14 @@
 				>
 			</a>
 
+			<a
+				href="/sitemap"
+				class="text-xs text-gray-300 hover:text-white"
+				aria-label="Sitemap"
+			>
+				Sitemap
+			</a>
+
 			<!-- (Removed CRD site text link per request) -->
 		</div>
 	</div>
