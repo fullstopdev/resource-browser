@@ -1,38 +1,125 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://resource-browser.example.com/</loc>
+    <loc>https://resource-browser-92y.pages.dev/</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://resource-browser.example.com/sitemap</loc>
+    <loc>https://resource-browser-92y.pages.dev/sitemap</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://resource-browser.example.com/spec-search</loc>
+    <loc>https://resource-browser-92y.pages.dev/spec-search</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://resource-browser.example.com/spec-search-auto</loc>
+    <loc>https://resource-browser-92y.pages.dev/spec-search-auto</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://resource-browser.example.com/comparison</loc>
+    <loc>https://resource-browser-92y.pages.dev/comparison</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://resource-browser.example.com/uploads</loc>
+    <loc>https://resource-browser-92y.pages.dev/uploads</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://resource-browser.example.com/validate-yaml</loc>
+    <loc>https://resource-browser-92y.pages.dev/validate-yaml</loc>
+    <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  <!-- Resource/version pages -->
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/nodegroupdeployments.aaa.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/nodegroups.aaa.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/userdeployments.aaa.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/backends.aifabrics.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/appinstallers.appstore.eda.nokia.com/v1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/catalogs.appstore.eda.nokia.com/v1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/registries.appstore.eda.nokia.com/v1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/artifacts.artifacts.eda.nokia.com/v1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/inits.bootstrap.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/managementrouters.bootstrap.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/certificatechecks.certcheck.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/chassis.components.eda.nokia.com/v1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://resource-browser-92y.pages.dev/chassis.components.eda.nokia.com/v1alpha1</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <!-- ... more resource/version URLs ... -->
 </urlset>
