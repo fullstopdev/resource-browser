@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://resource-browser-92y.pages.dev/sitemap.xml
