@@ -20,25 +20,25 @@
   </url>
   <url>
     <loc>https://resource-browser-92y.pages.dev/spec-search-auto</loc>
-    <lastmod>2026-05-13</lastmod>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://resource-browser-92y.pages.dev/comparison</loc>
-    <lastmod>2026-05-13</lastmod>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://resource-browser-92y.pages.dev/uploads</loc>
-    <lastmod>2026-05-13</lastmod>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://resource-browser-92y.pages.dev/validate-yaml</loc>
-    <lastmod>2026-05-13</lastmod>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -122,4 +122,5 @@
     <priority>0.6</priority>
   </url>
   <!-- ... more resource/version URLs ... -->
+</urlset>
 </urlset>
