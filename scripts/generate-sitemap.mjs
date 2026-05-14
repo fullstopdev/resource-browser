@@ -4,8 +4,7 @@ import path from 'path';
 
 const siteUrl = process.env.SITE_URL || 'https://resource-browser-92y.pages.dev';
 const outputPath = process.env.SITEMAP_OUTPUT || 'static/sitemap.xml';
-const resourcesPath = 'src/lib/resources.yaml';
-
+const releasesPath = 'src/lib/releases.yaml';
 const staticRoutes = [
 	'/',
 	'/sitemap',
@@ -45,11 +44,15 @@ const formatUrl = ({ loc, lastmod, changefreq, priority }) => {
 };
 
 const main = async () => {
-	const raw = await fs.readFile(resourcesPath, 'utf8');
-	const resources = yaml.load(raw);
+	const rawReleases = await fs.readFile(releasesPath, 'utf8');
+	const releaseConfig = yaml.load(rawReleases);
 	const now = new Date().toISOString().split('T')[0];
 
-	const urls = []; 
+	if (!releaseConfig || typeof releaseConfig !== 'object' || !Array.isArray(releaseConfig.releases)) {
+		throw new Error('releases.yaml did not parse as expected');
+	}
+
+	const urls = [];
 
 	for (const route of staticRoutes) {
 		urls.push({
@@ -60,18 +63,36 @@ const main = async () => {
 		});
 	}
 
-	if (typeof resources !== 'object' || resources === null) {
-		throw new Error('resources.yaml did not parse as an object');
-	}
+	for (const release of releaseConfig.releases) {
+		if (!release?.name || !release?.folder) continue;
 
-	for (const group of Object.values(resources)) {
-		if (!Array.isArray(group)) continue;
-		for (const resource of group) {
-			if (!resource || !resource.name || !Array.isArray(resource.versions)) continue;
-			for (const version of resource.versions) {
-				if (!version || !version.name) continue;
+		const manifestPath = path.join('static', release.folder, 'manifest.json');
+		let manifestRaw;
+		try {
+			manifestRaw = await fs.readFile(manifestPath, 'utf8');
+		} catch (error) {
+			console.warn(`Skipping release ${release.name}: could not read ${manifestPath}`);
+			continue;
+		}
+
+		let manifest;
+		try {
+			manifest = JSON.parse(manifestRaw);
+		} catch (error) {
+			console.warn(`Skipping release ${release.name}: invalid JSON in ${manifestPath}`);
+			continue;
+		}
+
+		const releaseParam = release.default ? '' : `?release=${encodeURIComponent(release.name)}`;
+
+		if (!Array.isArray(manifest)) continue;
+
+		for (const entry of manifest) {
+			if (!entry?.name || !Array.isArray(entry.versions)) continue;
+			for (const version of entry.versions) {
+				if (!version?.name) continue;
 				urls.push({
-					loc: `${siteUrl}/${resource.name}/${version.name}`,
+					loc: `${siteUrl}/${entry.name}/${version.name}${releaseParam}`,
 					lastmod: now,
 					changefreq: 'monthly',
 					priority: '0.6'
