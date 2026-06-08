@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AppHeader from '$lib/components/AppHeader.svelte';
 	import ResourceModal from '$lib/components/ResourceModal.svelte';
+	import type { ResourceViewMode } from '$lib/resourceView';
 	import type { CrdResource, EdaRelease } from '$lib/structure';
 	import { getLatestVersion } from '$lib/versions';
 
@@ -22,6 +23,7 @@
 
 	let modalOpen = false;
 	let modalResource: CrdResource | null = null;
+	let modalInitialViewMode: ResourceViewMode = 'schema';
 	let openedInitialResource: string | null = null;
 
 	// Keep modal resource in sync when release/manifest reloads
@@ -88,15 +90,18 @@
 		if (release) await onReleaseChange(release);
 	}
 
-	function openResourceModal(res: CrdResource, event?: Event) {
+	function openResourceModal(res: CrdResource, event?: Event, viewMode: ResourceViewMode = 'schema') {
 		event?.preventDefault();
+		event?.stopPropagation();
 		modalResource = res;
+		modalInitialViewMode = viewMode;
 		modalOpen = true;
 	}
 
 	function closeResourceModal() {
 		modalOpen = false;
 		modalResource = null;
+		modalInitialViewMode = 'schema';
 		onResourceModalClose?.();
 	}
 
@@ -313,20 +318,30 @@
 										{/if}
 									</td>
 									<td class="px-4 py-3 text-right">
-										<svg
-											class="inline h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											aria-hidden="true"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M9 5l7 7-7 7"
-											/>
-										</svg>
+										<div class="flex items-center justify-end gap-2">
+											<button
+												type="button"
+												class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+												title="Ask AI about this CRD"
+												on:click={(e) => openResourceModal(resDef, e, 'ask')}
+											>
+												Ask AI
+											</button>
+											<svg
+												class="inline h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M9 5l7 7-7 7"
+												/>
+											</svg>
+										</div>
 									</td>
 								</tr>
 							{/each}
@@ -396,5 +411,6 @@
 	resourceDef={modalResource}
 	{selectedRelease}
 	{allReleases}
+	initialViewMode={modalInitialViewMode}
 	onClose={closeResourceModal}
 />

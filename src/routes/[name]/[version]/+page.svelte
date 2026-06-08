@@ -5,6 +5,7 @@
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import ResourceDetailHeader from '$lib/components/ResourceDetailHeader.svelte';
+	import CrdAskPanel from '$lib/components/CrdAskPanel.svelte';
 	import ResourceViewTabs from '$lib/components/ResourceViewTabs.svelte';
 	import type { ResourceViewMode } from '$lib/resourceView';
 	import Render from '$lib/components/Render.svelte';
@@ -25,6 +26,7 @@
 	let validVersions: string[];
 	let spec: any;
 	let status: any;
+	let releaseName: string;
 	let releaseFolder: string;
 	let releaseLabel: string;
 	let allReleases: any[];
@@ -43,6 +45,7 @@
 		validVersions,
 		spec,
 		status,
+		releaseName,
 		releaseFolder,
 		releaseLabel,
 		allReleases,
@@ -308,12 +311,26 @@
 					<ResourceViewTabs
 						{viewMode}
 						onViewChange={(mode) => (viewMode = mode)}
-						showAskTab={false}
 						showExpandControls={viewMode === 'schema'}
 						isExpanded={$ulExpanded.length > 0}
 						onExpandToggle={handleGlobalExpand}
 					/>
 				</div>
+
+				{#if viewMode === 'ask'}
+					<div class="mx-auto w-full max-w-3xl pb-2">
+						<CrdAskPanel
+							{kind}
+							{group}
+							{name}
+							version={versionOnFocus}
+							release={releaseName}
+							{deprecated}
+							{spec}
+							{status}
+						/>
+					</div>
+				{/if}
 
 				<!-- Schema view -->
 				{#if viewMode === 'schema'}

@@ -675,6 +675,62 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		box-shadow: none;
 	}
 
+	.spec-search-ai-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0.75rem;
+		margin-top: 0.5rem;
+	}
+
+	.spec-search-ai-btn {
+		border-radius: 9999px;
+		border: 1px solid #2563eb;
+		background: #eff6ff;
+		padding: 0.375rem 0.875rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: #1d4ed8;
+		cursor: pointer;
+	}
+
+	.spec-search-ai-btn:hover:not(:disabled) {
+		background: #dbeafe;
+	}
+
+	.spec-search-ai-btn:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+
+	.spec-search-ai-hint {
+		font-size: 0.6875rem;
+		color: #64748b;
+	}
+
+	.spec-search-ai-panel {
+		margin-top: 0.5rem;
+		border-radius: 0.75rem;
+		border: 1px solid #bfdbfe;
+		background: #eff6ff;
+		padding: 0.75rem 1rem;
+		font-size: 0.8125rem;
+	}
+
+	.spec-search-ai-panel__error {
+		color: #b45309;
+	}
+
+	.dark .spec-search-ai-btn {
+		background: rgba(37, 99, 235, 0.15);
+		color: #93c5fd;
+	}
+
+	.dark .spec-search-ai-panel {
+		border-color: rgba(59, 130, 246, 0.35);
+		background: rgba(15, 42, 72, 0.88);
+	}
+
 	.spec-search-select {
 		min-height: 2.25rem;
 		border-radius: 0.5rem;
@@ -822,6 +878,110 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 
 	.validate-yaml-btn--ghost {
 		background: transparent;
+	}
+
+	.validate-yaml-btn--ai {
+		border-color: #2563eb;
+		background: #eff6ff;
+		color: #1d4ed8;
+	}
+
+	.validate-yaml-btn--ai:hover:not(:disabled) {
+		background: #dbeafe;
+	}
+
+	.dark .validate-yaml-btn--ai {
+		border-color: #3b82f6;
+		background: rgba(37, 99, 235, 0.15);
+		color: #93c5fd;
+	}
+
+	.validate-yaml-ai-panel {
+		border-radius: 0.75rem;
+		border: 1px solid #bfdbfe;
+		background: #eff6ff;
+		padding: 0.75rem 1rem;
+	}
+
+	.dark .validate-yaml-ai-panel {
+		border-color: rgba(59, 130, 246, 0.35);
+		background: rgba(15, 42, 72, 0.88);
+	}
+
+	.validate-yaml-ai-panel__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.validate-yaml-ai-panel__title {
+		font-size: 0.8125rem;
+		font-weight: 700;
+		color: #1e40af;
+	}
+
+	.dark .validate-yaml-ai-panel__title {
+		color: #93c5fd;
+	}
+
+	.validate-yaml-ai-panel__close {
+		border: none;
+		background: transparent;
+		font-size: 1.25rem;
+		line-height: 1;
+		color: #64748b;
+		cursor: pointer;
+	}
+
+	.validate-yaml-ai-panel__loading,
+	.validate-yaml-ai-panel__error,
+	.validate-yaml-ai-panel__answer {
+		font-size: 0.8125rem;
+	}
+
+	.validate-yaml-ai-panel__error {
+		color: #b45309;
+	}
+
+	.validate-yaml-issue-ai-link {
+		border: none;
+		background: transparent;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: #2563eb;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.validate-yaml-issue-ai-link:hover:not(:disabled) {
+		text-decoration: underline;
+	}
+
+	.validate-yaml-issue-ai-link:disabled {
+		opacity: 0.6;
+		cursor: wait;
+	}
+
+	.validate-yaml-issue-ai-error {
+		margin: 0.375rem 0.75rem 0.5rem;
+		font-size: 0.6875rem;
+		color: #b45309;
+	}
+
+	.validate-yaml-issue-ai-answer {
+		margin: 0.375rem 0.75rem 0.625rem;
+		padding: 0.5rem 0.625rem;
+		border-radius: 0.5rem;
+		border: 1px solid #dbeafe;
+		background: #f8fafc;
+		font-size: 0.75rem;
+	}
+
+	.dark .validate-yaml-issue-ai-answer {
+		border-color: rgba(59, 130, 246, 0.25);
+		background: rgba(7, 20, 40, 0.55);
 	}
 
 	.dark .validate-yaml-btn {
@@ -2962,6 +3122,51 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 	.comparison-crd-card__view-btn:hover {
 		border-color: #93c5fd;
 		background: #eff6ff;
+	}
+
+	.comparison-crd-card__ai-btn {
+		grid-area: view;
+		border-radius: 0.375rem;
+		border: 1px solid #bfdbfe;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.6875rem;
+		font-weight: 700;
+		color: #1d4ed8;
+		background: #eff6ff;
+		cursor: pointer;
+	}
+
+	.comparison-crd-card__ai-btn:hover:not(:disabled) {
+		background: #dbeafe;
+	}
+
+	.comparison-crd-card__ai-btn:disabled {
+		opacity: 0.6;
+		cursor: wait;
+	}
+
+	.comparison-crd-card__ai-label {
+		margin: 0 0 0.375rem;
+		font-size: 0.6875rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #2563eb;
+	}
+
+	.comparison-crd-card__ai-answer {
+		margin-bottom: 0.75rem;
+		padding: 0.625rem 0.75rem;
+		border-radius: 0.5rem;
+		border: 1px solid #dbeafe;
+		background: #f8fafc;
+		font-size: 0.8125rem;
+	}
+
+	.comparison-crd-card__ai-error {
+		margin: 0 0 0.75rem;
+		font-size: 0.75rem;
+		color: #b45309;
 	}
 
 	.comparison-crd-card__body {

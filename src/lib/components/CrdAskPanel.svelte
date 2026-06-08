@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { askAI } from '$lib/ai/askAI';
-	import { explainCRD, generateExample } from '$lib/ai/aiClient';
+	import { explainCRD, explainField, generateExample } from '$lib/ai/aiClient';
 	import { buildCrdContext } from '$lib/ai/buildCrdContext';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
@@ -31,6 +31,7 @@
 	let loading = false;
 	let sourcesOpen = false;
 	let hasAsked = false;
+	let answerCached = false;
 
 	$: resourceLabel = kind
 		? `${kind} (${group}/${version || 'latest'})`
@@ -47,8 +48,9 @@
 		sources = [];
 		sourcesOpen = false;
 		hasAsked = true;
+		answerCached = false;
 
-		let result: { answer?: string; sources?: RagSource[]; error?: string };
+		let result: { answer?: string; sources?: RagSource[]; error?: string; cached?: boolean };
 
 		if (release && kind && group && CACHED_STARTERS.has(trimmed)) {
 			const actionResult =
@@ -57,7 +59,15 @@
 					: await generateExample(release, kind, group);
 			result = actionResult.error
 				? { error: actionResult.error }
-				: { answer: actionResult.answer };
+				: { answer: actionResult.answer, cached: actionResult.cached };
+		} else if (release && kind && group && trimmed === 'Required fields?') {
+			const actionResult = await explainField(release, kind, 'spec', group);
+			result = actionResult.error
+				? { error: actionResult.error }
+				: {
+						answer: `**Required fields for ${kind}:**\n\n${actionResult.answer}`,
+						cached: actionResult.cached
+					};
 		} else if (release && kind && group) {
 			result = await askAI({
 				question: trimmed,
@@ -89,6 +99,7 @@
 		} else {
 			answer = result.answer ?? null;
 			sources = result.sources ?? [];
+			answerCached = !!result.cached;
 		}
 	}
 
@@ -124,7 +135,14 @@
 				</svg>
 			</div>
 			<div class="min-w-0 flex-1">
-				<h2 class="text-base font-semibold text-slate-900 dark:text-white">Ask AI</h2>
+				<div class="flex flex-wrap items-center gap-2">
+					<h2 class="text-base font-semibold text-slate-900 dark:text-white">Ask AI</h2>
+					<span
+						class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+					>
+						Workers AI
+					</span>
+				</div>
 				<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
 					Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
 					from CRD schemas, Nokia EDA official docs, and Vectorize RAG.
@@ -134,17 +152,30 @@
 	</header>
 
 	<!-- Starter chips -->
-	<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
-		{#each starterQuestions as starter}
-			<button
-				type="button"
-				on:click={() => submit(starter)}
-				disabled={loading}
-				class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
-			>
-				{starter}
-			</button>
-		{/each}
+	<div>
+		<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+			Quick prompts
+		</p>
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
+			{#each starterQuestions as starter}
+				<button
+					type="button"
+					on:click={() => submit(starter)}
+					disabled={loading}
+					class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+				>
+					{starter}
+					{#if CACHED_STARTERS.has(starter)}
+						<span
+							class="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+							title="Cached KV response when available"
+						>
+							KV
+						</span>
+					{/if}
+				</button>
+			{/each}
+		</div>
 	</div>
 
 	<!-- Input -->
@@ -258,8 +289,19 @@
 		<article
 			class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
 		>
-			<div class="border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
+			<div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
 				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
+				{#if answerCached}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+						title="Served from KV cache"
+					>
+						<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+						</svg>
+						Cached
+					</span>
+				{/if}
 			</div>
 			<div class="px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
 				<SimpleMarkdown source={answer} className="crd-ask-answer" />

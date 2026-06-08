@@ -16,6 +16,8 @@
         type PathInfo
     } from '$lib/spec-search/schemaUtils';
     import { fetchManifest } from '$lib/manifest';
+    import { searchSpec } from '$lib/ai/aiClient';
+    import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
     import { searchManifest, type SearchMatch } from '$lib/spec-search/searchEngine';
     // expandAll controls removed from this auto-search page (no UI button)
     import releasesYaml from '$lib/releases.yaml?raw';
@@ -77,6 +79,11 @@
     };
 
     let groupedResults: GroupedResult[] = [];
+
+    let aiAssistLoading = false;
+    let aiAssistAnswer: string | null = null;
+    let aiAssistError: string | null = null;
+    let aiAssistOpen = false;
 
     function groupSearchResults(matches: SearchMatch[]): GroupedResult[] {
         const map = new Map<string, GroupedResult>();
@@ -154,6 +161,33 @@
         modalHighlightPaths = [];
         modalDisplaySpec = null;
         modalDisplayStatus = null;
+    }
+
+    async function runAiAssist() {
+        if (!release || !query.trim() || groupedResults.length === 0) {
+            aiAssistError = 'Run a search first — AI assist uses the top matching CRD.';
+            aiAssistAnswer = null;
+            aiAssistOpen = true;
+            return;
+        }
+
+        const top = groupedResults[0];
+        const kind = top.kind || top.name.split('.')[0];
+        const group = top.name.includes('.') ? top.name.split('.').slice(1).join('.') : undefined;
+
+        aiAssistLoading = true;
+        aiAssistError = null;
+        aiAssistAnswer = null;
+        aiAssistOpen = true;
+
+        const res = await searchSpec(release.name, kind, query.trim(), group);
+        aiAssistLoading = false;
+
+        if (res.error) {
+            aiAssistError = res.error;
+        } else {
+            aiAssistAnswer = res.answer;
+        }
     }
 
     async function loadVersions() {
@@ -538,6 +572,36 @@
                     {/if}
                 </div>
             </div>
+            <div class="spec-search-ai-row">
+                <button
+                    type="button"
+                    class="spec-search-ai-btn"
+                    disabled={aiAssistLoading || !release || !query.trim()}
+                    on:click={() => void runAiAssist()}
+                >
+                    {#if aiAssistLoading}
+                        AI searching…
+                    {:else}
+                        AI field search
+                    {/if}
+                </button>
+                <span class="spec-search-ai-hint">
+                    Uses Workers AI to find related schema fields in the top match
+                </span>
+            </div>
+            {#if aiAssistOpen && (aiAssistLoading || aiAssistAnswer || aiAssistError)}
+                <section class="spec-search-ai-panel" aria-label="AI search assist">
+                    {#if aiAssistLoading}
+                        <p class="spec-search-ai-panel__loading">Searching schema fields with AI…</p>
+                    {:else if aiAssistError}
+                        <p class="spec-search-ai-panel__error" role="alert">{aiAssistError}</p>
+                    {:else if aiAssistAnswer}
+                        <div class="spec-search-ai-panel__answer">
+                            <SimpleMarkdown source={aiAssistAnswer} />
+                        </div>
+                    {/if}
+                </section>
+            {/if}
         </div>
 
         <div class="spec-search-results-panel" class:opacity-70={searching && groupedResults.length > 0} class:transition-opacity={searching}>

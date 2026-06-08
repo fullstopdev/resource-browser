@@ -42,6 +42,8 @@
 	/** Optional pre-marked schema trees for highlighted display. */
 	export let displaySpec: unknown = null;
 	export let displayStatus: unknown = null;
+	/** Open modal on this tab (schema, compare, or ask). */
+	export let initialViewMode: ResourceViewMode = 'schema';
 	export let onClose: () => void = () => {};
 
 	let loading = false;
@@ -238,7 +240,7 @@
 		compareVersion = null;
 		compareRelease = null;
 		comparisonResult = null;
-		viewMode = 'schema';
+		viewMode = initialViewMode;
 		expandAll.set(false);
 		expandAllScope.set('local');
 		ulExpanded.set([]);
@@ -457,6 +459,7 @@
 					<ResourceViewTabs
 						{viewMode}
 						onViewChange={(mode) => (viewMode = mode)}
+						showAskTab={true}
 						showExpandControls={viewMode === 'schema'}
 						isExpanded={$ulExpanded.length > 0}
 						onExpandToggle={handleGlobalExpand}

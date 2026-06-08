@@ -138,6 +138,7 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
 			validVersions,
 			spec,
 			status,
+			releaseName: selectedRelease.name,
 			releaseLabel,
 			releaseFolder,
 			allReleases,

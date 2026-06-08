@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { compareReleases } from '$lib/ai/aiClient';
 	import { stripResourcePrefixFQDN } from '$lib/components/functions';
+	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 	import { highlightMatches } from '../highlight';
 	import { resourceLinkContext } from '../links';
 	import {
@@ -47,6 +49,31 @@
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			onToggleCrdExpand(crd.name, crd.version, crd.targetVersion);
+		}
+	}
+
+	let aiCompareLoading: Record<string, boolean> = {};
+	let aiCompareAnswers: Record<string, string> = {};
+	let aiCompareErrors: Record<string, string> = {};
+
+	async function runAiCompare(crd: CrdDiffEntry, event: MouseEvent) {
+		event.stopPropagation();
+		const key = crdEntryKey(crd);
+		if (!sourceReleaseName || !targetReleaseName || aiCompareLoading[key]) return;
+
+		aiCompareLoading = { ...aiCompareLoading, [key]: true };
+		const group = crd.name.includes('.') ? crd.name.split('.').slice(1).join('.') : undefined;
+		const res = await compareReleases(targetReleaseName, crd.kind, sourceReleaseName, group);
+		aiCompareLoading = { ...aiCompareLoading, [key]: false };
+
+		if (res.error) {
+			aiCompareErrors = { ...aiCompareErrors, [key]: res.error };
+			delete aiCompareAnswers[key];
+			aiCompareAnswers = { ...aiCompareAnswers };
+		} else {
+			aiCompareAnswers = { ...aiCompareAnswers, [key]: res.answer };
+			delete aiCompareErrors[key];
+			aiCompareErrors = { ...aiCompareErrors };
 		}
 	}
 
@@ -272,6 +299,16 @@
 											{crd.details.length} change{crd.details.length === 1 ? '' : 's'}
 										</span>
 									{/if}
+									{#if crd.status === 'modified'}
+										<button
+											type="button"
+											class="comparison-crd-card__ai-btn"
+											disabled={aiCompareLoading[crdEntryKey(crd)]}
+											on:click|stopPropagation={(e) => runAiCompare(crd, e)}
+										>
+											{aiCompareLoading[crdEntryKey(crd)] ? 'AI…' : 'AI summary'}
+										</button>
+									{/if}
 									{#if linkCtx}
 										<button
 											type="button"
@@ -285,6 +322,16 @@
 
 								{#if expanded}
 									<div class="comparison-crd-card__body">
+										{#if aiCompareErrors[crdEntryKey(crd)]}
+											<p class="comparison-crd-card__ai-error" role="alert">
+												{aiCompareErrors[crdEntryKey(crd)]}
+											</p>
+										{:else if aiCompareAnswers[crdEntryKey(crd)]}
+											<div class="comparison-crd-card__ai-answer">
+												<p class="comparison-crd-card__ai-label">AI compare summary</p>
+												<SimpleMarkdown source={aiCompareAnswers[crdEntryKey(crd)]} />
+											</div>
+										{/if}
 										{#if crd.status === 'modified' && crd.details.length > 0}
 											<SchemaDiffPanel
 												details={crd.details}
