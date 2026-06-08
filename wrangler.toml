@@ -1,0 +1,8 @@
+# Cloudflare Pages + SvelteKit (adapter-cloudflare)
+# Local AI: npm run dev:ai  (builds then runs wrangler pages dev with AI binding)
+name = "resource-browser"
+compatibility_date = "2025-06-01"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[ai]
+binding = "AI"

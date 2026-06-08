@@ -5,6 +5,7 @@
  "type": "module",
  "scripts": {
   "dev": "vite dev --host 0.0.0.0",
+  "dev:ai": "npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare",
   "build": "vite build",
   "build:vercel": "ADAPTER=vercel vite build",
   "build:cloudflare": "ADAPTER=cloudflare vite build",
@@ -36,6 +37,7 @@
   "@tailwindcss/vite": "^4.1.11",
   "@types/d3": "^7.4.3",
   "@types/js-yaml": "^4.0.9",
+  "@cloudflare/workers-types": "^4.20250712.0",
   "@vitest/browser": "^3.2.3",
   "eslint": "^9.18.0",
   "eslint-config-prettier": "^10.0.1",

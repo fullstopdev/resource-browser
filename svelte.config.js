@@ -11,6 +11,11 @@ const adapter =
 			routes: {
 				include: ['/*'],
 				exclude: ['/_app/*', '/fonts/*', '/images/*', '/releases/*']
+			},
+			// Workers AI is remote-only; disable during vite build/prerender so CI/local builds
+			// succeed without `wrangler login`. Use `npm run dev:ai` to test AI locally.
+			platformProxy: {
+				remoteBindings: false
 			}
 		});
 

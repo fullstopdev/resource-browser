@@ -4,10 +4,12 @@
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 
 	import Render from '$lib/components/Render.svelte';
+	import CrdAskPanel from '$lib/components/CrdAskPanel.svelte';
 	import ResourceViewTabs from '$lib/components/ResourceViewTabs.svelte';
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
 	import { compareVersionDesc, getLatestVersion } from '$lib/versions';
 	import { fetchVersionsForResource } from '$lib/manifest';
+	import type { ResourceViewMode } from '$lib/resourceView';
 	import type { CrdResource, CrdVersions, EdaRelease, ReleasesConfig } from '$lib/structure';
 	import releasesYaml from '$lib/releases.yaml?raw';
 
@@ -52,7 +54,7 @@
 	let versionOnFocus = '';
 	let deprecated = false;
 
-	let viewMode: 'schema' | 'compare' = 'schema';
+	let viewMode: ResourceViewMode = 'schema';
 	let specExpanded = true;
 	let statusExpanded = true;
 
@@ -474,6 +476,17 @@
 					<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
 						{error}
 					</div>
+				{:else if viewMode === 'ask'}
+					<CrdAskPanel
+						{kind}
+						{group}
+						{name}
+						version={versionOnFocus}
+						release={selectedRelease.label}
+						{deprecated}
+						spec={displaySpec ?? spec}
+						status={displayStatus ?? status}
+					/>
 				{:else if viewMode === 'schema'}
 					<div class="space-y-3">
 						<section

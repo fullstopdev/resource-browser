@@ -6,6 +6,7 @@
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import ResourceDetailHeader from '$lib/components/ResourceDetailHeader.svelte';
 	import ResourceViewTabs from '$lib/components/ResourceViewTabs.svelte';
+	import type { ResourceViewMode } from '$lib/resourceView';
 	import Render from '$lib/components/Render.svelte';
 	// Load DiffRender lazily to avoid including it in the initial bundle; it's only needed for compare view
 	let DiffRender: any = null;
@@ -119,7 +120,7 @@
 	}
 
 	// View mode state - start with schema view showing both spec and status
-	let viewMode: 'schema' | 'compare' = 'schema';
+	let viewMode: ResourceViewMode = 'schema';
 	let specExpanded = true;
 	let statusExpanded = true;
 
@@ -307,6 +308,7 @@
 					<ResourceViewTabs
 						{viewMode}
 						onViewChange={(mode) => (viewMode = mode)}
+						showAskTab={false}
 						showExpandControls={viewMode === 'schema'}
 						isExpanded={$ulExpanded.length > 0}
 						onExpandToggle={handleGlobalExpand}
