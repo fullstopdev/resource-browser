@@ -5,6 +5,24 @@ const MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
 const MAX_CONTEXT_CHARS = 8000;
 const MAX_QUESTION_CHARS = 2000;
 
+const AI_REQUEST_TIMEOUT_MS = 90_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error('Workers AI request timed out')), ms);
+		promise.then(
+			(value) => {
+				clearTimeout(timer);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timer);
+				reject(error);
+			}
+		);
+	});
+}
+
 const SYSTEM_PROMPT = `You are an expert assistant for Nokia Event-Driven Automation (EDA) Custom Resource Definitions (CRDs).
 
 You help engineers understand CRD schemas, fields, relationships, and typical usage patterns.
@@ -49,7 +67,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	const context = trimContext(body.context);
 
 	try {
-		const result = await ai.run(MODEL, {
+		const result = await withTimeout(
+			ai.run(MODEL, {
 			messages: [
 				{ role: 'system', content: SYSTEM_PROMPT },
 				{
@@ -61,7 +80,9 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			],
 			max_tokens: 1024,
 			temperature: 0.3
-		});
+			}),
+			AI_REQUEST_TIMEOUT_MS
+		);
 
 		const answer =
 			typeof result === 'object' && result !== null && 'response' in result
@@ -71,6 +92,15 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		return json({ answer: answer || 'No response generated.' });
 	} catch (err) {
 		console.error('Workers AI error:', err);
+		if (err instanceof Error && err.message === 'Workers AI request timed out') {
+			return json(
+				{
+					error:
+						'Workers AI timed out. Check network/proxy access to Cloudflare (including workers-binding.ai) and your API token Workers AI permissions.'
+				},
+				{ status: 504 }
+			);
+		}
 		return json({ error: 'Failed to generate answer. Please try again.' }, { status: 500 });
 	}
 };

@@ -45,6 +45,8 @@ npm run dev:ai
 
 `wrangler.toml` defines the `AI` binding for production Pages deploys. For local dev, Wrangler calls Workers AI in your account; the API token must include **Workers AI** (and typically **Account** read) permissions. `CLOUDFLARE_API_TOKEN` is read from the environment (see `.env.example` / `.dev.vars.example`); do not commit tokens.
 
+Corporate networks: if direct HTTPS to `api.cloudflare.com` fails, keep `HTTP_PROXY` / `HTTPS_PROXY` set when running Wrangler (do not unset them). Remote Workers AI in local dev calls `workers-binding.ai`; if `wrangler whoami` works but `/api/ask` hangs, the proxy or firewall may be blocking that host—try another network or ask IT to allow Cloudflare AI endpoints.
+
 3. Build for production:
 
 ```bash
