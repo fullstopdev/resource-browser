@@ -16,13 +16,15 @@ export type GlobalAskContext = {
 };
 
 export type ResolvedAskContext = {
-	release: string;
+	/** Release explicitly scoped (caller context or parsed from a question). */
+	release?: string;
+	/** Default release for KV chip actions on CRD detail pages only. */
+	kvRelease?: string;
 	kind: string;
 	group: string;
 	name: string;
 	version: string;
 	hasCrdContext: boolean;
-	source: 'explicit' | 'url-crd' | 'url-release' | 'default';
 };
 
 const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
@@ -37,13 +39,6 @@ const NON_CRD_PREFIXES = new Set([
 	'release-notes',
 	'bulk-diff',
 	'sitemap'
-]);
-
-const TOOL_PAGES_WITH_RELEASE = new Set([
-	'validate-yaml',
-	'spec-search',
-	'spec-search-auto',
-	'dependency-map'
 ]);
 
 export const globalAskOpen = writable(false);
@@ -75,45 +70,81 @@ export function parseCrdPageUrl(pathname: string): { name: string; version: stri
 	return { name, version };
 }
 
-function resourceFromManifest(entry: ManifestResource, versionOverride?: string): ResolvedAskContext {
-	const kind = entry.kind || entry.name.split('.')[0] || '';
-	const group = entry.group || entry.name.split('.').slice(1).join('.') || '';
-	return {
-		release: '',
-		kind,
-		group,
-		name: entry.name,
-		version: versionOverride || getLatestVersion(entry) || '',
-		hasCrdContext: true,
-		source: 'url-crd'
-	};
+/** Parse an EDA release name from free-form question text (e.g. "26.4.2", "EDA 26.4.1", "latest"). */
+export function parseReleaseFromQuestion(question: string): string | undefined {
+	const q = question.trim();
+	if (!q) return undefined;
+
+	if (/\blatest\b/i.test(q)) {
+		return getDefaultReleaseName();
+	}
+
+	for (const rel of allReleases) {
+		const namePattern = rel.name.replace(/\./g, '\\.');
+		if (new RegExp(`\\b${namePattern}\\b`, 'i').test(q)) {
+			return rel.name;
+		}
+
+		const labelCore = rel.label.replace(/^EDA\s+/i, '').replace(/\./g, '\\.');
+		if (new RegExp(`\\b(?:EDA\\s+)?${labelCore}\\b`, 'i').test(q)) {
+			return rel.name;
+		}
+	}
+
+	return undefined;
 }
 
-function releaseOnlyContext(release: string, source: ResolvedAskContext['source']): ResolvedAskContext {
+function emptyContext(): ResolvedAskContext {
 	return {
-		release,
 		kind: '',
 		group: '',
 		name: '',
 		version: '',
-		hasCrdContext: false,
-		source
+		hasCrdContext: false
+	};
+}
+
+function resourceFromManifest(entry: ManifestResource, versionOverride?: string): ResolvedAskContext {
+	const kind = entry.kind || entry.name.split('.')[0] || '';
+	const group = entry.group || entry.name.split('.').slice(1).join('.') || '';
+	return {
+		kvRelease: getDefaultReleaseName(),
+		kind,
+		group,
+		name: entry.name,
+		version: versionOverride || getLatestVersion(entry) || '',
+		hasCrdContext: true
+	};
+}
+
+function crdContextFromName(name: string, version: string): ResolvedAskContext {
+	const kind = name.split('.')[0] || '';
+	const group = name.split('.').slice(1).join('.') || '';
+	return {
+		kvRelease: getDefaultReleaseName(),
+		kind,
+		group,
+		name,
+		version,
+		hasCrdContext: true
 	};
 }
 
 async function resolveFromExplicit(ctx: GlobalAskContext): Promise<ResolvedAskContext> {
-	const release = ctx.release && allReleases.some((r) => r.name === ctx.release)
-		? ctx.release
-		: getDefaultReleaseName();
+	const release =
+		ctx.release && allReleases.some((r) => r.name === ctx.release) ? ctx.release : undefined;
 
 	if (ctx.name || (ctx.kind && ctx.group)) {
-		const rel = allReleases.find((r) => r.name === release);
+		const lookupRelease = release ?? getDefaultReleaseName();
+		const rel = allReleases.find((r) => r.name === lookupRelease);
 		if (rel) {
 			const manifest = (await fetchManifest(rel.folder)) ?? [];
 			if (ctx.name) {
 				const byName = manifest.find((r) => r.name === ctx.name);
 				if (byName) {
-					return { ...resourceFromManifest(byName, ctx.version), release, source: 'explicit' };
+					const resolved = resourceFromManifest(byName, ctx.version);
+					if (release) resolved.release = release;
+					return resolved;
 				}
 			}
 			if (ctx.kind) {
@@ -123,38 +154,30 @@ async function resolveFromExplicit(ctx: GlobalAskContext): Promise<ResolvedAskCo
 						(!ctx.group || r.group === ctx.group || r.name.endsWith('.' + ctx.group))
 				);
 				if (byKind) {
-					return {
-						...resourceFromManifest(byKind, ctx.version),
-						release,
-						source: 'explicit'
-					};
+					const resolved = resourceFromManifest(byKind, ctx.version);
+					if (release) resolved.release = release;
+					return resolved;
 				}
 			}
 		}
 
-		return {
-			release,
+		const resolved: ResolvedAskContext = {
+			kvRelease: getDefaultReleaseName(),
 			kind: ctx.kind ?? '',
 			group: ctx.group ?? '',
 			name: ctx.name ?? (ctx.kind && ctx.group ? `${ctx.kind}.${ctx.group}` : ''),
 			version: ctx.version ?? '',
-			hasCrdContext: !!(ctx.kind && ctx.group),
-			source: 'explicit'
+			hasCrdContext: !!(ctx.kind && ctx.group)
 		};
+		if (release) resolved.release = release;
+		return resolved;
 	}
 
-	return releaseOnlyContext(release, 'explicit');
-}
+	if (release) {
+		return { ...emptyContext(), release };
+	}
 
-function releaseFromToolPage(pathname: string, searchParams: URLSearchParams): string | null {
-	const page = pathname.split('/').filter(Boolean)[0] ?? '';
-	if (page === 'comparison') {
-		return getDefaultReleaseName(searchParams.get('sr'));
-	}
-	if (TOOL_PAGES_WITH_RELEASE.has(page)) {
-		return getDefaultReleaseName(searchParams.get('release'));
-	}
-	return null;
+	return emptyContext();
 }
 
 export async function resolveGlobalAskContext(
@@ -167,35 +190,30 @@ export async function resolveGlobalAskContext(
 
 	const parsed = parseCrdPageUrl(pageUrl.pathname);
 	if (parsed) {
-		const release = getDefaultReleaseName(pageUrl.searchParams.get('release'));
-		const rel = allReleases.find((r) => r.name === release);
+		const defaultRelease = getDefaultReleaseName();
+		const rel = allReleases.find((r) => r.name === defaultRelease);
 		if (rel) {
 			const manifest = (await fetchManifest(rel.folder)) ?? [];
 			const entry = manifest.find((r) => r.name === parsed.name);
 			if (entry) {
-				return {
-					...resourceFromManifest(entry, parsed.version),
-					release,
-					source: 'url-crd'
-				};
+				return resourceFromManifest(entry, parsed.version);
 			}
 		}
+		return crdContextFromName(parsed.name, parsed.version);
 	}
 
-	const toolRelease = releaseFromToolPage(pageUrl.pathname, pageUrl.searchParams);
-	if (toolRelease) {
-		return releaseOnlyContext(toolRelease, 'url-release');
-	}
-
-	return releaseOnlyContext(getDefaultReleaseName(), 'default');
+	return emptyContext();
 }
 
+/** Minimal scoped-context label (CRD kind/group or explicit release only). */
 export function contextSummary(ctx: ResolvedAskContext): string {
-	const rel = allReleases.find((r) => r.name === ctx.release);
-	const releaseLabel = rel?.label ?? ctx.release;
 	if (ctx.hasCrdContext && ctx.kind) {
 		const groupPart = ctx.group ? ` (${ctx.group})` : '';
-		return `${ctx.kind}${groupPart} · ${releaseLabel}`;
+		return `${ctx.kind}${groupPart}`;
 	}
-	return releaseLabel;
+	if (ctx.release) {
+		const rel = allReleases.find((r) => r.name === ctx.release);
+		return rel?.label ?? ctx.release;
+	}
+	return '';
 }

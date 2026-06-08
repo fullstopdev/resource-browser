@@ -85,7 +85,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const hasRagIndexes = !!(crdIndex || docsIndex);
 	const hasTarget = !!(release && kind && group);
 
-	if (hasRagIndexes && (release || kind || group)) {
+	if (hasRagIndexes) {
 		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, {
 			release: release || undefined,
 			kind: kind || undefined,

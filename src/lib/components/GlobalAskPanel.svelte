@@ -57,14 +57,7 @@
 	});
 
 	$: summary = resolved ? contextSummary(resolved) : '';
-	$: contextHint =
-		resolved?.source === 'url-crd'
-			? 'From current page'
-			: resolved?.source === 'url-release'
-				? 'From page release'
-				: resolved?.source === 'default'
-					? 'Latest release'
-					: '';
+	$: showScopedHint = !!(resolved?.hasCrdContext || resolved?.release);
 </script>
 
 {#if $globalAskOpen}
@@ -100,15 +93,12 @@
 
 			{#if resolving}
 				<p class="global-ask-panel__context-loading">Detecting context…</p>
-			{:else if resolved}
+			{:else if resolved && showScopedHint && summary}
 				<p class="global-ask-panel__context-banner">
 					{#if resolved.hasCrdContext}
 						<span class="global-ask-panel__detected-badge">CRD context</span>
 					{/if}
 					<span class="global-ask-panel__context-summary">{summary}</span>
-					{#if contextHint}
-						<span class="global-ask-panel__context-hint">· {contextHint}</span>
-					{/if}
 				</p>
 			{/if}
 
@@ -120,7 +110,7 @@
 							group={resolved.group}
 							name={resolved.name}
 							version={resolved.version}
-							release={resolved.release}
+							kvRelease={resolved.kvRelease}
 							hasCrdContext={resolved.hasCrdContext}
 							embedded={true}
 							deprecated={false}

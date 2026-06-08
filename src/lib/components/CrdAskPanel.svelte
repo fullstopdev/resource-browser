@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { askAI } from '$lib/ai/askAI';
 	import { explainCRD, explainField, generateExample } from '$lib/ai/aiClient';
-	import { buildCrdContext } from '$lib/ai/buildCrdContext';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
+	import { parseReleaseFromQuestion } from '$lib/globalAsk';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 
 	export let kind = '';
 	export let group = '';
 	export let name = '';
 	export let version = '';
-	/** EDA release name (e.g. "26.4.2"), not display label. */
-	export let release = '';
+	/** Default release for KV chip actions on CRD detail pages only. */
+	export let kvRelease = '';
 	/** When true, show CRD-specific starter chips (explain, example, required fields). */
 	export let hasCrdContext = false;
 	/** Hide duplicate header when embedded in GlobalAskPanel. */
@@ -58,50 +58,32 @@
 
 		let result: { answer?: string; sources?: RagSource[]; error?: string; cached?: boolean };
 
-		if (release && kind && group && CACHED_STARTERS.has(trimmed)) {
+		const questionRelease = parseReleaseFromQuestion(trimmed);
+
+		if (hasCrdContext && kvRelease && kind && group && CACHED_STARTERS.has(trimmed)) {
 			const actionResult =
 				trimmed === 'What is this CRD for?'
-					? await explainCRD(release, kind, group)
-					: await generateExample(release, kind, group);
+					? await explainCRD(kvRelease, kind, group)
+					: await generateExample(kvRelease, kind, group);
 			result = actionResult.error
 				? { error: actionResult.error }
 				: { answer: actionResult.answer, cached: actionResult.cached };
-		} else if (release && kind && group && trimmed === 'Required fields?') {
-			const actionResult = await explainField(release, kind, 'spec', group);
+		} else if (hasCrdContext && kvRelease && kind && group && trimmed === 'Required fields?') {
+			const actionResult = await explainField(kvRelease, kind, 'spec', group);
 			result = actionResult.error
 				? { error: actionResult.error }
 				: {
 						answer: `**Required fields for ${kind}:**\n\n${actionResult.answer}`,
 						cached: actionResult.cached
 					};
-		} else if (release && kind && group) {
+		} else if (questionRelease) {
 			result = await askAI({
 				question: trimmed,
-				release,
-				kind,
-				group,
-				version: version || undefined
-			});
-		} else if (release) {
-			result = await askAI({
-				question: trimmed,
-				release,
+				release: questionRelease,
 				version: version || undefined
 			});
 		} else {
-			result = await askAI({
-				question: trimmed,
-				context: buildCrdContext({
-					kind,
-					group,
-					name,
-					version,
-					release,
-					deprecated,
-					spec,
-					status
-				})
-			});
+			result = await askAI({ question: trimmed });
 		}
 
 		loading = false;
