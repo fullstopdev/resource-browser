@@ -21,12 +21,21 @@
 
 	const CACHED_STARTERS = new Set(['What is this CRD for?', 'Example YAML?']);
 
-	const starterQuestions = [
+	const crdStarterQuestions = [
 		'What is this CRD for?',
 		'Required fields?',
 		'Related resources?',
 		'Example YAML?'
 	];
+
+	const genericStarterQuestions = [
+		'What CRDs are available for workflows?',
+		'Explain Topology resource',
+		'Example YAML for a Fabric',
+		'What changed between 26.4.1 and 26.4.2?'
+	];
+
+	$: activeStarters = hasCrdContext ? crdStarterQuestions : genericStarterQuestions;
 
 	let question = '';
 	let answer: string | null = null;
@@ -147,34 +156,32 @@
 		</header>
 	{/if}
 
-	{#if hasCrdContext}
-		<!-- Starter chips (CRD context only) -->
-		<div>
-			<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-				Quick prompts
-			</p>
-			<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
-				{#each starterQuestions as starter}
-					<button
-						type="button"
-						on:click={() => submit(starter)}
-						disabled={loading}
-						class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
-					>
-						{starter}
-						{#if CACHED_STARTERS.has(starter)}
-							<span
-								class="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-								title="Cached KV response when available"
-							>
-								KV
-							</span>
-						{/if}
-					</button>
-				{/each}
-			</div>
+	<!-- Starter chips -->
+	<div>
+		<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+			Quick prompts
+		</p>
+		<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
+			{#each activeStarters as starter}
+				<button
+					type="button"
+					on:click={() => submit(starter)}
+					disabled={loading}
+					class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+				>
+					{starter}
+					{#if hasCrdContext && CACHED_STARTERS.has(starter)}
+						<span
+							class="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+							title="Cached KV response when available"
+						>
+							KV
+						</span>
+					{/if}
+				</button>
+			{/each}
 		</div>
-	{/if}
+	</div>
 
 	<!-- Input -->
 	<div class="space-y-2">
@@ -240,7 +247,7 @@
 				{#if hasCrdContext}
 					Try a suggested prompt above or describe what you need to know about this CRD.
 				{:else}
-					Ask about EDA concepts, CRD fields, validation, or example manifests.
+					Try a suggested prompt above or ask about EDA concepts, CRD fields, validation, or example manifests.
 				{/if}
 			</p>
 		</div>
