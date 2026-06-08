@@ -13,6 +13,7 @@
  *   npm run embed:crd-corpus -- --release 26.4.2
  *   npm run embed:crd-corpus -- --dry-run
  */
+import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
@@ -23,6 +24,17 @@ import {
 	type CrdChunk
 } from '../src/lib/ai/rag/chunkTypes';
 import { assertSafeFolderPath, assertSafePathSegment } from '../src/lib/yaml-validation/schemaCache';
+
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
+
+const proxyUrl =
+	process.env.HTTPS_PROXY?.trim() ||
+	process.env.https_proxy?.trim() ||
+	process.env.HTTP_PROXY?.trim() ||
+	process.env.http_proxy?.trim();
+if (proxyUrl) {
+	setGlobalDispatcher(new ProxyAgent(proxyUrl));
+}
 import type { ReleasesConfig } from '../src/lib/structure';
 
 const ROOT = process.cwd();
@@ -172,9 +184,16 @@ async function collectChunks(releaseFilter?: string): Promise<CrdChunk[]> {
 	return allChunks;
 }
 
+const VECTORIZE_ID_MAX = 64;
+
+function vectorizeId(chunkId: string): string {
+	if (Buffer.byteLength(chunkId, 'utf8') <= VECTORIZE_ID_MAX) return chunkId;
+	return crypto.createHash('sha256').update(chunkId).digest('hex');
+}
+
 function toVectorRecord(chunk: CrdChunk, values: number[]): VectorRecord {
 	return {
-		id: chunk.id,
+		id: vectorizeId(chunk.id),
 		values,
 		metadata: {
 			release: chunk.metadata.release,
