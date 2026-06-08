@@ -4,6 +4,7 @@
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
 	import { parseReleaseFromQuestion } from '$lib/globalAsk';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
+	import EdaAiBrandIcon from '$lib/components/EdaAiBrandIcon.svelte';
 
 	export let kind = '';
 	export let group = '';
@@ -150,14 +151,7 @@
 	{#if !embedded}
 		<header class="ask-ai__standalone-header">
 			<div class="ask-ai__standalone-icon" aria-hidden="true">
-				<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="1.75"
-						d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
-					/>
-				</svg>
+				<EdaAiBrandIcon size="md" />
 			</div>
 			<div class="ask-ai__standalone-copy">
 				<h2 class="ask-ai__standalone-title">Ask AI</h2>
@@ -228,34 +222,41 @@
 	</section>
 
 	<section class="ask-ai__composer" aria-label="Question input">
-		<label for="crd-ask-question" class="ask-ai__section-label">Your question</label>
-		<div class="ask-ai__input-wrap">
+		<label for="crd-ask-question" class="ask-ai__composer-label">Your question</label>
+		<div class="ask-ai__composer-card">
 			<textarea
 				id="crd-ask-question"
 				bind:value={question}
 				on:keydown={handleKeydown}
-				rows="3"
+				rows="4"
 				placeholder="Ask about CRD fields, relationships, validation rules, or example manifests…"
 				class="ask-ai__textarea"
 				disabled={loading}
 			></textarea>
-			<button
-				type="button"
-				class="ask-ai__send"
-				on:click={() => submit()}
-				disabled={loading || !question.trim()}
-				aria-label={loading ? 'Generating answer' : 'Send question'}
-			>
-				{#if loading}
-					<span class="ask-ai__send-spinner" aria-hidden="true"></span>
-					<span class="ask-ai__send-label">Thinking…</span>
-				{:else}
-					<svg class="ask-ai__send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-					</svg>
-					<span class="ask-ai__send-label">Ask</span>
-				{/if}
-			</button>
+			<div class="ask-ai__composer-actions">
+				<button
+					type="button"
+					class="ask-ai__send"
+					on:click={() => submit()}
+					disabled={loading || !question.trim()}
+					aria-label={loading ? 'Generating answer' : 'Send question'}
+				>
+					{#if loading}
+						<span class="ask-ai__send-spinner" aria-hidden="true"></span>
+						<span class="ask-ai__send-label">Thinking…</span>
+					{:else}
+						<svg class="ask-ai__send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4.5 10.75L12 3.25m0 0l7.5 7.5M12 3.25v16.5"
+							/>
+						</svg>
+						<span class="ask-ai__send-label">Ask</span>
+					{/if}
+				</button>
+			</div>
 		</div>
 	</section>
 
