@@ -1,4 +1,11 @@
-import { EMBEDDING_MODEL, type CrdChunkMetadata, type RetrievedChunk } from './chunkTypes';
+import {
+	EMBEDDING_MODEL,
+	type CrdChunkMetadata,
+	type DocsChunkMetadata,
+	type RagSource,
+	type RetrievedChunk,
+	type RetrievedDocsChunk
+} from './chunkTypes';
 import { trimToBudget } from '$lib/ai/tokenBudget';
 
 const DEFAULT_TOP_K = 6;
@@ -12,9 +19,16 @@ export type RagFilters = {
 
 export type RetrieveResult = {
 	chunks: RetrievedChunk[];
-	sources: string[];
+	docsChunks: RetrievedDocsChunk[];
+	sources: RagSource[];
 	contextText: string;
 };
+
+/** Map CRD patch release (e.g. 26.4.2) to docs release (26.4). */
+export function docsReleaseForCrd(release: string): string {
+	const match = release.match(/^(\d+\.\d+)/);
+	return match ? match[1] : release;
+}
 
 async function embedQuestion(ai: Ai, question: string): Promise<number[] | null> {
 	try {
@@ -29,7 +43,7 @@ async function embedQuestion(ai: Ai, question: string): Promise<number[] | null>
 	return null;
 }
 
-function buildMetadataFilter(filters: RagFilters): Record<string, string> | undefined {
+function buildCrdMetadataFilter(filters: RagFilters): Record<string, string> | undefined {
 	const filter: Record<string, string> = {};
 	if (filters.release) filter.release = filters.release;
 	if (filters.kind) filter.kind = filters.kind;
@@ -37,12 +51,29 @@ function buildMetadataFilter(filters: RagFilters): Record<string, string> | unde
 	return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
-function formatSource(meta: CrdChunkMetadata): string {
+function formatCrdSource(meta: CrdChunkMetadata): RagSource {
 	const field = meta.fieldPath ? ` — ${meta.fieldPath}` : '';
-	return `${meta.kind} (${meta.group}/${meta.version}) [${meta.chunkType}]${field}`;
+	return {
+		source: 'crd-corpus',
+		label: `${meta.kind} (${meta.group}/${meta.version}) [${meta.chunkType}]${field}`,
+		release: String(meta.release ?? ''),
+		kind: String(meta.kind ?? ''),
+		group: String(meta.group ?? ''),
+		path: String(meta.path ?? '')
+	};
 }
 
-function chunkFromMatch(match: VectorizeMatch): RetrievedChunk | null {
+function formatDocsSource(meta: DocsChunkMetadata): RagSource {
+	return {
+		source: 'eda-docs',
+		label: `${meta.title} — ${meta.section}`,
+		release: meta.release,
+		path: meta.path,
+		section: meta.section
+	};
+}
+
+function crdChunkFromMatch(match: VectorizeMatch): RetrievedChunk | null {
 	const raw = match.metadata as Record<string, unknown> | undefined;
 	const text = typeof raw?.text === 'string' ? raw.text : undefined;
 	if (!raw?.kind || !text) return null;
@@ -64,45 +95,125 @@ function chunkFromMatch(match: VectorizeMatch): RetrievedChunk | null {
 	};
 }
 
-/** Embed the question and query Vectorize for relevant CRD schema chunks. */
+function docsChunkFromMatch(match: VectorizeMatch): RetrievedDocsChunk | null {
+	const raw = match.metadata as Record<string, unknown> | undefined;
+	const text = typeof raw?.text === 'string' ? raw.text : undefined;
+	if (raw?.source !== 'eda-docs' || !text) return null;
+
+	return {
+		id: match.id,
+		text,
+		metadata: {
+			source: 'eda-docs',
+			release: String(raw.release ?? ''),
+			path: String(raw.path ?? ''),
+			title: String(raw.title ?? 'EDA documentation'),
+			section: String(raw.section ?? ''),
+			chunkType: 'docs-content'
+		},
+		score: match.score
+	};
+}
+
+function dedupeSources(sources: RagSource[]): RagSource[] {
+	const seen = new Set<string>();
+	const out: RagSource[] = [];
+	for (const source of sources) {
+		const key = `${source.source}:${source.label}:${source.path}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push(source);
+	}
+	return out;
+}
+
+async function queryIndex(
+	index: VectorizeIndex,
+	vector: number[],
+	topK: number,
+	filter?: Record<string, string>
+): Promise<VectorizeMatch[]> {
+	const result = await index.query(vector, {
+		topK,
+		returnMetadata: 'all',
+		...(filter ? { filter } : {})
+	});
+	return result.matches;
+}
+
+/** Embed the question and query Vectorize for CRD schema and EDA docs chunks. */
 export async function retrieveRagContext(
 	ai: Ai,
-	index: VectorizeIndex | undefined,
+	crdIndex: VectorizeIndex | undefined,
+	docsIndex: VectorizeIndex | undefined,
 	question: string,
 	filters: RagFilters,
 	topK = DEFAULT_TOP_K
 ): Promise<RetrieveResult> {
-	const empty: RetrieveResult = { chunks: [], sources: [], contextText: '' };
-	if (!index) return empty;
+	const empty: RetrieveResult = { chunks: [], docsChunks: [], sources: [], contextText: '' };
+	if (!crdIndex && !docsIndex) return empty;
 
 	const vector = await embedQuestion(ai, question);
 	if (!vector?.length) return empty;
 
+	const crdTopK = docsIndex ? Math.ceil(topK * 0.6) : topK;
+	const docsTopK = crdIndex ? Math.ceil(topK * 0.4) : topK;
+
 	try {
-		const filter = buildMetadataFilter(filters);
-		const result = await index.query(vector, {
-			topK,
-			returnMetadata: 'all',
-			...(filter ? { filter } : {})
-		});
+		const [crdMatches, docsMatches] = await Promise.all([
+			crdIndex
+				? queryIndex(crdIndex, vector, crdTopK, buildCrdMetadataFilter(filters))
+				: Promise.resolve([]),
+			docsIndex
+				? queryIndex(docsIndex, vector, docsTopK, {
+						source: 'eda-docs',
+						...(filters.release
+							? { release: docsReleaseForCrd(filters.release) }
+							: {})
+					})
+				: Promise.resolve([])
+		]);
 
 		const chunks: RetrievedChunk[] = [];
-		const sources: string[] = [];
+		const docsChunks: RetrievedDocsChunk[] = [];
+		const sources: RagSource[] = [];
 
-		for (const match of result.matches) {
-			const chunk = chunkFromMatch(match);
+		for (const match of crdMatches) {
+			const chunk = crdChunkFromMatch(match);
 			if (!chunk) continue;
 			chunks.push(chunk);
-			const source = formatSource(chunk.metadata);
-			if (!sources.includes(source)) sources.push(source);
+			sources.push(formatCrdSource(chunk.metadata));
 		}
 
+		for (const match of docsMatches) {
+			const chunk = docsChunkFromMatch(match);
+			if (!chunk) continue;
+			docsChunks.push(chunk);
+			sources.push(formatDocsSource(chunk.metadata));
+		}
+
+		const merged = [
+			...chunks.map((c) => ({ type: 'crd' as const, score: c.score, text: c.text })),
+			...docsChunks.map((c) => ({
+				type: 'docs' as const,
+				score: c.score,
+				text: `### Nokia EDA docs — ${c.metadata.title}\n${c.text}`
+			}))
+		]
+			.sort((a, b) => b.score - a.score)
+			.slice(0, topK);
+
 		const contextText = trimToBudget(
-			chunks.map((c, i) => `### Retrieved excerpt ${i + 1}\n${c.text}`).join('\n\n'),
+			merged.map((item, i) => `### Retrieved excerpt ${i + 1}\n${item.text}`).join('\n\n'),
 			RAG_CONTEXT_CHAR_LIMIT
 		);
 
-		return { chunks, sources, contextText };
+		return {
+			chunks,
+			docsChunks,
+			sources: dedupeSources(sources),
+			contextText
+		};
 	} catch (err) {
 		console.error('Vectorize query error:', err);
 		return empty;

@@ -47,24 +47,34 @@ npm run dev:ai
 
 Corporate networks: if direct HTTPS to `api.cloudflare.com` fails, keep `HTTP_PROXY` / `HTTPS_PROXY` set when running Wrangler (do not unset them). Remote Workers AI in local dev calls `workers-binding.ai`; if `wrangler whoami` works but `/api/ask` hangs, the proxy or firewall may be blocking that host—try another network or ask IT to allow Cloudflare AI endpoints.
 
-### Vectorize RAG (CRD corpus)
+### Vectorize RAG (CRD corpus + EDA docs)
 
-The Ask tab can retrieve schema excerpts from a Cloudflare Vectorize index before calling Workers AI. **Rich server-built context works without Vectorize**; `/api/ask` skips RAG when the `CRD_INDEX` binding is absent.
+The Ask tab retrieves CRD schema excerpts and Nokia EDA official documentation from Cloudflare Vectorize before calling Workers AI. **Rich server-built context works without Vectorize**; `/api/ask` skips RAG when bindings are absent.
 
-**Deploy without Vectorize (Phase 1a):** `wrangler.toml` ships with the `[[vectorize]]` block commented out so Pages deploy is not blocked while the index or token permissions are missing. Use `npm run deploy:cloudflare` or `npm run deploy:cloudflare:phase1` (same command).
+We use **two separate indexes** (same 768-dim `@cf/baai/bge-base-en-v1.5` embeddings, cosine metric):
 
-**API token permissions:** creating an index and upserting vectors requires a token with **Vectorize Edit** (Wrangler/API error `10000` means the token lacks it). Workers AI and Account read are separate requirements for Ask and embed. Use a custom API token in the Cloudflare dashboard with Vectorize → Edit, or ask an account admin to create the index for you.
+| Index | Binding | Content |
+|-------|---------|---------|
+| `eda-crd-corpus-v1` | `CRD_INDEX` | CRD OpenAPI schema chunks from `static/resources/` |
+| `eda-docs-v1` | `DOCS_INDEX` | Crawled pages from [docs.eda.dev/26.4/](https://docs.eda.dev/26.4/) |
 
-**One-time index setup** (768 dimensions for `@cf/baai/bge-base-en-v1.5`, cosine metric)—dashboard: Workers & Pages → Vectorize → Create index `eda-crd-corpus-v1`, or CLI:
+**Deploy without Vectorize:** comment out the `[[vectorize]]` blocks in `wrangler.toml` so Pages deploy is not blocked while indexes or token permissions are missing.
+
+**API token permissions:** creating indexes and upserting vectors requires a token with **Vectorize Edit** (Wrangler/API error `10000` means the token lacks it). Workers AI and Account read are separate requirements for Ask and embed.
+
+**One-time index setup**—dashboard: Workers & Pages → Vectorize, or CLI:
 
 ```bash
 wrangler vectorize create eda-crd-corpus-v1 --dimensions=768 --metric=cosine \
   --metadata-index=release --metadata-index=kind --metadata-index=group --metadata-index=chunkType
+
+wrangler vectorize create eda-docs-v1 --dimensions=768 --metric=cosine \
+  --metadata-index=source --metadata-index=release --metadata-index=section
 ```
 
-**Enable RAG on Pages:** uncomment the `[[vectorize]]` block in `wrangler.toml` (`binding = "CRD_INDEX"`, `index_name = "eda-crd-corpus-v1"`), redeploy, then embed.
+**Enable RAG on Pages:** ensure both `[[vectorize]]` blocks in `wrangler.toml` are active (`CRD_INDEX`, `DOCS_INDEX`), redeploy, then embed.
 
-**Embed and upsert the corpus** (`CLOUDFLARE_API_TOKEN` with Workers AI + **Vectorize Edit**; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`). On corporate networks set `HTTP_PROXY` / `HTTPS_PROXY` (the embed script uses undici `ProxyAgent`):
+**Embed CRD corpus** (`CLOUDFLARE_API_TOKEN` with Workers AI + **Vectorize Edit**; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`). On corporate networks set `HTTP_PROXY` / `HTTPS_PROXY` (embed scripts use undici `ProxyAgent`):
 
 ```bash
 export CLOUDFLARE_API_TOKEN=your_token
@@ -74,7 +84,16 @@ npm run embed:crd-corpus
 # Count chunks only: npm run embed:crd-corpus -- --dry-run
 ```
 
-Re-run `embed:crd-corpus` after adding releases or changing CRD YAML under `static/resources/`. This is a manual pre-deploy step (not wired into `prebuild`).
+**Embed EDA documentation** (crawls `docs.eda.dev` under `/26.4/`, rate-limited, respectful user-agent):
+
+```bash
+export CLOUDFLARE_API_TOKEN=your_token
+npm run embed:eda-docs
+# Docs release: npm run embed:eda-docs -- --release 26.4
+# Preview crawl: npm run embed:eda-docs -- --dry-run --max-pages 20
+```
+
+Re-run embed scripts after adding CRD releases or when Nokia publishes updated docs. These are manual pre-deploy steps (not wired into `prebuild`).
 
 **Test `/api/ask` locally:**
 

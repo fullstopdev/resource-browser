@@ -13,42 +13,19 @@
  *   npm run embed:crd-corpus -- --release 26.4.2
  *   npm run embed:crd-corpus -- --dry-run
  */
-import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
 import { chunkCrdYaml } from '../src/lib/ai/rag/chunkCrd';
-import {
-	EMBEDDING_DIMENSIONS,
-	EMBEDDING_MODEL,
-	type CrdChunk
-} from '../src/lib/ai/rag/chunkTypes';
+import { EMBEDDING_MODEL, type CrdChunk } from '../src/lib/ai/rag/chunkTypes';
 import { assertSafeFolderPath, assertSafePathSegment } from '../src/lib/yaml-validation/schemaCache';
-
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
-
-const proxyUrl =
-	process.env.HTTPS_PROXY?.trim() ||
-	process.env.https_proxy?.trim() ||
-	process.env.HTTP_PROXY?.trim() ||
-	process.env.http_proxy?.trim();
-if (proxyUrl) {
-	setGlobalDispatcher(new ProxyAgent(proxyUrl));
-}
+import { embedAndUpsert } from './lib/vectorizeEmbed';
 import type { ReleasesConfig } from '../src/lib/structure';
 
 const ROOT = process.cwd();
 const STATIC_ROOT = path.join(ROOT, 'static');
 const RELEASES_PATH = path.join(ROOT, 'src/lib/releases.yaml');
 const INDEX_NAME = 'eda-crd-corpus-v1';
-const BATCH_SIZE = 16;
-
-type VectorRecord = {
-	id: string;
-	values: number[];
-	metadata: Record<string, string>;
-};
-
 function parseArgs(): { release?: string; dryRun: boolean } {
 	const args = process.argv.slice(2);
 	let release: string | undefined;
@@ -58,75 +35,6 @@ function parseArgs(): { release?: string; dryRun: boolean } {
 		if (args[i] === '--dry-run') dryRun = true;
 	}
 	return { release, dryRun };
-}
-
-async function getAccountId(): Promise<string> {
-	const fromEnv = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
-	if (fromEnv) return fromEnv;
-
-	const whoami = await fetch('https://api.cloudflare.com/client/v4/accounts', {
-		headers: { Authorization: `Bearer ${requireToken()}` }
-	});
-	const data = (await whoami.json()) as { result?: { id: string }[] };
-	const id = data.result?.[0]?.id;
-	if (!id) throw new Error('Could not resolve CLOUDFLARE_ACCOUNT_ID — set it or run wrangler login');
-	return id;
-}
-
-function requireToken(): string {
-	const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
-	if (!token) {
-		throw new Error('CLOUDFLARE_API_TOKEN is required for embeddings and Vectorize upsert');
-	}
-	return token;
-}
-
-async function embedTexts(texts: string[]): Promise<number[][]> {
-	const accountId = await getAccountId();
-	const token = requireToken();
-	const resp = await fetch(
-		`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${EMBEDDING_MODEL}`,
-		{
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ text: texts })
-		}
-	);
-
-	if (!resp.ok) {
-		const body = await resp.text();
-		throw new Error(`Embedding API failed (${resp.status}): ${body}`);
-	}
-
-	const json = (await resp.json()) as { result?: { data?: number[][] }; data?: number[][] };
-	const vectors = json.result?.data ?? json.data;
-	if (!vectors?.length) throw new Error('Embedding API returned no vectors');
-	return vectors;
-}
-
-async function upsertVectors(vectors: VectorRecord[]): Promise<void> {
-	if (!vectors.length) return;
-	const accountId = await getAccountId();
-	const token = requireToken();
-	const resp = await fetch(
-		`https://api.cloudflare.com/client/v4/accounts/${accountId}/vectorize/v2/indexes/${INDEX_NAME}/upsert`,
-		{
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ vectors })
-		}
-	);
-
-	if (!resp.ok) {
-		const body = await resp.text();
-		throw new Error(`Vectorize upsert failed (${resp.status}): ${body}`);
-	}
 }
 
 async function collectChunks(releaseFilter?: string): Promise<CrdChunk[]> {
@@ -184,30 +92,6 @@ async function collectChunks(releaseFilter?: string): Promise<CrdChunk[]> {
 	return allChunks;
 }
 
-const VECTORIZE_ID_MAX = 64;
-
-function vectorizeId(chunkId: string): string {
-	if (Buffer.byteLength(chunkId, 'utf8') <= VECTORIZE_ID_MAX) return chunkId;
-	return crypto.createHash('sha256').update(chunkId).digest('hex');
-}
-
-function toVectorRecord(chunk: CrdChunk, values: number[]): VectorRecord {
-	return {
-		id: vectorizeId(chunk.id),
-		values,
-		metadata: {
-			release: chunk.metadata.release,
-			kind: chunk.metadata.kind,
-			group: chunk.metadata.group,
-			version: chunk.metadata.version,
-			path: chunk.metadata.path,
-			chunkType: chunk.metadata.chunkType,
-			...(chunk.metadata.fieldPath ? { fieldPath: chunk.metadata.fieldPath } : {}),
-			text: chunk.text.slice(0, 9000)
-		}
-	};
-}
-
 async function main(): Promise<void> {
 	const { release, dryRun } = parseArgs();
 	console.log(`Collecting CRD chunks${release ? ` for ${release}` : ''}...`);
@@ -224,22 +108,24 @@ async function main(): Promise<void> {
 		return;
 	}
 
-	console.log(`Embedding with ${EMBEDDING_MODEL} (${EMBEDDING_DIMENSIONS} dims)...`);
-	let upserted = 0;
-
-	for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-		const batch = chunks.slice(i, i + BATCH_SIZE);
-		const vectors = await embedTexts(batch.map((c) => c.text));
-		if (vectors[0]?.length !== EMBEDDING_DIMENSIONS) {
-			throw new Error(
-				`Unexpected embedding dimensions: got ${vectors[0]?.length}, expected ${EMBEDDING_DIMENSIONS}`
-			);
+	console.log(`Embedding with ${EMBEDDING_MODEL}...`);
+	const records = chunks.map((chunk) => ({
+		id: chunk.id,
+		text: chunk.text,
+		metadata: {
+			release: chunk.metadata.release,
+			kind: chunk.metadata.kind,
+			group: chunk.metadata.group,
+			version: chunk.metadata.version,
+			path: chunk.metadata.path,
+			chunkType: chunk.metadata.chunkType,
+			...(chunk.metadata.fieldPath ? { fieldPath: chunk.metadata.fieldPath } : {})
 		}
-		const records = batch.map((chunk, idx) => toVectorRecord(chunk, vectors[idx]));
-		await upsertVectors(records);
-		upserted += records.length;
-		console.log(`  Upserted ${upserted}/${chunks.length}`);
-	}
+	}));
+
+	const upserted = await embedAndUpsert(INDEX_NAME, records, (done, total) => {
+		console.log(`  Upserted ${done}/${total}`);
+	});
 
 	console.log(`Done — upserted ${upserted} vectors into ${INDEX_NAME}`);
 }

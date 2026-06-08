@@ -3,6 +3,24 @@ export const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5' as const;
 export const EMBEDDING_DIMENSIONS = 768;
 
 export type ChunkType = 'kind-overview' | 'field-level' | 'validation-rules';
+export type DocsChunkType = 'docs-content';
+
+export type DocsChunkMetadata = {
+	source: 'eda-docs';
+	release: string;
+	path: string;
+	title: string;
+	section: string;
+	chunkType: DocsChunkType;
+	/** Stored in Vectorize metadata for retrieval (not indexed). */
+	text?: string;
+};
+
+export type DocsChunk = {
+	id: string;
+	text: string;
+	metadata: DocsChunkMetadata;
+};
 
 export type CrdChunkMetadata = {
 	release: string;
@@ -27,4 +45,21 @@ export type RetrievedChunk = {
 	text: string;
 	metadata: CrdChunkMetadata;
 	score: number;
+};
+
+export type RetrievedDocsChunk = {
+	id: string;
+	text: string;
+	metadata: DocsChunkMetadata;
+	score: number;
+};
+
+export type RagSource = {
+	source: 'crd-corpus' | 'eda-docs';
+	label: string;
+	release: string;
+	kind?: string;
+	group?: string;
+	path: string;
+	section?: string;
 };

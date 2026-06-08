@@ -9,8 +9,12 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 binding = "AI"
 remote = true
 
-# Vectorize RAG (optional until index exists + API token has Vectorize Edit).
-# Create index: see README "Vectorize RAG". Then uncomment below and run embed:crd-corpus.
-# [[vectorize]]
-# binding = "CRD_INDEX"
-# index_name = "eda-crd-corpus-v1"
+# Vectorize RAG (optional until indexes exist + API token has Vectorize Edit).
+# Create indexes: see README "Vectorize RAG". Then run embed:crd-corpus and embed:eda-docs.
+[[vectorize]]
+binding = "CRD_INDEX"
+index_name = "eda-crd-corpus-v1"
+
+[[vectorize]]
+binding = "DOCS_INDEX"
+index_name = "eda-docs-v1"

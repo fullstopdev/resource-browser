@@ -477,16 +477,18 @@
 						{error}
 					</div>
 				{:else if viewMode === 'ask'}
-					<CrdAskPanel
-						{kind}
-						{group}
-						{name}
-						version={versionOnFocus}
-						release={selectedRelease.name}
-						{deprecated}
-						spec={displaySpec ?? spec}
-						status={displayStatus ?? status}
-					/>
+					<div class="mx-auto w-full max-w-3xl pb-2">
+						<CrdAskPanel
+							{kind}
+							{group}
+							{name}
+							version={versionOnFocus}
+							release={selectedRelease.name}
+							{deprecated}
+							spec={displaySpec ?? spec}
+							status={displayStatus ?? status}
+						/>
+					</div>
 				{:else if viewMode === 'schema'}
 					<div class="space-y-3">
 						<section

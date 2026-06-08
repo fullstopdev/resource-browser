@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { buildRichContext, trimLegacyContext } from '$lib/ai/buildRichContext';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
+import type { RagSource } from '$lib/ai/rag/chunkTypes';
 import { retrieveRagContext } from '$lib/ai/rag/retrieve';
 import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
 import { assembleContext, MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
@@ -72,12 +73,13 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		return fetch(href, init);
 	};
 
-	let ragSources: string[] = [];
+	let ragSources: RagSource[] = [];
 	let context = '';
 
-	const vectorIndex = platform?.env?.CRD_INDEX;
-	if (vectorIndex && (release || kind || group)) {
-		const rag = await retrieveRagContext(ai, vectorIndex, question, {
+	const crdIndex = platform?.env?.CRD_INDEX;
+	const docsIndex = platform?.env?.DOCS_INDEX;
+	if ((crdIndex || docsIndex) && (release || kind || group)) {
+		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, {
 			release: release || undefined,
 			kind: kind || undefined,
 			group: group || undefined
@@ -108,7 +110,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	try {
 		const answer = await runWorkersAI(ai, buildCrdUserMessage(context, question));
-		const payload: { answer: string; sources?: string[] } = { answer };
+		const payload: { answer: string; sources?: RagSource[] } = { answer };
 		if (ragSources.length > 0) {
 			payload.sources = ragSources;
 		}

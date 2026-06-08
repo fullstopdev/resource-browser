@@ -12,6 +12,7 @@ declare global {
 			env: {
 				AI: Ai;
 				CRD_INDEX?: VectorizeIndex;
+				DOCS_INDEX?: VectorizeIndex;
 			};
 		}
 	}

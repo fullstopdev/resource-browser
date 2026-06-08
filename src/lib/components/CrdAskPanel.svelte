@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { askAI } from '$lib/ai/askAI';
 	import { buildCrdContext } from '$lib/ai/buildCrdContext';
+	import type { RagSource } from '$lib/ai/rag/chunkTypes';
+	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 
 	export let kind = '';
 	export let group = '';
@@ -12,20 +14,36 @@
 	export let spec: unknown = null;
 	export let status: unknown = null;
 
+	const starterQuestions = [
+		'What is this CRD for?',
+		'Required fields?',
+		'Related resources?',
+		'Example YAML?'
+	];
+
 	let question = '';
 	let answer: string | null = null;
-	let sources: string[] = [];
+	let sources: RagSource[] = [];
 	let error: string | null = null;
 	let loading = false;
+	let sourcesOpen = false;
+	let hasAsked = false;
 
-	async function submit() {
-		const trimmed = question.trim();
+	$: resourceLabel = kind
+		? `${kind} (${group}/${version || 'latest'})`
+		: name || 'this resource';
+
+	async function submit(preset?: string) {
+		const trimmed = (preset ?? question).trim();
 		if (!trimmed || loading) return;
 
+		if (preset) question = preset;
 		loading = true;
 		error = null;
 		answer = null;
 		sources = [];
+		sourcesOpen = false;
+		hasAsked = true;
 
 		const result =
 			release && kind && group
@@ -61,44 +79,80 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
 			void submit();
 		}
 	}
+
+	function docsUrl(path: string): string {
+		return `https://docs.eda.dev${path}`;
+	}
 </script>
 
-<div class="space-y-4">
-	<div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/50">
-		<p class="text-sm text-slate-700 dark:text-slate-300">
-			Ask about <span class="font-semibold text-slate-900 dark:text-white">{kind}</span>
-			<span class="font-mono text-xs text-slate-500 dark:text-slate-400"> ({group}/{version})</span>
-		</p>
-		<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-			Answers are grounded in CRD schema text (server-built context + Vectorize RAG when available).
-			Powered by Cloudflare Workers AI.
-		</p>
+<div class="flex flex-col gap-4">
+	<!-- Header -->
+	<header
+		class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/90 to-slate-50 px-4 py-4 dark:border-blue-900/50 dark:from-[#0f2a48]/90 dark:to-slate-900/50"
+	>
+		<div class="flex items-start gap-3">
+			<div
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm dark:bg-blue-500"
+				aria-hidden="true"
+			>
+				<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+					/>
+				</svg>
+			</div>
+			<div class="min-w-0 flex-1">
+				<h2 class="text-base font-semibold text-slate-900 dark:text-white">Ask AI</h2>
+				<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+					Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
+					from CRD schemas, Nokia EDA official docs, and Vectorize RAG.
+				</p>
+			</div>
+		</div>
+	</header>
+
+	<!-- Starter chips -->
+	<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
+		{#each starterQuestions as starter}
+			<button
+				type="button"
+				on:click={() => submit(starter)}
+				disabled={loading}
+				class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+			>
+				{starter}
+			</button>
+		{/each}
 	</div>
 
+	<!-- Input -->
 	<div class="space-y-2">
-		<label for="crd-ask-question" class="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+		<label for="crd-ask-question" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
 			Your question
 		</label>
-		<div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-end">
 			<textarea
 				id="crd-ask-question"
 				bind:value={question}
 				on:keydown={handleKeydown}
-				rows="2"
-				placeholder="e.g. What fields are required in spec? How does status reflect readiness?"
-				class="min-h-11 flex-1 resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
+				rows="3"
+				placeholder="Ask about fields, relationships, validation, or example manifests…"
+				class="min-h-[5.5rem] flex-1 resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
 				disabled={loading}
 			></textarea>
 			<button
 				type="button"
-				on:click={submit}
+				on:click={() => submit()}
 				disabled={loading || !question.trim()}
-				class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+				class="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:bg-blue-500 dark:hover:bg-blue-600"
 			>
 				{#if loading}
 					<span
@@ -107,39 +161,171 @@
 					></span>
 					Thinking…
 				{:else}
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+					</svg>
 					Ask
 				{/if}
 			</button>
 		</div>
+		<p class="text-xs text-slate-400 dark:text-slate-500">
+			<span class="hidden sm:inline">Press </span><kbd class="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] dark:border-slate-600 dark:bg-slate-800">Ctrl</kbd>+<kbd class="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] dark:border-slate-600 dark:bg-slate-800">Enter</kbd> to send
+		</p>
 	</div>
 
-	{#if error}
+	<!-- Empty state -->
+	{#if !hasAsked && !loading && !error}
 		<div
-			class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
-			role="alert"
+			class="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/30"
 		>
-			{error}
+			<svg
+				class="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+				aria-hidden="true"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="1.5"
+					d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+				/>
+			</svg>
+			<p class="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">Ask your first question</p>
+			<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+				Try a suggested prompt above or describe what you need to know about this CRD.
+			</p>
 		</div>
 	{/if}
 
-	{#if answer}
-		<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-blue-900/40 dark:bg-[#0f2a48]/88">
-			<div class="border-b border-slate-100 px-4 py-2 dark:border-slate-700">
+	<!-- Loading skeleton -->
+	{#if loading}
+		<div
+			class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
+			aria-busy="true"
+			aria-label="Generating answer"
+		>
+			<div class="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+				<div class="h-4 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-700"></div>
+			</div>
+			<div class="space-y-3 px-4 py-4">
+				<div class="h-3 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700"></div>
+				<div class="h-3 w-11/12 animate-pulse rounded bg-slate-200 dark:bg-slate-700"></div>
+				<div class="h-3 w-4/5 animate-pulse rounded bg-slate-200 dark:bg-slate-700"></div>
+				<div class="h-3 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700"></div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Error -->
+	{#if error}
+		<div
+			class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
+			role="alert"
+		>
+			<svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+				/>
+			</svg>
+			<div>
+				<p class="font-medium">Could not get an answer</p>
+				<p class="mt-0.5 text-amber-800/90 dark:text-amber-200/90">{error}</p>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Answer -->
+	{#if answer && !loading}
+		<article
+			class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
+		>
+			<div class="border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
 				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
 			</div>
-			<div class="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-200">
-				{answer}
+			<div class="px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+				<SimpleMarkdown source={answer} />
 			</div>
+
 			{#if sources.length > 0}
-				<div class="border-t border-slate-100 px-4 py-2 dark:border-slate-700">
-					<p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Sources</p>
-					<ul class="mt-1 list-inside list-disc text-xs text-slate-600 dark:text-slate-300">
-						{#each sources as source}
-							<li>{source}</li>
-						{/each}
-					</ul>
+				<div class="border-t border-slate-100 dark:border-slate-700">
+					<button
+						type="button"
+						on:click={() => (sourcesOpen = !sourcesOpen)}
+						class="flex min-h-11 w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50"
+						aria-expanded={sourcesOpen}
+					>
+						<span>Sources ({sources.length})</span>
+						<svg
+							class="h-4 w-4 shrink-0 transition-transform {sourcesOpen ? 'rotate-180' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							aria-hidden="true"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+					{#if sourcesOpen}
+						<ul class="space-y-2 border-t border-slate-100 px-4 py-3 dark:border-slate-700">
+							{#each sources as source}
+								<li
+									class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900/40"
+								>
+									<p class="font-medium text-slate-800 dark:text-slate-200">{source.label}</p>
+									<dl class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-slate-500 dark:text-slate-400">
+										<div class="flex gap-1">
+											<dt class="font-medium">Type</dt>
+											<dd>{source.source === 'eda-docs' ? 'EDA docs' : 'CRD schema'}</dd>
+										</div>
+										{#if source.release}
+											<div class="flex gap-1">
+												<dt class="font-medium">Release</dt>
+												<dd>{source.release}</dd>
+											</div>
+										{/if}
+										{#if source.kind}
+											<div class="flex gap-1">
+												<dt class="font-medium">Kind</dt>
+												<dd>{source.kind}</dd>
+											</div>
+										{/if}
+										{#if source.section}
+											<div class="flex gap-1">
+												<dt class="font-medium">Section</dt>
+												<dd>{source.section}</dd>
+											</div>
+										{/if}
+										{#if source.path}
+											<div class="flex w-full gap-1">
+												<dt class="shrink-0 font-medium">Path</dt>
+												<dd class="truncate font-mono">
+													{#if source.source === 'eda-docs'}
+														<a
+															href={docsUrl(source.path)}
+															target="_blank"
+															rel="noopener noreferrer"
+															class="text-blue-600 hover:underline dark:text-blue-400"
+														>
+															{source.path}
+														</a>
+													{:else}
+														{source.path}
+													{/if}
+												</dd>
+											</div>
+										{/if}
+									</dl>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</div>
 			{/if}
-		</div>
+		</article>
 	{/if}
 </div>

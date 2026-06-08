@@ -1,3 +1,5 @@
+import type { RagSource } from '$lib/ai/rag/chunkTypes';
+
 export interface AskAIParams {
 	question: string;
 	release?: string;
@@ -11,8 +13,27 @@ export interface AskAIParams {
 
 export interface AskAIResult {
 	answer?: string;
-	sources?: string[];
+	sources?: RagSource[];
 	error?: string;
+}
+
+function friendlyError(status: number, message?: string): string {
+	if (status === 503) {
+		return (
+			message ??
+			'AI service is temporarily unavailable. Start the app with `npm run dev:ai` or check that Workers AI is configured in production.'
+		);
+	}
+	if (status === 504) {
+		return (
+			message ??
+			'The request timed out. Check your network or proxy access to Cloudflare Workers AI and try a shorter question.'
+		);
+	}
+	if (status === 0 || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+		return 'Network error — check your connection and try again.';
+	}
+	return message ?? `Request failed (${status}). Please try again.`;
 }
 
 /** Call the server-side Workers AI endpoint (no API keys in the browser). */
@@ -27,13 +48,18 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 	if (fieldPath) body.fieldPath = fieldPath;
 	if (context && !release) body.context = context;
 
-	const response = await fetch('/api/ask', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(body)
-	});
+	let response: Response;
+	try {
+		response = await fetch('/api/ask', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body)
+		});
+	} catch {
+		return { error: friendlyError(0) };
+	}
 
-	let data: { answer?: string; sources?: string[]; error?: string };
+	let data: { answer?: string; sources?: RagSource[]; error?: string };
 	try {
 		data = await response.json();
 	} catch {
@@ -41,7 +67,7 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 	}
 
 	if (!response.ok) {
-		return { error: data.error ?? `Request failed (${response.status})` };
+		return { error: friendlyError(response.status, data.error) };
 	}
 
 	return {
