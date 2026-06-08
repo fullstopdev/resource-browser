@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 	import { highlightYaml, tokenClass } from '$lib/validate-bundle/yamlHighlight';
 
 	export let value = '';
@@ -12,13 +12,26 @@
 
 	const dispatch = createEventDispatcher<{ validate: void; input: string }>();
 
+	function syncScrollPosition() {
+		if (!textareaEl) return;
+		scrollTop = textareaEl.scrollTop;
+		scrollLeft = textareaEl.scrollLeft;
+	}
+
+	async function syncScrollAfterUpdate() {
+		await tick();
+		syncScrollPosition();
+	}
+
 	function handleInput() {
 		dispatch('input', value);
+		syncScrollPosition();
 	}
 
 	$: lines = value.split('\n');
 	$: lineCount = Math.max(lines.length, 1);
 	$: tokens = highlightYaml(value);
+	$: value, void syncScrollAfterUpdate();
 
 	export function focusLine(line: number) {
 		if (!textareaEl || line < 1) return;
@@ -32,13 +45,11 @@
 		textareaEl.setSelectionRange(pos, pos + lineLen);
 		const lineHeight = 20;
 		textareaEl.scrollTop = Math.max(0, (line - 4) * lineHeight);
-		scrollTop = textareaEl.scrollTop;
+		syncScrollPosition();
 	}
 
 	function handleScroll() {
-		if (!textareaEl) return;
-		scrollTop = textareaEl.scrollTop;
-		scrollLeft = textareaEl.scrollLeft;
+		syncScrollPosition();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -100,7 +111,7 @@
 				class="yaml-highlight"
 				aria-hidden="true"
 				style:transform="translate({-scrollLeft}px, {-scrollTop}px)"
-			><code>{#each tokens as token}<span class={tokenClass(token.type)}>{token.text}</span>{/each}</code></pre>
+			><code>{#each tokens as token, i (i)}<span class={tokenClass(token.type)}>{token.text}</span>{/each}</code></pre>
 
 			<textarea
 				bind:this={textareaEl}
@@ -112,6 +123,7 @@
 				autocorrect="off"
 				on:scroll={handleScroll}
 				on:input={handleInput}
+				on:paste={syncScrollAfterUpdate}
 				on:keydown={handleKeydown}
 				aria-label="YAML input"
 			></textarea>

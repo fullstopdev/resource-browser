@@ -1578,6 +1578,8 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		color: #94a3b8;
 		text-align: right;
 		user-select: none;
+		overflow: hidden;
+		min-height: 0;
 	}
 
 	.dark .yaml-gutter {
@@ -1605,6 +1607,8 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 	.yaml-editor-stack {
 		position: relative;
 		flex: 1;
+		min-width: 0;
+		min-height: 0;
 		overflow: hidden;
 	}
 
@@ -1641,13 +1645,13 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		line-height: 1.25rem;
 		tab-size: 2;
 		white-space: pre;
-		overflow: hidden;
 	}
 
 	.yaml-highlight {
 		pointer-events: none;
 		color: #0f172a;
 		z-index: 1;
+		overflow: visible;
 	}
 
 	.dark .yaml-highlight {
@@ -1658,9 +1662,11 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		resize: none;
 		background: transparent;
 		color: transparent;
+		-webkit-text-fill-color: transparent;
 		caret-color: #0f172a;
 		outline: none;
 		z-index: 2;
+		overflow: auto;
 	}
 
 	.dark .yaml-textarea {
