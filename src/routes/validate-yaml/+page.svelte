@@ -16,9 +16,7 @@
 		formatFixSummary,
 		type FixSummary,
 		applySuggestedFix,
-		buildShareUrl,
 		decodeBundleFromUrl,
-		encodeBundleForUrl,
 		getBundleParamFromSearchParams,
 		EXAMPLE_BUNDLE_YAML,
 		type BundleIssue,
@@ -174,27 +172,6 @@
 		fixSummaryTimer = setTimeout(() => {
 			fixSummary = null;
 		}, 5000);
-	}
-
-	async function handleShareBundle() {
-		if (!yamlInput.trim()) {
-			showToast('Nothing to share — paste YAML first.');
-			return;
-		}
-		try {
-			const { param, tooLarge, encodedLength } = await encodeBundleForUrl(yamlInput);
-			if (tooLarge) {
-				showToast(
-					`Bundle too large for URL sharing (${encodedLength} chars; ~8KB limit). Copy YAML manually.`
-				);
-				return;
-			}
-			const url = buildShareUrl(window.location.origin, releaseName, param);
-			await navigator.clipboard.writeText(url);
-			showToast('Share link copied to clipboard');
-		} catch {
-			showToast('Could not create share link');
-		}
 	}
 
 	async function handleCopyYaml() {
@@ -518,15 +495,6 @@
 				Load example
 			</button>
 
-			<button
-				type="button"
-				class="validate-yaml-btn"
-				disabled={!yamlInput.trim()}
-				title="Copy a permalink with gzip-compressed YAML in the URL"
-				on:click={() => void handleShareBundle()}
-			>
-				Share
-			</button>
 		</div>
 
 		{#if fixSummary}
