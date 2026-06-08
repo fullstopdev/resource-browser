@@ -25,5 +25,5 @@ index_name = "eda-docs-v1"
 #   wrangler kv namespace create AI_CACHE --preview
 [[kv_namespaces]]
 binding = "AI_CACHE"
-id = "00000000000000000000000000000000"
-preview_id = "00000000000000000000000000000000"
+id = "06b84b44600849429b8261860de24a8d"
+preview_id = "31bfde8f0dd04659a33f5cedac0ab9e9"
