@@ -482,7 +482,7 @@
 						{group}
 						{name}
 						version={versionOnFocus}
-						release={selectedRelease.label}
+						release={selectedRelease.name}
 						{deprecated}
 						spec={displaySpec ?? spec}
 						status={displayStatus ?? status}

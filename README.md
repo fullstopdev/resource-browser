@@ -47,6 +47,45 @@ npm run dev:ai
 
 Corporate networks: if direct HTTPS to `api.cloudflare.com` fails, keep `HTTP_PROXY` / `HTTPS_PROXY` set when running Wrangler (do not unset them). Remote Workers AI in local dev calls `workers-binding.ai`; if `wrangler whoami` works but `/api/ask` hangs, the proxy or firewall may be blocking that host—try another network or ask IT to allow Cloudflare AI endpoints.
 
+### Vectorize RAG (CRD corpus)
+
+The Ask tab can retrieve schema excerpts from a Cloudflare Vectorize index before calling Workers AI. This is optional locally (rich server-built context still works without Vectorize).
+
+**One-time index setup** (768 dimensions for `@cf/baai/bge-base-en-v1.5`, cosine metric):
+
+```bash
+wrangler vectorize create eda-crd-corpus-v1 --dimensions=768 --metric=cosine \
+  --metadata-index=release --metadata-index=kind --metadata-index=group --metadata-index=chunkType
+```
+
+**Embed and upsert the corpus** (requires `CLOUDFLARE_API_TOKEN` with Workers AI + Vectorize; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`):
+
+```bash
+export CLOUDFLARE_API_TOKEN=your_token
+export CLOUDFLARE_ACCOUNT_ID=your_account_id   # optional if wrangler whoami works
+npm run embed:crd-corpus
+# Single release: npm run embed:crd-corpus -- --release 26.4.2
+# Count chunks only: npm run embed:crd-corpus -- --dry-run
+```
+
+Re-run `embed:crd-corpus` after adding releases or changing CRD YAML under `static/resources/`. This is a manual pre-deploy step (not wired into `prebuild`).
+
+`wrangler.toml` binds the index as `CRD_INDEX`. Production Pages deploys use the same binding once the index exists in your account.
+
+**Test `/api/ask` locally:**
+
+```bash
+npm run build:cloudflare
+export CLOUDFLARE_API_TOKEN=your_token
+npm run dev:ai
+# POST http://localhost:8788/api/ask
+curl -s -X POST http://localhost:8788/api/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"What spec fields are required?","release":"26.4.2","kind":"Fabric","group":"fabrics.eda.nokia.com","version":"v1"}'
+```
+
+**On production** (`https://eda-resource-browser.pages.dev`): open any CRD → Ask tab, or POST `/api/ask` with the same JSON body. Responses include `sources` when Vectorize RAG matched chunks.
+
 3. Build for production:
 
 ```bash

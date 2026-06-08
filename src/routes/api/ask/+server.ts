@@ -1,43 +1,31 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { buildRichContext, trimLegacyContext } from '$lib/ai/buildRichContext';
+import { buildCrdUserMessage } from '$lib/ai/prompts';
+import { retrieveRagContext } from '$lib/ai/rag/retrieve';
+import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
+import { assembleContext, MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
-const MAX_CONTEXT_CHARS = 8000;
-const MAX_QUESTION_CHARS = 2000;
+type AskBody = {
+	question?: unknown;
+	context?: unknown;
+	release?: unknown;
+	kind?: unknown;
+	group?: unknown;
+	version?: unknown;
+	fieldPath?: unknown;
+	filters?: {
+		release?: unknown;
+		kind?: unknown;
+		group?: unknown;
+	};
+};
 
-const AI_REQUEST_TIMEOUT_MS = 90_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-	return new Promise((resolve, reject) => {
-		const timer = setTimeout(() => reject(new Error('Workers AI request timed out')), ms);
-		promise.then(
-			(value) => {
-				clearTimeout(timer);
-				resolve(value);
-			},
-			(error) => {
-				clearTimeout(timer);
-				reject(error);
-			}
-		);
-	});
+function str(value: unknown): string {
+	return typeof value === 'string' ? value.trim() : '';
 }
 
-const SYSTEM_PROMPT = `You are an expert assistant for Nokia Event-Driven Automation (EDA) Custom Resource Definitions (CRDs).
-
-You help engineers understand CRD schemas, fields, relationships, and typical usage patterns.
-Answer concisely and accurately based on the provided CRD context (OpenAPI v3 schema fragments for spec and status).
-If the context does not contain enough information, say what is missing rather than inventing details.
-Use clear technical language suitable for Kubernetes / GitOps practitioners.`;
-
-function trimContext(context: unknown): string {
-	if (typeof context !== 'string') return '';
-	const trimmed = context.trim();
-	if (trimmed.length <= MAX_CONTEXT_CHARS) return trimmed;
-	return trimmed.slice(0, MAX_CONTEXT_CHARS) + '\n…[truncated]';
-}
-
-export const POST: RequestHandler = async ({ request, platform }) => {
+export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const ai = platform?.env?.AI;
 	if (!ai) {
 		return json(
@@ -49,14 +37,14 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		);
 	}
 
-	let body: { question?: unknown; context?: unknown };
+	let body: AskBody;
 	try {
 		body = await request.json();
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
 	}
 
-	const question = typeof body.question === 'string' ? body.question.trim() : '';
+	const question = str(body.question);
 	if (!question) {
 		return json({ error: 'Question is required' }, { status: 400 });
 	}
@@ -64,43 +52,70 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		return json({ error: `Question must be at most ${MAX_QUESTION_CHARS} characters` }, { status: 400 });
 	}
 
-	const context = trimContext(body.context);
+	const release = str(body.release) || str(body.filters?.release);
+	const kind = str(body.kind) || str(body.filters?.kind);
+	const group = str(body.group) || str(body.filters?.group);
+	const version = str(body.version);
+	const fieldPath = str(body.fieldPath);
+
+	const originFetch: typeof fetch = (input, init) => {
+		const href =
+			typeof input === 'string'
+				? input.startsWith('http')
+					? input
+					: new URL(input, url.origin).href
+				: input instanceof URL
+					? input.href
+					: input.url.startsWith('http')
+						? input.url
+						: new URL(input.url, url.origin).href;
+		return fetch(href, init);
+	};
+
+	let ragSources: string[] = [];
+	let context = '';
+
+	const vectorIndex = platform?.env?.CRD_INDEX;
+	if (vectorIndex && (release || kind || group)) {
+		const rag = await retrieveRagContext(ai, vectorIndex, question, {
+			release: release || undefined,
+			kind: kind || undefined,
+			group: group || undefined
+		});
+		ragSources = rag.sources;
+		if (rag.contextText) {
+			context = rag.contextText;
+		}
+	}
+
+	if (release && kind && group) {
+		const rich = await buildRichContext(
+			{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
+			originFetch
+		);
+		if (rich?.context) {
+			context = assembleContext([
+				{ tier: 'rag', text: context ? `## Retrieved schema excerpts\n${context}` : '' },
+				{ tier: 'target', text: rich.context }
+			]);
+		}
+	} else {
+		const legacy = trimLegacyContext(body.context);
+		if (legacy) {
+			context = legacy;
+		}
+	}
 
 	try {
-		const result = await withTimeout(
-			ai.run(MODEL, {
-			messages: [
-				{ role: 'system', content: SYSTEM_PROMPT },
-				{
-					role: 'user',
-					content: context
-						? `CRD context:\n${context}\n\nQuestion: ${question}`
-						: `Question: ${question}`
-				}
-			],
-			max_tokens: 1024,
-			temperature: 0.3
-			}),
-			AI_REQUEST_TIMEOUT_MS
-		);
-
-		const answer =
-			typeof result === 'object' && result !== null && 'response' in result
-				? String((result as { response?: string }).response ?? '')
-				: String(result);
-
-		return json({ answer: answer || 'No response generated.' });
+		const answer = await runWorkersAI(ai, buildCrdUserMessage(context, question));
+		const payload: { answer: string; sources?: string[] } = { answer };
+		if (ragSources.length > 0) {
+			payload.sources = ragSources;
+		}
+		return json(payload);
 	} catch (err) {
 		console.error('Workers AI error:', err);
-		if (err instanceof Error && err.message === 'Workers AI request timed out') {
-			return json(
-				{
-					error:
-						'Workers AI timed out. Check network/proxy access to Cloudflare (including workers-binding.ai) and your API token Workers AI permissions.'
-				},
-				{ status: 504 }
-			);
-		}
-		return json({ error: 'Failed to generate answer. Please try again.' }, { status: 500 });
+		const { status, error } = workersAIErrorResponse(err);
+		return json({ error }, { status });
 	}
 };

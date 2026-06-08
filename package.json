@@ -21,6 +21,7 @@
 		"test:e2e": "playwright test",
 		"generate:sitemap": "node scripts/generate-sitemap.mjs",
 		"generate:release-notes": "tsx --tsconfig tsconfig.scripts.json scripts/generate-release-notes.ts",
+		"embed:crd-corpus": "tsx --tsconfig tsconfig.scripts.json scripts/embed-crd-corpus.ts",
 		"prebuild": "npm run generate:sitemap && npm run generate:release-notes"
 	},
 	"dependencies": {

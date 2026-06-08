@@ -57,14 +57,17 @@ function parseSchemaText(text: string): SchemaSections {
 	return { spec, status, topLevel, isSpecRequired };
 }
 
-export async function fetchSchema(path: string): Promise<SchemaSections | null> {
+export async function fetchSchema(
+	path: string,
+	fetcher: typeof fetch = fetch
+): Promise<SchemaSections | null> {
 	if (schemaDataCache.has(path)) {
 		return schemaDataCache.get(path)!;
 	}
 
 	let text = schemaTextCache.get(path);
 	if (!text) {
-		const resp = await fetch(path);
+		const resp = await fetcher(path);
 		if (!resp.ok) return null;
 		text = await resp.text();
 		schemaTextCache.set(path, text);
@@ -76,11 +79,14 @@ export async function fetchSchema(path: string): Promise<SchemaSections | null> 
 }
 
 /** Fetch multiple schemas in parallel with deduplication. */
-export async function fetchSchemas(paths: string[]): Promise<Map<string, SchemaSections>> {
+export async function fetchSchemas(
+	paths: string[],
+	fetcher: typeof fetch = fetch
+): Promise<Map<string, SchemaSections>> {
 	const unique = [...new Set(paths)];
 	const results = await Promise.all(
 		unique.map(async (path) => {
-			const data = await fetchSchema(path);
+			const data = await fetchSchema(path, fetcher);
 			return [path, data] as const;
 		})
 	);

@@ -8,3 +8,7 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 [ai]
 binding = "AI"
 remote = true
+
+[[vectorize]]
+binding = "CRD_INDEX"
+index_name = "eda-crd-corpus-v1"

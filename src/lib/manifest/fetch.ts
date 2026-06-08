@@ -3,13 +3,14 @@ import type { ManifestResource } from './types';
 
 export async function fetchManifest(
 	releaseFolder: string,
-	cache?: Map<string, ManifestResource[]>
+	cache?: Map<string, ManifestResource[]>,
+	fetcher: typeof fetch = fetch
 ): Promise<ManifestResource[] | null> {
 	const store = cache ?? getManifestCache();
 	if (store.has(releaseFolder)) {
 		return store.get(releaseFolder)!;
 	}
-	const resp = await fetch(`/${releaseFolder}/manifest.json`);
+	const resp = await fetcher(`/${releaseFolder}/manifest.json`);
 	if (!resp.ok) return null;
 	const manifest = (await resp.json()) as ManifestResource[];
 	store.set(releaseFolder, manifest);
