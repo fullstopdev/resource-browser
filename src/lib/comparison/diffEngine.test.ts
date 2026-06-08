@@ -135,6 +135,78 @@ describe('generateBulkDiffReport', () => {
 		expect(v2?.details.some((d) => d.includes('spec.marker'))).toBe(true);
 	});
 
+	it('compares only the selected source and target apiVersion pair', async () => {
+		const manifestCache = new Map();
+		manifestCache.set('resources/source', [
+			{
+				name: mockCrd.name,
+				group: mockCrd.group,
+				kind: mockCrd.kind,
+				versions: [{ name: 'v1' }, { name: 'v2' }]
+			}
+		]);
+		manifestCache.set('resources/target', [
+			{
+				name: mockCrd.name,
+				group: mockCrd.group,
+				kind: mockCrd.kind,
+				versions: [{ name: 'v1alpha1' }, { name: 'v2' }]
+			}
+		]);
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = typeof input === 'string' ? input : input.toString();
+				if (init?.method === 'HEAD') {
+					if (url.includes('/resources/source/aggregateroutes.protocols.eda.nokia.com/v1.yaml')) {
+						return new Response(null, { status: 200 });
+					}
+					if (
+						url.includes('/resources/target/aggregateroutes.protocols.eda.nokia.com/v1alpha1.yaml')
+					) {
+						return new Response(null, { status: 200 });
+					}
+					return new Response(null, { status: 404 });
+				}
+				if (url.endsWith('/resources/source/manifest.json')) {
+					return new Response(JSON.stringify(manifestCache.get('resources/source')), { status: 200 });
+				}
+				if (url.endsWith('/resources/target/manifest.json')) {
+					return new Response(JSON.stringify(manifestCache.get('resources/target')), { status: 200 });
+				}
+				if (url.includes('/resources/source/aggregateroutes.protocols.eda.nokia.com/v1.yaml')) {
+					return new Response(yamlBody('v1', 'source-v1'), { status: 200 });
+				}
+				if (
+					url.includes('/resources/target/aggregateroutes.protocols.eda.nokia.com/v1alpha1.yaml')
+				) {
+					return new Response(yamlBody('v1alpha1', 'target-v1alpha1'), { status: 200 });
+				}
+				return new Response(null, { status: 404 });
+			})
+		);
+
+		const report = await generateBulkDiffReport({
+			sourceRelease,
+			targetRelease,
+			sourceApiVersion: 'v1',
+			targetApiVersion: 'v1alpha1',
+			crdMeta: [mockCrd],
+			manifestCache,
+			yamlCache: new Map()
+		});
+
+		expect(report.sourceVersion).toBe('v1');
+		expect(report.targetVersion).toBe('v1alpha1');
+
+		const entries = report.crds.filter((c) => c.name === mockCrd.name);
+		expect(entries).toHaveLength(1);
+		expect(entries[0].version).toBe('v1');
+		expect(entries[0].targetVersion).toBe('v1alpha1');
+		expect(entries[0].status).toBe('modified');
+	});
+
 	it('marks apiVersions present only in target as added', async () => {
 		const manifestCache = new Map();
 		manifestCache.set('resources/source', [

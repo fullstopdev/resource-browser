@@ -60,17 +60,26 @@ function versionIndexFromManifest(manifest: ManifestResource[] | null): Map<stri
 	return index;
 }
 
-function unionVersions(
+type VersionPair = { sourceVersion: string; targetVersion: string };
+
+function isAllVersions(version?: string): boolean {
+	return !version || version === ALL_VERSIONS;
+}
+
+function buildVersionPairs(
 	sourceVersions: string[],
 	targetVersions: string[],
-	versionFilter?: string
-): string[] {
-	const merged = new Set([...sourceVersions, ...targetVersions]);
-	const sorted = Array.from(merged).sort();
-	if (versionFilter) {
-		return sorted.includes(versionFilter) ? [versionFilter] : [];
+	sourceApiVersion?: string,
+	targetApiVersion?: string
+): VersionPair[] {
+	if (!isAllVersions(sourceApiVersion) && !isAllVersions(targetApiVersion)) {
+		return [{ sourceVersion: sourceApiVersion!, targetVersion: targetApiVersion! }];
 	}
-	return sorted;
+
+	const merged = new Set([...sourceVersions, ...targetVersions]);
+	return Array.from(merged)
+		.sort()
+		.map((version) => ({ sourceVersion: version, targetVersion: version }));
 }
 
 async function checkCrdInRelease(
@@ -99,7 +108,8 @@ async function checkCrdInRelease(
 
 async function compareVersionPair(
 	crd: CrdResource,
-	version: string,
+	sourceVersion: string,
+	targetVersion: string,
 	sourceRelease: EdaRelease,
 	targetRelease: EdaRelease,
 	availabilityCache: Map<string, boolean>,
@@ -108,46 +118,61 @@ async function compareVersionPair(
 	const crdReport: CrdDiffEntry = {
 		name: crd.name,
 		kind: crd.kind,
-		version,
+		version: sourceVersion,
+		targetVersion: sourceVersion !== targetVersion ? targetVersion : undefined,
 		status: 'unchanged',
 		hasDiff: false,
 		details: []
 	};
 
 	const [sourceExists, targetExists] = await Promise.all([
-		checkCrdInRelease(sourceRelease, crd.name, version, availabilityCache),
-		checkCrdInRelease(targetRelease, crd.name, version, availabilityCache)
+		checkCrdInRelease(sourceRelease, crd.name, sourceVersion, availabilityCache),
+		checkCrdInRelease(targetRelease, crd.name, targetVersion, availabilityCache)
 	]);
 
 	if (!sourceExists && !targetExists) {
 		crdReport.status = 'not-in-either';
-		crdReport.details.push('Not available in either release');
+		if (sourceVersion === targetVersion) {
+			crdReport.details.push('Not available in either release');
+		} else {
+			crdReport.details.push(
+				`Neither source ${sourceVersion} nor target ${targetVersion} available for this CRD`
+			);
+		}
 		return crdReport;
 	}
 
 	if (!sourceExists) {
 		crdReport.status = 'added';
 		crdReport.hasDiff = true;
-		crdReport.details.push(`API version ${version} present in target only`);
+		crdReport.details.push(
+			sourceVersion === targetVersion
+				? `API version ${targetVersion} present in target only`
+				: `Target API version ${targetVersion} present; source ${sourceVersion} missing`
+		);
 		return crdReport;
 	}
 
 	if (!targetExists) {
 		crdReport.status = 'removed';
 		crdReport.hasDiff = true;
-		crdReport.details.push(`API version ${version} present in source only`);
+		crdReport.details.push(
+			sourceVersion === targetVersion
+				? `API version ${sourceVersion} present in source only`
+				: `Source API version ${sourceVersion} present; target ${targetVersion} missing`
+		);
 		return crdReport;
 	}
 
-	const sourceKey = `/${sourceRelease.folder}/${crd.name}/${version}.yaml`;
-	const targetKey = `/${targetRelease.folder}/${crd.name}/${version}.yaml`;
+	const sourceKey = `/${sourceRelease.folder}/${crd.name}/${sourceVersion}.yaml`;
+	const targetKey = `/${targetRelease.folder}/${crd.name}/${targetVersion}.yaml`;
 
 	let sourceYaml = yamlCache.get(sourceKey);
 	if (!sourceYaml) {
 		const sourceResponse = await fetch(sourceKey);
 		if (!sourceResponse.ok) {
 			crdReport.status = 'error';
-			crdReport.details.push(`Failed to load source schema (${version})`);
+			crdReport.details.push(`Failed to load source schema (${sourceVersion})`);
 			return crdReport;
 		}
 		sourceYaml = await sourceResponse.text();
@@ -159,7 +184,7 @@ async function compareVersionPair(
 		const targetResponse = await fetch(targetKey);
 		if (!targetResponse.ok) {
 			crdReport.status = 'error';
-			crdReport.details.push(`Failed to load target schema (${version})`);
+			crdReport.details.push(`Failed to load target schema (${targetVersion})`);
 			return crdReport;
 		}
 		targetYaml = await targetResponse.text();
@@ -185,8 +210,10 @@ export type GenerateDiffOptions = {
 	sourceRelease: EdaRelease;
 	targetRelease: EdaRelease;
 	crdMeta?: CrdResource[];
-	/** When set, only compare this apiVersion (paired by name across releases). */
-	versionFilter?: string;
+	/** Source API version to compare; omit or `all` to include every version. */
+	sourceApiVersion?: string;
+	/** Target API version to compare; omit or `all` to include every version. */
+	targetApiVersion?: string;
 	manifestCache: Map<string, ManifestResource[]>;
 	yamlCache: Map<string, string>;
 	onProgress?: (percent: number, current: number, total: number) => void;
@@ -196,7 +223,8 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 	const {
 		sourceRelease,
 		targetRelease,
-		versionFilter,
+		sourceApiVersion,
+		targetApiVersion,
 		manifestCache,
 		yamlCache,
 		onProgress
@@ -216,32 +244,37 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 	const targetVersionIndex = versionIndexFromManifest(targetManifest);
 
 	const availabilityCache = new Map<string, boolean>();
-	const reportVersion = versionFilter ?? ALL_VERSIONS;
+	const compareAll =
+		isAllVersions(sourceApiVersion) || isAllVersions(targetApiVersion);
 	const report: BulkDiffReport = {
 		sourceRelease: sourceRelease.label,
-		sourceVersion: reportVersion,
+		sourceVersion: compareAll ? ALL_VERSIONS : sourceApiVersion!,
 		targetRelease: targetRelease.label,
-		targetVersion: reportVersion,
+		targetVersion: compareAll ? ALL_VERSIONS : targetApiVersion!,
 		generatedAt: new Date().toISOString(),
 		crds: []
 	};
 
 	const allCrds = crdMeta.filter((c) => !c.name.includes('states'));
-	const workItems: Array<{ crd: CrdResource; version: string }> = [];
+	const workItems: Array<{ crd: CrdResource; sourceVersion: string; targetVersion: string }> =
+		[];
 
 	for (const crd of allCrds) {
-		const versions = unionVersions(
+		const pairs = buildVersionPairs(
 			sourceVersionIndex.get(crd.name) ?? [],
 			targetVersionIndex.get(crd.name) ?? [],
-			versionFilter
+			sourceApiVersion,
+			targetApiVersion
 		);
-		for (const version of versions) {
-			workItems.push({ crd, version });
+		for (const pair of pairs) {
+			workItems.push({ crd, ...pair });
 		}
 	}
 
 	const totalItems = workItems.length;
-	const batches: Array<Array<{ crd: CrdResource; version: string }>> = [];
+	const batches: Array<
+		Array<{ crd: CrdResource; sourceVersion: string; targetVersion: string }>
+	> = [];
 	for (let i = 0; i < workItems.length; i += BATCH_SIZE) {
 		batches.push(workItems.slice(i, i + BATCH_SIZE));
 	}
@@ -249,11 +282,12 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 	for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
 		const batch = batches[batchIndex];
 		const batchResults = await Promise.all(
-			batch.map(async ({ crd, version }) => {
+			batch.map(async ({ crd, sourceVersion, targetVersion }) => {
 				try {
 					return await compareVersionPair(
 						crd,
-						version,
+						sourceVersion,
+						targetVersion,
 						sourceRelease,
 						targetRelease,
 						availabilityCache,
@@ -263,10 +297,11 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 					return {
 						name: crd.name,
 						kind: crd.kind,
-						version,
+						version: sourceVersion,
+						targetVersion: sourceVersion !== targetVersion ? targetVersion : undefined,
 						status: 'error' as const,
 						hasDiff: false,
-						details: [`Error comparing ${version} schemas`]
+						details: [`Error comparing ${sourceVersion} → ${targetVersion} schemas`]
 					};
 				}
 			})

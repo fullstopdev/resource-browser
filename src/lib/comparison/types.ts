@@ -9,8 +9,10 @@ export type DiffStatus =
 export type CrdDiffEntry = {
 	name: string;
 	kind: string;
-	/** API version compared (e.g. v1, v2, v1alpha1). */
+	/** Source-side API version (e.g. v1, v2, v1alpha1). */
 	version: string;
+	/** Target-side API version when it differs from {@link version}. */
+	targetVersion?: string;
 	status: DiffStatus;
 	hasDiff: boolean;
 	details: string[];

@@ -68,9 +68,6 @@
 	$: activeStep = report ? 3 : generating ? 2 : 1;
 	$: effectiveSearch = searchRegex ? debouncedSearch : searchQuery;
 
-	$: versionFilter =
-		sourceVersion && targetVersion && sourceVersion === targetVersion ? sourceVersion : undefined;
-
 	$: canCompare =
 		!!sourceRelease &&
 		!!targetRelease &&
@@ -189,8 +186,8 @@
 		}
 	}
 
-	function toggleCrdExpand(name: string, version: string) {
-		const key = `${name}:${version}`;
+	function toggleCrdExpand(name: string, version: string, targetVersion?: string) {
+		const key = `${name}:${version}:${targetVersion ?? version}`;
 		expandedCrdNames = expandedCrdNames.includes(key)
 			? expandedCrdNames.filter((n) => n !== key)
 			: [...expandedCrdNames, key];
@@ -238,7 +235,8 @@
 			report = await generateBulkDiffReport({
 				sourceRelease,
 				targetRelease,
-				versionFilter,
+				sourceApiVersion: sourceVersion || undefined,
+				targetApiVersion: targetVersion || undefined,
 				manifestCache,
 				yamlCache,
 				onProgress: (pct, current, total) => {
@@ -467,7 +465,7 @@
 								!c.name.includes('states') &&
 								matchesSearch(c, effectiveSearch, searchRegex)
 						)
-						.map((c) => `${c.name}:${c.version}`);
+						.map((c) => `${c.name}:${c.version}:${c.targetVersion ?? c.version}`);
 				}}
 				onCollapseAll={() => {
 					expandedCrdNames = [];

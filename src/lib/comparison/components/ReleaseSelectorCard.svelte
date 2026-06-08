@@ -83,6 +83,9 @@
 					<option value="">
 						{versions.length === 0 ? 'No versions available' : 'Select version…'}
 					</option>
+					{#if versions.length > 0}
+						<option value="all">All API versions</option>
+					{/if}
 					{#each versions as v}
 						<option value={v}>{v}</option>
 					{/each}

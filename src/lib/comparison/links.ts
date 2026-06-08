@@ -19,7 +19,12 @@ export function resourceLinkContext(
 				: sourceReleaseName
 			: sourceReleaseName;
 
-	return { releaseName, version: crd.version };
+	const version =
+		crd.status === 'added' && crd.targetVersion
+			? crd.targetVersion
+			: crd.version;
+
+	return { releaseName, version };
 }
 
 export function resourceDetailHref(

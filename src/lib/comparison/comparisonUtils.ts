@@ -88,10 +88,18 @@ export function compareHint(
 	if (generating) return 'Comparison in progress…';
 	if (sourceVersionsLoading || targetVersionsLoading) return 'Loading release manifests and API versions…';
 	if (canCompare) {
-		if (sourceVersion && targetVersion && sourceVersion === targetVersion) {
+		const compareAll =
+			!sourceVersion ||
+			!targetVersion ||
+			sourceVersion === 'all' ||
+			targetVersion === 'all';
+		if (compareAll) {
+			return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (all API versions paired by name). Press Enter to run.`;
+		}
+		if (sourceVersion === targetVersion) {
 			return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (${sourceVersion} only). Press Enter to run.`;
 		}
-		return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (all API versions paired by name). Press Enter to run.`;
+		return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (${sourceVersion} → ${targetVersion}). Press Enter to run.`;
 	}
 	if (!sourceReleaseLabel || !targetReleaseLabel) return 'Select source and target releases to compare.';
 	return 'Choose different source and target releases to compare.';

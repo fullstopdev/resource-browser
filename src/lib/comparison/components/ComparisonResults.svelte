@@ -24,7 +24,8 @@
 	export let searchRegex = true;
 	export let effectiveSearch = '';
 	export let onToggleStatusFilter: (status: DiffStatus) => void = () => {};
-	export let onToggleCrdExpand: (name: string, version: string) => void = () => {};
+	export let onToggleCrdExpand: (name: string, version: string, targetVersion?: string) => void =
+		() => {};
 	export let onExpandAll: () => void = () => {};
 	export let onCollapseAll: () => void = () => {};
 	export let onSearchInput: () => void = () => {};
@@ -33,13 +34,19 @@
 	export let onViewCrd: (crd: CrdDiffEntry) => void = () => {};
 
 	function crdEntryKey(crd: CrdDiffEntry): string {
-		return `${crd.name}:${crd.version}`;
+		return `${crd.name}:${crd.version}:${crd.targetVersion ?? crd.version}`;
+	}
+
+	function versionLabel(crd: CrdDiffEntry): string {
+		return crd.targetVersion && crd.targetVersion !== crd.version
+			? `${crd.version} → ${crd.targetVersion}`
+			: crd.version;
 	}
 
 	function handleCardHeaderKeydown(event: KeyboardEvent, crd: CrdDiffEntry) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
-			onToggleCrdExpand(crd.name, crd.version);
+			onToggleCrdExpand(crd.name, crd.version, crd.targetVersion);
 		}
 	}
 
@@ -217,7 +224,7 @@
 									role="button"
 									tabindex="0"
 									class="comparison-crd-card__header"
-									on:click={() => onToggleCrdExpand(crd.name, crd.version)}
+									on:click={() => onToggleCrdExpand(crd.name, crd.version, crd.targetVersion)}
 									on:keydown={(event) => handleCardHeaderKeydown(event, crd)}
 									aria-expanded={expanded}
 								>
@@ -236,7 +243,7 @@
 											{crd.status.charAt(0).toUpperCase() + crd.status.slice(1)}
 										</span>
 										<span class="comparison-crd-card__kind">{crd.kind}</span>
-										<span class="comparison-crd-card__version">{crd.version}</span>
+										<span class="comparison-crd-card__version">{versionLabel(crd)}</span>
 									</div>
 									<div class="comparison-crd-card__name font-mono">
 										{#if linkCtx}
@@ -282,7 +289,7 @@
 											<SchemaDiffPanel
 												details={crd.details}
 												sourceLabel="{report.sourceRelease} ({crd.version})"
-												targetLabel="{report.targetRelease} ({crd.version})"
+												targetLabel="{report.targetRelease} ({crd.targetVersion ?? crd.version})"
 												searchQuery={effectiveSearch}
 												{searchRegex}
 											/>
