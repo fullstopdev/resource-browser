@@ -1,4 +1,8 @@
 import { CRD_QA_SYSTEM_PROMPT } from './prompts';
+import {
+	isWorkersAINeuronLimitError,
+	workersAIQuotaHttpResponse
+} from './workersAIQuota';
 
 export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
 export const AI_REQUEST_TIMEOUT_MS = 90_000;
@@ -59,6 +63,9 @@ export async function runWorkersAI(
 }
 
 export function workersAIErrorResponse(err: unknown): { status: number; error: string } {
+	if (isWorkersAINeuronLimitError(err)) {
+		return workersAIQuotaHttpResponse();
+	}
 	if (err instanceof Error && err.message === 'Workers AI request timed out') {
 		return {
 			status: 504,

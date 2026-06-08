@@ -16,6 +16,7 @@
 import { chunkDocText } from '../src/lib/ai/rag/chunkDocs';
 import type { DocsChunk } from '../src/lib/ai/rag/chunkTypes';
 import { embedAndUpsert } from './lib/vectorizeEmbed';
+import { isWorkersAINeuronLimitError } from '../src/lib/ai/workersAIQuota';
 
 const INDEX_NAME = 'eda-docs-v1';
 const DOCS_ORIGIN = 'https://docs.eda.dev';
@@ -335,6 +336,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
+	if (isWorkersAINeuronLimitError(error)) {
+		console.error(error instanceof Error ? error.message : error);
+		process.exit(2);
+	}
 	console.error(error);
 	process.exit(1);
 });

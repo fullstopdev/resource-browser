@@ -93,6 +93,15 @@ npm run embed:eda-docs
 # Preview crawl: npm run embed:eda-docs -- --dry-run --max-pages 20
 ```
 
+**Workers AI neuron limits:** Free and paid Workers plans include a **daily neuron budget** for Workers AI (embeddings and LLM calls share it). Large embed jobs may stop partway with HTTP **429** or an API error mentioning neurons. `/api/ask` then returns **503** with a quota message instead of a generic 500. After the quota resets (next UTC day), resume indexing:
+
+```bash
+npm run embed:crd-corpus   # safe to re-run; upserts by chunk id
+npm run embed:eda-docs
+```
+
+Upgrade your Cloudflare Workers plan or purchase additional Workers AI capacity if you need higher daily limits.
+
 Re-run embed scripts after adding CRD releases or when Nokia publishes updated docs. These are manual pre-deploy steps (not wired into `prebuild`).
 
 **Test `/api/ask` locally:**

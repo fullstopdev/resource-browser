@@ -1,6 +1,10 @@
 import crypto from 'crypto';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL } from '../../src/lib/ai/rag/chunkTypes';
+import {
+	WorkersAINeuronLimitError,
+	isWorkersAINeuronLimitError
+} from '../../src/lib/ai/workersAIQuota';
 
 const proxyUrl =
 	process.env.HTTPS_PROXY?.trim() ||
@@ -63,7 +67,11 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 
 	if (!resp.ok) {
 		const body = await resp.text();
-		throw new Error(`Embedding API failed (${resp.status}): ${body}`);
+		const err = new Error(`Embedding API failed (${resp.status}): ${body}`);
+		if (resp.status === 429 || isWorkersAINeuronLimitError(err)) {
+			throw new WorkersAINeuronLimitError();
+		}
+		throw err;
 	}
 
 	const json = (await resp.json()) as { result?: { data?: number[][] }; data?: number[][] };

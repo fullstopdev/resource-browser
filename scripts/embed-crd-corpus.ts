@@ -20,6 +20,7 @@ import { chunkCrdYaml } from '../src/lib/ai/rag/chunkCrd';
 import { EMBEDDING_MODEL, type CrdChunk } from '../src/lib/ai/rag/chunkTypes';
 import { assertSafeFolderPath, assertSafePathSegment } from '../src/lib/yaml-validation/schemaCache';
 import { embedAndUpsert } from './lib/vectorizeEmbed';
+import { isWorkersAINeuronLimitError } from '../src/lib/ai/workersAIQuota';
 import type { ReleasesConfig } from '../src/lib/structure';
 
 const ROOT = process.cwd();
@@ -131,6 +132,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
+	if (isWorkersAINeuronLimitError(error)) {
+		console.error(error instanceof Error ? error.message : error);
+		process.exit(2);
+	}
 	console.error(error);
 	process.exit(1);
 });
