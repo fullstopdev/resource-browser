@@ -1,6 +1,6 @@
 # Cloudflare Pages + SvelteKit (adapter-cloudflare)
 # Local AI: export CLOUDFLARE_API_TOKEN=... then npm run dev:ai
-name = "resource-browser"
+name = "eda-resource-browser"
 compatibility_date = "2025-06-01"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".svelte-kit/cloudflare"
