@@ -15,6 +15,12 @@ export const MAX_QUESTION_CHARS = 2000;
 export const MAX_LEGACY_CONTEXT_CHARS = 8000;
 export const MAX_TOTAL_CONTEXT_CHARS = 24_000;
 
+/** Rich-context fallback when Vectorize returns no/insufficient chunks. */
+export const TRIMMED_FALLBACK_CHAR_LIMIT = 4_000;
+
+/** Metadata-only target header when RAG chunks are sufficient. */
+export const SLIM_TARGET_CHAR_LIMIT = 800;
+
 /** Target token range for embed chunks (256–512 tokens). */
 export const CHUNK_TARGET_CHARS_MIN = 256 * CHARS_PER_TOKEN;
 export const CHUNK_TARGET_CHARS_MAX = 512 * CHARS_PER_TOKEN;

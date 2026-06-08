@@ -11,7 +11,12 @@ import {
 	type SchemaSections
 } from '$lib/yaml-validation/schemaCache';
 import type { ReleasesConfig } from '$lib/structure';
-import { assembleContext, trimToBudget } from './tokenBudget';
+import {
+	assembleContext,
+	SLIM_TARGET_CHAR_LIMIT,
+	TRIMMED_FALLBACK_CHAR_LIMIT,
+	trimToBudget
+} from './tokenBudget';
 
 export interface BuildRichContextInput {
 	release: string;
@@ -28,6 +33,24 @@ export interface BuildRichContextResult {
 	releaseFolder: string;
 	apiVersion: string;
 	version: string;
+}
+
+export type BuildRichContextOptions = {
+	mode?: 'full' | 'trimmed';
+};
+
+/** Metadata-only target header when retrieved Vectorize chunks carry schema detail. */
+export function buildSlimTargetContext(input: BuildRichContextInput): string {
+	const version = input.version ?? '';
+	const apiVersion = version && input.group ? `${input.group}/${version}` : input.group;
+	const lines = [
+		`Release: ${input.release}`,
+		`Kind: ${input.kind}`,
+		`Group: ${input.group}`
+	];
+	if (apiVersion) lines.push(`apiVersion: ${apiVersion}`);
+	if (input.fieldPath) lines.push(`Focused field: ${input.fieldPath}`);
+	return trimToBudget(`## Target resource\n${lines.join('\n')}`, SLIM_TARGET_CHAR_LIMIT);
 }
 
 const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
@@ -127,8 +150,10 @@ function formatSiblingSummary(
 /** Server-side rich context assembly from manifest + schema cache. */
 export async function buildRichContext(
 	input: BuildRichContextInput,
-	fetcher: typeof fetch = fetch
+	fetcher: typeof fetch = fetch,
+	options: BuildRichContextOptions = {}
 ): Promise<BuildRichContextResult | null> {
+	const trimmed = options.mode === 'trimmed';
 	const releaseFolder = resolveReleaseFolder(input.release);
 	if (!releaseFolder) return null;
 
@@ -149,65 +174,99 @@ export async function buildRichContext(
 	const versionMeta = entry.versions?.find((v) => v.name === version);
 	const deprecated = !!versionMeta?.deprecated;
 
-	const targetText = formatTargetSchema(
-		input.kind,
-		input.group,
-		version,
-		input.release,
-		deprecated,
-		targetSchema
-	);
+	let context: string;
 
-	const siblingVersions = (entry.versions ?? [])
-		.map((v) => v.name)
-		.filter((v) => v && v !== version);
-	const siblingLines: string[] = [];
-	for (const sibVer of siblingVersions.slice(0, 6)) {
-		const sibDeprecated = !!entry.versions?.find((v) => v.name === sibVer)?.deprecated;
-		siblingLines.push(formatSiblingSummary(input.kind, input.group, sibVer, sibDeprecated));
-		const sibPath = schemaPath(safeFolder, entry.name, sibVer);
-		const sibSchema = await fetchSchema(sibPath, fetcher);
-		if (sibSchema) {
-			siblingLines.push(
-				`  spec required: ${getRequiredFields(sibSchema.spec).join(', ') || '(none)'}`
-			);
+	if (trimmed) {
+		const header = `${input.kind} (${input.group}/${version}) — release ${input.release}${deprecated ? ' [deprecated]' : ''}`;
+		const specRequired = getRequiredFields(targetSchema.spec).join(', ') || '(none)';
+		const schemaWalkParts: string[] = [];
+		if (input.fieldPath) {
+			const focused =
+				navigateSchema(targetSchema.spec, input.fieldPath) ??
+				navigateSchema(targetSchema.status, input.fieldPath);
+			if (focused) {
+				schemaWalkParts.push(summarizeSchemaNode(focused, `Focused field: ${input.fieldPath}`));
+			}
+		} else {
+			schemaWalkParts.push(summarizeSchemaNode(targetSchema.spec, 'spec summary'));
 		}
+
+		context = trimToBudget(
+			assembleContext([
+				{
+					tier: 'target',
+					text: `## Target CRD\n${header}\nRequired spec fields: ${specRequired}`
+				},
+				{
+					tier: 'schemaWalk',
+					text: schemaWalkParts.filter(Boolean).length
+						? `## Schema walk\n${schemaWalkParts.filter(Boolean).join('\n\n')}`
+						: ''
+				}
+			]),
+			TRIMMED_FALLBACK_CHAR_LIMIT
+		);
+	} else {
+		const targetText = formatTargetSchema(
+			input.kind,
+			input.group,
+			version,
+			input.release,
+			deprecated,
+			targetSchema
+		);
+
+		const siblingVersions = (entry.versions ?? [])
+			.map((v) => v.name)
+			.filter((v) => v && v !== version);
+		const siblingLines: string[] = [];
+		for (const sibVer of siblingVersions.slice(0, 6)) {
+			const sibDeprecated = !!entry.versions?.find((v) => v.name === sibVer)?.deprecated;
+			siblingLines.push(formatSiblingSummary(input.kind, input.group, sibVer, sibDeprecated));
+			const sibPath = schemaPath(safeFolder, entry.name, sibVer);
+			const sibSchema = await fetchSchema(sibPath, fetcher);
+			if (sibSchema) {
+				siblingLines.push(
+					`  spec required: ${getRequiredFields(sibSchema.spec).join(', ') || '(none)'}`
+				);
+			}
+		}
+
+		const related = findManifestEntriesByGroup(manifest, input.group)
+			.filter((r) => r.kind && r.kind !== input.kind)
+			.slice(0, 12)
+			.map((r) => `- ${r.kind} (${r.name})`);
+
+		const schemaWalkParts: string[] = [];
+		if (input.fieldPath) {
+			const focused =
+				navigateSchema(targetSchema.spec, input.fieldPath) ??
+				navigateSchema(targetSchema.status, input.fieldPath);
+			if (focused) {
+				schemaWalkParts.push(summarizeSchemaNode(focused, `Focused field: ${input.fieldPath}`));
+			}
+		}
+		schemaWalkParts.push(summarizeSchemaNode(targetSchema.spec, 'spec summary'));
+		schemaWalkParts.push(summarizeSchemaNode(targetSchema.status, 'status summary'));
+
+		context = assembleContext([
+			{ tier: 'target', text: `## Target CRD\n${targetText}` },
+			{
+				tier: 'siblings',
+				text: siblingLines.length ? `## Sibling API versions\n${siblingLines.join('\n')}` : ''
+			},
+			{
+				tier: 'related',
+				text: related.length ? `## Related kinds (same group)\n${related.join('\n')}` : ''
+			},
+			{
+				tier: 'schemaWalk',
+				text: schemaWalkParts.filter(Boolean).length
+					? `## Schema walk\n${schemaWalkParts.filter(Boolean).join('\n\n')}`
+					: ''
+			}
+		]);
 	}
-
-	const related = findManifestEntriesByGroup(manifest, input.group)
-		.filter((r) => r.kind && r.kind !== input.kind)
-		.slice(0, 12)
-		.map((r) => `- ${r.kind} (${r.name})`);
-
-	const schemaWalkParts: string[] = [];
-	if (input.fieldPath) {
-		const focused =
-			navigateSchema(targetSchema.spec, input.fieldPath) ??
-			navigateSchema(targetSchema.status, input.fieldPath);
-		if (focused) {
-			schemaWalkParts.push(summarizeSchemaNode(focused, `Focused field: ${input.fieldPath}`));
-		}
-	}
-	schemaWalkParts.push(summarizeSchemaNode(targetSchema.spec, 'spec summary'));
-	schemaWalkParts.push(summarizeSchemaNode(targetSchema.status, 'status summary'));
-
-	const context = assembleContext([
-		{ tier: 'target', text: `## Target CRD\n${targetText}` },
-		{
-			tier: 'siblings',
-			text: siblingLines.length ? `## Sibling API versions\n${siblingLines.join('\n')}` : ''
-		},
-		{
-			tier: 'related',
-			text: related.length ? `## Related kinds (same group)\n${related.join('\n')}` : ''
-		},
-		{
-			tier: 'schemaWalk',
-			text: schemaWalkParts.filter(Boolean).length
-				? `## Schema walk\n${schemaWalkParts.filter(Boolean).join('\n\n')}`
-				: ''
-		}
-	]);
 
 	return {
 		context,

@@ -1,6 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { buildRichContext, trimLegacyContext } from '$lib/ai/buildRichContext';
+import {
+	buildRichContext,
+	buildSlimTargetContext,
+	trimLegacyContext
+} from '$lib/ai/buildRichContext';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
 import { retrieveRagContext } from '$lib/ai/rag/retrieve';
@@ -78,28 +82,57 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	const crdIndex = platform?.env?.CRD_INDEX;
 	const docsIndex = platform?.env?.DOCS_INDEX;
-	if ((crdIndex || docsIndex) && (release || kind || group)) {
+	const hasRagIndexes = !!(crdIndex || docsIndex);
+	const hasTarget = !!(release && kind && group);
+
+	if (hasRagIndexes && (release || kind || group)) {
 		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, {
 			release: release || undefined,
 			kind: kind || undefined,
 			group: group || undefined
 		});
 		ragSources = rag.sources;
-		if (rag.contextText) {
-			context = rag.contextText;
-		}
-	}
 
-	if (release && kind && group) {
+		if (hasTarget && rag.sufficient && rag.contextText) {
+			const slim = buildSlimTargetContext({
+				release,
+				kind,
+				group,
+				version: version || undefined,
+				fieldPath: fieldPath || undefined
+			});
+			context = assembleContext([
+				{ tier: 'rag', text: `## Retrieved schema excerpts\n${rag.contextText}` },
+				{ tier: 'target', text: slim }
+			]);
+		} else if (hasTarget) {
+			const rich = await buildRichContext(
+				{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
+				originFetch,
+				{ mode: 'trimmed' }
+			);
+			if (rich?.context) {
+				context = assembleContext([
+					{
+						tier: 'rag',
+						text: rag.contextText ? `## Retrieved schema excerpts\n${rag.contextText}` : ''
+					},
+					{ tier: 'target', text: rich.context }
+				]);
+			} else if (rag.contextText) {
+				context = `## Retrieved schema excerpts\n${rag.contextText}`;
+			}
+		} else if (rag.contextText) {
+			context = `## Retrieved schema excerpts\n${rag.contextText}`;
+		}
+	} else if (hasTarget) {
 		const rich = await buildRichContext(
 			{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
-			originFetch
+			originFetch,
+			{ mode: 'trimmed' }
 		);
 		if (rich?.context) {
-			context = assembleContext([
-				{ tier: 'rag', text: context ? `## Retrieved schema excerpts\n${context}` : '' },
-				{ tier: 'target', text: rich.context }
-			]);
+			context = rich.context;
 		}
 	} else {
 		const legacy = trimLegacyContext(body.context);

@@ -8,8 +8,13 @@ import {
 } from './chunkTypes';
 import { trimToBudget } from '$lib/ai/tokenBudget';
 
-const DEFAULT_TOP_K = 6;
+export const DEFAULT_TOP_K = 4;
 const RAG_CONTEXT_CHAR_LIMIT = 6000;
+
+/** Enough retrieved chunks to skip full CRD spec in the LLM prompt. */
+export const MIN_SUFFICIENT_RAG_CHUNKS = 3;
+/** Top match score (cosine) that alone can justify slim context. */
+export const MIN_RAG_SCORE = 0.65;
 
 export type RagFilters = {
 	release?: string;
@@ -22,7 +27,16 @@ export type RetrieveResult = {
 	docsChunks: RetrievedDocsChunk[];
 	sources: RagSource[];
 	contextText: string;
+	mergedCount: number;
+	topScore: number;
+	sufficient: boolean;
 };
+
+export function isRagSufficient(mergedCount: number, topScore: number): boolean {
+	if (mergedCount >= MIN_SUFFICIENT_RAG_CHUNKS) return true;
+	if (mergedCount >= 1 && topScore >= MIN_RAG_SCORE) return true;
+	return false;
+}
 
 /** Map CRD patch release (e.g. 26.4.2) to docs release (26.4). */
 export function docsReleaseForCrd(release: string): string {
@@ -150,7 +164,15 @@ export async function retrieveRagContext(
 	filters: RagFilters,
 	topK = DEFAULT_TOP_K
 ): Promise<RetrieveResult> {
-	const empty: RetrieveResult = { chunks: [], docsChunks: [], sources: [], contextText: '' };
+	const empty: RetrieveResult = {
+		chunks: [],
+		docsChunks: [],
+		sources: [],
+		contextText: '',
+		mergedCount: 0,
+		topScore: 0,
+		sufficient: false
+	};
 	if (!crdIndex && !docsIndex) return empty;
 
 	const vector = await embedQuestion(ai, question);
@@ -203,6 +225,10 @@ export async function retrieveRagContext(
 			.sort((a, b) => b.score - a.score)
 			.slice(0, topK);
 
+		const mergedCount = merged.length;
+		const topScore = mergedCount > 0 ? merged[0].score : 0;
+		const sufficient = isRagSufficient(mergedCount, topScore);
+
 		const contextText = trimToBudget(
 			merged.map((item, i) => `### Retrieved excerpt ${i + 1}\n${item.text}`).join('\n\n'),
 			RAG_CONTEXT_CHAR_LIMIT
@@ -212,7 +238,10 @@ export async function retrieveRagContext(
 			chunks,
 			docsChunks,
 			sources: dedupeSources(sources),
-			contextText
+			contextText,
+			mergedCount,
+			topScore,
+			sufficient
 		};
 	} catch (err) {
 		console.error('Vectorize query error:', err);

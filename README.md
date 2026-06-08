@@ -102,6 +102,32 @@ npm run embed:eda-docs
 
 Upgrade your Cloudflare Workers plan or purchase additional Workers AI capacity if you need higher daily limits.
 
+**Vector index completion** (check with `wrangler vectorize info <index>`):
+
+| Index | Target vectors | Status (2026-06-08) |
+|-------|----------------|---------------------|
+| `eda-crd-corpus-v1` | 9,249 (`npm run embed:crd-corpus -- --dry-run`) | Partial — re-run embed to resume |
+| `eda-docs-v1` | ~551 (`npm run embed:eda-docs -- --dry-run`) | Empty until `npm run embed:eda-docs` completes |
+
+Resume after neuron quota reset:
+
+```bash
+export CLOUDFLARE_API_TOKEN=your_token
+export HTTP_PROXY=http://your-proxy:8080 HTTPS_PROXY=http://your-proxy:8080   # if needed
+npm run embed:crd-corpus   # upserts by chunk id; safe to re-run
+npm run embed:eda-docs
+wrangler vectorize info eda-crd-corpus-v1
+wrangler vectorize info eda-docs-v1
+```
+
+### Neuron optimization (`/api/ask`)
+
+Ask uses **one** Workers AI LLM call per question (embedding for Vectorize is separate). To stay within daily neuron budgets:
+
+- **RAG-first slim context:** When Vectorize returns sufficient chunks (≥3 matches, or top score ≥0.65), the LLM prompt includes retrieved excerpts plus metadata only (`release` / `kind` / `apiVersion`) — not the full CRD OpenAPI JSON (~12K chars saved per request).
+- **Trimmed fallback:** When the index is empty or returns too few chunks, a capped (~4K) schema summary is built from the manifest instead of the full 24K rich context.
+- **Cheaper retrieval:** Default Vectorize `topK` is 4; embedding input is the user question only (not question + full context).
+
 Re-run embed scripts after adding CRD releases or when Nokia publishes updated docs. These are manual pre-deploy steps (not wired into `prebuild`).
 
 **Test `/api/ask` locally:**
