@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import './release-notes.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -96,12 +95,20 @@
 	font-display: swap;
 }
 
+@font-face {
+	font-family: 'Fira Code';
+	src: url('/fonts/FiraCode-Regular.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
 /* ============================================
    THEME VARIABLES
    ============================================ */
 @theme {
-	--font-nunito: 'Nunito', sans-serif;
-	--font-fira: 'Fira Code', monospace;
+	--font-nunito: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-fira: 'Fira Code', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 	--font-nokia: 'NokiaPureText', sans-serif;
 	--font-nokia-headline: 'NokiaPureHeadline', sans-serif;
 	--default-font-family: 'NokiaPureText', sans-serif;
@@ -144,7 +151,7 @@
 
 	body {
 		@apply text-slate-900 antialiased bg-white dark:text-slate-100;
-		font-family: var(--font-nokia), 'Nunito', sans-serif;
+		font-family: var(--font-nokia), var(--font-nunito);
 		min-height: 100vh;
 		overflow: hidden;
 		overflow-x: hidden;
@@ -3547,12 +3554,15 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 
 	.homepage-search-field {
 		width: 100%;
+		min-height: 1.25rem;
 		border: none;
 		background: transparent;
+		font-family: var(--font-nokia), var(--font-nunito);
 		font-size: 0.8125rem;
 		line-height: 1.4;
 		color: #0f172a;
 		outline: none;
+		font-size-adjust: 0.5;
 	}
 
 	@media (min-width: 640px) {
@@ -4088,7 +4098,11 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 
 	.homepage-train-label {
 		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		min-width: 2.5rem;
+		min-height: 1.625rem;
 		padding: 0.2rem 0.45rem;
 		font-size: 0.75rem;
 		font-weight: 800;
@@ -4099,6 +4113,8 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		border-radius: 9999px;
 		line-height: 1.2;
 		text-align: center;
+		contain: layout style;
+		font-size-adjust: 0.52;
 	}
 
 	@media (min-width: 640px) {

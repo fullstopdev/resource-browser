@@ -210,7 +210,8 @@
 						on:focus={() => (searchFocused = true)}
 						on:blur={closeSearchResults}
 						on:keydown={handleSearchKeydown}
-						placeholder="Search {$crdMetaStore.length > 0 ? $crdMetaStore.length + '+' : '500+'} CRDs by name, kind, or group…"
+						placeholder="Search CRDs by name, kind, or group…"
+						aria-label="Search {$crdMetaStore.length > 0 ? $crdMetaStore.length + '+' : '500+'} CRDs by name, kind, or group"
 						class="homepage-search-field text-slate-900 placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
 						autocomplete="off"
 						aria-controls="homepage-search-results"
