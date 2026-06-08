@@ -35,6 +35,16 @@ pnpm install
 pnpm run dev
 ```
 
+Workers AI (Ask tab on CRD resources) needs the Cloudflare adapter and a remote AI binding:
+
+```bash
+npm run build:cloudflare
+export CLOUDFLARE_API_TOKEN=your_token   # or: npx wrangler login
+npm run dev:ai
+```
+
+`wrangler.toml` defines the `AI` binding for production Pages deploys. For local dev, Wrangler calls Workers AI in your account; the API token must include **Workers AI** (and typically **Account** read) permissions. `CLOUDFLARE_API_TOKEN` is read from the environment (see `.env.example` / `.dev.vars.example`); do not commit tokens.
+
 3. Build for production:
 
 ```bash

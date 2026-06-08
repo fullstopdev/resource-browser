@@ -80,3 +80,6 @@ __pycache__/
 .env.local
 docs/DEVELOPER.md
 static/merge-crds.py
+
+# Wrangler local secrets
+.dev.vars

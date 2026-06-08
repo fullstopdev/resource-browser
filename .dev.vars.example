@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local Wrangler (optional; file is gitignored).
+# Workers AI remote dev authenticates via CLOUDFLARE_API_TOKEN in your shell
+# (or `wrangler login`), not via this file — never commit real tokens.
+#
+# CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
