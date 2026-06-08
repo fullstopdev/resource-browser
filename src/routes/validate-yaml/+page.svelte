@@ -26,8 +26,6 @@
 		type BundleValidationResult
 	} from '$lib/validate-bundle';
 	import YamlBundleEditor from '$lib/validate-bundle/YamlBundleEditor.svelte';
-	import { explainField, validateYAML } from '$lib/ai/aiClient';
-	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 	import { clampYamlInput } from '$lib/yaml/inputLimits';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 
@@ -67,17 +65,7 @@
 	let collapsedGroups = new Set<string>();
 	let yamlTruncationWarned = false;
 
-	let aiValidating = false;
-	let aiValidateAnswer: string | null = null;
-	let aiValidateError: string | null = null;
-	let aiValidateOpen = false;
-	let aiIssueLoading: Record<string, boolean> = {};
-	let aiIssueAnswers: Record<string, string> = {};
-	let aiIssueErrors: Record<string, string> = {};
-	let aiValidateTimer: ReturnType<typeof setTimeout> | null = null;
-
 	const manifestCache = getManifestCache();
-	const AI_VALIDATE_DEBOUNCE_MS = 600;
 
 	function setYamlInput(value: string) {
 		const { text, truncated } = clampYamlInput(value);
@@ -406,69 +394,6 @@
 		}
 	}
 
-	function scheduleAiValidate() {
-		if (aiValidateTimer) clearTimeout(aiValidateTimer);
-		aiValidateTimer = setTimeout(() => {
-			void runAiValidate();
-		}, AI_VALIDATE_DEBOUNCE_MS);
-	}
-
-	async function runAiValidate() {
-		if (!release || !yamlInput.trim() || !result?.resources?.length) {
-			aiValidateError = 'Paste YAML and run validation first.';
-			aiValidateAnswer = null;
-			return;
-		}
-
-		const first = result.resources[0];
-		if (!first?.kind) {
-			aiValidateError = 'No resource kind found in bundle.';
-			return;
-		}
-
-		aiValidating = true;
-		aiValidateError = null;
-		aiValidateAnswer = null;
-		aiValidateOpen = true;
-
-		const res = await validateYAML(release.name, first.kind, yamlInput, first.group);
-		aiValidating = false;
-
-		if (res.error) {
-			aiValidateError = res.error;
-		} else {
-			aiValidateAnswer = res.answer;
-		}
-	}
-
-	async function explainIssueWithAi(issue: BundleIssue, event: MouseEvent) {
-		event.stopPropagation();
-		if (!release || aiIssueLoading[issue.id]) return;
-
-		const bundleRes = findBundleResourceForIssue(issue);
-		const kind = bundleRes?.kind || issue.resourceKind;
-		const group = bundleRes?.group;
-		if (!kind) {
-			aiIssueErrors = { ...aiIssueErrors, [issue.id]: 'No resource kind for this issue.' };
-			return;
-		}
-
-		aiIssueLoading = { ...aiIssueLoading, [issue.id]: true };
-		const field = issue.fieldPath || issue.message.slice(0, 120);
-		const res = await explainField(release.name, kind, field, group);
-		aiIssueLoading = { ...aiIssueLoading, [issue.id]: false };
-
-		if (res.error) {
-			aiIssueErrors = { ...aiIssueErrors, [issue.id]: res.error };
-			delete aiIssueAnswers[issue.id];
-			aiIssueAnswers = { ...aiIssueAnswers };
-		} else {
-			aiIssueAnswers = { ...aiIssueAnswers, [issue.id]: res.answer };
-			delete aiIssueErrors[issue.id];
-			aiIssueErrors = { ...aiIssueErrors };
-		}
-	}
-
 	function issueCategoryLabel(issue: BundleIssue): string | null {
 		if (issue.category === 'schema') {
 			if (issue.message.startsWith('Invalid apiVersion:')) return 'Schema · apiVersion';
@@ -510,7 +435,6 @@
 		if (toastTimer) clearTimeout(toastTimer);
 		if (fixSummaryTimer) clearTimeout(fixSummaryTimer);
 		if (yamlCopyTimer) clearTimeout(yamlCopyTimer);
-		if (aiValidateTimer) clearTimeout(aiValidateTimer);
 	});
 
 </script>
@@ -603,56 +527,7 @@
 			>
 				Share
 			</button>
-
-			<button
-				type="button"
-				class="validate-yaml-btn validate-yaml-btn--ai"
-				disabled={aiValidating || !release || !yamlInput.trim()}
-				title="Validate manifest with Workers AI (debounced)"
-				on:click={scheduleAiValidate}
-			>
-				{#if aiValidating}
-					<svg class="validate-yaml-btn__spinner animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-					</svg>
-					AI validating…
-				{:else}
-					Validate with AI
-				{/if}
-			</button>
 		</div>
-
-		{#if aiValidateOpen && (aiValidating || aiValidateAnswer || aiValidateError)}
-			<section
-				class="validate-yaml-ai-panel"
-				aria-label="AI validation result"
-				role="region"
-			>
-				<div class="validate-yaml-ai-panel__header">
-					<h2 class="validate-yaml-ai-panel__title">AI validation</h2>
-					<button
-						type="button"
-						class="validate-yaml-ai-panel__close"
-						aria-label="Dismiss AI validation"
-						on:click={() => {
-							aiValidateOpen = false;
-						}}
-					>
-						×
-					</button>
-				</div>
-				{#if aiValidating}
-					<p class="validate-yaml-ai-panel__loading">Workers AI is reviewing your manifest…</p>
-				{:else if aiValidateError}
-					<p class="validate-yaml-ai-panel__error" role="alert">{aiValidateError}</p>
-				{:else if aiValidateAnswer}
-					<div class="validate-yaml-ai-panel__answer">
-						<SimpleMarkdown source={aiValidateAnswer} />
-					</div>
-				{/if}
-			</section>
-		{/if}
 
 		{#if fixSummary}
 			<div class="validate-yaml-fix-banner" role="status" aria-live="polite">
@@ -941,18 +816,6 @@
 															{/if}
 														</button>
 														<div class="validate-yaml-issue__actions">
-															<button
-																type="button"
-																class="validate-yaml-issue-ai-link"
-																disabled={aiIssueLoading[issue.id]}
-																on:click={(e) => explainIssueWithAi(issue, e)}
-															>
-																{#if aiIssueLoading[issue.id]}
-																	Explaining…
-																{:else}
-																	Explain with AI
-																{/if}
-															</button>
 															{#if issue.suggestedFix}
 																<button
 																	type="button"
@@ -973,15 +836,6 @@
 																</button>
 															{/if}
 														</div>
-														{#if aiIssueErrors[issue.id]}
-															<p class="validate-yaml-issue-ai-error" role="alert">
-																{aiIssueErrors[issue.id]}
-															</p>
-														{:else if aiIssueAnswers[issue.id]}
-															<div class="validate-yaml-issue-ai-answer">
-																<SimpleMarkdown source={aiIssueAnswers[issue.id]} />
-															</div>
-														{/if}
 													</div>
 												</li>
 											{/each}

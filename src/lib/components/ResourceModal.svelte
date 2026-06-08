@@ -4,7 +4,6 @@
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 
 	import Render from '$lib/components/Render.svelte';
-	import CrdAskPanel from '$lib/components/CrdAskPanel.svelte';
 	import ResourceViewTabs from '$lib/components/ResourceViewTabs.svelte';
 	import { expandAll, expandAllScope, ulExpanded } from '$lib/store';
 	import { compareVersionDesc, getLatestVersion } from '$lib/versions';
@@ -42,7 +41,7 @@
 	/** Optional pre-marked schema trees for highlighted display. */
 	export let displaySpec: unknown = null;
 	export let displayStatus: unknown = null;
-	/** Open modal on this tab (schema, compare, or ask). */
+	/** Open modal on this tab (schema or compare). */
 	export let initialViewMode: ResourceViewMode = 'schema';
 	export let onClose: () => void = () => {};
 
@@ -459,7 +458,6 @@
 					<ResourceViewTabs
 						{viewMode}
 						onViewChange={(mode) => (viewMode = mode)}
-						showAskTab={true}
 						showExpandControls={viewMode === 'schema'}
 						isExpanded={$ulExpanded.length > 0}
 						onExpandToggle={handleGlobalExpand}
@@ -478,19 +476,6 @@
 				{:else if error}
 					<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
 						{error}
-					</div>
-				{:else if viewMode === 'ask'}
-					<div class="mx-auto w-full max-w-3xl pb-2">
-						<CrdAskPanel
-							{kind}
-							{group}
-							{name}
-							version={versionOnFocus}
-							release={selectedRelease.name}
-							{deprecated}
-							spec={displaySpec ?? spec}
-							status={displayStatus ?? status}
-						/>
 					</div>
 				{:else if viewMode === 'schema'}
 					<div class="space-y-3">

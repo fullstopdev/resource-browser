@@ -5,7 +5,6 @@
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import TopHeader from '$lib/components/TopHeader.svelte';
 	import ResourceDetailHeader from '$lib/components/ResourceDetailHeader.svelte';
-	import CrdAskPanel from '$lib/components/CrdAskPanel.svelte';
 	import ResourceViewTabs from '$lib/components/ResourceViewTabs.svelte';
 	import type { ResourceViewMode } from '$lib/resourceView';
 	import Render from '$lib/components/Render.svelte';
@@ -317,22 +316,6 @@
 					/>
 				</div>
 
-				{#if viewMode === 'ask'}
-					<div class="mx-auto w-full max-w-3xl pb-2">
-						<CrdAskPanel
-							{kind}
-							{group}
-							{name}
-							version={versionOnFocus}
-							release={releaseName}
-							{deprecated}
-							{spec}
-							{status}
-						/>
-					</div>
-				{/if}
-
-				<!-- Schema view -->
 				{#if viewMode === 'schema'}
 					<div class="space-y-3">
 						<section

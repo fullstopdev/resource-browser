@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import GlobalAskButton from '$lib/components/GlobalAskButton.svelte';
 	import Theme from '$lib/components/Theme.svelte';
 
 	/** Fixed (detail pages) vs sticky (homepage / browse) */
@@ -89,6 +90,7 @@
 				</button>
 			{/if}
 			<slot name="actions" />
+			<GlobalAskButton />
 			<Theme />
 		</div>
 	</div>

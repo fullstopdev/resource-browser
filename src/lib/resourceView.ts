@@ -1,1 +1,1 @@
-export type ResourceViewMode = 'schema' | 'compare' | 'ask';
+export type ResourceViewMode = 'schema' | 'compare';
