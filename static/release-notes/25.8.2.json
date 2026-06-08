@@ -1,0 +1,12 @@
+{
+  "toVer": "25.8.2",
+  "fromVer": "25.8.1",
+  "notes": {
+    "newResources": [],
+    "removedResources": [],
+    "modifiedResources": [],
+    "deprecated": []
+  },
+  "timestamp": 1780852181815,
+  "source": "comparison"
+}

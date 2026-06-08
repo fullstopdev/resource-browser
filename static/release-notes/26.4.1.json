@@ -1,0 +1,4423 @@
+{
+  "toVer": "26.4.1",
+  "fromVer": "25.12.3",
+  "notes": {
+    "newResources": [
+      {
+        "kind": "AggregateRoute",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "aggregateroutes.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for AggregateRoute in EDA 26.4.1."
+      },
+      {
+        "kind": "ASPathSetDeployment",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "aspathsetdeployments.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for ASPathSetDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "ASPathSet",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "aspathsets.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for ASPathSet in EDA 26.4.1."
+      },
+      {
+        "kind": "AttachmentLookup",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "attachmentlookups.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for AttachmentLookup in EDA 26.4.1."
+      },
+      {
+        "kind": "Backend",
+        "apiVersion": "aifabrics.eda.nokia.com/v1",
+        "group": "aifabrics.eda.nokia.com",
+        "crdName": "backends.aifabrics.eda.nokia.com",
+        "description": "New aifabrics.eda.nokia.com/v1 apiVersion for Backend in EDA 26.4.1."
+      },
+      {
+        "kind": "Banner",
+        "apiVersion": "siteinfo.eda.nokia.com/v1",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "banners.siteinfo.eda.nokia.com",
+        "description": "New siteinfo.eda.nokia.com/v1 apiVersion for Banner in EDA 26.4.1."
+      },
+      {
+        "kind": "BGPGroupDeployment",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgpgroupdeployments.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for BGPGroupDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "BGPGroup",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgpgroups.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for BGPGroup in EDA 26.4.1."
+      },
+      {
+        "kind": "BGPPeer",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgppeers.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for BGPPeer in EDA 26.4.1."
+      },
+      {
+        "kind": "Breakout",
+        "apiVersion": "interfaces.eda.nokia.com/v1",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "breakouts.interfaces.eda.nokia.com",
+        "description": "New interfaces.eda.nokia.com/v1 apiVersion for Breakout in EDA 26.4.1."
+      },
+      {
+        "kind": "BridgeDomainDeployment",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgedomaindeployments.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for BridgeDomainDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "BridgeDomain",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgedomains.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for BridgeDomain in EDA 26.4.1."
+      },
+      {
+        "kind": "BridgeInterface",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgeinterfaces.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for BridgeInterface in EDA 26.4.1."
+      },
+      {
+        "kind": "Chassis",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "chassis.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for Chassis in EDA 26.4.1."
+      },
+      {
+        "kind": "CheckDefaultBgpPeers",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "checkdefaultbgppeerss.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for CheckDefaultBgpPeers in EDA 26.4.1."
+      },
+      {
+        "kind": "CheckInterfaces",
+        "apiVersion": "interfaces.eda.nokia.com/v1",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "checkinterfacess.interfaces.eda.nokia.com",
+        "description": "New interfaces.eda.nokia.com/v1 apiVersion for CheckInterfaces in EDA 26.4.1."
+      },
+      {
+        "kind": "CliPlugin",
+        "apiVersion": "environment.eda.nokia.com/v1",
+        "group": "environment.eda.nokia.com",
+        "crdName": "cliplugins.environment.eda.nokia.com",
+        "description": "New environment.eda.nokia.com/v1 apiVersion for CliPlugin in EDA 26.4.1."
+      },
+      {
+        "kind": "ClusterDiscovery",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "clusterdiscoveries.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for ClusterDiscovery in EDA 26.4.1."
+      },
+      {
+        "kind": "CommunitySetDeployment",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "communitysetdeployments.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for CommunitySetDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "CommunitySet",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "communitysets.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for CommunitySet in EDA 26.4.1."
+      },
+      {
+        "kind": "Component",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "components.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for Component in EDA 26.4.1."
+      },
+      {
+        "kind": "Configlet",
+        "apiVersion": "config.eda.nokia.com/v1",
+        "group": "config.eda.nokia.com",
+        "crdName": "configlets.config.eda.nokia.com",
+        "description": "New config.eda.nokia.com/v1 apiVersion for Configlet in EDA 26.4.1."
+      },
+      {
+        "kind": "ControlModule",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "controlmodules.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for ControlModule in EDA 26.4.1."
+      },
+      {
+        "kind": "ControlPlaneFilter",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "controlplanefilters.filters.eda.nokia.com",
+        "description": "New filters.eda.nokia.com/v1 apiVersion for ControlPlaneFilter in EDA 26.4.1."
+      },
+      {
+        "kind": "CPUOverlay",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "cpuoverlays.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for CPUOverlay in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultAggregateRoute",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultaggregateroutes.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultAggregateRoute in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultBGPGroupDeployment",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultbgpgroupdeployments.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultBGPGroupDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultBGPGroup",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultbgpgroups.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultBGPGroup in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultBGPPeer",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultbgppeers.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultBGPPeer in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultInterface",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "defaultinterfaces.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for DefaultInterface in EDA 26.4.1."
+      },
+      {
+        "kind": "defaultmtus.siteinfo.eda.nokia.com",
+        "apiVersion": "siteinfo.eda.nokia.com/v1",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "defaultmtus.siteinfo.eda.nokia.com",
+        "description": "New siteinfo.eda.nokia.com/v1 apiVersion for defaultmtus.siteinfo.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "defaultospfareadeployments.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfareadeployments.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for defaultospfareadeployments.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "defaultospfareas.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfareas.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for defaultospfareas.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "defaultospfinstancedeployments.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfinstancedeployments.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for defaultospfinstancedeployments.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "defaultospfinstances.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfinstances.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for defaultospfinstances.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "defaultospfinterfaces.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfinterfaces.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for defaultospfinterfaces.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultRouteReflectorClient",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultroutereflectorclients.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultRouteReflectorClient in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultRouteReflector",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultroutereflectors.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultRouteReflector in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultRouter",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "defaultrouters.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for DefaultRouter in EDA 26.4.1."
+      },
+      {
+        "kind": "DefaultStaticRoute",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultstaticroutes.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for DefaultStaticRoute in EDA 26.4.1."
+      },
+      {
+        "kind": "DeployImage",
+        "apiVersion": "os.eda.nokia.com/v1",
+        "group": "os.eda.nokia.com",
+        "crdName": "deployimages.os.eda.nokia.com",
+        "description": "New os.eda.nokia.com/v1 apiVersion for DeployImage in EDA 26.4.1."
+      },
+      {
+        "kind": "DeviationOverlay",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "deviationoverlays.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for DeviationOverlay in EDA 26.4.1."
+      },
+      {
+        "kind": "DHCPRelay",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "dhcprelays.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for DHCPRelay in EDA 26.4.1."
+      },
+      {
+        "kind": "Discovery",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "discoveries.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for Discovery in EDA 26.4.1."
+      },
+      {
+        "kind": "Drain",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "drains.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for Drain in EDA 26.4.1."
+      },
+      {
+        "kind": "EdgePing",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "edgepings.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for EdgePing in EDA 26.4.1."
+      },
+      {
+        "kind": "EgressPolicy",
+        "apiVersion": "qos.eda.nokia.com/v2",
+        "group": "qos.eda.nokia.com",
+        "crdName": "egresspolicys.qos.eda.nokia.com",
+        "description": "New qos.eda.nokia.com/v2 apiVersion for EgressPolicy in EDA 26.4.1."
+      },
+      {
+        "kind": "FabricModule",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "fabricmodules.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for FabricModule in EDA 26.4.1."
+      },
+      {
+        "kind": "Fabric",
+        "apiVersion": "fabrics.eda.nokia.com/v1",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "fabrics.fabrics.eda.nokia.com",
+        "description": "New fabrics.eda.nokia.com/v1 apiVersion for Fabric in EDA 26.4.1."
+      },
+      {
+        "kind": "Fan",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "fans.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for Fan in EDA 26.4.1."
+      },
+      {
+        "kind": "FilterDeployment",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "filterdeployments.filters.eda.nokia.com",
+        "description": "New filters.eda.nokia.com/v1 apiVersion for FilterDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "Filter",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "filters.filters.eda.nokia.com",
+        "description": "New filters.eda.nokia.com/v1 apiVersion for Filter in EDA 26.4.1."
+      },
+      {
+        "kind": "ForwardingClass",
+        "apiVersion": "qos.eda.nokia.com/v2",
+        "group": "qos.eda.nokia.com",
+        "crdName": "forwardingclasss.qos.eda.nokia.com",
+        "description": "New qos.eda.nokia.com/v2 apiVersion for ForwardingClass in EDA 26.4.1."
+      },
+      {
+        "kind": "ftpservers.management.eda.nokia.com",
+        "apiVersion": "management.eda.nokia.com/v1",
+        "group": "management.eda.nokia.com",
+        "crdName": "ftpservers.management.eda.nokia.com",
+        "description": "New management.eda.nokia.com/v1 apiVersion for ftpservers.management.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "grpcservers.management.eda.nokia.com",
+        "apiVersion": "management.eda.nokia.com/v1",
+        "group": "management.eda.nokia.com",
+        "crdName": "grpcservers.management.eda.nokia.com",
+        "description": "New management.eda.nokia.com/v1 apiVersion for grpcservers.management.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "httpservers.management.eda.nokia.com",
+        "apiVersion": "management.eda.nokia.com/v1",
+        "group": "management.eda.nokia.com",
+        "crdName": "httpservers.management.eda.nokia.com",
+        "description": "New management.eda.nokia.com/v1 apiVersion for httpservers.management.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "IngressPolicy",
+        "apiVersion": "qos.eda.nokia.com/v2",
+        "group": "qos.eda.nokia.com",
+        "crdName": "ingresspolicys.qos.eda.nokia.com",
+        "description": "New qos.eda.nokia.com/v2 apiVersion for IngressPolicy in EDA 26.4.1."
+      },
+      {
+        "kind": "Init",
+        "apiVersion": "bootstrap.eda.nokia.com/v1",
+        "group": "bootstrap.eda.nokia.com",
+        "crdName": "inits.bootstrap.eda.nokia.com",
+        "description": "New bootstrap.eda.nokia.com/v1 apiVersion for Init in EDA 26.4.1."
+      },
+      {
+        "kind": "InterfaceModule",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "interfacemodules.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for InterfaceModule in EDA 26.4.1."
+      },
+      {
+        "kind": "Interface",
+        "apiVersion": "interfaces.eda.nokia.com/v1",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "interfaces.interfaces.eda.nokia.com",
+        "description": "New interfaces.eda.nokia.com/v1 apiVersion for Interface in EDA 26.4.1."
+      },
+      {
+        "kind": "IRBInterface",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "irbinterfaces.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for IRBInterface in EDA 26.4.1."
+      },
+      {
+        "kind": "IslPing",
+        "apiVersion": "fabrics.eda.nokia.com/v1",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "islpings.fabrics.eda.nokia.com",
+        "description": "New fabrics.eda.nokia.com/v1 apiVersion for IslPing in EDA 26.4.1."
+      },
+      {
+        "kind": "ISL",
+        "apiVersion": "fabrics.eda.nokia.com/v1",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "isls.fabrics.eda.nokia.com",
+        "description": "New fabrics.eda.nokia.com/v1 apiVersion for ISL in EDA 26.4.1."
+      },
+      {
+        "kind": "KeychainDeployment",
+        "apiVersion": "security.eda.nokia.com/v1",
+        "group": "security.eda.nokia.com",
+        "crdName": "keychaindeployments.security.eda.nokia.com",
+        "description": "New security.eda.nokia.com/v1 apiVersion for KeychainDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "Keychain",
+        "apiVersion": "security.eda.nokia.com/v1",
+        "group": "security.eda.nokia.com",
+        "crdName": "keychains.security.eda.nokia.com",
+        "description": "New security.eda.nokia.com/v1 apiVersion for Keychain in EDA 26.4.1."
+      },
+      {
+        "kind": "LldpOverlay",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "lldpoverlays.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for LldpOverlay in EDA 26.4.1."
+      },
+      {
+        "kind": "locators.support.eda.nokia.com",
+        "apiVersion": "support.eda.nokia.com/v1",
+        "group": "support.eda.nokia.com",
+        "crdName": "locators.support.eda.nokia.com",
+        "description": "New support.eda.nokia.com/v1 apiVersion for locators.support.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "ManagementRouter",
+        "apiVersion": "bootstrap.eda.nokia.com/v1",
+        "group": "bootstrap.eda.nokia.com",
+        "crdName": "managementrouters.bootstrap.eda.nokia.com",
+        "description": "New bootstrap.eda.nokia.com/v1 apiVersion for ManagementRouter in EDA 26.4.1."
+      },
+      {
+        "kind": "MemoryOverlay",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "memoryoverlays.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for MemoryOverlay in EDA 26.4.1."
+      },
+      {
+        "kind": "MirrorFilterDeployment",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "mirrorfilterdeployments.filters.eda.nokia.com",
+        "description": "New filters.eda.nokia.com/v1 apiVersion for MirrorFilterDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "MirrorFilter",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "mirrorfilters.filters.eda.nokia.com",
+        "description": "New filters.eda.nokia.com/v1 apiVersion for MirrorFilter in EDA 26.4.1."
+      },
+      {
+        "kind": "Mirror",
+        "apiVersion": "oam.eda.nokia.com/v1",
+        "group": "oam.eda.nokia.com",
+        "crdName": "mirrors.oam.eda.nokia.com",
+        "description": "New oam.eda.nokia.com/v1 apiVersion for Mirror in EDA 26.4.1."
+      },
+      {
+        "kind": "Monitor",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "monitors.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for Monitor in EDA 26.4.1."
+      },
+      {
+        "kind": "networktopologies.topologies.eda.nokia.com",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "networktopologies.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for networktopologies.topologies.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "NodeGroupDeployment",
+        "apiVersion": "aaa.eda.nokia.com/v1",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "nodegroupdeployments.aaa.eda.nokia.com",
+        "description": "New aaa.eda.nokia.com/v1 apiVersion for NodeGroupDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "NodeGroup",
+        "apiVersion": "aaa.eda.nokia.com/v1",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "nodegroups.aaa.eda.nokia.com",
+        "description": "New aaa.eda.nokia.com/v1 apiVersion for NodeGroup in EDA 26.4.1."
+      },
+      {
+        "kind": "NTPClient",
+        "apiVersion": "timing.eda.nokia.com/v1",
+        "group": "timing.eda.nokia.com",
+        "crdName": "ntpclients.timing.eda.nokia.com",
+        "description": "New timing.eda.nokia.com/v1 apiVersion for NTPClient in EDA 26.4.1."
+      },
+      {
+        "kind": "ospfareadeployments.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfareadeployments.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for ospfareadeployments.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "ospfareas.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfareas.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for ospfareas.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "ospfinstancedeployments.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinstancedeployments.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for ospfinstancedeployments.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "ospfinstances.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinstances.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for ospfinstances.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "ospfinterfaces.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinterfaces.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for ospfinterfaces.protocols.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "Ping",
+        "apiVersion": "oam.eda.nokia.com/v1",
+        "group": "oam.eda.nokia.com",
+        "crdName": "pings.oam.eda.nokia.com",
+        "description": "New oam.eda.nokia.com/v1 apiVersion for Ping in EDA 26.4.1."
+      },
+      {
+        "kind": "PolicyAttachment",
+        "apiVersion": "qos.eda.nokia.com/v2",
+        "group": "qos.eda.nokia.com",
+        "crdName": "policyattachments.qos.eda.nokia.com",
+        "description": "New qos.eda.nokia.com/v2 apiVersion for PolicyAttachment in EDA 26.4.1."
+      },
+      {
+        "kind": "PolicyDeployment",
+        "apiVersion": "qos.eda.nokia.com/v2",
+        "group": "qos.eda.nokia.com",
+        "crdName": "policydeployments.qos.eda.nokia.com",
+        "description": "New qos.eda.nokia.com/v2 apiVersion for PolicyDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "PolicyDeployment",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "policydeployments.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for PolicyDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "Policy",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "policys.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for Policy in EDA 26.4.1."
+      },
+      {
+        "kind": "PowerSupply",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "powersupplies.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for PowerSupply in EDA 26.4.1."
+      },
+      {
+        "kind": "PrefixSetDeployment",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "prefixsetdeployments.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for PrefixSetDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "PrefixSet",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "prefixsets.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for PrefixSet in EDA 26.4.1."
+      },
+      {
+        "kind": "Queue",
+        "apiVersion": "qos.eda.nokia.com/v2",
+        "group": "qos.eda.nokia.com",
+        "crdName": "queues.qos.eda.nokia.com",
+        "description": "New qos.eda.nokia.com/v2 apiVersion for Queue in EDA 26.4.1."
+      },
+      {
+        "kind": "RoutedInterface",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "routedinterfaces.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for RoutedInterface in EDA 26.4.1."
+      },
+      {
+        "kind": "RouteLookup",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "routelookups.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for RouteLookup in EDA 26.4.1."
+      },
+      {
+        "kind": "RouterDeployment",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "routerdeployments.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for RouterDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "RouteReflectorClient",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "routereflectorclients.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for RouteReflectorClient in EDA 26.4.1."
+      },
+      {
+        "kind": "RouteReflector",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "routereflectors.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for RouteReflector in EDA 26.4.1."
+      },
+      {
+        "kind": "Router",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "routers.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for Router in EDA 26.4.1."
+      },
+      {
+        "kind": "routetraces.routing.eda.nokia.com",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "routetraces.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for routetraces.routing.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "SetupEnv",
+        "apiVersion": "environment.eda.nokia.com/v1",
+        "group": "environment.eda.nokia.com",
+        "crdName": "setupenvs.environment.eda.nokia.com",
+        "description": "New environment.eda.nokia.com/v1 apiVersion for SetupEnv in EDA 26.4.1."
+      },
+      {
+        "kind": "sshservers.management.eda.nokia.com",
+        "apiVersion": "management.eda.nokia.com/v1",
+        "group": "management.eda.nokia.com",
+        "crdName": "sshservers.management.eda.nokia.com",
+        "description": "New management.eda.nokia.com/v1 apiVersion for sshservers.management.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "StateConfig",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "stateconfigs.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for StateConfig in EDA 26.4.1."
+      },
+      {
+        "kind": "StaticRoute",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "staticroutes.protocols.eda.nokia.com",
+        "description": "New protocols.eda.nokia.com/v2 apiVersion for StaticRoute in EDA 26.4.1."
+      },
+      {
+        "kind": "SystemInterface",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "systeminterfaces.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for SystemInterface in EDA 26.4.1."
+      },
+      {
+        "kind": "systemloadbalancers.siteinfo.eda.nokia.com",
+        "apiVersion": "siteinfo.eda.nokia.com/v1",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "systemloadbalancers.siteinfo.eda.nokia.com",
+        "description": "New siteinfo.eda.nokia.com/v1 apiVersion for systemloadbalancers.siteinfo.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "systempings.routing.eda.nokia.com",
+        "apiVersion": "routing.eda.nokia.com/v1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "systempings.routing.eda.nokia.com",
+        "description": "New routing.eda.nokia.com/v1 apiVersion for systempings.routing.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "tagsetdeployments.routingpolicies.eda.nokia.com",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "tagsetdeployments.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for tagsetdeployments.routingpolicies.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "tagsets.routingpolicies.eda.nokia.com",
+        "apiVersion": "routingpolicies.eda.nokia.com/v1",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "tagsets.routingpolicies.eda.nokia.com",
+        "description": "New routingpolicies.eda.nokia.com/v1 apiVersion for tagsets.routingpolicies.eda.nokia.com in EDA 26.4.1."
+      },
+      {
+        "kind": "TechSupport",
+        "apiVersion": "oam.eda.nokia.com/v1",
+        "group": "oam.eda.nokia.com",
+        "crdName": "techsupports.oam.eda.nokia.com",
+        "description": "New oam.eda.nokia.com/v1 apiVersion for TechSupport in EDA 26.4.1."
+      },
+      {
+        "kind": "Threshold",
+        "apiVersion": "oam.eda.nokia.com/v1",
+        "group": "oam.eda.nokia.com",
+        "crdName": "thresholds.oam.eda.nokia.com",
+        "description": "New oam.eda.nokia.com/v1 apiVersion for Threshold in EDA 26.4.1."
+      },
+      {
+        "kind": "TopoLinkMonitor",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topolinkmonitors.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for TopoLinkMonitor in EDA 26.4.1."
+      },
+      {
+        "kind": "Topology",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topologies.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for Topology in EDA 26.4.1."
+      },
+      {
+        "kind": "TopologyGrouping",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topologygroupings.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for TopologyGrouping in EDA 26.4.1."
+      },
+      {
+        "kind": "TrafficRateOverlay",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "trafficrateoverlays.topologies.eda.nokia.com",
+        "description": "New topologies.eda.nokia.com/v1 apiVersion for TrafficRateOverlay in EDA 26.4.1."
+      },
+      {
+        "kind": "UserDeployment",
+        "apiVersion": "aaa.eda.nokia.com/v1",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "userdeployments.aaa.eda.nokia.com",
+        "description": "New aaa.eda.nokia.com/v1 apiVersion for UserDeployment in EDA 26.4.1."
+      },
+      {
+        "kind": "VirtualNetwork",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "virtualnetworks.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for VirtualNetwork in EDA 26.4.1."
+      },
+      {
+        "kind": "VLAN",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "vlans.services.eda.nokia.com",
+        "description": "New services.eda.nokia.com/v2 apiVersion for VLAN in EDA 26.4.1."
+      },
+      {
+        "kind": "VolumeOverlay",
+        "apiVersion": "components.eda.nokia.com/v2",
+        "group": "components.eda.nokia.com",
+        "crdName": "volumeoverlays.components.eda.nokia.com",
+        "description": "New components.eda.nokia.com/v2 apiVersion for VolumeOverlay in EDA 26.4.1."
+      },
+      {
+        "kind": "alarmoverlays.topologies.eda.nokia.com",
+        "apiVersion": "topologies.eda.nokia.com/v1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "alarmoverlays.topologies.eda.nokia.com",
+        "description": "New alarmoverlays.topologies.eda.nokia.com CRD introduced in EDA 26.4.1 (topologies.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "alarmoverlays.topologies.eda.nokia.com",
+        "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "alarmoverlays.topologies.eda.nokia.com",
+        "description": "New alarmoverlays.topologies.eda.nokia.com CRD introduced in EDA 26.4.1 (topologies.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "alarmpolicies.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "alarmpolicies.core.eda.nokia.com",
+        "description": "New alarmpolicies.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "analyzealarms.interfaces.eda.nokia.com",
+        "apiVersion": "interfaces.eda.nokia.com/v1",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "analyzealarms.interfaces.eda.nokia.com",
+        "description": "New analyzealarms.interfaces.eda.nokia.com CRD introduced in EDA 26.4.1 (interfaces.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "analyzealarms.protocols.eda.nokia.com",
+        "apiVersion": "protocols.eda.nokia.com/v2",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "analyzealarms.protocols.eda.nokia.com",
+        "description": "New analyzealarms.protocols.eda.nokia.com CRD introduced in EDA 26.4.1 (protocols.eda.nokia.com/v2)."
+      },
+      {
+        "kind": "associationpolicies.microsegmentation.eda.nokia.com",
+        "apiVersion": "microsegmentation.eda.nokia.com/v1alpha1",
+        "group": "microsegmentation.eda.nokia.com",
+        "crdName": "associationpolicies.microsegmentation.eda.nokia.com",
+        "description": "New associationpolicies.microsegmentation.eda.nokia.com CRD introduced in EDA 26.4.1 (microsegmentation.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "authenticationpolicies.aaa.eda.nokia.com",
+        "apiVersion": "aaa.eda.nokia.com/v1",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "authenticationpolicies.aaa.eda.nokia.com",
+        "description": "New authenticationpolicies.aaa.eda.nokia.com CRD introduced in EDA 26.4.1 (aaa.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "branches.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "branches.core.eda.nokia.com",
+        "description": "New branches.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "bridgedomaininterconnects.services.eda.nokia.com",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgedomaininterconnects.services.eda.nokia.com",
+        "description": "New bridgedomaininterconnects.services.eda.nokia.com CRD introduced in EDA 26.4.1 (services.eda.nokia.com/v2)."
+      },
+      {
+        "kind": "clusterproviders.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "clusterproviders.core.eda.nokia.com",
+        "description": "New clusterproviders.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "defaultldpinterfaces.mpls.eda.nokia.com",
+        "apiVersion": "mpls.eda.nokia.com/v1alpha1",
+        "group": "mpls.eda.nokia.com",
+        "crdName": "defaultldpinterfaces.mpls.eda.nokia.com",
+        "description": "New defaultldpinterfaces.mpls.eda.nokia.com CRD introduced in EDA 26.4.1 (mpls.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "defaultldprouterdeployments.mpls.eda.nokia.com",
+        "apiVersion": "mpls.eda.nokia.com/v1alpha1",
+        "group": "mpls.eda.nokia.com",
+        "crdName": "defaultldprouterdeployments.mpls.eda.nokia.com",
+        "description": "New defaultldprouterdeployments.mpls.eda.nokia.com CRD introduced in EDA 26.4.1 (mpls.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "defaultldprouters.mpls.eda.nokia.com",
+        "apiVersion": "mpls.eda.nokia.com/v1alpha1",
+        "group": "mpls.eda.nokia.com",
+        "crdName": "defaultldprouters.mpls.eda.nokia.com",
+        "description": "New defaultldprouters.mpls.eda.nokia.com CRD introduced in EDA 26.4.1 (mpls.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "dnsclients.siteinfo.eda.nokia.com",
+        "apiVersion": "siteinfo.eda.nokia.com/v1",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "dnsclients.siteinfo.eda.nokia.com",
+        "description": "New dnsclients.siteinfo.eda.nokia.com CRD introduced in EDA 26.4.1 (siteinfo.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "fabrictopologies.fabrics.eda.nokia.com",
+        "apiVersion": "fabrics.eda.nokia.com/v1",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "fabrictopologies.fabrics.eda.nokia.com",
+        "description": "New fabrictopologies.fabrics.eda.nokia.com CRD introduced in EDA 26.4.1 (fabrics.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "grouptags.microsegmentation.eda.nokia.com",
+        "apiVersion": "microsegmentation.eda.nokia.com/v1alpha1",
+        "group": "microsegmentation.eda.nokia.com",
+        "crdName": "grouptags.microsegmentation.eda.nokia.com",
+        "description": "New grouptags.microsegmentation.eda.nokia.com CRD introduced in EDA 26.4.1 (microsegmentation.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "labelblockdeployments.mpls.eda.nokia.com",
+        "apiVersion": "mpls.eda.nokia.com/v1alpha1",
+        "group": "mpls.eda.nokia.com",
+        "crdName": "labelblockdeployments.mpls.eda.nokia.com",
+        "description": "New labelblockdeployments.mpls.eda.nokia.com CRD introduced in EDA 26.4.1 (mpls.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "labelblocks.mpls.eda.nokia.com",
+        "apiVersion": "mpls.eda.nokia.com/v1alpha1",
+        "group": "mpls.eda.nokia.com",
+        "crdName": "labelblocks.mpls.eda.nokia.com",
+        "description": "New labelblocks.mpls.eda.nokia.com CRD introduced in EDA 26.4.1 (mpls.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "logoutputs.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "logoutputs.core.eda.nokia.com",
+        "description": "New logoutputs.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "mcpprompttemplates.ai.core.eda.nokia.com",
+        "apiVersion": "ai.core.eda.nokia.com/v1",
+        "group": "ai.core.eda.nokia.com",
+        "crdName": "mcpprompttemplates.ai.core.eda.nokia.com",
+        "description": "New mcpprompttemplates.ai.core.eda.nokia.com CRD introduced in EDA 26.4.1 (ai.core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "mcpresourcedefinitions.ai.core.eda.nokia.com",
+        "apiVersion": "ai.core.eda.nokia.com/v1",
+        "group": "ai.core.eda.nokia.com",
+        "crdName": "mcpresourcedefinitions.ai.core.eda.nokia.com",
+        "description": "New mcpresourcedefinitions.ai.core.eda.nokia.com CRD introduced in EDA 26.4.1 (ai.core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "mcpsettings.ai.core.eda.nokia.com",
+        "apiVersion": "ai.core.eda.nokia.com/v1",
+        "group": "ai.core.eda.nokia.com",
+        "crdName": "mcpsettings.ai.core.eda.nokia.com",
+        "description": "New mcpsettings.ai.core.eda.nokia.com CRD introduced in EDA 26.4.1 (ai.core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "mcptooldefinitions.ai.core.eda.nokia.com",
+        "apiVersion": "ai.core.eda.nokia.com/v1",
+        "group": "ai.core.eda.nokia.com",
+        "crdName": "mcptooldefinitions.ai.core.eda.nokia.com",
+        "description": "New mcptooldefinitions.ai.core.eda.nokia.com CRD introduced in EDA 26.4.1 (ai.core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "microsegmentationpolicies.microsegmentation.eda.nokia.com",
+        "apiVersion": "microsegmentation.eda.nokia.com/v1alpha1",
+        "group": "microsegmentation.eda.nokia.com",
+        "crdName": "microsegmentationpolicies.microsegmentation.eda.nokia.com",
+        "description": "New microsegmentationpolicies.microsegmentation.eda.nokia.com CRD introduced in EDA 26.4.1 (microsegmentation.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "pipelinedefinitions.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "pipelinedefinitions.core.eda.nokia.com",
+        "description": "New pipelinedefinitions.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "platformbackups.coreext.eda.nokia.com",
+        "apiVersion": "coreext.eda.nokia.com/v1alpha1",
+        "group": "coreext.eda.nokia.com",
+        "crdName": "platformbackups.coreext.eda.nokia.com",
+        "description": "New platformbackups.coreext.eda.nokia.com CRD introduced in EDA 26.4.1 (coreext.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "prefixsetdeployments.filters.eda.nokia.com",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "prefixsetdeployments.filters.eda.nokia.com",
+        "description": "New prefixsetdeployments.filters.eda.nokia.com CRD introduced in EDA 26.4.1 (filters.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "prefixsets.filters.eda.nokia.com",
+        "apiVersion": "filters.eda.nokia.com/v1",
+        "group": "filters.eda.nokia.com",
+        "crdName": "prefixsets.filters.eda.nokia.com",
+        "description": "New prefixsets.filters.eda.nokia.com CRD introduced in EDA 26.4.1 (filters.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "providers.ai.core.eda.nokia.com",
+        "apiVersion": "ai.core.eda.nokia.com/v1",
+        "group": "ai.core.eda.nokia.com",
+        "crdName": "providers.ai.core.eda.nokia.com",
+        "description": "New providers.ai.core.eda.nokia.com CRD introduced in EDA 26.4.1 (ai.core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "rotatecertificates.bootstrap.eda.nokia.com",
+        "apiVersion": "bootstrap.eda.nokia.com/v1",
+        "group": "bootstrap.eda.nokia.com",
+        "crdName": "rotatecertificates.bootstrap.eda.nokia.com",
+        "description": "New rotatecertificates.bootstrap.eda.nokia.com CRD introduced in EDA 26.4.1 (bootstrap.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "routerinterconnects.services.eda.nokia.com",
+        "apiVersion": "services.eda.nokia.com/v2",
+        "group": "services.eda.nokia.com",
+        "crdName": "routerinterconnects.services.eda.nokia.com",
+        "description": "New routerinterconnects.services.eda.nokia.com CRD introduced in EDA 26.4.1 (services.eda.nokia.com/v2)."
+      },
+      {
+        "kind": "satelliteprofiles.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "satelliteprofiles.core.eda.nokia.com",
+        "description": "New satelliteprofiles.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "satellites.bootstrap.eda.nokia.com",
+        "apiVersion": "bootstrap.eda.nokia.com/v1",
+        "group": "bootstrap.eda.nokia.com",
+        "crdName": "satellites.bootstrap.eda.nokia.com",
+        "description": "New satellites.bootstrap.eda.nokia.com CRD introduced in EDA 26.4.1 (bootstrap.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "servergroups.aaa.eda.nokia.com",
+        "apiVersion": "aaa.eda.nokia.com/v1",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "servergroups.aaa.eda.nokia.com",
+        "description": "New servergroups.aaa.eda.nokia.com CRD introduced in EDA 26.4.1 (aaa.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "sharedipservices.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "sharedipservices.core.eda.nokia.com",
+        "description": "New sharedipservices.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "transactionpipelines.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "transactionpipelines.core.eda.nokia.com",
+        "description": "New transactionpipelines.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "virtualclusters.core.eda.nokia.com",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "group": "core.eda.nokia.com",
+        "crdName": "virtualclusters.core.eda.nokia.com",
+        "description": "New virtualclusters.core.eda.nokia.com CRD introduced in EDA 26.4.1 (core.eda.nokia.com/v1)."
+      }
+    ],
+    "removedResources": [],
+    "modifiedResources": [
+      {
+        "kind": "AppInstaller",
+        "apiVersion": "appstore.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.apps.items.properties.version.properties.type.enum",
+            "changeType": "enum_removed",
+            "before": "[\"semver\",\"commit\"]",
+            "after": "[\"semver\",\"commit\",\"alias\"]",
+            "networkBehavior": "Enum on AppInstaller removed enum value(s); verify manifest values are still allowed."
+          },
+          {
+            "field": "spec.apps.items.properties.version.properties.value.description",
+            "changeType": "type_change",
+            "before": "\"The version of the App.\\nIf the VersionType is set to semver,\\nthen the semantic version of the git tag in the form of \\\"apps/<appname>/<semver>\\\" is used.\\nIf the VersionType is set to commit,\\nthen the commit reference (e.g. git hash) is expected.\"",
+            "after": "\"The version of the App.\\nIf the VersionType is set to semver,\\nthen the semantic version of the git tag in the form of \\\"apps/<appname>/<semver>\\\" is used.\\nIf the VersionType is set to commit,\\nthen the commit reference (e.g. git hash) is expected.\\nIf the VersionType is set to alias,\\nthen one of [latest, latestMinor, latestMaintenance] is expected\"",
+            "networkBehavior": "Description on AppInstaller changed type or structure; validate existing values against the new schema."
+          }
+        ]
+      },
+      {
+        "kind": "Catalog",
+        "apiVersion": "appstore.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.enabled",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.enabled available on Catalog; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "ClusterRole",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.resourceRules.items.properties.permissions.enum",
+            "changeType": "enum_removed",
+            "before": "[\"none\",\"read\",\"readWrite\"]",
+            "after": "[\"none\",\"read\",\"readPropose\",\"readWrite\"]",
+            "networkBehavior": "Enum on ClusterRole removed enum value(s); verify manifest values are still allowed."
+          }
+        ]
+      },
+      {
+        "kind": "Configlet",
+        "apiVersion": "config.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.configs.items.required",
+            "changeType": "type_change",
+            "before": "[\"config\",\"operation\",\"path\"]",
+            "after": "[\"operation\",\"path\"]",
+            "networkBehavior": "Required on Configlet changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.operatingSystem.allOf",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.operatingSystem.allOf available on Configlet; existing manifests remain valid."
+          },
+          {
+            "field": "spec.operatingSystem.enum",
+            "changeType": "enum_removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "Enum on Configlet removed enum value(s); verify manifest values are still allowed."
+          }
+        ]
+      },
+      {
+        "kind": "Discovery",
+        "apiVersion": "components.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.operatingSystem.enum",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.operatingSystem.enum available on Discovery; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "EngineConfig",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.appStoreDocs",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.appStoreDocs available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.branchInstance",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.branchInstance available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.branchOptions",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.branchOptions available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.clusterManager",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.clusterManager available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.cxdp",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.cxdp available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.internalCertExcludeSingleLabelNames",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.internalCertExcludeSingleLabelNames available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.internalCertRenewBefore",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.internalCertRenewBefore available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.logging",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.logging available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.vCluster",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.vCluster available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.playground",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "EngineConfig manifests referencing spec.playground must remove this field before apply."
+          },
+          {
+            "field": "spec.api.properties.certDuration",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.api.properties.certDuration available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.api.properties.certRenewBefore",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.api.properties.certRenewBefore available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.cluster.properties.external.properties.proxyMode",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.cluster.properties.external.properties.proxyMode available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.cluster.properties.redundancy.properties.credential",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "EngineConfig manifests referencing spec.cluster.properties.redundancy.properties.credential must remove this field before apply."
+          },
+          {
+            "field": "spec.git.properties.image",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.git.properties.image available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.git.properties.image-credential",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.git.properties.image-credential available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.git.properties.localGit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.git.properties.localGit available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.git.properties.resources",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.git.properties.resources available on EngineConfig; existing manifests remain valid."
+          },
+          {
+            "field": "spec.stateEngine.properties.python",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.stateEngine.properties.python available on EngineConfig; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "GlobalConfig",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.dhcp.properties.proxyMode",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.dhcp.properties.proxyMode available on GlobalConfig; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "HttpProxy",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.signatureHeaderVerification",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.signatureHeaderVerification available on HttpProxy; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "IslPing",
+        "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.addressFamily",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.addressFamily available on IslPing; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "Manifest",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.components.items.properties.i18n",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.components.items.properties.i18n available on Manifest; existing manifests remain valid."
+          },
+          {
+            "field": "spec.components.items.properties.crd.properties.ui.properties.icon",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.components.items.properties.crd.properties.ui.properties.icon available on Manifest; existing manifests remain valid."
+          },
+          {
+            "field": "spec.components.items.properties.view.properties.ui.properties.icon",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.components.items.properties.view.properties.ui.properties.icon available on Manifest; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "networktopologies.topologies.eda.nokia.com",
+        "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.satellitePortTemplates",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.satellitePortTemplates available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.breakoutTemplates.description",
+            "changeType": "type_change",
+            "before": "\"Define the breakout parameters that are meant to be inherited by the breakouts referencing the template. These parameters can be overridden at the breakout level.\"",
+            "after": "\"Deprecated: Define the breakout parameters that are meant to be inherited by the breakouts referencing the template. These parameters can be overridden at the breakout level.\"",
+            "networkBehavior": "Description on networktopologies.topologies.eda.nokia.com changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.breakouts.description",
+            "changeType": "type_change",
+            "before": "\"Define the set of breakouts to be created/replaced/deleted. A breakout can reference a breakout template to inherit its parameters.\"",
+            "after": "\"Deprecated: Define the set of breakouts to be created/replaced/deleted. A breakout can reference a breakout template to inherit its parameters.\"",
+            "networkBehavior": "Description on networktopologies.topologies.eda.nokia.com changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.linkTemplates.items.properties.breakouts",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.linkTemplates.items.properties.breakouts available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.nodeTemplates.items.properties.satelliteNodes",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.nodeTemplates.items.properties.satelliteNodes available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.nodes.items.properties.satelliteNodes",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.nodes.items.properties.satelliteNodes available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.nodes.items.properties.operatingSystem.enum",
+            "changeType": "enum_removed",
+            "before": "[7 items]",
+            "after": "[6 items]",
+            "networkBehavior": "Enum on networktopologies.topologies.eda.nokia.com removed enum value(s); verify manifest values are still allowed."
+          },
+          {
+            "field": "spec.operation.description",
+            "changeType": "type_change",
+            "before": "\"Operation to be performed on the Topology.\\nCreate - creates the topology resources based on the provided specifications.\\nReplace - replaces the resources matched by name with the provided specifications.\\nReplaceAll - first removes all existing topology resources and then creates new ones based on the provided specifications.\\nDelete - deletes the resources matched by name.\\nDeleteAll - deletes all topology resources found in the namespace.\\nOne of create, replace, replaceAll, delete, deleteAll.\"",
+            "after": "\"Operation to be performed on the Topology.\\nCreate - creates the topology resources based on the provided specifications.\\nReplace - replaces the resources matched by name with the provided specifications.\\nReplaceAll - first removes all existing topology resources and then creates new ones based on the provided specifications.\\nDelete - deletes the resources matched by name.\\nDeleteAll - deletes all topology resources found in the namespace.\\nReconcile - reconciles the topology resources based on the provided specifications.\\nOne of create, replace, replaceAll, delete, deleteAll, reconcile.\"",
+            "networkBehavior": "Description on networktopologies.topologies.eda.nokia.com changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.operation.enum",
+            "changeType": "enum_removed",
+            "before": "[5 items]",
+            "after": "[6 items]",
+            "networkBehavior": "Enum on networktopologies.topologies.eda.nokia.com removed enum value(s); verify manifest values are still allowed."
+          },
+          {
+            "field": "spec.simulation.properties.simNodeTemplates.items.properties.annotations",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.simulation.properties.simNodeTemplates.items.properties.annotations available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.simulation.properties.simNodeTemplates.items.properties.labels",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.simulation.properties.simNodeTemplates.items.properties.labels available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.simulation.properties.simNodes.items.properties.annotations",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.simulation.properties.simNodes.items.properties.annotations available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.simulation.properties.simNodes.items.properties.labels",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.simulation.properties.simNodes.items.properties.labels available on networktopologies.topologies.eda.nokia.com; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "NodeProfile",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.operatingSystem.enum",
+            "changeType": "enum_removed",
+            "before": "[7 items]",
+            "after": "[6 items]",
+            "networkBehavior": "Enum on NodeProfile removed enum value(s); verify manifest values are still allowed."
+          }
+        ]
+      },
+      {
+        "kind": "Role",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.resourceRules.items.properties.permissions.enum",
+            "changeType": "enum_removed",
+            "before": "[\"none\",\"read\",\"readWrite\"]",
+            "after": "[\"none\",\"read\",\"readPropose\",\"readWrite\"]",
+            "networkBehavior": "Enum on Role removed enum value(s); verify manifest values are still allowed."
+          }
+        ]
+      },
+      {
+        "kind": "SimNode",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.gatewayAddress",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.gatewayAddress available on SimNode; existing manifests remain valid."
+          },
+          {
+            "field": "spec.satelliteNodes",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.satelliteNodes available on SimNode; existing manifests remain valid."
+          },
+          {
+            "field": "spec.license.description",
+            "changeType": "type_change",
+            "before": "\"Reference to a URL path hosting the license for the TopoNode.\"",
+            "after": "\"ConfigMap containing a license for the SimNode.\"",
+            "networkBehavior": "Description on SimNode changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.operatingSystem.enum",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.operatingSystem.enum available on SimNode; existing manifests remain valid."
+          },
+          {
+            "field": "spec.operatingSystem.description",
+            "changeType": "type_change",
+            "before": "\"Operational operating system running on this TopoNode, e.g. srl, sros, nxos, eos\"",
+            "after": "\"Operational operating system running on this SimNode, e.g. srl, sros, nxos, eos\"",
+            "networkBehavior": "Description on SimNode changed type or structure; validate existing values against the new schema."
+          }
+        ]
+      },
+      {
+        "kind": "systempings.routing.eda.nokia.com",
+        "apiVersion": "routing.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.addressFamily.enum",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.addressFamily.enum available on systempings.routing.eda.nokia.com; existing manifests remain valid."
+          },
+          {
+            "field": "spec.addressFamily.allOf",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "systempings.routing.eda.nokia.com manifests referencing spec.addressFamily.allOf must remove this field before apply."
+          }
+        ]
+      },
+      {
+        "kind": "TopologyGrouping",
+        "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.groupSelectors.items.properties.groupUIName",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.groupSelectors.items.properties.groupUIName available on TopologyGrouping; existing manifests remain valid."
+          },
+          {
+            "field": "spec.groupSelectors.items.properties.group.description",
+            "changeType": "type_change",
+            "before": "\"The group to assign to nodes that match the selector.\"",
+            "after": "\"The group to assign to nodes that match the selector.  Primarily this is used as a unique\\nkey to identify which nodes share the same group key and should be put together.\"",
+            "networkBehavior": "Description on TopologyGrouping changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.groupSelectors.items.required",
+            "changeType": "type_change",
+            "before": "[\"group\"]",
+            "after": "[\"group\",\"groupUIName\"]",
+            "networkBehavior": "Required on TopologyGrouping changed type or structure; validate existing values against the new schema."
+          }
+        ]
+      },
+      {
+        "kind": "TopoNode",
+        "apiVersion": "core.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.satelliteNodes",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.satelliteNodes available on TopoNode; existing manifests remain valid."
+          },
+          {
+            "field": "spec.operatingSystem.enum",
+            "changeType": "enum_removed",
+            "before": "[7 items]",
+            "after": "[6 items]",
+            "networkBehavior": "Enum on TopoNode removed enum value(s); verify manifest values are still allowed."
+          },
+          {
+            "field": "spec.version.description",
+            "changeType": "type_change",
+            "before": "\"Sets the software version of this TopoNode, e.g. 24.7.1 (for srl), or 24.7.r1 (for sros).\"",
+            "after": "\"Software version of this TopoNode, e.g. 24.7.1 (for srl), or 24.7.r1 (for sros).\"",
+            "networkBehavior": "Description on TopoNode changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "status.node-state.description",
+            "changeType": "type_change",
+            "before": "\"The current state of the connection between NPP and the node.\\n\\\"TryingToConnect\\\"\\n   NPP is attempting to connect and establish connectivity to the node\\n\\\"WaitingForInitialCfg\\\"\\n   NPP is connected to the node but waiting for intial config to push\\n\\\"Committing\\\"\\n\\t  NPP is in progress of commiting\\n\\\"RetryingCommit\\\"\\n   NPP lost sync to node and is re-pushing current config\\n\\\"Synced\\\"\\n   NPP is in fully synced state\\n\\\"Standby\\\"\\n   NPP is running in standby mode. This state is only used on standby clusters with georedundancy.\\n\\\"NoIpAddress\\\"\\n   NPP is running but there is no IP address for node. This only happen in sim setups when\\n   CX has not created the simulated node, or the simulated pod failed to launch due to image error.\"",
+            "after": "\"The current state of the connection between NPP and the node.\\n\\\"TryingToConnect\\\"\\n   NPP is attempting to connect and establish connectivity to the node\\n\\\"WaitingForInitialCfg\\\"\\n   NPP is connected to the node but waiting for intial config to push\\n\\\"Committing\\\"\\n\\t  NPP is in progress of committing\\n\\\"RetryingCommit\\\"\\n   NPP lost sync to node and is re-pushing current config\\n\\\"Synced\\\"\\n   NPP is in fully synced state\\n\\\"Standby\\\"\\n   NPP is running in standby mode. This state is only used on standby clusters with georedundancy.\\n\\\"NoIpAddress\\\"\\n   NPP is running but there is no IP address for node. This only happens in sim setups when\\n   CX has not created the simulated node, or the simulated pod failed to launch due to image error.\"",
+            "networkBehavior": "Description on TopoNode changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "status.operatingSystem.enum",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field status.operatingSystem.enum available on TopoNode; existing manifests remain valid."
+          }
+        ]
+      },
+      {
+        "kind": "VirtualNetwork",
+        "apiVersion": "services.eda.nokia.com/v1",
+        "changes": [
+          {
+            "field": "spec.irbInterfaces.items.properties.spec.properties.ipAddresses.description",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.irbInterfaces.items.properties.spec.properties.ipAddresses.description available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.irbInterfaces.items.properties.spec.properties.ipAddresses.items.properties.ipv4Address.properties.ipPrefix.description",
+            "changeType": "type_change",
+            "before": "\"Address and mask to use\"",
+            "after": "\"IP Address and prefix length in CIDR notation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.irbInterfaces.items.properties.spec.properties.ipAddresses.items.properties.ipv4Address.properties.primary.description",
+            "changeType": "type_change",
+            "before": "\"Indicates which address to use as primary for broadcast\"",
+            "after": "\"Indicates which address to use as primary.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.irbInterfaces.items.properties.spec.properties.ipAddresses.items.properties.ipv6Address.properties.ipPrefix.description",
+            "changeType": "type_change",
+            "before": "\"Address and mask to use\"",
+            "after": "\"IP Address and prefix length in CIDR notation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.irbInterfaces.items.properties.spec.properties.ipAddresses.items.properties.ipv6Address.properties.primary.description",
+            "changeType": "type_change",
+            "before": "\"Indicates which address to use as primary for broadcast\"",
+            "after": "\"Indicates which address to use as primary.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.protocols.properties.ospf.items.properties.spec.properties.timers.properties.lsaTimers.description",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.ospf.items.properties.spec.properties.timers.properties.lsaTimers.description available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.ospf.items.properties.spec.properties.timers.properties.spfTimers.description",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.ospf.items.properties.spec.properties.timers.properties.spfTimers.description available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statements",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statements available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.communities",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.communities available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.nextHop",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.nextHop available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.setLocalPreference",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.setLocalPreference available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.communitySet",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.communitySet must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.localPreference",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.localPreference must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.properties",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.properties available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.required",
+            "changeType": "required_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork resources without spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.required will fail reconciliation — add the field to existing manifests."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.format",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.format must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.maximum",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.maximum must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.minimum",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.minimum must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.asPathPrepend.type",
+            "changeType": "type_change",
+            "before": "\"integer\"",
+            "after": "\"object\"",
+            "networkBehavior": "Type on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.policyResult.enum",
+            "changeType": "enum_removed",
+            "before": "[\"accept\",\"reject\",\"NextPolicy\",\"NextStatement\"]",
+            "after": "[\"Accept\",\"Reject\",\"NextPolicy\",\"NextStatement\"]",
+            "networkBehavior": "Enum on VirtualNetwork removed enum value(s); verify manifest values are still allowed."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.tags.properties.applyTagSet",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.tags.properties.applyTagSet available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.tags.properties.tagSet",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.tags.properties.tagSet must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.properties.prefixes",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.properties.prefixes available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.properties.prefix",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.properties.prefix must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.required",
+            "changeType": "type_change",
+            "before": "[\"prefix\"]",
+            "after": "[\"prefixes\"]",
+            "networkBehavior": "Required on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routedInterfaces.items.properties.spec.properties.ipv4Addresses.items.properties.ipPrefix.description",
+            "changeType": "type_change",
+            "before": "\"Address and mask to use\"",
+            "after": "\"IP Address and prefix length in CIDR notation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routedInterfaces.items.properties.spec.properties.ipv4Addresses.items.properties.primary.description",
+            "changeType": "type_change",
+            "before": "\"Indicates which address to use as primary for broadcast\"",
+            "after": "\"Indicates which address to use as primary.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routedInterfaces.items.properties.spec.properties.ipv4Parameters.description",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.routedInterfaces.items.properties.spec.properties.ipv4Parameters.description available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.routedInterfaces.items.properties.spec.properties.ipv6Addresses.items.properties.ipPrefix.description",
+            "changeType": "type_change",
+            "before": "\"Address and mask to use\"",
+            "after": "\"IP Address and prefix length in CIDR notation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routedInterfaces.items.properties.spec.properties.ipv6Addresses.items.properties.primary.description",
+            "changeType": "type_change",
+            "before": "\"Indicates which address to use as primary for broadcast\"",
+            "after": "\"Indicates which address to use as primary.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routers.items.properties.spec.properties.evi.description",
+            "changeType": "type_change",
+            "before": "\"EVI for the Router; leave blank for auto-allocation from EVI pool.\"",
+            "after": "\"EVI for the Router; leave blank for auto-allocation from EVI pool. Optional for IPVPN (can be used to auto-derive RTs), required for EVPN.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routers.items.properties.spec.properties.tunnelIndexPool.description",
+            "changeType": "type_change",
+            "before": "\"Reference to tunnel index allocation pool.\"",
+            "after": "\"Reference to tunnel index allocation pool. Only applicable to VXLAN encapsulation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routers.items.properties.spec.properties.type.description",
+            "changeType": "type_change",
+            "before": "\"Select the type of Router.  Simple doesn't include any overlay control plane or dataplane properties (EVPN/VXLAN). EVPNVXLAN includes the properties needed to provision this Router over an IP Fabric.\"",
+            "after": "\"Select the type of Router. Simple doesn't include any overlay control plane or dataplane properties (such as EVPN/VXLAN). EVPNVXLAN includes the properties needed to provision this Router over an IP Fabric.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routers.items.properties.spec.properties.vni.description",
+            "changeType": "type_change",
+            "before": "\"VNI for the Router; leave blank for auto-allocation from VNI pool.\"",
+            "after": "\"VNI for the Router; leave blank for auto-allocation from VNI pool. Only applicable to VXLAN encapsulation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.routers.items.properties.spec.properties.vniPool.description",
+            "changeType": "type_change",
+            "before": "\"Reference to VNI pool for auto-allocation.\"",
+            "after": "\"Reference to VNI pool for auto-allocation. Only applicable to VXLAN encapsulation.\"",
+            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
+          }
+        ]
+      }
+    ],
+    "deprecated": [
+      {
+        "kind": "AggregateRoute",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "aggregateroutes.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "alarmoverlays",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "alarmoverlays.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ASPathSet",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "aspathsets.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ASPathSetDeployment",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "aspathsetdeployments.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "AttachmentLookup",
+        "group": "routing.eda.nokia.com",
+        "crdName": "attachmentlookups.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Backend",
+        "group": "aifabrics.eda.nokia.com",
+        "crdName": "backends.aifabrics.eda.nokia.com",
+        "recommendedApiVersion": "aifabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion aifabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "aifabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "backendstates",
+        "group": "aifabrics.eda.nokia.com",
+        "crdName": "backendstates.aifabrics.eda.nokia.com",
+        "recommendedApiVersion": "aifabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion aifabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "aifabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Banner",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "banners.siteinfo.eda.nokia.com",
+        "recommendedApiVersion": "siteinfo.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion siteinfo.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "bannerstates",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "bannerstates.siteinfo.eda.nokia.com",
+        "recommendedApiVersion": "siteinfo.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion siteinfo.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "BGPGroup",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgpgroups.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "BGPGroupDeployment",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgpgroupdeployments.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "bgpgroupstates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgpgroupstates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "BGPPeer",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgppeers.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "bgppeerstates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "bgppeerstates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "Breakout",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "breakouts.interfaces.eda.nokia.com",
+        "recommendedApiVersion": "interfaces.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion interfaces.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "BridgeDomain",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgedomains.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "BridgeDomainDeployment",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgedomaindeployments.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "bridgedomainstates",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgedomainstates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "BridgeInterface",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgeinterfaces.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "bridgeinterfacestates",
+        "group": "services.eda.nokia.com",
+        "crdName": "bridgeinterfacestates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "Chassis",
+        "group": "components.eda.nokia.com",
+        "crdName": "chassis.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "CheckDefaultBgpPeers",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "checkdefaultbgppeerss.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "ClusterDiscovery",
+        "group": "components.eda.nokia.com",
+        "crdName": "clusterdiscoveries.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "CommunitySet",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "communitysets.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "CommunitySetDeployment",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "communitysetdeployments.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Component",
+        "group": "components.eda.nokia.com",
+        "crdName": "components.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Configlet",
+        "group": "config.eda.nokia.com",
+        "crdName": "configlets.config.eda.nokia.com",
+        "recommendedApiVersion": "config.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion config.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "config.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "configletstates",
+        "group": "config.eda.nokia.com",
+        "crdName": "configletstates.config.eda.nokia.com",
+        "recommendedApiVersion": "config.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion config.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "config.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ControlModule",
+        "group": "components.eda.nokia.com",
+        "crdName": "controlmodules.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ControlPlaneFilter",
+        "group": "filters.eda.nokia.com",
+        "crdName": "controlplanefilters.filters.eda.nokia.com",
+        "recommendedApiVersion": "filters.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion filters.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "filters.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "CPUOverlay",
+        "group": "components.eda.nokia.com",
+        "crdName": "cpuoverlays.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "DefaultAggregateRoute",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultaggregateroutes.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "DefaultBGPGroup",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultbgpgroups.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "DefaultBGPGroupDeployment",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultbgpgroupdeployments.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "DefaultBGPPeer",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultbgppeers.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "DefaultInterface",
+        "group": "routing.eda.nokia.com",
+        "crdName": "defaultinterfaces.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultinterfacestates",
+        "group": "routing.eda.nokia.com",
+        "crdName": "defaultinterfacestates.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultmtus",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "defaultmtus.siteinfo.eda.nokia.com",
+        "recommendedApiVersion": "siteinfo.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion siteinfo.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultospfareadeployments",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfareadeployments.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultospfareas",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfareas.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultospfinstancedeployments",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfinstancedeployments.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultospfinstances",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfinstances.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "defaultospfinterfaces",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultospfinterfaces.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "DefaultRouter",
+        "group": "routing.eda.nokia.com",
+        "crdName": "defaultrouters.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "DefaultRouteReflector",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultroutereflectors.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "DefaultRouteReflectorClient",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultroutereflectorclients.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "defaultrouterstates",
+        "group": "routing.eda.nokia.com",
+        "crdName": "defaultrouterstates.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "DefaultStaticRoute",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "defaultstaticroutes.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "DeployImage",
+        "group": "os.eda.nokia.com",
+        "crdName": "deployimages.os.eda.nokia.com",
+        "recommendedApiVersion": "os.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion os.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "os.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "DeviationOverlay",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "deviationoverlays.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "DHCPRelay",
+        "group": "services.eda.nokia.com",
+        "crdName": "dhcprelays.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "Discovery",
+        "group": "components.eda.nokia.com",
+        "crdName": "discoveries.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "discoveryaggregatestates",
+        "group": "components.eda.nokia.com",
+        "crdName": "discoveryaggregatestates.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "discoverystates",
+        "group": "components.eda.nokia.com",
+        "crdName": "discoverystates.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Drain",
+        "group": "routing.eda.nokia.com",
+        "crdName": "drains.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "drainstates",
+        "group": "routing.eda.nokia.com",
+        "crdName": "drainstates.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "EdgePing",
+        "group": "services.eda.nokia.com",
+        "crdName": "edgepings.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "EgressPolicy",
+        "group": "qos.eda.nokia.com",
+        "crdName": "egresspolicys.qos.eda.nokia.com",
+        "recommendedApiVersion": "qos.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "qos.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "qos.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "Fabric",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "fabrics.fabrics.eda.nokia.com",
+        "recommendedApiVersion": "fabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion fabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "FabricModule",
+        "group": "components.eda.nokia.com",
+        "crdName": "fabricmodules.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "fabricstates",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "fabricstates.fabrics.eda.nokia.com",
+        "recommendedApiVersion": "fabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion fabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Fan",
+        "group": "components.eda.nokia.com",
+        "crdName": "fans.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Filter",
+        "group": "filters.eda.nokia.com",
+        "crdName": "filters.filters.eda.nokia.com",
+        "recommendedApiVersion": "filters.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion filters.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "filters.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "FilterDeployment",
+        "group": "filters.eda.nokia.com",
+        "crdName": "filterdeployments.filters.eda.nokia.com",
+        "recommendedApiVersion": "filters.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion filters.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "filters.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ForwardingClass",
+        "group": "qos.eda.nokia.com",
+        "crdName": "forwardingclasss.qos.eda.nokia.com",
+        "recommendedApiVersion": "qos.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "qos.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "qos.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "ftpservers",
+        "group": "management.eda.nokia.com",
+        "crdName": "ftpservers.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ftpserverstates",
+        "group": "management.eda.nokia.com",
+        "crdName": "ftpserverstates.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "grpcservers",
+        "group": "management.eda.nokia.com",
+        "crdName": "grpcservers.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "grpcserverstates",
+        "group": "management.eda.nokia.com",
+        "crdName": "grpcserverstates.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "httpservers",
+        "group": "management.eda.nokia.com",
+        "crdName": "httpservers.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "httpserverstates",
+        "group": "management.eda.nokia.com",
+        "crdName": "httpserverstates.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "IngressPolicy",
+        "group": "qos.eda.nokia.com",
+        "crdName": "ingresspolicys.qos.eda.nokia.com",
+        "recommendedApiVersion": "qos.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "qos.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "qos.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "Interface",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "interfaces.interfaces.eda.nokia.com",
+        "recommendedApiVersion": "interfaces.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion interfaces.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "InterfaceModule",
+        "group": "components.eda.nokia.com",
+        "crdName": "interfacemodules.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "interfacestates",
+        "group": "interfaces.eda.nokia.com",
+        "crdName": "interfacestates.interfaces.eda.nokia.com",
+        "recommendedApiVersion": "interfaces.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion interfaces.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "IRBInterface",
+        "group": "services.eda.nokia.com",
+        "crdName": "irbinterfaces.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "irbinterfacestates",
+        "group": "services.eda.nokia.com",
+        "crdName": "irbinterfacestates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "ISL",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "isls.fabrics.eda.nokia.com",
+        "recommendedApiVersion": "fabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion fabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "IslPing",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "islpings.fabrics.eda.nokia.com",
+        "recommendedApiVersion": "fabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion fabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "islstates",
+        "group": "fabrics.eda.nokia.com",
+        "crdName": "islstates.fabrics.eda.nokia.com",
+        "recommendedApiVersion": "fabrics.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion fabrics.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Keychain",
+        "group": "security.eda.nokia.com",
+        "crdName": "keychains.security.eda.nokia.com",
+        "recommendedApiVersion": "security.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion security.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "security.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "KeychainDeployment",
+        "group": "security.eda.nokia.com",
+        "crdName": "keychaindeployments.security.eda.nokia.com",
+        "recommendedApiVersion": "security.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion security.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "security.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "LldpOverlay",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "lldpoverlays.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "locators",
+        "group": "support.eda.nokia.com",
+        "crdName": "locators.support.eda.nokia.com",
+        "recommendedApiVersion": "support.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion support.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "support.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "MemoryOverlay",
+        "group": "components.eda.nokia.com",
+        "crdName": "memoryoverlays.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Mirror",
+        "group": "oam.eda.nokia.com",
+        "crdName": "mirrors.oam.eda.nokia.com",
+        "recommendedApiVersion": "oam.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion oam.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "oam.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "MirrorFilter",
+        "group": "filters.eda.nokia.com",
+        "crdName": "mirrorfilters.filters.eda.nokia.com",
+        "recommendedApiVersion": "filters.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion filters.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "filters.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "MirrorFilterDeployment",
+        "group": "filters.eda.nokia.com",
+        "crdName": "mirrorfilterdeployments.filters.eda.nokia.com",
+        "recommendedApiVersion": "filters.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion filters.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "filters.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "mirrorstates",
+        "group": "oam.eda.nokia.com",
+        "crdName": "mirrorstates.oam.eda.nokia.com",
+        "recommendedApiVersion": "oam.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion oam.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "oam.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Monitor",
+        "group": "components.eda.nokia.com",
+        "crdName": "monitors.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "monitoraggregatestates",
+        "group": "components.eda.nokia.com",
+        "crdName": "monitoraggregatestates.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "monitorstates",
+        "group": "components.eda.nokia.com",
+        "crdName": "monitorstates.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "networktopologies",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "networktopologies.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "NodeGroup",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "nodegroups.aaa.eda.nokia.com",
+        "recommendedApiVersion": "aaa.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion aaa.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "aaa.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "NodeGroupDeployment",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "nodegroupdeployments.aaa.eda.nokia.com",
+        "recommendedApiVersion": "aaa.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion aaa.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "aaa.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "nodeuserstates",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "nodeuserstates.aaa.eda.nokia.com",
+        "recommendedApiVersion": "aaa.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion aaa.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "aaa.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "NTPClient",
+        "group": "timing.eda.nokia.com",
+        "crdName": "ntpclients.timing.eda.nokia.com",
+        "recommendedApiVersion": "timing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion timing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "timing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ntpclientstates",
+        "group": "timing.eda.nokia.com",
+        "crdName": "ntpclientstates.timing.eda.nokia.com",
+        "recommendedApiVersion": "timing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion timing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "timing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfareadeployments",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfareadeployments.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfareas",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfareas.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfareastates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfareastates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfinstancedeployments",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinstancedeployments.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfinstances",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinstances.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfinstancestates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinstancestates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfinterfaces",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinterfaces.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "ospfinterfacestates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "ospfinterfacestates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Ping",
+        "group": "oam.eda.nokia.com",
+        "crdName": "pings.oam.eda.nokia.com",
+        "recommendedApiVersion": "oam.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion oam.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "oam.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Policy",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "policys.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "PolicyAttachment",
+        "group": "qos.eda.nokia.com",
+        "crdName": "policyattachments.qos.eda.nokia.com",
+        "recommendedApiVersion": "qos.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "qos.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "qos.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "PolicyDeployment",
+        "group": "qos.eda.nokia.com",
+        "crdName": "policydeployments.qos.eda.nokia.com",
+        "recommendedApiVersion": "qos.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "qos.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "qos.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "PolicyDeployment",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "policydeployments.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "PowerSupply",
+        "group": "components.eda.nokia.com",
+        "crdName": "powersupplies.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "PrefixSet",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "prefixsets.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "PrefixSetDeployment",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "prefixsetdeployments.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Queue",
+        "group": "qos.eda.nokia.com",
+        "crdName": "queues.qos.eda.nokia.com",
+        "recommendedApiVersion": "qos.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "qos.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "qos.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "RoutedInterface",
+        "group": "services.eda.nokia.com",
+        "crdName": "routedinterfaces.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "routedinterfacestates",
+        "group": "services.eda.nokia.com",
+        "crdName": "routedinterfacestates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "RouteLookup",
+        "group": "routing.eda.nokia.com",
+        "crdName": "routelookups.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Router",
+        "group": "services.eda.nokia.com",
+        "crdName": "routers.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "RouterDeployment",
+        "group": "services.eda.nokia.com",
+        "crdName": "routerdeployments.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "RouteReflector",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "routereflectors.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "RouteReflectorClient",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "routereflectorclients.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "routereflectorclientstates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "routereflectorclientstates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "routereflectorstates",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "routereflectorstates.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "routerstates",
+        "group": "services.eda.nokia.com",
+        "crdName": "routerstates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "routetraces",
+        "group": "routing.eda.nokia.com",
+        "crdName": "routetraces.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "SetupEnv",
+        "group": "environment.eda.nokia.com",
+        "crdName": "setupenvs.environment.eda.nokia.com",
+        "recommendedApiVersion": "environment.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion environment.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "environment.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "sshservers",
+        "group": "management.eda.nokia.com",
+        "crdName": "sshservers.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "sshserverstates",
+        "group": "management.eda.nokia.com",
+        "crdName": "sshserverstates.management.eda.nokia.com",
+        "recommendedApiVersion": "management.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion management.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "management.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "StateConfig",
+        "group": "services.eda.nokia.com",
+        "crdName": "stateconfigs.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "StaticRoute",
+        "group": "protocols.eda.nokia.com",
+        "crdName": "staticroutes.protocols.eda.nokia.com",
+        "recommendedApiVersion": "protocols.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "protocols.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "SystemInterface",
+        "group": "routing.eda.nokia.com",
+        "crdName": "systeminterfaces.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "systeminterfacestates",
+        "group": "routing.eda.nokia.com",
+        "crdName": "systeminterfacestates.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "systemloadbalancers",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "systemloadbalancers.siteinfo.eda.nokia.com",
+        "recommendedApiVersion": "siteinfo.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion siteinfo.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "systemloadbalancerstates",
+        "group": "siteinfo.eda.nokia.com",
+        "crdName": "systemloadbalancerstates.siteinfo.eda.nokia.com",
+        "recommendedApiVersion": "siteinfo.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion siteinfo.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "systempings",
+        "group": "routing.eda.nokia.com",
+        "crdName": "systempings.routing.eda.nokia.com",
+        "recommendedApiVersion": "routing.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routing.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routing.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "tagsetdeployments",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "tagsetdeployments.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "tagsets",
+        "group": "routingpolicies.eda.nokia.com",
+        "crdName": "tagsets.routingpolicies.eda.nokia.com",
+        "recommendedApiVersion": "routingpolicies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion routingpolicies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "TechSupport",
+        "group": "oam.eda.nokia.com",
+        "crdName": "techsupports.oam.eda.nokia.com",
+        "recommendedApiVersion": "oam.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion oam.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "oam.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Threshold",
+        "group": "oam.eda.nokia.com",
+        "crdName": "thresholds.oam.eda.nokia.com",
+        "recommendedApiVersion": "oam.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion oam.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "oam.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "TopoLinkMonitor",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topolinkmonitors.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "topolinkstates",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topolinkstates.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "Topology",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topologies.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "TopologyGrouping",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "topologygroupings.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "TrafficRateOverlay",
+        "group": "topologies.eda.nokia.com",
+        "crdName": "trafficrateoverlays.topologies.eda.nokia.com",
+        "recommendedApiVersion": "topologies.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion topologies.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "topologies.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "UserDeployment",
+        "group": "aaa.eda.nokia.com",
+        "crdName": "userdeployments.aaa.eda.nokia.com",
+        "recommendedApiVersion": "aaa.eda.nokia.com/v1",
+        "migrationPath": "Update manifests to apiVersion aaa.eda.nokia.com/v1 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1alpha1",
+            "apiVersion": "aaa.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      },
+      {
+        "kind": "VirtualNetwork",
+        "group": "services.eda.nokia.com",
+        "crdName": "virtualnetworks.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "virtualnetworkstates",
+        "group": "services.eda.nokia.com",
+        "crdName": "virtualnetworkstates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "VLAN",
+        "group": "services.eda.nokia.com",
+        "crdName": "vlans.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "vlanstates",
+        "group": "services.eda.nokia.com",
+        "crdName": "vlanstates.services.eda.nokia.com",
+        "recommendedApiVersion": "services.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "services.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          },
+          {
+            "version": "v1alpha1",
+            "apiVersion": "services.eda.nokia.com/v1alpha1",
+            "removedInVersion": "Next major release",
+            "newInRelease": false
+          }
+        ]
+      },
+      {
+        "kind": "VolumeOverlay",
+        "group": "components.eda.nokia.com",
+        "crdName": "volumeoverlays.components.eda.nokia.com",
+        "recommendedApiVersion": "components.eda.nokia.com/v2",
+        "migrationPath": "Update manifests to apiVersion components.eda.nokia.com/v2 (available in the catalog)",
+        "deprecatedVersions": [
+          {
+            "version": "v1",
+            "apiVersion": "components.eda.nokia.com/v1",
+            "removedInVersion": "Next major release",
+            "newInRelease": true
+          }
+        ]
+      }
+    ]
+  },
+  "timestamp": 1780852180821,
+  "source": "comparison"
+}
