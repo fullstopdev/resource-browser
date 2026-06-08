@@ -425,7 +425,7 @@
                     bind:checked={searchInDescription}
                     class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-700"
                 />
-                <span class="text-slate-700 dark:text-slate-300">Include descriptions</span>
+                <span class="text-slate-700 dark:text-slate-300">Search in descriptions</span>
             </label>
 
             {#if loadingVersions}
@@ -489,7 +489,7 @@
                             }
                         }}
                         placeholder={release
-                            ? 'Search paths (e.g. vlan, macLimit, adminState)…'
+                            ? 'Search paths, enums, types, defaults (e.g. AllActive, multihoming)…'
                             : 'Select a release to start searching…'}
                         class="homepage-search-field text-slate-900 placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500"
                         disabled={!release}

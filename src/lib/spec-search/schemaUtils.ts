@@ -86,10 +86,55 @@ function nameMatchesQuery(name: string, q: string): boolean {
 	return spaced.includes(qNorm.spaced) || compact.includes(qNorm.compact);
 }
 
+function pathMatchesQuery(path: string, q: string): boolean {
+	if (!q) return false;
+	if (nameMatchesQuery(path, q)) return true;
+	const stripped = q.replace(/^(spec|status)\./i, '');
+	if (stripped !== q && nameMatchesQuery(path, stripped)) return true;
+	return false;
+}
+
+function valueMatchesQuery(value: unknown, q: string): boolean {
+	if (value === undefined || value === null) return false;
+	return nameMatchesQuery(String(value), q);
+}
+
+function schemaNodeMatches(
+	node: Record<string, unknown>,
+	q: string,
+	includeDesc: boolean
+): boolean {
+	if (!q) return false;
+	if (includeDesc && typeof node.description === 'string') {
+		if (node.description.toLowerCase().includes(q.toLowerCase())) return true;
+	}
+	if (node.type && valueMatchesQuery(node.type, q)) return true;
+	if (Array.isArray(node.enum)) {
+		for (const e of node.enum) {
+			if (valueMatchesQuery(e, q)) return true;
+		}
+	}
+	if (node.default !== undefined && valueMatchesQuery(node.default, q)) return true;
+	return false;
+}
+
+function requiredOptionalMatches(
+	pname: string,
+	parentRequired: string[] | undefined,
+	q: string
+): boolean {
+	if (!q) return false;
+	const isRequired = Array.isArray(parentRequired) && parentRequired.includes(pname);
+	if (nameMatchesQuery('required', q) && isRequired) return true;
+	if (nameMatchesQuery('optional', q) && !isRequired) return true;
+	return false;
+}
+
 export function pruneSchema(
 	node: unknown,
 	q: string,
-	includeDesc = false
+	includeDesc = false,
+	pathPrefix = ''
 ): unknown | null {
 	if (node == null) return null;
 	if (typeof node !== 'object' || (Array.isArray(node) && node.length === 0)) {
@@ -125,15 +170,35 @@ export function pruneSchema(
 		}
 	}
 
+	if (pathPrefix && pathMatchesQuery(pathPrefix, q)) {
+		matched = true;
+		copyMeta(src, out);
+	}
+
+	if (schemaNodeMatches(src, q, includeDesc)) {
+		matched = true;
+		copyMeta(src, out);
+	}
+
 	if (src.properties && typeof src.properties === 'object') {
 		const props: Record<string, unknown> = {};
+		const parentRequired = Array.isArray(src.required) ? (src.required as string[]) : undefined;
 		for (const [pname, pval] of Object.entries(src.properties as Record<string, unknown>)) {
-			if (nameMatchesQuery(pname, q)) {
+			const fullPath = pathPrefix ? `${pathPrefix}.${pname}` : pname;
+			const pvalObj =
+				pval && typeof pval === 'object' ? (pval as Record<string, unknown>) : null;
+			const directMatch =
+				nameMatchesQuery(pname, q) ||
+				pathMatchesQuery(fullPath, q) ||
+				(pvalObj != null && schemaNodeMatches(pvalObj, q, includeDesc)) ||
+				requiredOptionalMatches(pname, parentRequired, q);
+
+			if (directMatch) {
 				props[pname] = stripDescriptions(pval);
 				matched = true;
 				continue;
 			}
-			const pr = pruneSchema(pval, q, includeDesc);
+			const pr = pruneSchema(pval, q, includeDesc, fullPath);
 			if (pr != null) {
 				props[pname] = pr;
 				matched = true;
@@ -146,7 +211,7 @@ export function pruneSchema(
 	}
 
 	if (src.items) {
-		const pr = pruneSchema(src.items, q, includeDesc);
+		const pr = pruneSchema(src.items, q, includeDesc, pathPrefix);
 		if (pr != null) {
 			out.items = pr;
 			if (src.type) out.type = src.type;
@@ -158,7 +223,7 @@ export function pruneSchema(
 		if (Array.isArray(src[comb])) {
 			const arr: unknown[] = [];
 			for (const el of src[comb]) {
-				const pr = pruneSchema(el, q, includeDesc);
+				const pr = pruneSchema(el, q, includeDesc, pathPrefix);
 				if (pr != null) {
 					arr.push(pr);
 					matched = true;
@@ -169,7 +234,7 @@ export function pruneSchema(
 	}
 
 	if (src.additionalProperties && typeof src.additionalProperties === 'object') {
-		const pr = pruneSchema(src.additionalProperties, q, includeDesc);
+		const pr = pruneSchema(src.additionalProperties, q, includeDesc, pathPrefix);
 		if (pr != null) {
 			out.additionalProperties = pr;
 			matched = true;

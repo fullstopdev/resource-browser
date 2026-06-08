@@ -10,6 +10,7 @@
     import Render from '$lib/components/Render.svelte';
     import YangView from '$lib/components/YangView.svelte';
     import { stripResourcePrefixFQDN } from '$lib/components/functions';
+    import { pruneSchema as pruneSchemaShared } from '$lib/spec-search/schemaUtils';
     // expandAll controls removed from this auto-search page (no UI button)
     import releasesYaml from '$lib/releases.yaml?raw';
     import type { EdaRelease, ReleasesConfig } from '$lib/structure';
@@ -335,118 +336,6 @@
         return node;
     }
 
-    function pruneSchema(node: any, re: RegExp | null, q: string, includeDesc: boolean = false): any | null {
-        // Only match structural paths (property names / titles) by default.
-        // Optionally include descriptions if includeDesc is true.
-        if (node == null) return null;
-        if (typeof node !== 'object' || (Array.isArray(node) === true && node.length === 0)) {
-            // Do not match primitive leaf values by default (prevents matching enum values, formats, etc.)
-            return null;
-        }
-        const out: any = {};
-        let matched = false;
-        function copyMeta(src: any, dst: any) {
-            const keys = ['type', 'format', 'enum', 'default', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'title'];
-            for (const k of keys) {
-                if (k in src && src[k] !== undefined) dst[k] = src[k];
-            }
-        }
-        
-        // Check if description matches (if includeDesc is true)
-        if (includeDesc && node.description && typeof node.description === 'string' && q) {
-            const descLower = node.description.toLowerCase();
-            const qLower = q.toLowerCase();
-            if (descLower.includes(qLower)) {
-                matched = true;
-                copyMeta(node, out);
-                if (node.description) out.description = node.description;
-            }
-        }
-        
-        if (node.properties && typeof node.properties === 'object') {
-            const props: any = {};
-            for (const [pname, pval] of Object.entries(node.properties)) {
-                // First, check if the property name itself matches the query (normalize camelCase/underscores)
-                let nameMatched = false;
-                if (q) {
-                    const normalizedName = String(pname)
-                        .replace(/([a-z])([A-Z])/g, '$1 $2')
-                        .replace(/[_.\-]/g, ' ')
-                        .toLowerCase();
-                    // Also consider a spaceless/compact form so queries like "maclimit"
-                    // match camelCase names like "macLimit" (which normalize to "mac limit").
-                    const normalizedNameNoSpace = normalizedName.replace(/\s+/g, '');
-                    const qLower = q.toLowerCase();
-                    const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
-                    if (normalizedName.includes(qLower) || normalizedNameNoSpace.includes(qNoSpace)) {
-                        props[pname] = stripDescriptions(pval);
-                        matched = true;
-                        nameMatched = true;
-                    }
-                }
-
-                // If name didn't match, recurse into the property's schema to find deeper property-name matches
-                if (!nameMatched) {
-                    const pr = pruneSchema(pval as any, re, q, includeDesc);
-                    if (pr != null) {
-                        props[pname] = pr;
-                        matched = true;
-                    }
-                }
-            }
-            if (Object.keys(props).length > 0) {
-                out.properties = props;
-                if (node.type) out.type = node.type;
-            }
-        }
-        if (node.items) {
-            const pr = pruneSchema(node.items, re, q, includeDesc);
-            if (pr != null) {
-                out.items = pr;
-                if (node.type) out.type = node.type;
-                matched = true;
-            }
-        }
-        for (const comb of ['allOf', 'anyOf', 'oneOf']) {
-            if (Array.isArray(node[comb])) {
-                const arr: any[] = [];
-                for (const el of node[comb]) {
-                    const pr = pruneSchema(el, re, q, includeDesc);
-                    if (pr != null) {
-                        arr.push(pr);
-                        matched = true;
-                    }
-                }
-                if (arr.length > 0) out[comb] = arr;
-            }
-        }
-        if (node.additionalProperties && typeof node.additionalProperties === 'object') {
-            const pr = pruneSchema(node.additionalProperties, re, q, includeDesc);
-            if (pr != null) {
-                out.additionalProperties = pr;
-                matched = true;
-            }
-        }
-        // Only consider 'title' as a scalar-key match target by default (titles are descriptive labels)
-        const scalarKeys = ['title'];
-        for (const k of scalarKeys) {
-            if (k in node && node[k] !== undefined && q) {
-                const s = String(node[k]);
-                const sNorm = s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_.\-]/g, ' ').toLowerCase();
-                const qLower = q.toLowerCase();
-                const sNormNoSpace = sNorm.replace(/\s+/g, '');
-                const qNoSpace = qLower.replace(/[\s_.\-]/g, '');
-                if (sNorm.includes(qLower) || sNormNoSpace.includes(qNoSpace)) {
-                    out[k] = node[k];
-                    matched = true;
-                }
-            }
-        }
-        if (!matched) return null;
-        copyMeta(node, out);
-        return out;
-    }
-
     function escapeHtml(s: string) {
         const entityMap: Record<string, string> = {
             '&': '&amp;',
@@ -504,8 +393,6 @@
                 manifestCache.set(release.folder, manifest);
             }
             const q = String(query ?? '').trim();
-            let re: RegExp | null = null;
-            try { re = new RegExp(q, 'i'); } catch (e) { re = null; }
             const promises = manifest.flatMap(async (res: any) => {
                 if (!res || !res.name) return [];
                 if (String(res.name).toLowerCase().includes('states')) return [];
@@ -540,7 +427,7 @@
 
                         if (spec) {
                             const stripped = searchInDescription ? spec : stripDescriptions(spec);
-                            const pruned = pruneSchema(stripped, re, q, searchInDescription);
+                            const pruned = pruneSchemaShared(stripped, q, searchInDescription);
                             if (pruned) {
                                 let readySchema = pruned;
                                 try {
@@ -570,7 +457,7 @@
                         }
                         if (status) {
                             const strippedStatus = searchInDescription ? status : stripDescriptions(status);
-                            const prunedStatus = pruneSchema(strippedStatus, re, q, searchInDescription);
+                            const prunedStatus = pruneSchemaShared(strippedStatus, q, searchInDescription);
                             if (prunedStatus) {
                                 let readyStatus = prunedStatus;
                                 try { readyStatus = restoreDescriptions(readyStatus, status, true); } catch (e) {}
@@ -724,7 +611,7 @@
                     bind:checked={searchInDescription}
                     class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-700"
                 />
-                <span class="text-gray-700 dark:text-gray-300">Search descriptions</span>
+                <span class="text-gray-700 dark:text-gray-300">Search in descriptions</span>
             </label>
             
             {#if groupedResults.length > 0}
