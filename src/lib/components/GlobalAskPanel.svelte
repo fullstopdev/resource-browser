@@ -73,11 +73,27 @@
 			aria-label="Ask AI"
 		>
 			<header class="global-ask-panel__header">
-				<div class="global-ask-panel__header-main">
-					<h2 class="global-ask-panel__title">Ask AI</h2>
-					<p class="global-ask-panel__subtitle">
-						Grounded answers from CRD schemas, EDA docs, and Vectorize RAG.
-					</p>
+				<div class="global-ask-panel__header-brand">
+					<div class="global-ask-panel__icon-badge" aria-hidden="true">
+						<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="1.75"
+								d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
+							/>
+						</svg>
+					</div>
+					<div class="global-ask-panel__header-main">
+						<div class="global-ask-panel__title-row">
+							<h2 class="global-ask-panel__title">Ask AI</h2>
+							<span class="global-ask-panel__badge">RAG</span>
+						</div>
+						<p class="global-ask-panel__subtitle">
+							Grounded answers from CRD schemas, release notes, and Nokia EDA documentation.
+							Ask about fields, validation, example YAML, or version differences.
+						</p>
+					</div>
 				</div>
 				<button
 					type="button"
@@ -92,14 +108,22 @@
 			</header>
 
 			{#if resolving}
-				<p class="global-ask-panel__context-loading">Detecting context…</p>
+				<div class="global-ask-panel__context-loading" aria-live="polite">
+					<span class="global-ask-panel__context-pulse" aria-hidden="true"></span>
+					Detecting page context…
+				</div>
 			{:else if resolved && showScopedHint && summary}
-				<p class="global-ask-panel__context-banner">
+				<div class="global-ask-panel__context-banner">
 					{#if resolved.hasCrdContext}
 						<span class="global-ask-panel__detected-badge">CRD context</span>
 					{/if}
+					{#if resolved.release}
+						<span class="global-ask-panel__detected-badge global-ask-panel__detected-badge--release">
+							{resolved.release}
+						</span>
+					{/if}
 					<span class="global-ask-panel__context-summary">{summary}</span>
-				</p>
+				</div>
 			{/if}
 
 			<div class="global-ask-panel__body">
@@ -120,6 +144,25 @@
 					{/key}
 				{/if}
 			</div>
+
+			<footer class="global-ask-panel__footer">
+				<div class="global-ask-panel__footer-hints">
+					<span class="global-ask-panel__hint-item">
+						<kbd>Ctrl</kbd><span class="global-ask-panel__hint-plus">+</span><kbd>K</kbd>
+						<span class="global-ask-panel__hint-label">toggle</span>
+					</span>
+					<span class="global-ask-panel__hint-sep" aria-hidden="true">·</span>
+					<span class="global-ask-panel__hint-item">
+						<kbd>Esc</kbd>
+						<span class="global-ask-panel__hint-label">close</span>
+					</span>
+					<span class="global-ask-panel__hint-sep global-ask-panel__hint-sep--wide" aria-hidden="true">·</span>
+					<span class="global-ask-panel__hint-item global-ask-panel__hint-item--send">
+						<kbd>Ctrl</kbd><span class="global-ask-panel__hint-plus">+</span><kbd>Enter</kbd>
+						<span class="global-ask-panel__hint-label">send</span>
+					</span>
+				</div>
+			</footer>
 		</div>
 	</div>
 {/if}
