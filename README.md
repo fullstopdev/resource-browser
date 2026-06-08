@@ -120,6 +120,34 @@ wrangler vectorize info eda-crd-corpus-v1
 wrangler vectorize info eda-docs-v1
 ```
 
+### Neuron budget estimates
+
+Cloudflare bills Workers AI in **neurons** (10,000/day free on Workers Free and Paid). Rates from [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/):
+
+| Model | Neurons |
+|-------|---------|
+| `@cf/baai/bge-base-en-v1.5` (embed) | 6,058 per M input tokens |
+| `@cf/meta/llama-3.1-8b-instruct` (Ask LLM) | 25,608 per M input tokens · 75,147 per M output tokens |
+
+**Per `/api/ask` request** (1 embed + 1 LLM call; Vectorize query is free):
+
+| Path | Typical neurons |
+|------|-----------------|
+| RAG-sufficient slim context (~6.5K chars after retrieval) | **~75–95** |
+| Trimmed fallback (~10K chars, index empty/weak) | **~100–130** |
+| Legacy full rich context (~20K chars, pre-RAG optimization) | **~165–190** |
+| Worst case (24K context + 1536 output tokens) | **~290** |
+
+**One-time index build** (dominates daily quota):
+
+| Activity | Chunks | Neurons each (est.) | Total (est.) |
+|----------|--------|---------------------|--------------|
+| `embed:crd-corpus` (full) | 9,249 | ~2.3 (256–512 tok/chunk) | **~21,500** |
+| `embed:crd-corpus` (partial, ~53%) | ~4,870 | ~2.3 | **~11,300** |
+| `embed:eda-docs` | ~551 | ~2.3 | **~1,300** |
+
+Re-running an embed script **re-embeds every chunk from the start** (upserts are idempotent, but Workers AI calls are not free). Two partial CRD runs in one day can consume ~23k neurons — far more than Ask testing.
+
 ### Neuron optimization (`/api/ask`)
 
 Ask uses **one** Workers AI LLM call per question (embedding for Vectorize is separate). To stay within daily neuron budgets:
