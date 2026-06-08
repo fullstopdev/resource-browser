@@ -109,7 +109,7 @@ function docsChunkFromMatch(match: VectorizeMatch): RetrievedDocsChunk | null {
 			path: String(raw.path ?? ''),
 			title: String(raw.title ?? 'EDA documentation'),
 			section: String(raw.section ?? ''),
-			chunkType: 'docs-content'
+			chunkType: 'eda-doc'
 		},
 		score: match.score
 	};

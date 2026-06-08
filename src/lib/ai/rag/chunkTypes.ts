@@ -3,7 +3,7 @@ export const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5' as const;
 export const EMBEDDING_DIMENSIONS = 768;
 
 export type ChunkType = 'kind-overview' | 'field-level' | 'validation-rules';
-export type DocsChunkType = 'docs-content';
+export type DocsChunkType = 'eda-doc';
 
 export type DocsChunkMetadata = {
 	source: 'eda-docs';

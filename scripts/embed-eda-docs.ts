@@ -127,6 +127,11 @@ function htmlToMarkdownish(html: string): { title: string; text: string } {
 	return { title, text: text || decodeEntities(stripTags(raw)).slice(0, 12_000) };
 }
 
+function pathFromLocation(release: string, location: string): string {
+	const clean = location.split('#')[0].replace(/^\/+/, '');
+	return normalizePath(`/${release}/${clean}`);
+}
+
 function extractLinks(html: string, basePath: string, release: string): string[] {
 	const prefix = releasePrefix(release);
 	const links = new Set<string>();
@@ -138,7 +143,14 @@ function extractLinks(html: string, basePath: string, release: string): string[]
 			if (href.startsWith('mailto:') || href.startsWith('javascript:')) continue;
 			const url = new URL(href, `${DOCS_ORIGIN}${basePath}`);
 			if (url.origin !== DOCS_ORIGIN) continue;
-			const path = normalizePath(url.pathname);
+			let path = normalizePath(url.pathname);
+			if (!path.startsWith(prefix)) {
+				// MkDocs uses release-relative hrefs (e.g. "apps/") on docs.eda.dev.
+				const relative = new URL(href, `${DOCS_ORIGIN}${prefix}`);
+				if (relative.origin === DOCS_ORIGIN) {
+					path = normalizePath(relative.pathname);
+				}
+			}
 			if (!path.startsWith(prefix)) continue;
 			if (SKIP_PATH_RE.test(path)) continue;
 			links.add(path);
@@ -147,6 +159,48 @@ function extractLinks(html: string, basePath: string, release: string): string[]
 		}
 	}
 	return [...links];
+}
+
+type SearchIndexDoc = { location: string; title: string; text: string };
+
+async function loadPagesFromSearchIndex(release: string, maxPages: number): Promise<CrawledPage[]> {
+	const url = `${DOCS_ORIGIN}/${release}/search/search_index.json`;
+	const resp = await fetch(url, {
+		headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }
+	});
+	if (!resp.ok) {
+		throw new Error(`Search index unavailable (${resp.status}) at ${url}`);
+	}
+
+	const data = (await resp.json()) as { docs?: SearchIndexDoc[] };
+	const byPath = new Map<string, CrawledPage>();
+
+	for (const doc of data.docs ?? []) {
+		const location = doc.location?.trim() ?? '';
+		if (!location) continue;
+
+		const path = pathFromLocation(release, location);
+		if (SKIP_PATH_RE.test(path)) continue;
+
+		const text = decodeEntities(stripTags(doc.text ?? '')).trim();
+		if (text.length < 80) continue;
+
+		const existing = byPath.get(path);
+		if (!existing || text.length > existing.text.length) {
+			byPath.set(path, {
+				path,
+				title: doc.title?.trim() || 'Untitled',
+				section: sectionFromPath(path, release),
+				text
+			});
+		}
+	}
+
+	const pages = [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path));
+	if (maxPages > 0 && pages.length > maxPages) {
+		return pages.slice(0, maxPages);
+	}
+	return pages;
 }
 
 async function fetchPage(path: string): Promise<string> {
@@ -167,19 +221,10 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function crawlDocs(release: string, maxPages: number): Promise<CrawledPage[]> {
+/** BFS HTML crawl fallback when search index is incomplete. */
+async function crawlDocsHtml(release: string, maxPages: number): Promise<CrawledPage[]> {
 	const prefix = releasePrefix(release);
-	const seeds = [
-		prefix,
-		`${prefix}user-guide/`,
-		`${prefix}concepts/`,
-		`${prefix}workflows/`,
-		`${prefix}crds/`,
-		`${prefix}api/`,
-		`${prefix}operations/`,
-		`${prefix}installation/`
-	];
-
+	const seeds = [prefix, `${prefix}user-guide/`, `${prefix}apps/`];
 	const queue = [...new Set(seeds.map(normalizePath))];
 	const visited = new Set<string>();
 	const pages: CrawledPage[] = [];
@@ -211,12 +256,26 @@ async function crawlDocs(release: string, maxPages: number): Promise<CrawledPage
 		}
 
 		await sleep(FETCH_DELAY_MS);
-		if (pages.length % 10 === 0 && pages.length > 0) {
+		if (pages.length % 25 === 0 && pages.length > 0) {
 			console.log(`  Crawled ${pages.length} pages (queue ${queue.length})`);
 		}
 	}
 
 	return pages;
+}
+
+async function loadDocsPages(release: string, maxPages: number): Promise<CrawledPage[]> {
+	try {
+		const fromIndex = await loadPagesFromSearchIndex(release, maxPages);
+		console.log(`  Loaded ${fromIndex.length} pages from search_index.json`);
+		if (fromIndex.length > 0) return fromIndex;
+	} catch (err) {
+		console.warn(
+			'  Search index failed, falling back to HTML crawl:',
+			err instanceof Error ? err.message : err
+		);
+	}
+	return crawlDocsHtml(release, maxPages);
 }
 
 function pagesToChunks(pages: CrawledPage[], release: string): DocsChunk[] {
@@ -236,8 +295,8 @@ function pagesToChunks(pages: CrawledPage[], release: string): DocsChunk[] {
 
 async function main(): Promise<void> {
 	const { release, dryRun, maxPages } = parseArgs();
-	console.log(`Crawling ${DOCS_ORIGIN}/${release}/ (max ${maxPages} pages)...`);
-	const pages = await crawlDocs(release, maxPages);
+	console.log(`Loading ${DOCS_ORIGIN}/${release}/ (max ${maxPages} pages)...`);
+	const pages = await loadDocsPages(release, maxPages);
 	console.log(`Fetched ${pages.length} content pages`);
 
 	const chunks = pagesToChunks(pages, release);

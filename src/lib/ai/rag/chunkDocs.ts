@@ -28,9 +28,9 @@ export function chunkDocText(
 		const text = (prefix + buffer).trim();
 		if (!text || text === prefix.trim()) return;
 		chunks.push({
-			id: chunkId({ ...meta, chunkType: 'docs-content' }, suffix),
+			id: chunkId({ ...meta, chunkType: 'eda-doc' }, suffix),
 			text,
-			metadata: { ...meta, chunkType: 'docs-content' }
+			metadata: { ...meta, chunkType: 'eda-doc' }
 		});
 		buffer = '';
 	}
