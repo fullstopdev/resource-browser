@@ -11,7 +11,7 @@ declare global {
 		interface Platform {
 			env: {
 				AI: Ai;
-				CRD_INDEX: VectorizeIndex;
+				CRD_INDEX?: VectorizeIndex;
 			};
 		}
 	}

@@ -22,7 +22,8 @@
 		"generate:sitemap": "node scripts/generate-sitemap.mjs",
 		"generate:release-notes": "tsx --tsconfig tsconfig.scripts.json scripts/generate-release-notes.ts",
 		"embed:crd-corpus": "tsx --tsconfig tsconfig.scripts.json scripts/embed-crd-corpus.ts",
-		"prebuild": "npm run generate:sitemap && npm run generate:release-notes"
+		"prebuild": "npm run generate:sitemap && npm run generate:release-notes",
+		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser"
 	},
 	"dependencies": {
 		"ajv": "^8.17.1",

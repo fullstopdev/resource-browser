@@ -49,16 +49,22 @@ Corporate networks: if direct HTTPS to `api.cloudflare.com` fails, keep `HTTP_PR
 
 ### Vectorize RAG (CRD corpus)
 
-The Ask tab can retrieve schema excerpts from a Cloudflare Vectorize index before calling Workers AI. This is optional locally (rich server-built context still works without Vectorize).
+The Ask tab can retrieve schema excerpts from a Cloudflare Vectorize index before calling Workers AI. **Rich server-built context works without Vectorize**; `/api/ask` skips RAG when the `CRD_INDEX` binding is absent.
 
-**One-time index setup** (768 dimensions for `@cf/baai/bge-base-en-v1.5`, cosine metric):
+**Deploy without Vectorize (Phase 1a):** `wrangler.toml` ships with the `[[vectorize]]` block commented out so Pages deploy is not blocked while the index or token permissions are missing. Use `npm run deploy:cloudflare` or `npm run deploy:cloudflare:phase1` (same command).
+
+**API token permissions:** creating an index and upserting vectors requires a token with **Vectorize Edit** (Wrangler/API error `10000` means the token lacks it). Workers AI and Account read are separate requirements for Ask and embed. Use a custom API token in the Cloudflare dashboard with Vectorize → Edit, or ask an account admin to create the index for you.
+
+**One-time index setup** (768 dimensions for `@cf/baai/bge-base-en-v1.5`, cosine metric)—dashboard: Workers & Pages → Vectorize → Create index `eda-crd-corpus-v1`, or CLI:
 
 ```bash
 wrangler vectorize create eda-crd-corpus-v1 --dimensions=768 --metric=cosine \
   --metadata-index=release --metadata-index=kind --metadata-index=group --metadata-index=chunkType
 ```
 
-**Embed and upsert the corpus** (requires `CLOUDFLARE_API_TOKEN` with Workers AI + Vectorize; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`):
+**Enable RAG on Pages:** uncomment the `[[vectorize]]` block in `wrangler.toml` (`binding = "CRD_INDEX"`, `index_name = "eda-crd-corpus-v1"`), redeploy, then embed.
+
+**Embed and upsert the corpus** (`CLOUDFLARE_API_TOKEN` with Workers AI + **Vectorize Edit**; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`). On corporate networks set `HTTP_PROXY` / `HTTPS_PROXY` (the embed script uses undici `ProxyAgent`):
 
 ```bash
 export CLOUDFLARE_API_TOKEN=your_token
@@ -69,8 +75,6 @@ npm run embed:crd-corpus
 ```
 
 Re-run `embed:crd-corpus` after adding releases or changing CRD YAML under `static/resources/`. This is a manual pre-deploy step (not wired into `prebuild`).
-
-`wrangler.toml` binds the index as `CRD_INDEX`. Production Pages deploys use the same binding once the index exists in your account.
 
 **Test `/api/ask` locally:**
 
