@@ -11,6 +11,10 @@
 	export let version = '';
 	/** EDA release name (e.g. "26.4.2"), not display label. */
 	export let release = '';
+	/** When true, show CRD-specific starter chips (explain, example, required fields). */
+	export let hasCrdContext = false;
+	/** Hide duplicate header when embedded in GlobalAskPanel. */
+	export let embedded = false;
 	export let deprecated = false;
 	export let spec: unknown = null;
 	export let status: unknown = null;
@@ -33,9 +37,11 @@
 	let hasAsked = false;
 	let answerCached = false;
 
-	$: resourceLabel = kind
+	$: resourceLabel = hasCrdContext && kind
 		? `${kind} (${group}/${version || 'latest'})`
-		: name || 'this resource';
+		: hasCrdContext && name
+			? name
+			: 'EDA CRDs and documentation';
 
 	async function submit(preset?: string) {
 		const trimmed = (preset ?? question).trim();
@@ -74,6 +80,12 @@
 				release,
 				kind,
 				group,
+				version: version || undefined
+			});
+		} else if (release) {
+			result = await askAI({
+				question: trimmed,
+				release,
 				version: version || undefined
 			});
 		} else {
@@ -116,67 +128,71 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	<!-- Header -->
-	<header
-		class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/90 to-slate-50 px-4 py-4 dark:border-blue-900/50 dark:from-[#0f2a48]/90 dark:to-slate-900/50"
-	>
-		<div class="flex items-start gap-3">
-			<div
-				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm dark:bg-blue-500"
-				aria-hidden="true"
-			>
-				<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-					/>
-				</svg>
-			</div>
-			<div class="min-w-0 flex-1">
-				<div class="flex flex-wrap items-center gap-2">
-					<h2 class="text-base font-semibold text-slate-900 dark:text-white">Ask AI</h2>
-					<span
-						class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-					>
-						Workers AI
-					</span>
-				</div>
-				<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-					Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
-					from CRD schemas, Nokia EDA official docs, and Vectorize RAG.
-				</p>
-			</div>
-		</div>
-	</header>
-
-	<!-- Starter chips -->
-	<div>
-		<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-			Quick prompts
-		</p>
-		<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
-			{#each starterQuestions as starter}
-				<button
-					type="button"
-					on:click={() => submit(starter)}
-					disabled={loading}
-					class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+	{#if !embedded}
+		<!-- Header -->
+		<header
+			class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/90 to-slate-50 px-4 py-4 dark:border-blue-900/50 dark:from-[#0f2a48]/90 dark:to-slate-900/50"
+		>
+			<div class="flex items-start gap-3">
+				<div
+					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm dark:bg-blue-500"
+					aria-hidden="true"
 				>
-					{starter}
-					{#if CACHED_STARTERS.has(starter)}
+					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+						/>
+					</svg>
+				</div>
+				<div class="min-w-0 flex-1">
+					<div class="flex flex-wrap items-center gap-2">
+						<h2 class="text-base font-semibold text-slate-900 dark:text-white">Ask AI</h2>
 						<span
-							class="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-							title="Cached KV response when available"
+							class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
 						>
-							KV
+							Workers AI
 						</span>
-					{/if}
-				</button>
-			{/each}
+					</div>
+					<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+						Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
+						from CRD schemas, Nokia EDA official docs, and Vectorize RAG.
+					</p>
+				</div>
+			</div>
+		</header>
+	{/if}
+
+	{#if hasCrdContext}
+		<!-- Starter chips (CRD context only) -->
+		<div>
+			<p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+				Quick prompts
+			</p>
+			<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
+				{#each starterQuestions as starter}
+					<button
+						type="button"
+						on:click={() => submit(starter)}
+						disabled={loading}
+						class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+					>
+						{starter}
+						{#if CACHED_STARTERS.has(starter)}
+							<span
+								class="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+								title="Cached KV response when available"
+							>
+								KV
+							</span>
+						{/if}
+					</button>
+				{/each}
+			</div>
 		</div>
-	</div>
+	{/if}
 
 	<!-- Input -->
 	<div class="space-y-2">
@@ -239,7 +255,11 @@
 			</svg>
 			<p class="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">Ask your first question</p>
 			<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-				Try a suggested prompt above or describe what you need to know about this CRD.
+				{#if hasCrdContext}
+					Try a suggested prompt above or describe what you need to know about this CRD.
+				{:else}
+					Ask about EDA concepts, CRD fields, validation, or example manifests.
+				{/if}
 			</p>
 		</div>
 	{/if}
