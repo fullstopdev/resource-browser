@@ -458,7 +458,7 @@
 					<ResourceViewTabs
 						{viewMode}
 						onViewChange={(mode) => (viewMode = mode)}
-						showExpandControls={viewMode === 'schema'}
+						showExpandControls={viewMode === 'schema' || viewMode === 'compare'}
 						isExpanded={$ulExpanded.length > 0}
 						onExpandToggle={handleGlobalExpand}
 					/>
