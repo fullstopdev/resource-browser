@@ -248,7 +248,7 @@
 				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
 			</div>
 			<div class="px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-				<SimpleMarkdown source={answer} />
+				<SimpleMarkdown source={answer} className="crd-ask-answer" />
 			</div>
 
 			{#if sources.length > 0}

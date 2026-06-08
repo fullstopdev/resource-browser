@@ -2,7 +2,7 @@ import { CRD_QA_SYSTEM_PROMPT } from './prompts';
 
 export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
 export const AI_REQUEST_TIMEOUT_MS = 90_000;
-export const AI_MAX_TOKENS = 1024;
+export const AI_MAX_TOKENS = 1536;
 export const AI_TEMPERATURE = 0.3;
 
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
