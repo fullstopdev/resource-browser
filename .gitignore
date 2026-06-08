@@ -83,3 +83,7 @@ static/merge-crds.py
 
 # Wrangler local secrets
 .dev.vars
+
+# Python virtualenv (do not bundle in static/)
+.venv
+static/.venv
