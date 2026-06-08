@@ -11,6 +11,7 @@ declare global {
 		interface Platform {
 			env: {
 				AI: Ai;
+				AI_CACHE?: KVNamespace;
 				CRD_INDEX?: VectorizeIndex;
 				DOCS_INDEX?: VectorizeIndex;
 			};

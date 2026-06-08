@@ -18,3 +18,12 @@ index_name = "eda-crd-corpus-v1"
 [[vectorize]]
 binding = "DOCS_INDEX"
 index_name = "eda-docs-v1"
+
+# KV namespace for deterministic Workers AI action cache (explain, example, field, compare, spec-search).
+# Create with: wrangler kv namespace create AI_CACHE
+# Then replace the placeholder ids below and create a preview namespace for local dev:
+#   wrangler kv namespace create AI_CACHE --preview
+[[kv_namespaces]]
+binding = "AI_CACHE"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"

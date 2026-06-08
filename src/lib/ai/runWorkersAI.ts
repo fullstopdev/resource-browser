@@ -29,30 +29,31 @@ export type RunWorkersAIOptions = {
 	systemPrompt?: string;
 	maxTokens?: number;
 	temperature?: number;
+	seed?: number;
 	timeoutMs?: number;
 };
 
-export async function runWorkersAI(
+export type AiMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+
+export async function runWorkersAIMessages(
 	ai: Ai,
-	userContent: string,
-	options: RunWorkersAIOptions = {}
+	messages: AiMessage[],
+	options: Omit<RunWorkersAIOptions, 'systemPrompt'> = {}
 ): Promise<string> {
-	const systemPrompt = options.systemPrompt ?? CRD_QA_SYSTEM_PROMPT;
 	const maxTokens = options.maxTokens ?? AI_MAX_TOKENS;
 	const temperature = options.temperature ?? AI_TEMPERATURE;
 	const timeoutMs = options.timeoutMs ?? AI_REQUEST_TIMEOUT_MS;
 
-	const result = await withTimeout(
-		ai.run(WORKERS_AI_MODEL, {
-			messages: [
-				{ role: 'system', content: systemPrompt },
-				{ role: 'user', content: userContent }
-			],
-			max_tokens: maxTokens,
-			temperature
-		}),
-		timeoutMs
-	);
+	const runOptions: Record<string, unknown> = {
+		messages,
+		max_tokens: maxTokens,
+		temperature
+	};
+	if (options.seed !== undefined) {
+		runOptions.seed = options.seed;
+	}
+
+	const result = await withTimeout(ai.run(WORKERS_AI_MODEL, runOptions), timeoutMs);
 
 	const answer =
 		typeof result === 'object' && result !== null && 'response' in result
@@ -60,6 +61,22 @@ export async function runWorkersAI(
 			: String(result);
 
 	return answer || 'No response generated.';
+}
+
+export async function runWorkersAI(
+	ai: Ai,
+	userContent: string,
+	options: RunWorkersAIOptions = {}
+): Promise<string> {
+	const systemPrompt = options.systemPrompt ?? CRD_QA_SYSTEM_PROMPT;
+	return runWorkersAIMessages(
+		ai,
+		[
+			{ role: 'system', content: systemPrompt },
+			{ role: 'user', content: userContent }
+		],
+		options
+	);
 }
 
 export function workersAIErrorResponse(err: unknown): { status: number; error: string } {

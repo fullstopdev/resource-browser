@@ -175,6 +175,67 @@ curl -s -X POST http://localhost:8788/api/ask \
 
 **On production** (`https://eda-resource-browser.pages.dev`): open any CRD → Ask tab, or POST `/api/ask` with the same JSON body. Responses include `sources` when Vectorize RAG matched chunks.
 
+### Workers AI action API (`/api/ai`) + KV cache
+
+Deterministic, schema-grounded actions (separate from free-form `/api/ask` RAG). Uses `temperature: 0`, `seed: 42`, and KV caching so each `(release × kind × action)` burns neurons only once.
+
+| Action | Cached? | Notes |
+|--------|---------|-------|
+| `explain` | ✅ forever | CRD overview |
+| `field` | ✅ forever | Per field path |
+| `example` | ✅ forever | Stores 3 YAML variants; serves randomly on hits |
+| `compare` | ✅ forever | Two release schemas |
+| `spec-search` | ✅ forever | Semantic field search within one CRD |
+| `validate` | ❌ never | User YAML is unique each time |
+
+**Cache key:** `ai:v1:{release}:{kind}:{field\|none}:{compareRelease\|none}:{action}`
+
+**KV namespace setup** (one-time):
+
+```bash
+wrangler kv namespace create AI_CACHE
+wrangler kv namespace create AI_CACHE --preview
+# Copy id + preview_id into wrangler.toml [[kv_namespaces]] for AI_CACHE
+```
+
+Redeploy after updating `wrangler.toml`. Local `npm run dev:ai` uses `preview_id`.
+
+**Warm cache after deploy** (reads kinds from `static/resources/{release}/manifest.json`):
+
+```bash
+SITE_URL=https://eda-resource-browser.pages.dev RELEASE=26.4.2 npm run warm:cache
+# Local: SITE_URL=http://localhost:8788 RELEASE=26.4.2 npm run warm:cache
+```
+
+**Debug cache coverage:**
+
+```bash
+curl "https://eda-resource-browser.pages.dev/api/cache-status?release=26.4.2&kind=Fabric"
+```
+
+**Test `/api/ai`:**
+
+```bash
+curl -s -X POST http://localhost:8788/api/ai \
+  -H 'Content-Type: application/json' \
+  -d '{"release":"26.4.2","kind":"Fabric","group":"fabrics.eda.nokia.com","action":"explain"}'
+```
+
+**Neuron budget per action** (approximate, `@cf/meta/llama-3.1-8b-instruct`):
+
+| Action | Neurons (est.) | Tokens in/out |
+|--------|----------------|---------------|
+| `explain` | 8–12 | 2K in / 200 out |
+| `field` | 6–10 | 2K in / 150 out |
+| `example` | 15–20 | 2K in / 500 out |
+| `validate` | 10–15 | 3K in / 300 out |
+| `compare` | 20–30 | 5K in / 400 out |
+| `spec-search` | 8–12 | 2K in / 200 out |
+
+**Warm-cache cost** (~50 kinds × explain + example): **~1,400 neurons** per new release (~14% of 10,000/day free tier). Cached hits cost **0 neurons**.
+
+Client helpers live in `src/lib/ai/aiClient.ts` (`explainCRD`, `validateYAML`, etc.). CrdAskPanel uses cached `explain` / `example` for starter chips; free-form questions still use `/api/ask` with Vectorize RAG.
+
 3. Build for production:
 
 ```bash

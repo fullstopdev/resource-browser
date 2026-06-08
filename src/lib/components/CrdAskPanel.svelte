@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { askAI } from '$lib/ai/askAI';
+	import { explainCRD, generateExample } from '$lib/ai/aiClient';
 	import { buildCrdContext } from '$lib/ai/buildCrdContext';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
@@ -13,6 +14,8 @@
 	export let deprecated = false;
 	export let spec: unknown = null;
 	export let status: unknown = null;
+
+	const CACHED_STARTERS = new Set(['What is this CRD for?', 'Example YAML?']);
 
 	const starterQuestions = [
 		'What is this CRD for?',
@@ -45,28 +48,39 @@
 		sourcesOpen = false;
 		hasAsked = true;
 
-		const result =
-			release && kind && group
-				? await askAI({
-						question: trimmed,
-						release,
-						kind,
-						group,
-						version: version || undefined
-					})
-				: await askAI({
-						question: trimmed,
-						context: buildCrdContext({
-							kind,
-							group,
-							name,
-							version,
-							release,
-							deprecated,
-							spec,
-							status
-						})
-					});
+		let result: { answer?: string; sources?: RagSource[]; error?: string };
+
+		if (release && kind && group && CACHED_STARTERS.has(trimmed)) {
+			const actionResult =
+				trimmed === 'What is this CRD for?'
+					? await explainCRD(release, kind, group)
+					: await generateExample(release, kind, group);
+			result = actionResult.error
+				? { error: actionResult.error }
+				: { answer: actionResult.answer };
+		} else if (release && kind && group) {
+			result = await askAI({
+				question: trimmed,
+				release,
+				kind,
+				group,
+				version: version || undefined
+			});
+		} else {
+			result = await askAI({
+				question: trimmed,
+				context: buildCrdContext({
+					kind,
+					group,
+					name,
+					version,
+					release,
+					deprecated,
+					spec,
+					status
+				})
+			});
+		}
 
 		loading = false;
 
