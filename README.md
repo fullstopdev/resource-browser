@@ -95,9 +95,12 @@ npm run embed:eda-docs
 
 **Workers AI neuron limits:** Free and paid Workers plans include a **daily neuron budget** for Workers AI (embeddings and LLM calls share it). Large embed jobs may stop partway with HTTP **429** or an API error mentioning neurons. `/api/ask` then returns **503** with a quota message instead of a generic 500. After the quota resets (next UTC day), resume indexing:
 
+Embed scripts track upserted vector IDs in a local **`.vectorize-manifest.json`** (gitignored, one list per index). Re-runs skip chunks already recorded there, so only new vectors consume neurons. Use **`--force`** to re-embed everything and refresh the manifest.
+
 ```bash
-npm run embed:crd-corpus   # safe to re-run; upserts by chunk id
+npm run embed:crd-corpus   # skips already-upserted chunks
 npm run embed:eda-docs
+# Re-embed all: npm run embed:crd-corpus -- --force
 ```
 
 Upgrade your Cloudflare Workers plan or purchase additional Workers AI capacity if you need higher daily limits.
@@ -114,7 +117,7 @@ Resume after neuron quota reset:
 ```bash
 export CLOUDFLARE_API_TOKEN=your_token
 export HTTP_PROXY=http://your-proxy:8080 HTTPS_PROXY=http://your-proxy:8080   # if needed
-npm run embed:crd-corpus   # upserts by chunk id; safe to re-run
+npm run embed:crd-corpus   # skips manifest entries; only embeds new chunks
 npm run embed:eda-docs
 wrangler vectorize info eda-crd-corpus-v1
 wrangler vectorize info eda-docs-v1

@@ -12,6 +12,7 @@
  *   npm run embed:eda-docs
  *   npm run embed:eda-docs -- --release 26.4
  *   npm run embed:eda-docs -- --dry-run --max-pages 20
+ *   npm run embed:eda-docs -- --force   # re-embed all chunks (ignore manifest)
  */
 import { chunkDocText } from '../src/lib/ai/rag/chunkDocs';
 import type { DocsChunk } from '../src/lib/ai/rag/chunkTypes';
@@ -34,17 +35,19 @@ type CrawledPage = {
 	text: string;
 };
 
-function parseArgs(): { release: string; dryRun: boolean; maxPages: number } {
+function parseArgs(): { release: string; dryRun: boolean; maxPages: number; force: boolean } {
 	const args = process.argv.slice(2);
 	let release = DEFAULT_RELEASE;
 	let dryRun = false;
 	let maxPages = 500;
+	let force = false;
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === '--release' && args[i + 1]) release = args[++i];
 		if (args[i] === '--dry-run') dryRun = true;
 		if (args[i] === '--max-pages' && args[i + 1]) maxPages = Number(args[++i]) || maxPages;
+		if (args[i] === '--force') force = true;
 	}
-	return { release, dryRun, maxPages };
+	return { release, dryRun, maxPages, force };
 }
 
 function normalizePath(pathname: string): string {
@@ -295,7 +298,7 @@ function pagesToChunks(pages: CrawledPage[], release: string): DocsChunk[] {
 }
 
 async function main(): Promise<void> {
-	const { release, dryRun, maxPages } = parseArgs();
+	const { release, dryRun, maxPages, force } = parseArgs();
 	console.log(`Loading ${DOCS_ORIGIN}/${release}/ (max ${maxPages} pages)...`);
 	const pages = await loadDocsPages(release, maxPages);
 	console.log(`Fetched ${pages.length} content pages`);
@@ -328,11 +331,17 @@ async function main(): Promise<void> {
 		}
 	}));
 
-	const upserted = await embedAndUpsert(INDEX_NAME, records, (done, total) => {
-		console.log(`  Upserted ${done}/${total}`);
+	const { upserted, skipped } = await embedAndUpsert(INDEX_NAME, records, {
+		force,
+		onProgress: (done, total) => {
+			console.log(`  Upserted ${done}/${total}`);
+		}
 	});
 
-	console.log(`Done — upserted ${upserted} vectors into ${INDEX_NAME}`);
+	console.log(
+		`Done — upserted ${upserted} new vector(s) into ${INDEX_NAME}` +
+			(skipped > 0 ? ` (${skipped} skipped from manifest)` : '')
+	);
 }
 
 main().catch((error) => {

@@ -12,6 +12,7 @@
  *   npm run embed:crd-corpus
  *   npm run embed:crd-corpus -- --release 26.4.2
  *   npm run embed:crd-corpus -- --dry-run
+ *   npm run embed:crd-corpus -- --force   # re-embed all chunks (ignore manifest)
  */
 import fs from 'fs/promises';
 import path from 'path';
@@ -27,15 +28,17 @@ const ROOT = process.cwd();
 const STATIC_ROOT = path.join(ROOT, 'static');
 const RELEASES_PATH = path.join(ROOT, 'src/lib/releases.yaml');
 const INDEX_NAME = 'eda-crd-corpus-v1';
-function parseArgs(): { release?: string; dryRun: boolean } {
+function parseArgs(): { release?: string; dryRun: boolean; force: boolean } {
 	const args = process.argv.slice(2);
 	let release: string | undefined;
 	let dryRun = false;
+	let force = false;
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === '--release' && args[i + 1]) release = args[++i];
 		if (args[i] === '--dry-run') dryRun = true;
+		if (args[i] === '--force') force = true;
 	}
-	return { release, dryRun };
+	return { release, dryRun, force };
 }
 
 async function collectChunks(releaseFilter?: string): Promise<CrdChunk[]> {
@@ -94,7 +97,7 @@ async function collectChunks(releaseFilter?: string): Promise<CrdChunk[]> {
 }
 
 async function main(): Promise<void> {
-	const { release, dryRun } = parseArgs();
+	const { release, dryRun, force } = parseArgs();
 	console.log(`Collecting CRD chunks${release ? ` for ${release}` : ''}...`);
 	const chunks = await collectChunks(release);
 	console.log(`Total chunks: ${chunks.length}`);
@@ -124,11 +127,17 @@ async function main(): Promise<void> {
 		}
 	}));
 
-	const upserted = await embedAndUpsert(INDEX_NAME, records, (done, total) => {
-		console.log(`  Upserted ${done}/${total}`);
+	const { upserted, skipped } = await embedAndUpsert(INDEX_NAME, records, {
+		force,
+		onProgress: (done, total) => {
+			console.log(`  Upserted ${done}/${total}`);
+		}
 	});
 
-	console.log(`Done — upserted ${upserted} vectors into ${INDEX_NAME}`);
+	console.log(
+		`Done — upserted ${upserted} new vector(s) into ${INDEX_NAME}` +
+			(skipped > 0 ? ` (${skipped} skipped from manifest)` : '')
+	);
 }
 
 main().catch((error) => {

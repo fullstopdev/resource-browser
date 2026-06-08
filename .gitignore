@@ -84,6 +84,9 @@ static/merge-crds.py
 # Wrangler local secrets
 .dev.vars
 
+# Local Vectorize embed progress (gitignored; tracks upserted vector IDs per index)
+.vectorize-manifest.json
+
 # Python virtualenv (do not bundle in static/)
 .venv
 static/.venv

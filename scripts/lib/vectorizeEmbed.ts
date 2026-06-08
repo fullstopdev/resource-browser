@@ -5,6 +5,12 @@ import {
 	WorkersAINeuronLimitError,
 	isWorkersAINeuronLimitError
 } from '../../src/lib/ai/workersAIQuota';
+import {
+	loadVectorizeManifest,
+	markUpserted,
+	saveVectorizeManifest,
+	type VectorizeManifest
+} from './vectorizeManifest';
 
 const proxyUrl =
 	process.env.HTTPS_PROXY?.trim() ||
@@ -102,15 +108,43 @@ export async function upsertVectors(indexName: string, vectors: VectorRecord[]):
 	}
 }
 
+export type EmbedAndUpsertOptions = {
+	force?: boolean;
+	manifestPath?: string;
+	onProgress?: (done: number, total: number) => void;
+};
+
+export type EmbedAndUpsertResult = {
+	upserted: number;
+	skipped: number;
+};
+
 export async function embedAndUpsert(
 	indexName: string,
 	records: { id: string; text: string; metadata: Record<string, string> }[],
-	onProgress?: (done: number, total: number) => void
-): Promise<number> {
+	options: EmbedAndUpsertOptions = {}
+): Promise<EmbedAndUpsertResult> {
+	const { force = false, manifestPath, onProgress } = options;
+	const manifest: VectorizeManifest = await loadVectorizeManifest(manifestPath);
+	const upsertedIds = force ? new Set<string>() : new Set(manifest[indexName] ?? []);
+
+	const pending = force
+		? records
+		: records.filter((record) => !upsertedIds.has(vectorizeId(record.id)));
+	const skipped = records.length - pending.length;
+
+	if (skipped > 0 || pending.length > 0) {
+		console.log(`Skipped ${skipped}, embedding ${pending.length} new`);
+	}
+
+	if (!pending.length) {
+		return { upserted: 0, skipped };
+	}
+
 	let upserted = 0;
 
-	for (let i = 0; i < records.length; i += EMBED_BATCH_SIZE) {
-		const batch = records.slice(i, i + EMBED_BATCH_SIZE);
+	for (let i = 0; i < pending.length; i += EMBED_BATCH_SIZE) {
+		const batch = pending.slice(i, i + EMBED_BATCH_SIZE);
 		const vectors = await embedTexts(batch.map((c) => c.text));
 		if (vectors[0]?.length !== EMBEDDING_DIMENSIONS) {
 			throw new Error(
@@ -123,9 +157,15 @@ export async function embedAndUpsert(
 			metadata: { ...chunk.metadata, text: chunk.text.slice(0, 9000) }
 		}));
 		await upsertVectors(indexName, payload);
+		markUpserted(
+			manifest,
+			indexName,
+			payload.map((v) => v.id)
+		);
+		await saveVectorizeManifest(manifest, manifestPath);
 		upserted += payload.length;
-		onProgress?.(upserted, records.length);
+		onProgress?.(upserted, pending.length);
 	}
 
-	return upserted;
+	return { upserted, skipped };
 }
