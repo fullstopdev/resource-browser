@@ -23,8 +23,17 @@ export function resolveEntryKind(entry: Pick<ManifestEntry, 'kind' | 'name'>): s
 	return inferKindFromCrdName(entry.name);
 }
 
+function normalizeKindKey(kind: string): string {
+	return kind.replace(/\s+/g, '').toLowerCase();
+}
+
+/** Case-insensitive match only — no plural/singular normalization. */
+function kindsMatchCaseOnly(a: string, b: string): boolean {
+	return normalizeKindKey(a) === normalizeKindKey(b);
+}
+
 function kindLookupKeys(kind: string): string[] {
-	const key = kind.replace(/\s+/g, '').toLowerCase();
+	const key = normalizeKindKey(kind);
 	const keys = new Set<string>([key]);
 	if (key.endsWith('ies') && key.length > 4) {
 		keys.add(`${key.slice(0, -3)}y`);
@@ -38,6 +47,7 @@ function kindLookupKeys(kind: string): string[] {
 	return [...keys];
 }
 
+/** Case-insensitive match with plural/singular variants — for catalog search only. */
 function kindsMatchCaseInsensitive(a: string, b: string): boolean {
 	const aKeys = kindLookupKeys(a);
 	const bKeys = kindLookupKeys(b);
@@ -60,7 +70,7 @@ export function findManifestEntry(
 	if (exact) return exact;
 	// Manifest entries missing kind metadata (not yet in resources.yaml)
 	const inferred = inGroup.filter(
-		(r) => !r.kind?.trim() && kindsMatchCaseInsensitive(resolveEntryKind(r), kind)
+		(r) => !r.kind?.trim() && kindsMatchCaseOnly(resolveEntryKind(r), kind)
 	);
 	return inferred.length === 1 ? inferred[0] : undefined;
 }
@@ -151,7 +161,7 @@ export function normalizeKind(
 	if (exact) return resolveEntryKind(exact);
 
 	const caseInsensitive = scoped.filter((r) =>
-		kindsMatchCaseInsensitive(resolveEntryKind(r), trimmed)
+		kindsMatchCaseOnly(resolveEntryKind(r), trimmed)
 	);
 	if (caseInsensitive.length === 1) {
 		return resolveEntryKind(caseInsensitive[0]);
@@ -170,7 +180,7 @@ export function findManifestEntriesByKind(manifest: ManifestEntry[], kind: strin
 	const exact = manifest.filter((r) => resolveEntryKind(r) === kind);
 	if (exact.length > 0) return exact;
 	return manifest.filter(
-		(r) => !r.kind?.trim() && kindsMatchCaseInsensitive(resolveEntryKind(r), kind)
+		(r) => !r.kind?.trim() && kindsMatchCaseOnly(resolveEntryKind(r), kind)
 	);
 }
 

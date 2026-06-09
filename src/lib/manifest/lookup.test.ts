@@ -81,9 +81,32 @@ describe('manifest lookup', () => {
 		);
 	});
 
-	it('normalizes user kind input to manifest canonical casing', () => {
+	it('normalizes user kind input to manifest canonical casing (case only)', () => {
 		expect(normalizeKind('topology', topologyManifest, 'topologies.eda.nokia.com')).toBe('Topology');
 		expect(normalizeKind('routerinterconnect', topologyManifest)).toBeUndefined();
+	});
+
+	it('does not normalize plural kinds to singular', () => {
+		const manifest: ManifestEntry[] = [
+			{
+				name: 'routerinterconnects.services.eda.nokia.com',
+				kind: 'RouterInterconnect',
+				group: 'services.eda.nokia.com',
+				versions: [{ name: 'v2' }]
+			}
+		];
+		expect(normalizeKind('RouterInterconnects', manifest, 'services.eda.nokia.com')).toBeUndefined();
+		expect(findManifestEntry(manifest, 'RouterInterconnects', 'services.eda.nokia.com')).toBeUndefined();
+		expect(findManifestEntry(manifest, 'RouterInterconnect', 'services.eda.nokia.com')).toBe(manifest[0]);
+		const mismatch = findManifestEntryCaseMismatch(
+			manifest,
+			'RouterInterconnects',
+			'services.eda.nokia.com'
+		);
+		expect(mismatch?.kind).toBe('RouterInterconnect');
+		expect(formatKindCaseMismatchMessage('RouterInterconnect', 'RouterInterconnects')).toBe(
+			`Invalid kind: 'RouterInterconnects' must be 'RouterInterconnect' (Kubernetes kinds are case-sensitive).`
+		);
 	});
 
 	it('matches YAML kind to manifest entries with empty kind via plural CRD name', () => {

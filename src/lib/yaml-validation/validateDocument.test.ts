@@ -398,6 +398,110 @@ spec:
 		expect(result.valid).toBe(true);
 		expect(result.errors).toHaveLength(0);
 	});
+
+	it('rejects plural kind RouterInterconnects with suggested fix', () => {
+		const routerManifest: ManifestEntry[] = [
+			{
+				name: 'routerinterconnects.services.eda.nokia.com',
+				kind: 'RouterInterconnect',
+				group: 'services.eda.nokia.com',
+				versions: [{ name: 'v2' }]
+			}
+		];
+		const doc: ParsedDocument = {
+			data: {
+				apiVersion: 'services.eda.nokia.com/v2',
+				kind: 'RouterInterconnects',
+				metadata: { name: 'router-interconnect-1-dc1', namespace: 'clab-orange-tsc' },
+				spec: {}
+			},
+			rawText: `apiVersion: services.eda.nokia.com/v2
+kind: RouterInterconnects
+metadata:
+  name: router-interconnect-1-dc1
+  namespace: clab-orange-tsc
+spec: {}
+`,
+			startLine: 0,
+			index: 0
+		};
+
+		const result = validateDocument({
+			doc,
+			totalDocs: 1,
+			releaseFolder: 'resources/26.4.2',
+			releaseLabel: 'EDA 26.4.2',
+			manifest: routerManifest,
+			schemas: new Map(),
+			getSpecValidator: () => {
+				throw new Error('schema validation should not run');
+			},
+			getStatusValidator: () => {
+				throw new Error('schema validation should not run');
+			}
+		});
+
+		expect(result.valid).toBe(false);
+		expect(
+			result.errors.some((e) =>
+				e.message.includes(
+					`Invalid kind: 'RouterInterconnects' must be 'RouterInterconnect' (Kubernetes kinds are case-sensitive).`
+				)
+			)
+		).toBe(true);
+		const kindError = result.errors.find((e) => e.message.includes('Invalid kind:'));
+		expect(kindError?.suggestedFix?.field).toBe('kind');
+		expect(kindError?.suggestedFix?.value).toBe('RouterInterconnect');
+	});
+
+	it('accepts canonical kind RouterInterconnect', () => {
+		const routerManifest: ManifestEntry[] = [
+			{
+				name: 'routerinterconnects.services.eda.nokia.com',
+				kind: 'RouterInterconnect',
+				group: 'services.eda.nokia.com',
+				versions: [{ name: 'v2' }]
+			}
+		];
+		const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+		const validator = getOrCompileValidator(ajv, 'router::spec', { type: 'object' });
+		const doc: ParsedDocument = {
+			data: {
+				apiVersion: 'services.eda.nokia.com/v2',
+				kind: 'RouterInterconnect',
+				metadata: { name: 'router-interconnect-1-dc1', namespace: 'clab-orange-tsc' },
+				spec: {}
+			},
+			rawText: `apiVersion: services.eda.nokia.com/v2
+kind: RouterInterconnect
+metadata:
+  name: router-interconnect-1-dc1
+  namespace: clab-orange-tsc
+spec: {}
+`,
+			startLine: 0,
+			index: 0
+		};
+
+		const result = validateDocument({
+			doc,
+			totalDocs: 1,
+			releaseFolder: 'resources/26.4.2',
+			releaseLabel: 'EDA 26.4.2',
+			manifest: routerManifest,
+			schemas: new Map([
+				[
+					'/resources/26.4.2/routerinterconnects.services.eda.nokia.com/v2.yaml',
+					{ spec: { type: 'object' }, isSpecRequired: false }
+				]
+			]),
+			getSpecValidator: () => validator,
+			getStatusValidator: () => validator
+		});
+
+		expect(result.valid).toBe(true);
+		expect(result.errors.some((e) => e.message.includes('Invalid kind:'))).toBe(false);
+	});
 });
 
 describe('validateDocument enum handling', () => {
