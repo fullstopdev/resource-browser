@@ -10,6 +10,7 @@ import {
 
 import type { ManifestResource } from '$lib/manifest';
 import { resolveEntryKind } from '$lib/manifest/lookup';
+import { getLatestVersion } from '$lib/versions';
 
 export type { ManifestResource };
 
@@ -53,9 +54,12 @@ export type SearchOptions = {
 	onProgress?: (progress: SearchProgress) => void;
 };
 
-const FETCH_CONCURRENCY = 20;
-const PREFETCH_CONCURRENCY = 12;
+const FETCH_CONCURRENCY = 16;
+const PREFETCH_CONCURRENCY = 10;
 const BATCH_YIELD_EVERY = 8;
+
+/** Explicit opt-in to scan every API version per CRD. Empty version = latest only. */
+export const ALL_VERSIONS_SCOPE = '*';
 
 function resourceKey(name: string, ver: string): string {
 	return `${name}::${ver}`;
@@ -65,27 +69,46 @@ function yamlCacheKey(releaseFolder: string, resName: string, ver: string): stri
 	return `/${releaseFolder}/${resName}/${ver}.yaml`;
 }
 
+function wantsAllVersions(version: string): boolean {
+	return version === ALL_VERSIONS_SCOPE || version === 'all';
+}
+
 function yieldToMain(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function finalizeParsedResource(rawSpec: unknown, rawStatus: unknown): ParsedResource {
-	const spec = rawSpec ? ensureRenderable(rawSpec) : undefined;
-	const status = rawStatus ? ensureRenderable(rawStatus) : undefined;
-	const entry: ParsedResource = { spec, status };
+	return {
+		spec: rawSpec ? ensureRenderable(rawSpec) : undefined,
+		status: rawStatus ? ensureRenderable(rawStatus) : undefined
+	};
+}
+
+/** Build search indexes on demand — avoids expensive tree walks during background warm. */
+function ensureSearchIndexes(parsed: ParsedResource, searchInDescription: boolean): void {
+	const { spec, status } = parsed;
 
 	if (spec && typeof spec === 'object') {
-		entry.specStripped = stripDescriptions(spec);
-		entry.specIndex = buildSearchIndex(entry.specStripped, false);
-		entry.specIndexWithDesc = buildSearchIndex(spec, true);
-	}
-	if (status && typeof status === 'object') {
-		entry.statusStripped = stripDescriptions(status);
-		entry.statusIndex = buildSearchIndex(entry.statusStripped, false);
-		entry.statusIndexWithDesc = buildSearchIndex(status, true);
+		if (searchInDescription) {
+			if (!parsed.specIndexWithDesc) {
+				parsed.specIndexWithDesc = buildSearchIndex(spec, true);
+			}
+		} else {
+			if (!parsed.specStripped) parsed.specStripped = stripDescriptions(spec);
+			if (!parsed.specIndex) parsed.specIndex = buildSearchIndex(parsed.specStripped, false);
+		}
 	}
 
-	return entry;
+	if (status && typeof status === 'object') {
+		if (searchInDescription) {
+			if (!parsed.statusIndexWithDesc) {
+				parsed.statusIndexWithDesc = buildSearchIndex(status, true);
+			}
+		} else {
+			if (!parsed.statusStripped) parsed.statusStripped = stripDescriptions(status);
+			if (!parsed.statusIndex) parsed.statusIndex = buildSearchIndex(parsed.statusStripped, false);
+		}
+	}
 }
 
 async function fetchYamlText(
@@ -138,6 +161,8 @@ function searchResourceVersion(
 	q: string,
 	searchInDescription: boolean
 ): SearchMatch[] {
+	ensureSearchIndexes(parsed, searchInDescription);
+
 	const matches: SearchMatch[] = [];
 	const { spec, status } = parsed;
 	const fullSpec = spec;
@@ -189,18 +214,60 @@ function searchResourceVersion(
 
 type WorkItem = { res: ManifestResource; ver: string };
 
-function buildWorkQueue(manifest: ManifestResource[], version: string): WorkItem[] {
+export function buildSearchWorkQueue(manifest: ManifestResource[], version: string): WorkItem[] {
 	const queue: WorkItem[] = [];
 	for (const res of manifest) {
 		if (!res?.name || res.name.toLowerCase().includes('states')) continue;
-		const versions = version
-			? [version]
-			: (res.versions?.map((v) => v.name).filter(Boolean) ?? []);
+		const versions = wantsAllVersions(version)
+			? (res.versions?.map((v) => v.name).filter(Boolean) ?? [])
+			: version
+				? [version]
+				: [getLatestVersion(res)].filter(Boolean);
 		for (const ver of versions) {
 			queue.push({ res, ver });
 		}
 	}
 	return queue;
+}
+
+function orderWorkQueue(
+	workQueue: WorkItem[],
+	releaseFolder: string,
+	parsedCache: Map<string, ParsedResource>
+): WorkItem[] {
+	const cached: WorkItem[] = [];
+	const pending: WorkItem[] = [];
+	for (const item of workQueue) {
+		const key = yamlCacheKey(releaseFolder, item.res.name, item.ver);
+		if (parsedCache.has(key)) cached.push(item);
+		else pending.push(item);
+	}
+	return cached.length > 0 ? [...cached, ...pending] : workQueue;
+}
+
+async function processWorkBatch(
+	releaseFolder: string,
+	batch: WorkItem[],
+	q: string,
+	searchInDescription: boolean,
+	yamlCache: Map<string, string>,
+	parsedCache: Map<string, ParsedResource>,
+	isCancelled: () => boolean
+): Promise<SearchMatch[][]> {
+	return Promise.all(
+		batch.map(async ({ res, ver }) => {
+			if (isCancelled()) return [] as SearchMatch[];
+			const parsed = await loadParsedResource(
+				releaseFolder,
+				res.name,
+				ver,
+				yamlCache,
+				parsedCache
+			);
+			if (!parsed) return [] as SearchMatch[];
+			return searchResourceVersion(res, ver, parsed, q, searchInDescription);
+		})
+	);
 }
 
 export async function searchManifest(options: SearchOptions): Promise<SearchMatch[]> {
@@ -220,7 +287,11 @@ export async function searchManifest(options: SearchOptions): Promise<SearchMatc
 	const q = String(query ?? '').trim();
 	if (!q) return [];
 
-	const workQueue = buildWorkQueue(manifest, version);
+	const workQueue = orderWorkQueue(
+		buildSearchWorkQueue(manifest, version),
+		releaseFolder,
+		parsedCache
+	);
 	const matches: SearchMatch[] = [];
 	const seenResources = new Set<string>();
 	let resourcesScanned = 0;
@@ -233,19 +304,14 @@ export async function searchManifest(options: SearchOptions): Promise<SearchMatc
 		if (isCancelled()) return matches;
 
 		const batch = workQueue.slice(i, i + FETCH_CONCURRENCY);
-		const batchResults = await Promise.all(
-			batch.map(async ({ res, ver }) => {
-				if (isCancelled()) return [] as SearchMatch[];
-				const parsed = await loadParsedResource(
-					releaseFolder,
-					res.name,
-					ver,
-					yamlCache,
-					parsedCache
-				);
-				if (!parsed) return [] as SearchMatch[];
-				return searchResourceVersion(res, ver, parsed, q, searchInDescription);
-			})
+		const batchResults = await processWorkBatch(
+			releaseFolder,
+			batch,
+			q,
+			searchInDescription,
+			yamlCache,
+			parsedCache,
+			isCancelled
 		);
 
 		for (const resourceMatches of batchResults) {
@@ -276,10 +342,10 @@ export async function searchManifest(options: SearchOptions): Promise<SearchMatc
 const warmInFlight = new Map<string, Promise<void>>();
 
 function warmKey(releaseFolder: string, version: string): string {
-	return `${releaseFolder}::${version || '*'}`;
+	return `${releaseFolder}::${version || 'latest'}`;
 }
 
-/** Fetch, parse, and index CRD schemas for a release (optionally filtered by version). */
+/** Fetch and parse CRD schemas for a release (optionally filtered by version). */
 export async function warmReleaseSchemas(
 	releaseFolder: string,
 	manifest: ManifestResource[],
@@ -291,7 +357,7 @@ export async function warmReleaseSchemas(
 	const existing = warmInFlight.get(key);
 	if (existing) return existing;
 
-	const workQueue = buildWorkQueue(manifest, version).filter(
+	const workQueue = buildSearchWorkQueue(manifest, version).filter(
 		({ res, ver }) => !parsedCache.has(yamlCacheKey(releaseFolder, res.name, ver))
 	);
 	if (workQueue.length === 0) return;
@@ -314,7 +380,7 @@ export async function warmReleaseSchemas(
 	return task;
 }
 
-/** Warm schema caches in the background so the first search avoids cold fetches and parsing. */
+/** Warm schema caches in the background so repeat searches avoid cold fetches. */
 export function prefetchReleaseSchemas(
 	releaseFolder: string,
 	manifest: ManifestResource[],

@@ -18,9 +18,9 @@
     import { fetchManifest } from '$lib/manifest';
     import { displayKind, displayGroup } from '$lib/resourceSearch';
     import {
+        ALL_VERSIONS_SCOPE,
         prefetchReleaseSchemas,
         searchManifest,
-        warmReleaseSchemas,
         type SearchMatch
     } from '$lib/spec-search/searchEngine';
     // expandAll controls removed from this auto-search page (no UI button)
@@ -67,7 +67,6 @@
     let searchGeneration = 0;
 
     let searching = false;
-    let warmingSchemas = false;
     let results: SearchMatch[] = [];
     const MAX_RESULTS = 100;
 
@@ -127,19 +126,23 @@
         parsedCache.clear();
     }
 
-    // Warm manifest + parsed schemas as soon as release/version is known (before first keystroke).
-    $: if (browser && release?.folder) {
-        void fetchManifest(release.folder).then((manifest) => {
+    function startSchemaPrefetch(releaseFolder: string, versionFilter = version) {
+        void fetchManifest(releaseFolder).then((manifest) => {
             if (manifest) {
                 prefetchReleaseSchemas(
-                    release.folder,
+                    releaseFolder,
                     manifest,
                     yamlCache,
                     parsedCache,
-                    version
+                    versionFilter
                 );
             }
         });
+    }
+
+    // Warm manifest + parsed schemas as soon as release/version is known (before first keystroke).
+    $: if (browser && release?.folder) {
+        startSchemaPrefetch(release.folder, version);
     }
 
     $: release = releaseName
@@ -223,7 +226,7 @@
                 }
             }
 
-            if (!versions.includes(version)) version = '';
+            if (!versions.includes(version) && version !== ALL_VERSIONS_SCOPE) version = '';
             if (manifest) {
                 prefetchReleaseSchemas(rel.folder, manifest, yamlCache, parsedCache, version);
             }
@@ -372,28 +375,21 @@
         }
         previousSearchInDescription = searchInDescription;
 
-        await loadVersions();
-
-        if (urlQuery?.trim() && release?.folder) {
-            warmingSchemas = true;
-            try {
-                const manifest = await fetchManifest(release.folder);
-                if (manifest) {
-                    await warmReleaseSchemas(
-                        release.folder,
-                        manifest,
-                        yamlCache,
-                        parsedCache,
-                        version
-                    );
-                }
-                await performSearch();
-            } finally {
-                warmingSchemas = false;
+        if (releaseName) {
+            const initialRelease =
+                releasesConfig.releases.find((r) => r.name === releaseName) || null;
+            if (initialRelease?.folder) {
+                startSchemaPrefetch(initialRelease.folder, version);
             }
         }
 
+        await loadVersions();
+
         clientReady = true;
+
+        if (urlQuery?.trim() && release?.folder) {
+            void performSearch();
+        }
 
         document.addEventListener('yang:pathclick', handleYangPathClick as EventListener);
     });
@@ -469,7 +465,8 @@
                 class="spec-search-select min-w-[8rem] flex-1 sm:flex-none"
                 disabled={!release || versions.length === 0 || loadingVersions}
             >
-                <option value="">{loadingVersions ? 'Loading…' : 'All versions'}</option>
+                <option value="">{loadingVersions ? 'Loading…' : 'Latest per CRD'}</option>
+                <option value={ALL_VERSIONS_SCOPE}>All versions</option>
                 {#each versions as v}
                     <option value={v}>{v}</option>
                 {/each}
@@ -893,8 +890,6 @@
                         <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
                             {#if loadingVersions}
                                 Loading release data…
-                            {:else if warmingSchemas && query.trim()}
-                                Preparing search index…
                             {:else if searching && query.trim()}
                                 Searching…
                             {:else if !release || !releaseName}
@@ -908,8 +903,6 @@
                         <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                             {#if loadingVersions}
                                 Fetching version list for the selected release.
-                            {:else if warmingSchemas && query.trim()}
-                                Loading and indexing CRD schemas for {release?.label ?? 'the selected release'}…
                             {:else if searching && query.trim()}
                                 Scanning schema paths across {release?.label ?? 'the selected release'}…
                             {:else if !release || !releaseName}
