@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0",
-		"dev:ai": "npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare --ai AI --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
+		"dev:ai": "PUBLIC_ASK_AI_ENABLED=true npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare --ai AI --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
 		"build": "vite build",
 		"build:vercel": "ADAPTER=vercel vite build",
 		"build:cloudflare": "ADAPTER=cloudflare vite build",

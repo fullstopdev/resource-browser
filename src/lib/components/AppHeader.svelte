@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import GlobalAskButton from '$lib/components/GlobalAskButton.svelte';
+	import { askAiEnabled } from '$lib/featureFlags';
 	import Theme from '$lib/components/Theme.svelte';
 
 	/** Fixed (detail pages) vs sticky (homepage / browse) */
@@ -90,7 +91,9 @@
 				</button>
 			{/if}
 			<slot name="actions" />
-			<GlobalAskButton />
+			{#if askAiEnabled}
+				<GlobalAskButton />
+			{/if}
 			<Theme />
 		</div>
 	</div>
