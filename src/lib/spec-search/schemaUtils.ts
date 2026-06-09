@@ -71,12 +71,86 @@ export function restoreDescriptions(node: unknown, original: unknown, isRoot = f
 	return node;
 }
 
-function normalizeToken(s: string): { spaced: string; compact: string } {
+export function normalizeToken(s: string): { spaced: string; compact: string } {
 	const spaced = String(s)
 		.replace(/([a-z])([A-Z])/g, '$1 $2')
 		.replace(/[_.\-]/g, ' ')
 		.toLowerCase();
 	return { spaced, compact: spaced.replace(/\s+/g, '') };
+}
+
+/** Collect searchable terms from a schema tree (built once per resource version). */
+export function buildSearchIndex(
+	node: unknown,
+	includeDesc = false,
+	pathPrefix = '',
+	terms: string[] = []
+): string {
+	if (node == null || typeof node !== 'object') return terms.join(' ');
+
+	const src = node as Record<string, unknown>;
+	const push = (value: unknown) => {
+		if (value === undefined || value === null) return;
+		const { spaced, compact } = normalizeToken(String(value));
+		if (spaced) terms.push(spaced);
+		if (compact && compact !== spaced) terms.push(compact);
+	};
+
+	if (pathPrefix) push(pathPrefix);
+	if (includeDesc && typeof src.description === 'string') {
+		terms.push(src.description.toLowerCase());
+	}
+	if (src.type) push(src.type);
+	if (Array.isArray(src.enum)) {
+		for (const e of src.enum) push(e);
+	}
+	if (src.default !== undefined) push(src.default);
+	if ('title' in src && src.title !== undefined) push(src.title);
+	if (Array.isArray(src.required) && src.required.length > 0) {
+		terms.push('required');
+	}
+	if (src.properties && typeof src.properties === 'object') {
+		const parentRequired = Array.isArray(src.required) ? (src.required as string[]) : undefined;
+		for (const [pname, pval] of Object.entries(src.properties as Record<string, unknown>)) {
+			push(pname);
+			const fullPath = pathPrefix ? `${pathPrefix}.${pname}` : pname;
+			if (parentRequired && !parentRequired.includes(pname)) {
+				terms.push('optional');
+			}
+			buildSearchIndex(pval, includeDesc, fullPath, terms);
+		}
+	}
+	if (src.items) {
+		buildSearchIndex(src.items, includeDesc, pathPrefix, terms);
+	}
+	for (const comb of ['allOf', 'anyOf', 'oneOf'] as const) {
+		if (Array.isArray(src[comb])) {
+			for (const el of src[comb]) {
+				buildSearchIndex(el, includeDesc, pathPrefix, terms);
+			}
+		}
+	}
+	if (src.additionalProperties && typeof src.additionalProperties === 'object') {
+		buildSearchIndex(src.additionalProperties, includeDesc, pathPrefix, terms);
+	}
+
+	return terms.join(' ');
+}
+
+/** Fast prefilter: false only when the schema cannot match the query. */
+export function indexMightMatch(index: string, q: string): boolean {
+	if (!q || !index) return false;
+
+	const candidates = [q];
+	const stripped = q.replace(/^(spec|status)\./i, '');
+	if (stripped !== q) candidates.push(stripped);
+
+	for (const candidate of candidates) {
+		const { spaced, compact } = normalizeToken(candidate);
+		if (spaced && index.includes(spaced)) return true;
+		if (compact && index.includes(compact)) return true;
+	}
+	return false;
 }
 
 function nameMatchesQuery(name: string, q: string): boolean {

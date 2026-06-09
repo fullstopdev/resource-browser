@@ -1,6 +1,8 @@
 import { loadStaticYaml } from '$lib/yaml/safeYaml';
 import {
+	buildSearchIndex,
 	ensureRenderable,
+	indexMightMatch,
 	prepareMatchSchema,
 	pruneSchema,
 	stripDescriptions
@@ -24,6 +26,12 @@ export type SearchMatch = {
 export type ParsedResource = {
 	spec?: unknown;
 	status?: unknown;
+	specStripped?: unknown;
+	statusStripped?: unknown;
+	specIndex?: string;
+	statusIndex?: string;
+	specIndexWithDesc?: string;
+	statusIndexWithDesc?: string;
 };
 
 export type SearchProgress = {
@@ -45,15 +53,53 @@ export type SearchOptions = {
 	onProgress?: (progress: SearchProgress) => void;
 };
 
-const FETCH_CONCURRENCY = 8;
-const BATCH_YIELD_EVERY = 12;
+const FETCH_CONCURRENCY = 20;
+const PREFETCH_CONCURRENCY = 12;
+const BATCH_YIELD_EVERY = 8;
 
 function resourceKey(name: string, ver: string): string {
 	return `${name}::${ver}`;
 }
 
+function yamlCacheKey(releaseFolder: string, resName: string, ver: string): string {
+	return `/${releaseFolder}/${resName}/${ver}.yaml`;
+}
+
 function yieldToMain(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function finalizeParsedResource(rawSpec: unknown, rawStatus: unknown): ParsedResource {
+	const spec = rawSpec ? ensureRenderable(rawSpec) : undefined;
+	const status = rawStatus ? ensureRenderable(rawStatus) : undefined;
+	const entry: ParsedResource = { spec, status };
+
+	if (spec && typeof spec === 'object') {
+		entry.specStripped = stripDescriptions(spec);
+		entry.specIndex = buildSearchIndex(entry.specStripped, false);
+		entry.specIndexWithDesc = buildSearchIndex(spec, true);
+	}
+	if (status && typeof status === 'object') {
+		entry.statusStripped = stripDescriptions(status);
+		entry.statusIndex = buildSearchIndex(entry.statusStripped, false);
+		entry.statusIndexWithDesc = buildSearchIndex(status, true);
+	}
+
+	return entry;
+}
+
+async function fetchYamlText(
+	cacheKey: string,
+	yamlCache: Map<string, string>
+): Promise<string | null> {
+	let txt = yamlCache.get(cacheKey);
+	if (txt) return txt;
+
+	const resp = await fetch(cacheKey);
+	if (!resp.ok) return null;
+	txt = await resp.text();
+	yamlCache.set(cacheKey, txt);
+	return txt;
 }
 
 async function loadParsedResource(
@@ -63,18 +109,13 @@ async function loadParsedResource(
 	yamlCache: Map<string, string>,
 	parsedCache: Map<string, ParsedResource>
 ): Promise<ParsedResource | null> {
-	const cacheKey = `/${releaseFolder}/${resName}/${ver}.yaml`;
+	const cacheKey = yamlCacheKey(releaseFolder, resName, ver);
 	if (parsedCache.has(cacheKey)) {
 		return parsedCache.get(cacheKey)!;
 	}
 
-	let txt = yamlCache.get(cacheKey);
-	if (!txt) {
-		const resp = await fetch(cacheKey);
-		if (!resp.ok) return null;
-		txt = await resp.text();
-		yamlCache.set(cacheKey, txt);
-	}
+	const txt = await fetchYamlText(cacheKey, yamlCache);
+	if (!txt) return null;
 
 	try {
 		const parsed = loadStaticYaml(txt) as {
@@ -82,10 +123,7 @@ async function loadParsedResource(
 		};
 		const rawSpec = parsed?.schema?.openAPIV3Schema?.properties?.spec;
 		const rawStatus = parsed?.schema?.openAPIV3Schema?.properties?.status;
-		const entry: ParsedResource = {
-			spec: rawSpec ? ensureRenderable(rawSpec) : undefined,
-			status: rawStatus ? ensureRenderable(rawStatus) : undefined
-		};
+		const entry = finalizeParsedResource(rawSpec, rawStatus);
 		parsedCache.set(cacheKey, entry);
 		return entry;
 	} catch {
@@ -106,37 +144,43 @@ function searchResourceVersion(
 	const fullStatus = status;
 
 	if (spec && typeof spec === 'object') {
-		const stripped = searchInDescription ? spec : stripDescriptions(spec);
-		const pruned = pruneSchema(stripped, q, searchInDescription);
-		if (pruned) {
-			matches.push({
-				name: res.name,
-				kind: resolveEntryKind(res),
-				version: ver,
-				type: 'spec',
-				schema: prepareMatchSchema(pruned as Record<string, unknown>, spec as Record<string, unknown>),
-				fullSpec,
-				fullStatus
-			});
+		const index = searchInDescription ? parsed.specIndexWithDesc : parsed.specIndex;
+		if (!index || indexMightMatch(index, q)) {
+			const searchNode = searchInDescription ? spec : (parsed.specStripped ?? spec);
+			const pruned = pruneSchema(searchNode, q, searchInDescription);
+			if (pruned) {
+				matches.push({
+					name: res.name,
+					kind: resolveEntryKind(res),
+					version: ver,
+					type: 'spec',
+					schema: prepareMatchSchema(pruned as Record<string, unknown>, spec as Record<string, unknown>),
+					fullSpec,
+					fullStatus
+				});
+			}
 		}
 	}
 
 	if (status && typeof status === 'object') {
-		const strippedStatus = searchInDescription ? status : stripDescriptions(status);
-		const prunedStatus = pruneSchema(strippedStatus, q, searchInDescription);
-		if (prunedStatus) {
-			matches.push({
-				name: res.name,
-				kind: resolveEntryKind(res),
-				version: ver,
-				type: 'status',
-				schema: prepareMatchSchema(
-					prunedStatus as Record<string, unknown>,
-					status as Record<string, unknown>
-				),
-				fullSpec,
-				fullStatus
-			});
+		const index = searchInDescription ? parsed.statusIndexWithDesc : parsed.statusIndex;
+		if (!index || indexMightMatch(index, q)) {
+			const searchNode = searchInDescription ? status : (parsed.statusStripped ?? status);
+			const prunedStatus = pruneSchema(searchNode, q, searchInDescription);
+			if (prunedStatus) {
+				matches.push({
+					name: res.name,
+					kind: resolveEntryKind(res),
+					version: ver,
+					type: 'status',
+					schema: prepareMatchSchema(
+						prunedStatus as Record<string, unknown>,
+						status as Record<string, unknown>
+					),
+					fullSpec,
+					fullStatus
+				});
+			}
 		}
 	}
 
@@ -151,7 +195,7 @@ function buildWorkQueue(manifest: ManifestResource[], version: string): WorkItem
 		if (!res?.name || res.name.toLowerCase().includes('states')) continue;
 		const versions = version
 			? [version]
-			: res.versions?.map((v) => v.name).filter(Boolean) ?? [];
+			: (res.versions?.map((v) => v.name).filter(Boolean) ?? []);
 		for (const ver of versions) {
 			queue.push({ res, ver });
 		}
@@ -227,6 +271,58 @@ export async function searchManifest(options: SearchOptions): Promise<SearchMatc
 
 	emitProgress(true);
 	return matches;
+}
+
+const warmInFlight = new Map<string, Promise<void>>();
+
+function warmKey(releaseFolder: string, version: string): string {
+	return `${releaseFolder}::${version || '*'}`;
+}
+
+/** Fetch, parse, and index CRD schemas for a release (optionally filtered by version). */
+export async function warmReleaseSchemas(
+	releaseFolder: string,
+	manifest: ManifestResource[],
+	yamlCache: Map<string, string>,
+	parsedCache: Map<string, ParsedResource>,
+	version = ''
+): Promise<void> {
+	const key = warmKey(releaseFolder, version);
+	const existing = warmInFlight.get(key);
+	if (existing) return existing;
+
+	const workQueue = buildWorkQueue(manifest, version).filter(
+		({ res, ver }) => !parsedCache.has(yamlCacheKey(releaseFolder, res.name, ver))
+	);
+	if (workQueue.length === 0) return;
+
+	const task = (async () => {
+		for (let i = 0; i < workQueue.length; i += PREFETCH_CONCURRENCY) {
+			const batch = workQueue.slice(i, i + PREFETCH_CONCURRENCY);
+			await Promise.all(
+				batch.map(({ res, ver }) =>
+					loadParsedResource(releaseFolder, res.name, ver, yamlCache, parsedCache)
+				)
+			);
+			await yieldToMain();
+		}
+	})().finally(() => {
+		warmInFlight.delete(key);
+	});
+
+	warmInFlight.set(key, task);
+	return task;
+}
+
+/** Warm schema caches in the background so the first search avoids cold fetches and parsing. */
+export function prefetchReleaseSchemas(
+	releaseFolder: string,
+	manifest: ManifestResource[],
+	yamlCache: Map<string, string>,
+	parsedCache: Map<string, ParsedResource>,
+	version = ''
+): void {
+	void warmReleaseSchemas(releaseFolder, manifest, yamlCache, parsedCache, version);
 }
 
 export { fetchManifest } from '$lib/manifest';
