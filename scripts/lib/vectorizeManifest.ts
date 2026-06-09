@@ -53,3 +53,12 @@ export function markUpserted(
 	for (const id of vectorIds) existing.add(id);
 	manifest[indexName] = [...existing];
 }
+
+/** Replace manifest entries for an index (e.g. after rebuilding from Vectorize). */
+export function setManifestIds(
+	manifest: VectorizeManifest,
+	indexName: string,
+	vectorIds: string[]
+): void {
+	manifest[indexName] = [...new Set(vectorIds)];
+}

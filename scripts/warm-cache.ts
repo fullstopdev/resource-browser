@@ -8,8 +8,18 @@
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
+import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { assertSafeFolderPath } from '../src/lib/yaml-validation/schemaCache';
 import type { ReleasesConfig } from '../src/lib/structure';
+
+const proxyUrl =
+	process.env.HTTPS_PROXY?.trim() ||
+	process.env.https_proxy?.trim() ||
+	process.env.HTTP_PROXY?.trim() ||
+	process.env.http_proxy?.trim();
+if (proxyUrl) {
+	setGlobalDispatcher(new ProxyAgent(proxyUrl));
+}
 
 const ROOT = process.cwd();
 const STATIC_ROOT = path.join(ROOT, 'static');

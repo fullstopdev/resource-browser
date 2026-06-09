@@ -23,6 +23,15 @@ if (proxyUrl) {
 
 export const VECTORIZE_ID_MAX = 64;
 export const EMBED_BATCH_SIZE = 16;
+export const LIST_VECTORS_PAGE_SIZE = 1000;
+
+type ListVectorsResponse = {
+	vectors: { id: string }[];
+	count: number;
+	totalCount: number;
+	isTruncated: boolean;
+	nextCursor?: string;
+};
 
 export type VectorRecord = {
 	id: string;
@@ -84,6 +93,49 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 	const vectors = json.result?.data ?? json.data;
 	if (!vectors?.length) throw new Error('Embedding API returned no vectors');
 	return vectors;
+}
+
+export async function listVectorIdsPage(
+	indexName: string,
+	options: { count?: number; cursor?: string } = {}
+): Promise<ListVectorsResponse> {
+	const accountId = await getAccountId();
+	const token = requireToken();
+	const params = new URLSearchParams();
+	if (options.count !== undefined) params.set('count', String(options.count));
+	if (options.cursor) params.set('cursor', options.cursor);
+	const qs = params.toString();
+	const resp = await fetch(
+		`https://api.cloudflare.com/client/v4/accounts/${accountId}/vectorize/v2/indexes/${indexName}/list${qs ? `?${qs}` : ''}`,
+		{ headers: { Authorization: `Bearer ${token}` } }
+	);
+
+	if (!resp.ok) {
+		const body = await resp.text();
+		throw new Error(`Vectorize list failed (${resp.status}): ${body}`);
+	}
+
+	const json = (await resp.json()) as { result?: ListVectorsResponse };
+	const result = json.result;
+	if (!result) throw new Error('Vectorize list returned no result');
+	return result;
+}
+
+/** Paginate Vectorize list API until all vector IDs for an index are collected. */
+export async function listAllVectorIds(indexName: string): Promise<string[]> {
+	const ids: string[] = [];
+	let cursor: string | undefined;
+
+	do {
+		const page = await listVectorIdsPage(indexName, {
+			count: LIST_VECTORS_PAGE_SIZE,
+			cursor
+		});
+		for (const vector of page.vectors) ids.push(vector.id);
+		cursor = page.isTruncated && page.nextCursor ? page.nextCursor : undefined;
+	} while (cursor);
+
+	return ids;
 }
 
 export async function upsertVectors(indexName: string, vectors: VectorRecord[]): Promise<void> {

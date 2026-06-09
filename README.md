@@ -74,7 +74,19 @@ wrangler vectorize create eda-docs-v1 --dimensions=768 --metric=cosine \
 
 **Enable RAG on Pages:** ensure both `[[vectorize]]` blocks in `wrangler.toml` are active (`CRD_INDEX`, `DOCS_INDEX`), redeploy, then embed.
 
-**Embed CRD corpus** (`CLOUDFLARE_API_TOKEN` with Workers AI + **Vectorize Edit**; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`). On corporate networks set `HTTP_PROXY` / `HTTPS_PROXY` (embed scripts use undici `ProxyAgent`):
+**Before a full embed**, confirm Workers AI neuron quota is available — a single embedding API call (~15 neurons for one 16-chunk batch) is enough to detect HTTP **429** / code **4006** before spending thousands on a full corpus run:
+
+```bash
+export CLOUDFLARE_API_TOKEN=your_token
+# Dry-run counts chunks only (no neurons):
+npm run embed:crd-corpus -- --dry-run
+# Reconcile local manifest with Vectorize (no neurons; paginates list-vectors):
+npm run embed:rebuild-manifest
+# Then start embed — stops immediately if quota is still exhausted
+npm run embed:crd-corpus -- --release 26.4.2
+```
+
+**Embed CRD corpus** (`CLOUDFLARE_API_TOKEN` with Workers AI + **Vectorize Edit**; set `CLOUDFLARE_ACCOUNT_ID` if not using `wrangler login`). On corporate networks set `HTTP_PROXY` / `HTTPS_PROXY` (embed and `warm:cache` scripts use undici `ProxyAgent`):
 
 ```bash
 export CLOUDFLARE_API_TOKEN=your_token
@@ -95,9 +107,11 @@ npm run embed:eda-docs
 
 **Workers AI neuron limits:** Free and paid Workers plans include a **daily neuron budget** for Workers AI (embeddings and LLM calls share it). Large embed jobs may stop partway with HTTP **429** or an API error mentioning neurons. `/api/ask` then returns **503** with a quota message instead of a generic 500. After the quota resets (next UTC day), resume indexing:
 
-Embed scripts track upserted vector IDs in a local **`.vectorize-manifest.json`** (gitignored, one list per index). Re-runs skip chunks already recorded there, so only new vectors consume neurons. Use **`--force`** to re-embed everything and refresh the manifest.
+Embed scripts track upserted vector IDs in a local **`.vectorize-manifest.json`** (gitignored, one list per index). Re-runs skip chunks already recorded there, so only new vectors consume neurons. Use **`--force`** to re-embed everything and refresh the manifest. If the manifest is missing or out of sync with Vectorize (e.g. only 1000 IDs while the index has more), rebuild it from the index before resuming:
 
 ```bash
+npm run embed:rebuild-manifest                              # both indexes
+npm run embed:rebuild-manifest -- --index eda-crd-corpus-v1   # one index
 npm run embed:crd-corpus   # skips already-upserted chunks
 npm run embed:eda-docs
 # Re-embed all: npm run embed:crd-corpus -- --force
@@ -149,7 +163,7 @@ Cloudflare bills Workers AI in **neurons** (10,000/day free on Workers Free and 
 | `embed:crd-corpus` (partial, ~53%) | ~4,870 | ~2.3 | **~11,300** |
 | `embed:eda-docs` | ~551 | ~2.3 | **~1,300** |
 
-Re-running an embed script **re-embeds every chunk from the start** (upserts are idempotent, but Workers AI calls are not free). Two partial CRD runs in one day can consume ~23k neurons — far more than Ask testing.
+Re-running embed with a **stale or missing manifest** re-embeds chunks already in Vectorize (upserts are idempotent, but Workers AI calls are not free). Run **`npm run embed:rebuild-manifest`** first so skips match the remote index. Two partial CRD runs in one day can still consume ~23k neurons — far more than Ask testing.
 
 ### Neuron optimization (`/api/ask`)
 

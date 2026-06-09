@@ -23,6 +23,7 @@
 		"generate:release-notes": "tsx --tsconfig tsconfig.scripts.json scripts/generate-release-notes.ts",
 		"embed:crd-corpus": "tsx --tsconfig tsconfig.scripts.json scripts/embed-crd-corpus.ts",
 		"embed:eda-docs": "tsx --tsconfig tsconfig.scripts.json scripts/embed-eda-docs.ts",
+		"embed:rebuild-manifest": "tsx --tsconfig tsconfig.scripts.json scripts/rebuild-vectorize-manifest.ts",
 		"warm:cache": "tsx --tsconfig tsconfig.scripts.json scripts/warm-cache.ts",
 		"prebuild": "npm run generate:sitemap && npm run generate:release-notes",
 		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser"
