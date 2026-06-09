@@ -11,7 +11,6 @@
 		type ResolvedAskContext
 	} from '$lib/globalAsk';
 	import CrdAskPanel from '$lib/components/CrdAskPanel.svelte';
-	import EdaAiBrandIcon from '$lib/components/EdaAiBrandIcon.svelte';
 
 	let resolved: ResolvedAskContext | null = null;
 	let resolving = false;
@@ -74,20 +73,11 @@
 			aria-label="Ask AI"
 		>
 			<header class="global-ask-panel__header">
-				<div class="global-ask-panel__header-brand">
-					<div class="global-ask-panel__icon-badge" aria-hidden="true">
-						<EdaAiBrandIcon size="md" />
-					</div>
-					<div class="global-ask-panel__header-main">
-						<div class="global-ask-panel__title-row">
-							<h2 class="global-ask-panel__title">Ask AI</h2>
-							<span class="global-ask-panel__badge">RAG</span>
-						</div>
-						<p class="global-ask-panel__subtitle">
-							Grounded answers from CRD schemas, release notes, and Nokia EDA documentation.
-							Ask about fields, validation, example YAML, or version differences.
-						</p>
-					</div>
+				<div class="global-ask-panel__header-main">
+					<h2 class="global-ask-panel__title">Ask AI</h2>
+					<p class="global-ask-panel__subtitle">
+						Grounded answers from CRD schemas, EDA docs, and Vectorize RAG.
+					</p>
 				</div>
 				<button
 					type="button"
@@ -102,22 +92,14 @@
 			</header>
 
 			{#if resolving}
-				<div class="global-ask-panel__context-loading" aria-live="polite">
-					<span class="global-ask-panel__context-pulse" aria-hidden="true"></span>
-					Detecting page context…
-				</div>
+				<p class="global-ask-panel__context-loading">Detecting context…</p>
 			{:else if resolved && showScopedHint && summary}
-				<div class="global-ask-panel__context-banner">
+				<p class="global-ask-panel__context-banner">
 					{#if resolved.hasCrdContext}
 						<span class="global-ask-panel__detected-badge">CRD context</span>
 					{/if}
-					{#if resolved.release}
-						<span class="global-ask-panel__detected-badge global-ask-panel__detected-badge--release">
-							{resolved.release}
-						</span>
-					{/if}
 					<span class="global-ask-panel__context-summary">{summary}</span>
-				</div>
+				</p>
 			{/if}
 
 			<div class="global-ask-panel__body">
@@ -138,25 +120,6 @@
 					{/key}
 				{/if}
 			</div>
-
-			<footer class="global-ask-panel__footer">
-				<div class="global-ask-panel__footer-hints">
-					<span class="global-ask-panel__hint-item">
-						<kbd>Ctrl</kbd><span class="global-ask-panel__hint-plus">+</span><kbd>K</kbd>
-						<span class="global-ask-panel__hint-label">toggle</span>
-					</span>
-					<span class="global-ask-panel__hint-sep" aria-hidden="true">·</span>
-					<span class="global-ask-panel__hint-item">
-						<kbd>Esc</kbd>
-						<span class="global-ask-panel__hint-label">close</span>
-					</span>
-					<span class="global-ask-panel__hint-sep global-ask-panel__hint-sep--wide" aria-hidden="true">·</span>
-					<span class="global-ask-panel__hint-item global-ask-panel__hint-item--send">
-						<kbd>Ctrl</kbd><span class="global-ask-panel__hint-plus">+</span><kbd>Enter</kbd>
-						<span class="global-ask-panel__hint-label">send</span>
-					</span>
-				</div>
-			</footer>
 		</div>
 	</div>
 {/if}
