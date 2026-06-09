@@ -92,7 +92,7 @@
   {
     "name": "backendstates.aifabrics.eda.nokia.com",
     "group": "aifabrics.eda.nokia.com",
-    "kind": "",
+    "kind": "BackendState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -113,7 +113,7 @@
   {
     "name": "bannerstates.siteinfo.eda.nokia.com",
     "group": "siteinfo.eda.nokia.com",
-    "kind": "",
+    "kind": "BannerState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -155,7 +155,7 @@
   {
     "name": "bgpgroupstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "BGPGroupState",
     "versions": [
       {
         "name": "v1"
@@ -185,7 +185,7 @@
   {
     "name": "bgppeerstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "BGPPeerState",
     "versions": [
       {
         "name": "v1"
@@ -242,7 +242,7 @@
   {
     "name": "bridgedomainstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "BridgeDomainState",
     "versions": [
       {
         "name": "v1"
@@ -272,7 +272,7 @@
   {
     "name": "bridgeinterfacestates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "BridgeInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -422,7 +422,7 @@
   {
     "name": "configletstates.config.eda.nokia.com",
     "group": "config.eda.nokia.com",
-    "kind": "",
+    "kind": "ConfigletState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -550,7 +550,7 @@
   {
     "name": "defaultinterfacestates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultInterfaceState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -603,7 +603,7 @@
   {
     "name": "defaultrouterstates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultRouterState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -711,7 +711,7 @@
   {
     "name": "discoveryaggregatestates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "DiscoveryAggregateState",
     "versions": [
       {
         "name": "v1"
@@ -724,7 +724,7 @@
   {
     "name": "discoverystates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "DiscoveryState",
     "versions": [
       {
         "name": "v1"
@@ -748,7 +748,7 @@
   {
     "name": "drainstates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "DrainState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -831,7 +831,7 @@
   {
     "name": "fabricstates.fabrics.eda.nokia.com",
     "group": "fabrics.eda.nokia.com",
-    "kind": "",
+    "kind": "FabricState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -969,7 +969,7 @@
   {
     "name": "interfacestates.interfaces.eda.nokia.com",
     "group": "interfaces.eda.nokia.com",
-    "kind": "",
+    "kind": "InterfaceState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1015,7 +1015,7 @@
   {
     "name": "irbinterfacestates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "IRBInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -1051,7 +1051,7 @@
   {
     "name": "islstates.fabrics.eda.nokia.com",
     "group": "fabrics.eda.nokia.com",
-    "kind": "",
+    "kind": "ISLState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1115,7 +1115,7 @@
   {
     "name": "managementrouterstates.bootstrap.eda.nokia.com",
     "group": "bootstrap.eda.nokia.com",
-    "kind": "",
+    "kind": "ManagementRouterState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1179,7 +1179,7 @@
   {
     "name": "mirrorstates.oam.eda.nokia.com",
     "group": "oam.eda.nokia.com",
-    "kind": "",
+    "kind": "MirrorState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1189,7 +1189,7 @@
   {
     "name": "monitoraggregatestates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "MonitorAggregateState",
     "versions": [
       {
         "name": "v1"
@@ -1199,7 +1199,7 @@
   {
     "name": "monitoraggregatestates.system.eda.nokia.com",
     "group": "system.eda.nokia.com",
-    "kind": "",
+    "kind": "MonitorAggregateState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1231,7 +1231,7 @@
   {
     "name": "monitorstates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "MonitorState",
     "versions": [
       {
         "name": "v1"
@@ -1241,7 +1241,7 @@
   {
     "name": "monitorstates.system.eda.nokia.com",
     "group": "system.eda.nokia.com",
-    "kind": "",
+    "kind": "MonitorState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1323,7 +1323,7 @@
   {
     "name": "nodeuserstates.aaa.eda.nokia.com",
     "group": "aaa.eda.nokia.com",
-    "kind": "",
+    "kind": "NodeUserState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1344,7 +1344,7 @@
   {
     "name": "ntpclientstates.timing.eda.nokia.com",
     "group": "timing.eda.nokia.com",
-    "kind": "",
+    "kind": "NTPClientState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1504,7 +1504,7 @@
   {
     "name": "routedinterfacestates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "RoutedInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -1561,7 +1561,7 @@
   {
     "name": "routereflectorclientstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "RouteReflectorClientState",
     "versions": [
       {
         "name": "v1"
@@ -1591,7 +1591,7 @@
   {
     "name": "routereflectorstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "RouteReflectorState",
     "versions": [
       {
         "name": "v1"
@@ -1621,7 +1621,7 @@
   {
     "name": "routerstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "RouterState",
     "versions": [
       {
         "name": "v1"
@@ -1719,7 +1719,7 @@
   {
     "name": "systeminterfacestates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "SystemInterfaceState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1802,7 +1802,7 @@
   {
     "name": "topolinkstates.topologies.eda.nokia.com",
     "group": "topologies.eda.nokia.com",
-    "kind": "",
+    "kind": "TopoLinkState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1912,7 +1912,7 @@
   {
     "name": "virtualnetworkstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "VirtualNetworkState",
     "versions": [
       {
         "name": "v1"
@@ -1942,7 +1942,7 @@
   {
     "name": "vlanstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "VLANState",
     "versions": [
       {
         "name": "v1"

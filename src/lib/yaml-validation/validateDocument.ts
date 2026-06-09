@@ -6,6 +6,9 @@ import {
 	findManifestEntryKindCaseMismatchInsensitive,
 	findManifestEntriesByGroup,
 	findManifestEntriesByKind,
+	findManifestEntriesByKindInsensitive,
+	normalizeKind,
+	resolveEntryKind,
 	formatCrdNotFoundMessage,
 	formatInvalidApiVersionMessage,
 	formatKindCaseMismatchMessage
@@ -244,24 +247,26 @@ export function validateDocument(ctx: ValidateDocContext): {
 	if (parsedYaml.kind && group) {
 		const kindStr = String(parsedYaml.kind);
 		const apiVersionStr = String(parsedYaml.apiVersion);
-		const resourceEntry = findManifestEntry(manifest, kindStr, group);
+		const lookupKind = normalizeKind(kindStr, manifest, group) ?? kindStr;
+		const resourceEntry = findManifestEntry(manifest, lookupKind, group);
 		if (!resourceEntry) {
 			const kindCaseMismatch =
 				findManifestEntryCaseMismatch(manifest, kindStr, group) ??
 				findManifestEntryKindCaseMismatchInsensitive(manifest, kindStr, group);
 			const groupCaseMismatch = findManifestEntryGroupCaseMismatch(manifest, kindStr, group);
 			const groupEntries = findManifestEntriesByGroup(manifest, group);
-			const kindEntries = findManifestEntriesByKind(manifest, kindStr);
+			const kindEntries = findManifestEntriesByKindInsensitive(manifest, kindStr);
 			let crdMessage: string;
 			let instancePath = '/kind';
 			let suggestedFix: SuggestedFix | undefined;
 			let fieldLocationInfo = locationInfo;
 
-			if (kindCaseMismatch?.kind) {
-				crdMessage = formatKindCaseMismatchMessage(kindCaseMismatch.kind, kindStr);
+			if (kindCaseMismatch) {
+				const expectedKind = resolveEntryKind(kindCaseMismatch);
+				crdMessage = formatKindCaseMismatchMessage(expectedKind, kindStr);
 				instancePath = '/kind';
 				fieldLocationInfo = getFieldLoc('/kind');
-				suggestedFix = { field: 'kind', value: kindCaseMismatch.kind };
+				suggestedFix = { field: 'kind', value: expectedKind };
 			} else if (groupCaseMismatch?.group) {
 				const suggestedApiVersion = `${groupCaseMismatch.group}/${version}`;
 				crdMessage = formatInvalidApiVersionMessage(
@@ -273,7 +278,7 @@ export function validateDocument(ctx: ValidateDocContext): {
 				fieldLocationInfo = getFieldLoc('/apiVersion');
 				suggestedFix = { field: 'apiVersion', value: suggestedApiVersion };
 			} else if (groupEntries.length === 1) {
-				crdMessage = `kind '${kindStr}' is not supported for apiVersion '${apiVersionStr}'. Expected kind '${groupEntries[0].kind}'`;
+				crdMessage = `kind '${kindStr}' is not supported for apiVersion '${apiVersionStr}'. Expected kind '${resolveEntryKind(groupEntries[0])}'`;
 				instancePath = '/kind';
 				fieldLocationInfo = getFieldLoc('/kind');
 			} else if (kindEntries.length === 1 && kindEntries[0].group !== group) {
@@ -294,8 +299,25 @@ export function validateDocument(ctx: ValidateDocContext): {
 				instancePath = '/apiVersion';
 				fieldLocationInfo = getFieldLoc('/apiVersion');
 			} else {
-				crdMessage = formatCrdNotFoundMessage(apiVersionStr, kindStr);
-				instancePath = groupEntries.length > 0 ? '/kind' : '/apiVersion';
+				const availableApiVersions =
+					kindEntries.length > 0
+						? [
+								...new Set(
+									kindEntries.flatMap((e) =>
+										(e.versions || [])
+											.map((v) => (v?.name && e.group ? `${e.group}/${v.name}` : ''))
+											.filter(Boolean)
+									)
+								)
+							]
+						: undefined;
+				crdMessage = formatCrdNotFoundMessage(
+					apiVersionStr,
+					kindStr,
+					availableApiVersions?.length ? availableApiVersions : undefined
+				);
+				instancePath =
+					kindEntries.length > 0 ? '/apiVersion' : groupEntries.length > 0 ? '/kind' : '/apiVersion';
 				fieldLocationInfo = getFieldLoc(instancePath);
 			}
 

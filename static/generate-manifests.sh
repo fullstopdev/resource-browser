@@ -12,8 +12,31 @@ generate_all_manifests() {
     python3 << 'PYTHON_SCRIPT'
 import os
 import json
+import re
 import yaml
 from pathlib import Path
+
+KIND_FROM_DESCRIPTION = re.compile(r'^([A-Za-z][A-Za-z0-9]+) is the Schema\b')
+
+def infer_kind_from_yaml(crd_dir: Path) -> str:
+    for yaml_file in sorted(crd_dir.glob('*.yaml')):
+        try:
+            with open(yaml_file, 'r') as yf:
+                parsed = yaml.safe_load(yf)
+            if not isinstance(parsed, dict):
+                continue
+            description = (
+                parsed.get('schema', {})
+                .get('openAPIV3Schema', {})
+                .get('description', '')
+            )
+            if isinstance(description, str):
+                match = KIND_FROM_DESCRIPTION.match(description.strip())
+                if match:
+                    return match.group(1)
+        except Exception:
+            continue
+    return ''
 
 # Load the master resources.yaml for metadata
 resources_yaml_path = Path("../src/lib/resources.yaml")
@@ -48,6 +71,8 @@ for release_dir in sorted(resources_dir.iterdir()):
         crd_meta = crd_lookup.get(crd_name, {})
         group = crd_meta.get('group', ".".join(crd_name.split(".")[1:]))
         kind = crd_meta.get('kind', '')
+        if not kind:
+            kind = infer_kind_from_yaml(crd_dir)
         
         # List all versions that actually exist in this release
         versions = []

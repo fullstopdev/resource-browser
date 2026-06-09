@@ -42,7 +42,7 @@ metadata:
 			message: 'Invalid kind',
 			docIndex: 1,
 			line: 2,
-			fieldPath: '/kind',
+			fieldPath: 'kind',
 			suggestedFix: { field: 'kind', value: 'Topology', line: 2 }
 		};
 

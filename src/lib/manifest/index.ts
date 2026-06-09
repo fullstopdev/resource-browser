@@ -8,6 +8,7 @@ export {
 	fetchVersionsForResource
 } from './releases';
 export {
+	crdShortName,
 	findManifestEntry,
 	findManifestEntryCaseMismatch,
 	findManifestEntryCaseInsensitive,
@@ -15,6 +16,11 @@ export {
 	findManifestEntryKindCaseMismatchInsensitive,
 	findManifestEntriesByGroup,
 	findManifestEntriesByKind,
+	findManifestEntriesByKindInsensitive,
+	inferKindFromCrdName,
+	kindMatchesManifestName,
+	normalizeKind,
+	resolveEntryKind,
 	formatKindCaseMismatchMessage,
 	formatInvalidApiVersionMessage,
 	formatCrdNotFoundMessage

@@ -5,8 +5,12 @@ import {
 	findManifestEntryCaseMismatch,
 	findManifestEntryGroupCaseMismatch,
 	findManifestEntryKindCaseMismatchInsensitive,
+	findManifestEntriesByKind,
+	normalizeKind,
+	formatCrdNotFoundMessage,
 	formatInvalidApiVersionMessage,
-	formatKindCaseMismatchMessage
+	formatKindCaseMismatchMessage,
+	kindMatchesManifestName
 } from './lookup';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
 
@@ -75,5 +79,34 @@ describe('manifest lookup', () => {
 		).toBe(
 			`Invalid apiVersion: 'Topologies.eda.nokia.com/v1' is not defined for this release. Use 'topologies.eda.nokia.com/v1' for kind Topology.`
 		);
+	});
+
+	it('normalizes user kind input to manifest canonical casing', () => {
+		expect(normalizeKind('topology', topologyManifest, 'topologies.eda.nokia.com')).toBe('Topology');
+		expect(normalizeKind('routerinterconnect', topologyManifest)).toBeUndefined();
+	});
+
+	it('matches YAML kind to manifest entries with empty kind via plural CRD name', () => {
+		const manifest: ManifestEntry[] = [
+			{
+				name: 'routerinterconnects.services.eda.nokia.com',
+				group: 'services.eda.nokia.com',
+				kind: '',
+				versions: [{ name: 'v2' }]
+			}
+		];
+		expect(kindMatchesManifestName('routerinterconnects.services.eda.nokia.com', 'RouterInterconnect')).toBe(
+			true
+		);
+		expect(findManifestEntry(manifest, 'RouterInterconnect', 'services.eda.nokia.com')).toBe(manifest[0]);
+		expect(findManifestEntriesByKind(manifest, 'RouterInterconnect')).toEqual([manifest[0]]);
+	});
+
+	it('suggests available apiVersions in CRD-not-found messages', () => {
+		expect(
+			formatCrdNotFoundMessage('services.eda.nokia.com/v1', 'RouterInterconnect', [
+				'services.eda.nokia.com/v2'
+			])
+		).toContain('Available apiVersions for this kind: services.eda.nokia.com/v2');
 	});
 });

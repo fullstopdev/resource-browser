@@ -129,20 +129,23 @@ spec: {}
 		).toBe(true);
 	});
 
-	it('errors when kind case does not match the manifest CRD', () => {
+	it('normalizes kind casing before CRD lookup', () => {
+		const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+		const validator = getOrCompileValidator(ajv, 'topology::spec', specSchema);
 		const doc: ParsedDocument = {
 			data: {
 				apiVersion: 'topologies.eda.nokia.com/v1',
 				kind: 'topology',
 				metadata: { name: 'test-topology', namespace: 'eda' },
-				spec: {}
+				spec: { operatingSystem: 'srl' }
 			},
 			rawText: `apiVersion: topologies.eda.nokia.com/v1
 kind: topology
 metadata:
   name: test-topology
   namespace: eda
-spec: {}
+spec:
+  operatingSystem: srl
 `,
 			startLine: 0,
 			index: 0
@@ -154,23 +157,16 @@ spec: {}
 			releaseFolder: 'resources/26.4.2',
 			releaseLabel: 'EDA 26.4.2',
 			manifest,
-			schemas: new Map(),
-			getSpecValidator: () => {
-				throw new Error('schema validation should not run');
-			},
-			getStatusValidator: () => {
-				throw new Error('schema validation should not run');
-			}
+			schemas: new Map([
+				['/resources/26.4.2/topologies.topologies.eda.nokia.com/v1.yaml', { spec: specSchema, isSpecRequired: false }]
+			]),
+			getSpecValidator: () => validator,
+			getStatusValidator: () => validator
 		});
 
-		expect(result.valid).toBe(false);
-		expect(
-			result.errors.some((e) =>
-				e.message.includes(`Invalid kind: 'topology' must be 'Topology'`)
-			)
-		).toBe(true);
-		const kindError = result.errors.find((e) => e.message.includes('Invalid kind:'));
-		expect(kindError?.suggestedFix).toEqual({ field: 'kind', value: 'Topology', line: 2 });
+		expect(result.errors.some((e) => e.message.includes('Invalid kind:'))).toBe(false);
+		expect(result.errors.some((e) => e.message.includes('Could not find CRD'))).toBe(false);
+		expect(result.valid).toBe(true);
 	});
 
 	it('errors when apiVersion group case does not match the manifest CRD', () => {
@@ -310,6 +306,55 @@ spec: {}
 		).toBe(true);
 		const apiError = result.errors.find((e) => e.message.includes('Invalid apiVersion:'));
 		expect(apiError?.suggestedFix?.value).toBe('topologies.eda.nokia.com/v1');
+	});
+
+	it('resolves CRDs when manifest kind is empty but CRD name matches YAML kind', () => {
+		const routerManifest: ManifestEntry[] = [
+			{
+				name: 'routerinterconnects.services.eda.nokia.com',
+				group: 'services.eda.nokia.com',
+				kind: '',
+				versions: [{ name: 'v2' }]
+			}
+		];
+		const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+		const validator = getOrCompileValidator(ajv, 'router::spec', { type: 'object' });
+		const doc: ParsedDocument = {
+			data: {
+				apiVersion: 'services.eda.nokia.com/v2',
+				kind: 'RouterInterconnect',
+				metadata: { name: 'router-interconnect-1-dc1', namespace: 'clab-orange-tsc' },
+				spec: {}
+			},
+			rawText: `apiVersion: services.eda.nokia.com/v2
+kind: RouterInterconnect
+metadata:
+  name: router-interconnect-1-dc1
+  namespace: clab-orange-tsc
+spec: {}
+`,
+			startLine: 0,
+			index: 0
+		};
+
+		const result = validateDocument({
+			doc,
+			totalDocs: 1,
+			releaseFolder: 'resources/26.4.2',
+			releaseLabel: 'EDA 26.4.2',
+			manifest: routerManifest,
+			schemas: new Map([
+				[
+					'/resources/26.4.2/routerinterconnects.services.eda.nokia.com/v2.yaml',
+					{ spec: { type: 'object' }, isSpecRequired: false }
+				]
+			]),
+			getSpecValidator: () => validator,
+			getStatusValidator: () => validator
+		});
+
+		expect(result.errors.some((e) => e.message.includes('Could not find CRD'))).toBe(false);
+		expect(result.valid).toBe(true);
 	});
 
 	it('proceeds to schema validation when kind case matches the manifest CRD', () => {

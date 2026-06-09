@@ -18,6 +18,11 @@ function isWarningError(err: EnrichedError): boolean {
 	return err.keyword === 'warning';
 }
 
+function formatIssueFieldPath(instancePath?: string): string | undefined {
+	if (!instancePath) return undefined;
+	return instancePath.replace(/^\//, '').replace(/\//g, '.') || undefined;
+}
+
 function toBundleIssue(err: EnrichedError, resource?: BundleResource): BundleIssue {
 	const severity = err.keyword === 'success' ? 'info' : isWarningError(err) ? 'warning' : 'error';
 	return {
@@ -29,7 +34,7 @@ function toBundleIssue(err: EnrichedError, resource?: BundleResource): BundleIss
 		resourceKind: resource?.kind,
 		docIndex: err.docIndex ?? (resource ? resource.docIndex + 1 : undefined),
 		line: err.line,
-		fieldPath: err.instancePath || undefined,
+		fieldPath: formatIssueFieldPath(err.instancePath),
 		suggestedFix: err.suggestedFix
 	};
 }

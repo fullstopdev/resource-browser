@@ -18,7 +18,7 @@
   {
     "name": "alarmdefinitions.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
-    "kind": "",
+    "kind": "Alarm",
     "versions": [
       {
         "name": "v1"
@@ -59,7 +59,7 @@
   {
     "name": "applyallocations.netbox.eda.nokia.com",
     "group": "netbox.eda.nokia.com",
-    "kind": "",
+    "kind": "ApplyAllocation",
     "versions": [
       {
         "name": "v1alpha1"
@@ -123,7 +123,7 @@
   {
     "name": "backendstates.aifabrics.eda.nokia.com",
     "group": "aifabrics.eda.nokia.com",
-    "kind": "",
+    "kind": "BackendState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -144,7 +144,7 @@
   {
     "name": "bannerstates.siteinfo.eda.nokia.com",
     "group": "siteinfo.eda.nokia.com",
-    "kind": "",
+    "kind": "BannerState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -186,7 +186,7 @@
   {
     "name": "bgpgroupstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "BGPGroupState",
     "versions": [
       {
         "name": "v1"
@@ -216,7 +216,7 @@
   {
     "name": "bgppeerstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "BGPPeerState",
     "versions": [
       {
         "name": "v1"
@@ -273,7 +273,7 @@
   {
     "name": "bridgedomainstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "BridgeDomainState",
     "versions": [
       {
         "name": "v1"
@@ -303,7 +303,7 @@
   {
     "name": "bridgeinterfacestates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "BridgeInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -486,7 +486,7 @@
   {
     "name": "configletstates.config.eda.nokia.com",
     "group": "config.eda.nokia.com",
-    "kind": "",
+    "kind": "ConfigletState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -529,7 +529,7 @@
   {
     "name": "creategithubissues.github.eda.nokia.com",
     "group": "github.eda.nokia.com",
-    "kind": "",
+    "kind": "CreateGithubIssue",
     "versions": [
       {
         "name": "v1alpha1"
@@ -539,7 +539,7 @@
   {
     "name": "creategitlabissues.gitlab.eda.nokia.com",
     "group": "gitlab.eda.nokia.com",
-    "kind": "",
+    "kind": "CreateGitlabIssue",
     "versions": [
       {
         "name": "v1alpha1"
@@ -624,7 +624,7 @@
   {
     "name": "defaultinterfacestates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultInterfaceState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -634,7 +634,7 @@
   {
     "name": "defaultmtus.siteinfo.eda.nokia.com",
     "group": "siteinfo.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultMTU",
     "versions": [
       {
         "name": "v1alpha1"
@@ -644,7 +644,7 @@
   {
     "name": "defaultospfareadeployments.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultOSPFAreaDeployment",
     "versions": [
       {
         "name": "v1"
@@ -654,7 +654,7 @@
   {
     "name": "defaultospfareas.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultOSPFArea",
     "versions": [
       {
         "name": "v1"
@@ -664,7 +664,7 @@
   {
     "name": "defaultospfinstancedeployments.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultOSPFInstanceDeployment",
     "versions": [
       {
         "name": "v1"
@@ -674,7 +674,7 @@
   {
     "name": "defaultospfinstances.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultOSPFInstance",
     "versions": [
       {
         "name": "v1"
@@ -684,7 +684,7 @@
   {
     "name": "defaultospfinterfaces.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultOSPFInterface",
     "versions": [
       {
         "name": "v1"
@@ -737,7 +737,7 @@
   {
     "name": "defaultrouterstates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "DefaultRouterState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -845,7 +845,7 @@
   {
     "name": "discoveryaggregatestates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "DiscoveryAggregateState",
     "versions": [
       {
         "name": "v1"
@@ -858,7 +858,7 @@
   {
     "name": "discoverystates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "DiscoveryState",
     "versions": [
       {
         "name": "v1"
@@ -882,7 +882,7 @@
   {
     "name": "drainstates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "DrainState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -976,7 +976,7 @@
   {
     "name": "fabricstates.fabrics.eda.nokia.com",
     "group": "fabrics.eda.nokia.com",
-    "kind": "",
+    "kind": "FabricState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1035,7 +1035,7 @@
   {
     "name": "githubactions.github.eda.nokia.com",
     "group": "github.eda.nokia.com",
-    "kind": "",
+    "kind": "GitHubAction",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1045,7 +1045,7 @@
   {
     "name": "githubinstances.github.eda.nokia.com",
     "group": "github.eda.nokia.com",
-    "kind": "",
+    "kind": "GitHubInstance",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1055,7 +1055,7 @@
   {
     "name": "githubissues.github.eda.nokia.com",
     "group": "github.eda.nokia.com",
-    "kind": "",
+    "kind": "GitHubIssue",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1065,7 +1065,7 @@
   {
     "name": "gitlabinstances.gitlab.eda.nokia.com",
     "group": "gitlab.eda.nokia.com",
-    "kind": "",
+    "kind": "GitlabInstance",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1075,7 +1075,7 @@
   {
     "name": "gitlabissues.gitlab.eda.nokia.com",
     "group": "gitlab.eda.nokia.com",
-    "kind": "",
+    "kind": "GitlabIssue",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1085,7 +1085,7 @@
   {
     "name": "gitlabpipelines.gitlab.eda.nokia.com",
     "group": "gitlab.eda.nokia.com",
-    "kind": "",
+    "kind": "GitlabPipeline",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1207,7 +1207,7 @@
   {
     "name": "interfacestates.interfaces.eda.nokia.com",
     "group": "interfaces.eda.nokia.com",
-    "kind": "",
+    "kind": "InterfaceState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1253,7 +1253,7 @@
   {
     "name": "irbinterfacestates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "IRBInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -1289,7 +1289,7 @@
   {
     "name": "islstates.fabrics.eda.nokia.com",
     "group": "fabrics.eda.nokia.com",
-    "kind": "",
+    "kind": "ISLState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1353,7 +1353,7 @@
   {
     "name": "managementrouterstates.bootstrap.eda.nokia.com",
     "group": "bootstrap.eda.nokia.com",
-    "kind": "",
+    "kind": "ManagementRouterState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1417,7 +1417,7 @@
   {
     "name": "mirrorstates.oam.eda.nokia.com",
     "group": "oam.eda.nokia.com",
-    "kind": "",
+    "kind": "MirrorState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1427,7 +1427,7 @@
   {
     "name": "monitoraggregatestates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "MonitorAggregateState",
     "versions": [
       {
         "name": "v1"
@@ -1448,7 +1448,7 @@
   {
     "name": "monitorstates.components.eda.nokia.com",
     "group": "components.eda.nokia.com",
-    "kind": "",
+    "kind": "MonitorState",
     "versions": [
       {
         "name": "v1"
@@ -1468,7 +1468,7 @@
   {
     "name": "networktopologies.topologies.eda.nokia.com",
     "group": "topologies.eda.nokia.com",
-    "kind": "",
+    "kind": "NetworkTopology",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1540,7 +1540,7 @@
   {
     "name": "nodeuserstates.aaa.eda.nokia.com",
     "group": "aaa.eda.nokia.com",
-    "kind": "",
+    "kind": "NodeUserState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1561,7 +1561,7 @@
   {
     "name": "ntpclientstates.timing.eda.nokia.com",
     "group": "timing.eda.nokia.com",
-    "kind": "",
+    "kind": "NTPClientState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1571,7 +1571,7 @@
   {
     "name": "ospfareadeployments.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFAreaDeployment",
     "versions": [
       {
         "name": "v1"
@@ -1581,7 +1581,7 @@
   {
     "name": "ospfareas.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFArea",
     "versions": [
       {
         "name": "v1"
@@ -1591,7 +1591,7 @@
   {
     "name": "ospfareastates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFAreaState",
     "versions": [
       {
         "name": "v1"
@@ -1601,7 +1601,7 @@
   {
     "name": "ospfinstancedeployments.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFInstanceDeployment",
     "versions": [
       {
         "name": "v1"
@@ -1611,7 +1611,7 @@
   {
     "name": "ospfinstances.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFInstance",
     "versions": [
       {
         "name": "v1"
@@ -1621,7 +1621,7 @@
   {
     "name": "ospfinstancestates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFInstanceState",
     "versions": [
       {
         "name": "v1"
@@ -1631,7 +1631,7 @@
   {
     "name": "ospfinterfaces.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFInterface",
     "versions": [
       {
         "name": "v1"
@@ -1641,7 +1641,7 @@
   {
     "name": "ospfinterfacestates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "OSPFInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -1812,7 +1812,7 @@
   {
     "name": "routedinterfacestates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "RoutedInterfaceState",
     "versions": [
       {
         "name": "v1"
@@ -1869,7 +1869,7 @@
   {
     "name": "routereflectorclientstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "RouteReflectorClientState",
     "versions": [
       {
         "name": "v1"
@@ -1899,7 +1899,7 @@
   {
     "name": "routereflectorstates.protocols.eda.nokia.com",
     "group": "protocols.eda.nokia.com",
-    "kind": "",
+    "kind": "RouteReflectorState",
     "versions": [
       {
         "name": "v1"
@@ -1929,7 +1929,7 @@
   {
     "name": "routerstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "RouterState",
     "versions": [
       {
         "name": "v1"
@@ -1943,7 +1943,7 @@
   {
     "name": "routetraces.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "RouteTrace",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1953,7 +1953,7 @@
   {
     "name": "rungithubworkflows.github.eda.nokia.com",
     "group": "github.eda.nokia.com",
-    "kind": "",
+    "kind": "RunGithubWorkflow",
     "versions": [
       {
         "name": "v1alpha1"
@@ -1963,7 +1963,7 @@
   {
     "name": "rungitlabpipelines.gitlab.eda.nokia.com",
     "group": "gitlab.eda.nokia.com",
-    "kind": "",
+    "kind": "RunGitlabPipeline",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2057,7 +2057,7 @@
   {
     "name": "systeminterfacestates.routing.eda.nokia.com",
     "group": "routing.eda.nokia.com",
-    "kind": "",
+    "kind": "SystemInterfaceState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2067,7 +2067,7 @@
   {
     "name": "systemloadbalancers.siteinfo.eda.nokia.com",
     "group": "siteinfo.eda.nokia.com",
-    "kind": "",
+    "kind": "SystemLoadBalancer",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2077,7 +2077,7 @@
   {
     "name": "systemloadbalancerstates.siteinfo.eda.nokia.com",
     "group": "siteinfo.eda.nokia.com",
-    "kind": "",
+    "kind": "SystemLoadBalancerState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2087,7 +2087,7 @@
   {
     "name": "tagsetdeployments.routingpolicies.eda.nokia.com",
     "group": "routingpolicies.eda.nokia.com",
-    "kind": "",
+    "kind": "TagSetDeployment",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2097,7 +2097,7 @@
   {
     "name": "tagsets.routingpolicies.eda.nokia.com",
     "group": "routingpolicies.eda.nokia.com",
-    "kind": "",
+    "kind": "TagSet",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2180,7 +2180,7 @@
   {
     "name": "topolinkstates.topologies.eda.nokia.com",
     "group": "topologies.eda.nokia.com",
-    "kind": "",
+    "kind": "TopoLinkState",
     "versions": [
       {
         "name": "v1alpha1"
@@ -2290,7 +2290,7 @@
   {
     "name": "virtualnetworkstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "VirtualNetworkState",
     "versions": [
       {
         "name": "v1"
@@ -2320,7 +2320,7 @@
   {
     "name": "vlanstates.services.eda.nokia.com",
     "group": "services.eda.nokia.com",
-    "kind": "",
+    "kind": "VLANState",
     "versions": [
       {
         "name": "v1"
