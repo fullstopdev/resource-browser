@@ -17,6 +17,35 @@ import yaml
 from pathlib import Path
 
 KIND_FROM_DESCRIPTION = re.compile(r'^([A-Za-z][A-Za-z0-9]+) is the Schema\b')
+KIND_FROM_SPEC_SUFFIX = re.compile(r'^([A-Z][A-Za-z0-9]*)Spec defines\b')
+KIND_FROM_SPEC_PLAIN = re.compile(r'^([A-Z][A-Za-z0-9]+) defines\b')
+KIND_FROM_SPEC_STATE_OF = re.compile(
+    r'^[Ss]pec defines the desired state of (?:the )?([A-Z][A-Za-z0-9]+)\b'
+)
+
+def infer_kind_from_crd_name(crd_name: str) -> str:
+    short = crd_name.split('.')[0] if crd_name else crd_name
+    if short.endswith('states') and len(short) > 6:
+        short = f"{short[:-6]}state"
+    elif short.endswith('s') and len(short) > 1 and not short.endswith('ss'):
+        short = short[:-1]
+    return short[:1].upper() + short[1:] if short else short
+
+def infer_kind_from_spec_description(spec_description: str) -> str:
+    text = spec_description.strip()
+    match = KIND_FROM_SPEC_SUFFIX.match(text)
+    if match:
+        spec_kind = match.group(1)
+        if spec_kind.endswith('Spec'):
+            return spec_kind[:-4]
+        return spec_kind
+    match = KIND_FROM_SPEC_STATE_OF.match(text)
+    if match:
+        return match.group(1)
+    match = KIND_FROM_SPEC_PLAIN.match(text)
+    if match and match.group(1) != 'Spec':
+        return match.group(1)
+    return ''
 
 def infer_kind_from_yaml(crd_dir: Path) -> str:
     for yaml_file in sorted(crd_dir.glob('*.yaml')):
@@ -25,18 +54,37 @@ def infer_kind_from_yaml(crd_dir: Path) -> str:
                 parsed = yaml.safe_load(yf)
             if not isinstance(parsed, dict):
                 continue
-            description = (
-                parsed.get('schema', {})
-                .get('openAPIV3Schema', {})
-                .get('description', '')
-            )
+            schema = parsed.get('schema', {}).get('openAPIV3Schema', {})
+            if not isinstance(schema, dict):
+                continue
+
+            top_level_kind = ''
+            description = schema.get('description', '')
             if isinstance(description, str):
                 match = KIND_FROM_DESCRIPTION.match(description.strip())
                 if match:
-                    return match.group(1)
+                    top_level_kind = match.group(1)
+
+            spec_description = (
+                schema.get('properties', {})
+                .get('spec', {})
+                .get('description', '')
+            )
+            spec_kind = (
+                infer_kind_from_spec_description(spec_description)
+                if isinstance(spec_description, str)
+                else ''
+            )
+
+            if spec_kind and top_level_kind and spec_kind != top_level_kind:
+                return spec_kind
+            if top_level_kind:
+                return top_level_kind
+            if spec_kind:
+                return spec_kind
         except Exception:
             continue
-    return ''
+    return infer_kind_from_crd_name(crd_dir.name)
 
 # Load the master resources.yaml for metadata
 resources_yaml_path = Path("../src/lib/resources.yaml")

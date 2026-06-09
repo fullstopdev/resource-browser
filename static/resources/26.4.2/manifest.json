@@ -22,7 +22,7 @@
   {
     "name": "alarmdefinitions.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
-    "kind": "Alarm",
+    "kind": "AlarmDefinition",
     "versions": [
       {
         "name": "v1"
@@ -46,7 +46,7 @@
   {
     "name": "alarmpolicies.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
-    "kind": "Alarm",
+    "kind": "AlarmPolicy",
     "versions": [
       {
         "name": "v1"
@@ -2409,7 +2409,7 @@
   {
     "name": "logoutputs.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
-    "kind": "",
+    "kind": "Logoutput",
     "versions": [
       {
         "name": "v1"
@@ -2456,7 +2456,7 @@
   {
     "name": "mcpprompttemplates.ai.core.eda.nokia.com",
     "group": "ai.core.eda.nokia.com",
-    "kind": "",
+    "kind": "MCPPromptTemplate",
     "versions": [
       {
         "name": "v1"
@@ -2466,7 +2466,7 @@
   {
     "name": "mcpresourcedefinitions.ai.core.eda.nokia.com",
     "group": "ai.core.eda.nokia.com",
-    "kind": "",
+    "kind": "MCPResourceDefinition",
     "versions": [
       {
         "name": "v1"
@@ -2476,7 +2476,7 @@
   {
     "name": "mcpsettings.ai.core.eda.nokia.com",
     "group": "ai.core.eda.nokia.com",
-    "kind": "",
+    "kind": "MCPSettings",
     "versions": [
       {
         "name": "v1"
@@ -2486,7 +2486,7 @@
   {
     "name": "mcptooldefinitions.ai.core.eda.nokia.com",
     "group": "ai.core.eda.nokia.com",
-    "kind": "",
+    "kind": "MCPToolDefinition",
     "versions": [
       {
         "name": "v1"
@@ -3128,7 +3128,7 @@
   {
     "name": "providers.ai.core.eda.nokia.com",
     "group": "ai.core.eda.nokia.com",
-    "kind": "",
+    "kind": "Provider",
     "versions": [
       {
         "name": "v1"
@@ -3466,7 +3466,7 @@
   {
     "name": "satelliteprofiles.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
-    "kind": "",
+    "kind": "Satelliteprofile",
     "versions": [
       {
         "name": "v1"

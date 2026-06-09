@@ -18,7 +18,7 @@
   {
     "name": "alarmdefinitions.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
-    "kind": "Alarm",
+    "kind": "AlarmDefinition",
     "versions": [
       {
         "name": "v1"
