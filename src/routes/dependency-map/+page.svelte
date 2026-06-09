@@ -13,6 +13,7 @@
 		buildFocusSubgraph,
 		resolveFocusNodeId
 	} from '$lib/dependency-map/buildGraph';
+	import { historyAfterBreadcrumb, historyAfterRefocus } from '$lib/dependency-map/drillDown';
 	import type { BuildProgress, DependencyGraph, GraphNode } from '$lib/dependency-map/types';
 	import { fetchManifest } from '$lib/manifest';
 	import { searchResources } from '$lib/resourceSearch';
@@ -24,7 +25,7 @@
 	const workflowSteps = [
 		{ num: 1, title: 'Search', desc: 'Find a CRD by kind or name' },
 		{ num: 2, title: 'Select', desc: 'Pick the resource to map' },
-		{ num: 3, title: 'Explore', desc: 'Transitive dependency subgraph' }
+		{ num: 3, title: 'Explore', desc: 'Direct deps first, graph optional' }
 	] as const;
 
 	let releaseName = '';
@@ -36,7 +37,12 @@
 
 	let focusResource = '';
 	let focusNodeId: string | null = null;
+	let rootFocusNodeId: string | null = null;
+	let focusHistory: string[] = [];
 	let subgraph: DependencyGraph | null = null;
+	let showTransitive = false;
+	let showInferredEdges = false;
+	let fullGraph: DependencyGraph | null = null;
 
 	let buildingGraph = false;
 	let progress: BuildProgress | null = null;
@@ -110,11 +116,30 @@
 		return resource.versions.length > 0 && resource.versions.every((v) => v.deprecated);
 	}
 
+	function nodeDisplayLabel(nodeId: string): string {
+		const fromManifest = manifestResources.find((r) => r.name === nodeId);
+		if (fromManifest?.kind) return fromManifest.kind;
+		const fromGraph = fullGraph?.nodes.find((n) => n.id === nodeId) ?? subgraph?.nodes.find((n) => n.id === nodeId);
+		return fromGraph?.kind || shortName(nodeId);
+	}
+
+	$: breadcrumbTrail = focusNodeId
+		? [...focusHistory, focusNodeId].map((id) => ({
+				id,
+				label: nodeDisplayLabel(id)
+			}))
+		: [];
+
 	function clearFocus() {
 		cancelPendingBuild();
 		focusResource = '';
 		focusNodeId = null;
+		rootFocusNodeId = null;
+		focusHistory = [];
 		subgraph = null;
+		fullGraph = null;
+		showTransitive = false;
+		showInferredEdges = false;
 		error = null;
 		resourceSearch = '';
 		searchFocused = false;
@@ -138,22 +163,40 @@
 		}
 	}
 
+	function applyFocusSubgraph(nodeId: string) {
+		if (!fullGraph) return;
+		const result = buildFocusSubgraph(fullGraph, nodeId, {
+			transitive: showTransitive
+		});
+		if (!result) {
+			error = `Could not build dependency map for "${focusResource}".`;
+			focusNodeId = null;
+			subgraph = null;
+			return;
+		}
+		subgraph = result;
+	}
+
 	async function buildSubgraphForFocus(rel: EdaRelease, nodeId: string) {
 		const generation = ++buildGeneration;
 		buildingGraph = true;
 		error = null;
 		subgraph = null;
+		fullGraph = null;
 		progress = { phase: 'manifest', current: 0, total: 1, message: 'Starting…' };
 
 		try {
-			const fullGraph = await buildDependencyGraph(rel, {
+			const built = await buildDependencyGraph(rel, {
 				onProgress: (p) => {
 					if (generation === buildGeneration) progress = p;
 				}
 			});
 			if (generation !== buildGeneration) return;
 
-			const result = buildFocusSubgraph(fullGraph, nodeId);
+			fullGraph = built;
+			const result = buildFocusSubgraph(built, nodeId, {
+				transitive: showTransitive
+			});
 			if (!result) {
 				error = `Could not build dependency map for "${focusResource}".`;
 				focusNodeId = null;
@@ -180,6 +223,8 @@
 		}
 		focusNodeId = nodeId;
 		focusResource = resourceParam;
+		rootFocusNodeId = nodeId;
+		focusHistory = [];
 		void buildSubgraphForFocus(release, nodeId);
 	}
 
@@ -191,8 +236,31 @@
 		error = null;
 		focusResource = resource.name;
 		focusNodeId = resource.name;
+		rootFocusNodeId = resource.name;
+		focusHistory = [];
 		updateURL();
 		await buildSubgraphForFocus(release, resource.name);
+	}
+
+	function applyFocusAt(nodeId: string, history: string[]) {
+		if (!fullGraph) return;
+		focusNodeId = nodeId;
+		focusResource = nodeId;
+		focusHistory = history;
+		applyFocusSubgraph(nodeId);
+		updateURL();
+	}
+
+	function handleRefocus(nodeId: string) {
+		if (!fullGraph || !focusNodeId || nodeId === focusNodeId) return;
+		applyFocusAt(nodeId, historyAfterRefocus(focusHistory, focusNodeId));
+	}
+
+	function handleBreadcrumbNavigate(nodeId: string) {
+		if (!focusNodeId) return;
+		const nextHistory = historyAfterBreadcrumb(focusHistory, focusNodeId, nodeId);
+		if (nextHistory === null) return;
+		applyFocusAt(nodeId, nextHistory);
 	}
 
 	function handleSearchKeydown(event: KeyboardEvent) {
@@ -245,6 +313,20 @@
 	function closeResourceModal() {
 		modalOpen = false;
 		modalResource = null;
+	}
+
+	function countRealGraphNodes(graph: DependencyGraph | null, excludeId: string | null): number {
+		if (!graph || !excludeId) return 0;
+		return graph.nodes.filter((node) => node.id !== excludeId).length;
+	}
+
+	$: directNeighborCount = countRealGraphNodes(subgraph, focusNodeId);
+	$: extendedNeighborCount = countRealGraphNodes(subgraph, focusNodeId);
+
+	$: if (browser && clientReady && focusNodeId && fullGraph) {
+		showTransitive;
+		showInferredEdges;
+		applyFocusSubgraph(focusNodeId);
 	}
 
 	let previousReleaseName = '';
@@ -301,8 +383,8 @@
 					CRD Dependency Map
 				</h1>
 				<p class="homepage-subtitle text-slate-600 dark:text-slate-400">
-					Search for a CRD, then explore its full transitive dependency subgraph — ancestors and
-					descendants inferred from release schemas and catalog structure.
+					Search for a CRD, then scan direct dependencies grouped by relationship type. Click
+					neighbors to drill down, or enable Extended for the full dependency chain.
 				</p>
 			</div>
 
@@ -328,7 +410,7 @@
 			<select
 				id="dependency-map-release"
 				bind:value={releaseName}
-				on:change={handleReleaseChange}
+				onchange={handleReleaseChange}
 				class="spec-search-select min-w-[10rem] flex-1 sm:flex-none"
 				aria-label="Select EDA release"
 			>
@@ -339,10 +421,26 @@
 			</select>
 
 			{#if subgraph && focusNodeId}
+				<label class="dep-map-transitive-toggle flex shrink-0 cursor-pointer items-center gap-2">
+					<input
+						type="checkbox"
+						class="dep-map-transitive-checkbox"
+						bind:checked={showInferredEdges}
+					/>
+					<span class="dep-map-transitive-label">Schema inferred</span>
+				</label>
+				<label class="dep-map-transitive-toggle ml-auto flex shrink-0 cursor-pointer items-center gap-2">
+					<input
+						type="checkbox"
+						class="dep-map-transitive-checkbox"
+						bind:checked={showTransitive}
+					/>
+					<span class="dep-map-transitive-label">Extended</span>
+				</label>
 				<button
 					type="button"
-					class="spec-search-select ml-auto shrink-0 border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-blue-300 dark:hover:bg-slate-700"
-					on:click={handleChangeResource}
+					class="spec-search-select shrink-0 border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-blue-300 dark:hover:bg-slate-700"
+					onclick={handleChangeResource}
 				>
 					Change resource
 				</button>
@@ -374,9 +472,9 @@
 							id="dep-map-resource-search"
 							type="search"
 							bind:value={resourceSearch}
-							on:focus={() => (searchFocused = true)}
-							on:blur={closeSearchResults}
-							on:keydown={handleSearchKeydown}
+							onfocus={() => (searchFocused = true)}
+							onblur={closeSearchResults}
+							onkeydown={handleSearchKeydown}
 							placeholder={release
 								? manifestLoading
 									? 'Loading CRD catalog…'
@@ -392,7 +490,9 @@
 							<button
 								type="button"
 								aria-label="Clear search"
-								on:click|preventDefault|stopPropagation={() => {
+								onclick={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
 									resourceSearch = '';
 								}}
 								class="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
@@ -427,7 +527,10 @@
 									<li role="option" aria-selected={i === highlightedIndex}>
 										<button
 											type="button"
-											on:mousedown|preventDefault={() => selectResource(resource)}
+											onmousedown={(e) => {
+												e.preventDefault();
+												void selectResource(resource);
+											}}
 											class="dep-map-search-row"
 											class:dep-map-search-row-active={i === highlightedIndex}
 										>
@@ -544,7 +647,7 @@
 						<button
 							type="button"
 							class="mt-3 text-sm font-medium text-red-700 underline dark:text-red-300"
-							on:click={handleChangeResource}
+							onclick={handleChangeResource}
 						>
 							Search again
 						</button>
@@ -563,18 +666,28 @@
 							</div>
 						</div>
 						<div class="dep-map-focus-stats">
-							<span class="dep-map-focus-stat">{subgraph.nodes.length} nodes</span>
+							<span class="dep-map-focus-stat">
+								{showTransitive ? extendedNeighborCount : directNeighborCount} connected CRDs
+							</span>
 							<span class="dep-map-focus-stat-sep" aria-hidden="true">·</span>
 							<span class="dep-map-focus-stat">{subgraph.links.length} edges</span>
-							<span class="dep-map-focus-badge">Transitive subgraph</span>
+							<span class="dep-map-focus-badge">
+								{showTransitive ? 'Extended' : 'Direct only'}
+							</span>
 						</div>
 					</div>
 				</div>
 				<div class="dependency-map-graph-shell">
-					{#key focusNodeId}
+					{#key `${focusNodeId}-${showTransitive}-${showInferredEdges}`}
 						<DependencyMapGraph
 							graph={subgraph}
+							{fullGraph}
 							focusNodeId={focusNodeId}
+							{showTransitive}
+							{showInferredEdges}
+							breadcrumbTrail={breadcrumbTrail}
+							onRefocus={handleRefocus}
+							onBreadcrumbNavigate={handleBreadcrumbNavigate}
 							onViewCrd={handleViewCrd}
 						/>
 					{/key}
@@ -595,8 +708,8 @@
 						Search for a CRD to explore its dependencies
 					</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						The full release graph is not shown — only the transitive subgraph for your selected
-						resource.
+						Start with direct dependencies — grouped, searchable, and scannable. Toggle transitive or
+						open the graph view for deeper exploration.
 					</p>
 				</div>
 			{/if}
@@ -896,5 +1009,26 @@
 
 	:global(.dep-map-page-credits--hidden) {
 		display: none;
+	}
+
+	.dep-map-transitive-toggle {
+		user-select: none;
+	}
+
+	.dep-map-transitive-checkbox {
+		width: 1rem;
+		height: 1rem;
+		accent-color: rgb(37 99 235);
+	}
+
+	.dep-map-transitive-label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: rgb(71 85 105);
+		white-space: nowrap;
+	}
+
+	:global(.dark) .dep-map-transitive-label {
+		color: rgb(203 213 225);
 	}
 </style>

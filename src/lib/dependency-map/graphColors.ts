@@ -11,6 +11,10 @@ export type GraphPalette = {
 	link: string;
 	linkHighlight: string;
 	linkDim: string;
+	/** Outgoing from focus — depends on */
+	linkOut: string;
+	/** Incoming to focus — required by */
+	linkIn: string;
 	nodeStroke: string;
 	nodeLabel: string;
 	nodeLabelBg: string;
@@ -28,8 +32,8 @@ export type GraphPalette = {
 };
 
 const light: GraphPalette = {
-	background: '#f1f5f9',
-	gridDot: '#94a3b8',
+	background: '#f8fafc',
+	gridDot: '#cbd5e1',
 	panel: '#ffffff',
 	panelBorder: '#e2e8f0',
 	text: '#0f172a',
@@ -37,6 +41,8 @@ const light: GraphPalette = {
 	link: '#64748b',
 	linkHighlight: '#2563eb',
 	linkDim: '#cbd5e1',
+	linkOut: '#4f46e5',
+	linkIn: '#059669',
 	nodeStroke: '#334155',
 	nodeLabel: '#0f172a',
 	nodeLabelBg: 'rgba(255, 255, 255, 0.96)',
@@ -64,18 +70,20 @@ const light: GraphPalette = {
 };
 
 const dark: GraphPalette = {
-	background: '#0f172a',
-	gridDot: '#334155',
+	background: '#0b1220',
+	gridDot: '#1e293b',
 	panel: '#1e293b',
 	panelBorder: '#334155',
 	text: '#f1f5f9',
 	textMuted: '#94a3b8',
 	link: '#64748b',
 	linkHighlight: '#60a5fa',
-	linkDim: '#334155',
-	nodeStroke: '#e2e8f0',
-	nodeLabel: '#f8fafc',
-	nodeLabelBg: 'rgba(15, 23, 42, 0.94)',
+	linkDim: '#293548',
+	linkOut: '#818cf8',
+	linkIn: '#34d399',
+	nodeStroke: '#cbd5e1',
+	nodeLabel: '#f1f5f9',
+	nodeLabelBg: 'rgba(11, 18, 32, 0.92)',
 	tooltipBg: '#1e293b',
 	tooltipBorder: '#475569',
 	chipActive: '#3b82f6',

@@ -1,15 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildAdjacencyLists,
+	extractDirectSubgraph,
 	extractSubgraph,
 	getAllAncestors,
 	getAllDescendants,
-	getHighlightSets
+	getHighlightSets,
+	getTransitiveClosureNodeIds
 } from './transitiveClosure';
 import type { GraphLink } from './types';
 
 function link(source: string, target: string): GraphLink {
 	return { id: `${source}|${target}|references`, source, target, rel: 'references' };
+}
+
+function node(id: string) {
+	return {
+		id,
+		kind: id.toUpperCase(),
+		group: 'g',
+		type: 'config' as const,
+		version: 'v1',
+		shortName: id
+	};
 }
 
 describe('transitiveClosure', () => {
@@ -21,9 +34,9 @@ describe('transitiveClosure', () => {
 		expect([...getAllAncestors('a', adj.incoming)]).toEqual(['d']);
 	});
 
-	it('full mode includes transitive nodes beyond direct neighbors', () => {
+	it('extended mode includes full transitive closure', () => {
 		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a')];
-		const highlight = getHighlightSets('a', links, 'full');
+		const highlight = getHighlightSets('a', links, 'extended');
 
 		expect([...highlight.nodes].sort()).toEqual(['a', 'b', 'c', 'd']);
 		expect(highlight.directOutgoing.size).toBe(1);
@@ -44,30 +57,77 @@ describe('transitiveClosure', () => {
 			{ ...link('a', 'b'), source: { id: 'a' }, target: { id: 'b' } },
 			{ ...link('b', 'c'), source: { id: 'b' }, target: { id: 'c' } }
 		] as Parameters<typeof getHighlightSets>[1];
-		const highlight = getHighlightSets('a', links, 'full');
+		const highlight = getHighlightSets('a', links, 'extended');
 
 		expect([...highlight.nodes].sort()).toEqual(['a', 'b', 'c']);
 	});
 
-	it('extractSubgraph keeps only transitive closure around focus node', () => {
-		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a'), link('x', 'y')];
+	it('extractDirectSubgraph keeps only one-hop neighbors and focus-incident edges', () => {
+		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a'), link('x', 'y'), link('b', 'd')];
 		const graph = {
-			nodes: [
-				{ id: 'a', kind: 'A', group: 'g', type: 'config' as const, version: 'v1', shortName: 'a' },
-				{ id: 'b', kind: 'B', group: 'g', type: 'config' as const, version: 'v1', shortName: 'b' },
-				{ id: 'c', kind: 'C', group: 'g', type: 'config' as const, version: 'v1', shortName: 'c' },
-				{ id: 'd', kind: 'D', group: 'g', type: 'config' as const, version: 'v1', shortName: 'd' },
-				{ id: 'x', kind: 'X', group: 'g', type: 'config' as const, version: 'v1', shortName: 'x' },
-				{ id: 'y', kind: 'Y', group: 'g', type: 'config' as const, version: 'v1', shortName: 'y' }
-			],
+			nodes: ['a', 'b', 'c', 'd', 'x', 'y'].map(node),
 			links,
 			releaseFolder: '26.4.2',
 			generatedAt: '2026-01-01T00:00:00.000Z'
 		};
 
-		const subgraph = extractSubgraph(graph, 'a');
+		const subgraph = extractDirectSubgraph(graph, 'a');
 		expect(subgraph).not.toBeNull();
-		expect([...subgraph!.nodes.map((n) => n.id)].sort()).toEqual(['a', 'b', 'c', 'd']);
-		expect(subgraph!.links).toHaveLength(3);
+		expect([...subgraph!.nodes.map((n) => n.id)].sort()).toEqual(['a', 'b', 'd']);
+		expect(subgraph!.links.map((l) => `${l.source}|${l.target}`).sort()).toEqual(['a|b', 'd|a']);
+	});
+
+	it('extractSubgraph direct mode matches extractDirectSubgraph', () => {
+		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a')];
+		const graph = {
+			nodes: ['a', 'b', 'c', 'd'].map(node),
+			links,
+			releaseFolder: '26.4.2',
+			generatedAt: '2026-01-01T00:00:00.000Z'
+		};
+
+		const direct = extractSubgraph(graph, 'a', { transitive: false });
+		expect(direct).not.toBeNull();
+		expect([...direct!.nodes.map((n) => n.id)].sort()).toEqual(['a', 'b', 'd']);
+		expect(direct!.links).toHaveLength(2);
+	});
+
+	it('extractSubgraph extended mode returns full transitive subgraph', () => {
+		const links = [
+			link('a', 'b'),
+			link('b', 'c'),
+			link('c', 'd'),
+			link('d', 'e'),
+			link('up', 'a')
+		];
+		const graph = {
+			nodes: ['a', 'b', 'c', 'd', 'e', 'up'].map(node),
+			links,
+			releaseFolder: '26.4.2',
+			generatedAt: '2026-01-01T00:00:00.000Z'
+		};
+
+		const subgraph = extractSubgraph(graph, 'a', { transitive: true });
+		expect(subgraph).not.toBeNull();
+		expect([...subgraph!.nodes.map((n) => n.id)].sort()).toEqual(['a', 'b', 'c', 'd', 'e', 'up']);
+		expect(subgraph!.links.map((l) => `${l.source}|${l.target}`).sort()).toEqual([
+			'a|b',
+			'b|c',
+			'c|d',
+			'd|e',
+			'up|a'
+		]);
+	});
+
+	it('getTransitiveClosureNodeIds includes all reachable nodes', () => {
+		const links = [link('a', 'b'), link('b', 'c'), link('c', 'd')];
+		const ids = getTransitiveClosureNodeIds('a', links);
+		expect([...ids].sort()).toEqual(['a', 'b', 'c', 'd']);
+	});
+
+	it('getAllDescendants stops at maxDepth when provided', () => {
+		const links = [link('a', 'b'), link('b', 'c'), link('c', 'd')];
+		const adj = buildAdjacencyLists(links);
+		expect([...getAllDescendants('a', adj.outgoing, undefined, 2)].sort()).toEqual(['b', 'c']);
 	});
 });

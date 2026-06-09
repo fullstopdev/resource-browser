@@ -9,6 +9,7 @@ import {
 	loadVectorizeManifest,
 	markUpserted,
 	saveVectorizeManifest,
+	setManifestIds,
 	type VectorizeManifest
 } from './vectorizeManifest';
 
@@ -163,61 +164,118 @@ export async function upsertVectors(indexName: string, vectors: VectorRecord[]):
 export type EmbedAndUpsertOptions = {
 	force?: boolean;
 	manifestPath?: string;
-	onProgress?: (done: number, total: number) => void;
+	/** When false (default), merge Vectorize index IDs into local manifest before skipping. */
+	syncFromIndex?: boolean;
+	onProgress?: (indexed: number, total: number, upsertedThisRun: number) => void;
 };
 
 export type EmbedAndUpsertResult = {
 	upserted: number;
 	skipped: number;
+	indexed: number;
+	total: number;
 };
+
+export type IndexSyncResult = {
+	localCount: number;
+	remoteCount: number;
+	mergedCount: number;
+};
+
+/** Align local manifest with Vectorize index IDs (source of truth for resume skips). */
+export async function syncManifestWithIndex(
+	indexName: string,
+	manifest: VectorizeManifest,
+	manifestPath?: string
+): Promise<IndexSyncResult> {
+	const localCount = manifest[indexName]?.length ?? 0;
+	console.log(`Syncing manifest with Vectorize index ${indexName}...`);
+
+	const remoteIds = await listAllVectorIds(indexName);
+	const remoteSet = new Set(remoteIds);
+	const localOnly = (manifest[indexName] ?? []).filter((id) => !remoteSet.has(id));
+	setManifestIds(manifest, indexName, remoteIds);
+	await saveVectorizeManifest(manifest, manifestPath);
+
+	if (localOnly.length > 0) {
+		console.log(`  Pruned ${localOnly.length} local-only ID(s) not in index`);
+	}
+	console.log(`  Manifest: ${localCount} local → ${remoteIds.length} from index`);
+
+	return { localCount, remoteCount: remoteIds.length, mergedCount: remoteIds.length };
+}
+
+export async function getIndexVectorCount(indexName: string): Promise<number> {
+	const page = await listVectorIdsPage(indexName, { count: 1 });
+	return page.totalCount;
+}
 
 export async function embedAndUpsert(
 	indexName: string,
 	records: { id: string; text: string; metadata: Record<string, string> }[],
 	options: EmbedAndUpsertOptions = {}
 ): Promise<EmbedAndUpsertResult> {
-	const { force = false, manifestPath, onProgress } = options;
+	const { force = false, manifestPath, syncFromIndex = true, onProgress } = options;
 	const manifest: VectorizeManifest = await loadVectorizeManifest(manifestPath);
+	const total = records.length;
+
+	if (!force && syncFromIndex) {
+		await syncManifestWithIndex(indexName, manifest, manifestPath);
+	}
+
 	const upsertedIds = force ? new Set<string>() : new Set(manifest[indexName] ?? []);
 
 	const pending = force
 		? records
 		: records.filter((record) => !upsertedIds.has(vectorizeId(record.id)));
-	const skipped = records.length - pending.length;
+	const skipped = total - pending.length;
 
-	if (skipped > 0 || pending.length > 0) {
-		console.log(`Skipped ${skipped}, embedding ${pending.length} new`);
-	}
+	console.log(
+		`Resume: ${skipped}/${total} already indexed, ${pending.length} remaining` +
+			(force ? ' (--force: re-embedding all)' : '')
+	);
 
 	if (!pending.length) {
-		return { upserted: 0, skipped };
+		onProgress?.(skipped, total, 0);
+		return { upserted: 0, skipped, indexed: skipped, total };
 	}
 
 	let upserted = 0;
 
-	for (let i = 0; i < pending.length; i += EMBED_BATCH_SIZE) {
-		const batch = pending.slice(i, i + EMBED_BATCH_SIZE);
-		const vectors = await embedTexts(batch.map((c) => c.text));
-		if (vectors[0]?.length !== EMBEDDING_DIMENSIONS) {
-			throw new Error(
-				`Unexpected embedding dimensions: got ${vectors[0]?.length}, expected ${EMBEDDING_DIMENSIONS}`
+	try {
+		for (let i = 0; i < pending.length; i += EMBED_BATCH_SIZE) {
+			const batch = pending.slice(i, i + EMBED_BATCH_SIZE);
+			const vectors = await embedTexts(batch.map((c) => c.text));
+			if (vectors[0]?.length !== EMBEDDING_DIMENSIONS) {
+				throw new Error(
+					`Unexpected embedding dimensions: got ${vectors[0]?.length}, expected ${EMBEDDING_DIMENSIONS}`
+				);
+			}
+			const payload: VectorRecord[] = batch.map((chunk, idx) => ({
+				id: vectorizeId(chunk.id),
+				values: vectors[idx],
+				metadata: { ...chunk.metadata, text: chunk.text.slice(0, 9000) }
+			}));
+			await upsertVectors(indexName, payload);
+			markUpserted(
+				manifest,
+				indexName,
+				payload.map((v) => v.id)
+			);
+			await saveVectorizeManifest(manifest, manifestPath);
+			upserted += payload.length;
+			onProgress?.(skipped + upserted, total, upserted);
+		}
+	} catch (error) {
+		if (isWorkersAINeuronLimitError(error)) {
+			const indexed = skipped + upserted;
+			console.error(
+				`Quota limit hit after checkpoint — ${indexed}/${total} indexed (${upserted} this run). ` +
+					`Manifest saved; re-run to resume.`
 			);
 		}
-		const payload: VectorRecord[] = batch.map((chunk, idx) => ({
-			id: vectorizeId(chunk.id),
-			values: vectors[idx],
-			metadata: { ...chunk.metadata, text: chunk.text.slice(0, 9000) }
-		}));
-		await upsertVectors(indexName, payload);
-		markUpserted(
-			manifest,
-			indexName,
-			payload.map((v) => v.id)
-		);
-		await saveVectorizeManifest(manifest, manifestPath);
-		upserted += payload.length;
-		onProgress?.(upserted, pending.length);
+		throw error;
 	}
 
-	return { upserted, skipped };
+	return { upserted, skipped, indexed: skipped + upserted, total };
 }

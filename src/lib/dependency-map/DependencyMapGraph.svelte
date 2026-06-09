@@ -2,7 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { theme } from '$lib/theme';
+	import DependencyMapOverview from './DependencyMapOverview.svelte';
 	import { getGraphPalette, LEGEND_REL_ORDER, REL_LABELS, REL_ORDER } from './graphColors';
+	import { applyDirectionFilter, applyEdgeSourceFilter } from './graphFilters';
 	import {
 		buildTransitiveDepList,
 		getHighlightSets,
@@ -11,36 +13,53 @@
 		type TransitiveDepEntry
 	} from './transitiveClosure';
 	import type { DependencyGraph, GraphNode, LinkRelation, NodeType } from './types';
+	import { collapseVisualLinks } from './visualLinks';
 
 	type GraphController = import('./graphController').GraphController;
 
 	export let graph: DependencyGraph;
+	export let fullGraph: DependencyGraph | null = null;
 	export let focusNodeId: string | null = null;
+	export let showTransitive = false;
+	export let showInferredEdges = false;
 	export let onViewCrd: ((node: GraphNode) => void) | undefined = undefined;
+	export let onRefocus: ((nodeId: string) => void) | undefined = undefined;
+	export let breadcrumbTrail: Array<{ id: string; label: string }> = [];
+	export let onBreadcrumbNavigate: ((nodeId: string) => void) | undefined = undefined;
+
+	type ViewMode = 'overview' | 'graph';
 
 	const INSPECTOR_STORAGE_KEY = 'dep-map-inspector-open';
+	const VIEW_STORAGE_KEY = 'dep-map-view-mode';
+	const DENSE_LABEL_THRESHOLD = 10;
 
 	let containerEl: HTMLDivElement;
 	let svgEl: SVGSVGElement;
 	let tooltipEl: HTMLDivElement;
 
 	let controller: GraphController | null = null;
-	let graphReady = false;
 	let selectedId: string | null = null;
 	let searchQuery = '';
 	let typeFilter: 'all' | NodeType = 'all';
 	let groupFilter = '';
 	let radialLayout = true;
-	let chainMode: ChainMode = 'full';
-	let collapsedRelGroups = new Set<string>();
-	let expandedReasonIds = new Set<string>();
-	let inspectorOpen = true;
+	let viewMode: ViewMode = 'overview';
+	let depSearch = '';
+	let chainMode: ChainMode;
+	let expandedRelGroups: Record<string, boolean> = {};
+	let expandedReasonIds: Record<string, boolean> = {};
+	let inspectorOpen = false;
+	let showDependsOn = true;
+	let showRequiredBy = true;
+	let showAllLabels = false;
+
+	$: chainMode = showTransitive ? 'extended' : 'direct';
 
 	$: palette = getGraphPalette($theme);
 
 	$: apiGroups = [...new Set(graph.nodes.map((n) => n.group))].sort();
 
-	$: filteredNodes = graph.nodes.filter((node) => {
+	$: typeFilteredNodes = graph.nodes.filter((node) => {
 		if (typeFilter !== 'all' && node.type !== typeFilter) return false;
 		if (groupFilter && node.group !== groupFilter) return false;
 		if (searchQuery.trim()) {
@@ -51,13 +70,30 @@
 		return true;
 	});
 
-	$: filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+	$: overviewGraph = fullGraph ?? graph;
+	$: overviewLinks = applyEdgeSourceFilter(overviewGraph.links, showInferredEdges);
 
-	$: filteredLinks = graph.links.filter(
-		(link) =>
-			filteredNodeIds.has(linkEndpointId(link.source)) &&
-			filteredNodeIds.has(linkEndpointId(link.target))
-	);
+	$: edgeSourceFilteredLinks = applyEdgeSourceFilter(graph.links, showInferredEdges);
+
+	$: typeFilteredLinks = edgeSourceFilteredLinks.filter((link) => {
+		const source = linkEndpointId(link.source);
+		const target = linkEndpointId(link.target);
+		const nodeIds = new Set(typeFilteredNodes.map((n) => n.id));
+		return nodeIds.has(source) && nodeIds.has(target);
+	});
+
+	$: directionFiltered = applyDirectionFilter(typeFilteredNodes, typeFilteredLinks, focusNodeId, {
+		showDependsOn,
+		showRequiredBy
+	});
+
+	$: filteredNodes = directionFiltered.nodes;
+	$: filteredLinks = directionFiltered.links;
+	$: visualLinks = collapseVisualLinks(filteredLinks);
+	$: filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+	$: denseGraph = filteredNodes.length > DENSE_LABEL_THRESHOLD;
+	$: showLabelToggle = showTransitive && denseGraph;
+	$: if (!showTransitive) showAllLabels = false;
 
 	$: selectedNode = selectedId ? graph.nodes.find((n) => n.id === selectedId) ?? null : null;
 
@@ -81,25 +117,39 @@
 	$: if (controller) {
 		chainMode;
 		selectedId;
+		showAllLabels;
 		controller.updateHighlight();
 	}
 
 	$: if (selectedId && !filteredNodeIds.has(selectedId)) {
-		selectedId = null;
+		selectedId =
+			focusNodeId && filteredNodeIds.has(focusNodeId) ? focusNodeId : null;
 		controller?.updateHighlight();
 	}
 
 	$: if (controller) {
 		graph;
 		filteredNodes;
-		filteredLinks;
+		visualLinks;
 		controller.rebuild();
+	}
+
+	function reflowGraphWhenVisible() {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				try {
+					controller?.reflowLayout();
+				} catch (err) {
+					console.error('[dep-map] reflowGraphWhenVisible failed', err);
+				}
+			});
+		});
 	}
 
 	$: if (controller && focusNodeId && graph.nodes.some((n) => n.id === focusNodeId)) {
 		selectedId = focusNodeId;
 		controller.updateHighlight();
-		controller.focusNode(focusNodeId);
+		requestAnimationFrame(() => controller?.fitToScreen());
 	}
 
 	$: if (controller) {
@@ -141,31 +191,24 @@
 		return `${section}:${rel}`;
 	}
 
-	function isRelGroupCollapsed(section: string, rel: LinkRelation): boolean {
-		return collapsedRelGroups.has(relGroupKey(section, rel));
+	function isRelGroupExpanded(section: string, rel: LinkRelation): boolean {
+		const key = relGroupKey(section, rel);
+		const stored = expandedRelGroups[key];
+		if (stored !== undefined) return stored;
+		return chainMode === 'extended';
 	}
 
 	function toggleRelGroup(section: string, rel: LinkRelation) {
 		const key = relGroupKey(section, rel);
-		if (collapsedRelGroups.has(key)) {
-			collapsedRelGroups.delete(key);
-		} else {
-			collapsedRelGroups.add(key);
-		}
-		collapsedRelGroups = collapsedRelGroups;
+		expandedRelGroups = { ...expandedRelGroups, [key]: !isRelGroupExpanded(section, rel) };
 	}
 
 	function isReasonExpanded(depKey: string): boolean {
-		return expandedReasonIds.has(depKey);
+		return !!expandedReasonIds[depKey];
 	}
 
 	function toggleReason(depKey: string) {
-		if (expandedReasonIds.has(depKey)) {
-			expandedReasonIds.delete(depKey);
-		} else {
-			expandedReasonIds.add(depKey);
-		}
-		expandedReasonIds = expandedReasonIds;
+		expandedReasonIds = { ...expandedReasonIds, [depKey]: !expandedReasonIds[depKey] };
 	}
 
 	function truncateReason(reason: string | undefined, max = 72): string {
@@ -192,7 +235,15 @@
 	}
 
 	function handleDepClick(id: string) {
+		if (focusNodeId && id !== focusNodeId) {
+			onRefocus?.(id);
+			return;
+		}
 		selectNode(id);
+	}
+
+	function handleGraphRefocus(id: string) {
+		onRefocus?.(id);
 	}
 
 	function clearAll() {
@@ -200,11 +251,6 @@
 		typeFilter = 'all';
 		groupFilter = '';
 		selectNode(null);
-	}
-
-	function setChainMode(mode: ChainMode) {
-		chainMode = mode;
-		controller?.updateHighlight();
 	}
 
 	function selectRadialLayout() {
@@ -218,11 +264,21 @@
 	}
 
 	function fitGraph() {
-		controller?.reflowLayout();
+		controller?.fitToScreen();
 	}
 
-	function showFullGraph() {
+	function resetZoom() {
 		controller?.showFullExtent();
+	}
+
+	function toggleDependsOn() {
+		if (showDependsOn && !showRequiredBy) return;
+		showDependsOn = !showDependsOn;
+	}
+
+	function toggleRequiredBy() {
+		if (showRequiredBy && !showDependsOn) return;
+		showRequiredBy = !showRequiredBy;
 	}
 
 	function zoomIn() {
@@ -231,6 +287,11 @@
 
 	function zoomOut() {
 		controller?.zoomOut();
+	}
+
+	function toggleShowAllLabels() {
+		showAllLabels = !showAllLabels;
+		requestAnimationFrame(() => controller?.fitToScreen());
 	}
 
 	function toggleInspector(open?: boolean) {
@@ -243,13 +304,8 @@
 		});
 	}
 
-	onMount(async () => {
-		if (!browser) return;
-
-		const stored = sessionStorage.getItem(INSPECTOR_STORAGE_KEY);
-		if (stored !== null) {
-			inspectorOpen = stored === 'true';
-		}
+	async function initController() {
+		if (!browser || controller || !containerEl || !svgEl) return;
 
 		const { createGraphController } = await import('./graphController');
 		controller = createGraphController({
@@ -257,29 +313,60 @@
 			svg: svgEl,
 			tooltip: tooltipEl,
 			getFilteredNodes: () => filteredNodes,
-			getFilteredLinks: () => filteredLinks,
+			getFilteredLinks: () => visualLinks,
 			radialLayout,
 			theme: $theme,
 			onSelect: selectNode,
+			onRefocus: handleGraphRefocus,
 			getSelectedId: () => selectedId,
 			getChainMode: () => chainMode,
-			getCenterNodeId: () => focusNodeId
+			getCenterNodeId: () => focusNodeId,
+			getShowAllLabels: () => showAllLabels
 		});
-
-		// Explicit initial build — async onMount assignment may not trigger $: rebuild
-		controller.rebuild();
 
 		if (focusNodeId && graph.nodes.some((n) => n.id === focusNodeId)) {
 			selectedId = focusNodeId;
 			controller.updateHighlight();
 		}
-		graphReady = true;
+
+		if (viewMode === 'graph') {
+			reflowGraphWhenVisible();
+		}
+	}
+
+	$: if (browser && containerEl && svgEl && !controller) {
+		void initController();
+	}
+
+	function setViewMode(mode: ViewMode) {
+		viewMode = mode;
+		if (browser) {
+			sessionStorage.setItem(VIEW_STORAGE_KEY, mode);
+		}
+		if (mode === 'graph') {
+			reflowGraphWhenVisible();
+		}
+	}
+
+	onMount(() => {
+		if (!browser) return;
+
+		const storedView = sessionStorage.getItem(VIEW_STORAGE_KEY);
+		if (storedView === 'overview' || storedView === 'graph') {
+			viewMode = storedView;
+		}
+
+		const stored = sessionStorage.getItem(INSPECTOR_STORAGE_KEY);
+		if (stored !== null) {
+			inspectorOpen = stored === 'true';
+		}
+
+		void initController();
 	});
 
 	onDestroy(() => {
 		controller?.destroy();
 		controller = null;
-		graphReady = false;
 	});
 </script>
 
@@ -295,19 +382,46 @@
 	style:--dep-tooltip-bg={palette.tooltipBg}
 	style:--dep-tooltip-border={palette.tooltipBorder}
 >
-	<div class="dep-map-toolbar" role="toolbar" aria-label="Graph filters and controls">
+	<div class="dep-map-toolbar" role="toolbar" aria-label="Dependency map controls">
 		<div class="dep-map-toolbar-row">
+			<div class="dep-map-view-tabs" role="tablist" aria-label="View mode">
+				<button
+					type="button"
+					role="tab"
+					class="dep-map-view-tab"
+					class:dep-map-view-tab-active={viewMode === 'overview'}
+					aria-selected={viewMode === 'overview'}
+					onclick={() => setViewMode('overview')}
+				>
+					Overview
+				</button>
+				<button
+					type="button"
+					role="tab"
+					class="dep-map-view-tab"
+					class:dep-map-view-tab-active={viewMode === 'graph'}
+					aria-selected={viewMode === 'graph'}
+					onclick={() => setViewMode('graph')}
+				>
+					Graph
+				</button>
+			</div>
+
 			<label class="dep-map-search-wrap">
-				<span class="sr-only">Search CRDs</span>
+				<span class="sr-only">{viewMode === 'overview' ? 'Search dependencies' : 'Filter graph nodes'}</span>
 				<svg class="dep-map-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 				</svg>
 				<input
 					type="search"
 					class="dep-map-search"
-					placeholder="Filter visible nodes…"
-					bind:value={searchQuery}
-					aria-label="Filter nodes in graph"
+					placeholder={viewMode === 'overview' ? 'Filter dependencies…' : 'Filter visible nodes…'}
+					value={viewMode === 'overview' ? depSearch : searchQuery}
+					oninput={(e) => {
+						if (viewMode === 'overview') depSearch = e.currentTarget.value;
+						else searchQuery = e.currentTarget.value;
+					}}
+					aria-label={viewMode === 'overview' ? 'Filter dependencies' : 'Filter nodes in graph'}
 				/>
 			</label>
 
@@ -317,7 +431,7 @@
 						type="button"
 						class="dep-map-chip"
 						class:dep-map-chip-active={typeFilter === chip}
-						on:click={() => (typeFilter = chip as typeof typeFilter)}
+						onclick={() => (typeFilter = chip as typeof typeFilter)}
 					>
 						{chip === 'all' ? 'All types' : chip === 'config' ? 'Config' : 'State'}
 					</button>
@@ -333,55 +447,96 @@
 					{/each}
 				</select>
 			</label>
+
+			<div
+				class="dep-map-direction-chips"
+				class:dep-map-btn-group-hidden={viewMode !== 'graph'}
+				role="group"
+				aria-label="Dependency direction filter"
+			>
+				<button
+					type="button"
+					class="dep-map-chip dep-map-chip-direction dep-map-chip-direction-out"
+					class:dep-map-chip-active={showDependsOn}
+					aria-pressed={showDependsOn}
+					onclick={toggleDependsOn}
+					title="Show edges where focus depends on other CRDs"
+				>
+					Depends on
+				</button>
+				<button
+					type="button"
+					class="dep-map-chip dep-map-chip-direction dep-map-chip-direction-in"
+					class:dep-map-chip-active={showRequiredBy}
+					aria-pressed={showRequiredBy}
+					onclick={toggleRequiredBy}
+					title="Show edges where other CRDs depend on focus"
+				>
+					Required by
+				</button>
+			</div>
 		</div>
 
 		<div class="dep-map-toolbar-row dep-map-toolbar-actions">
 			<span class="dep-map-stat" aria-live="polite">
-				{filteredNodes.length} nodes · {filteredLinks.length} edges
+				{#if viewMode === 'overview'}
+					{showTransitive ? 'Extended' : 'Direct'} view · {graph.nodes.length} CRDs
+				{:else}
+					{filteredNodes.length} nodes · {visualLinks.length} edges
+				{/if}
 			</span>
 
-			<div class="dep-map-btn-group" role="group" aria-label="Graph layout controls">
+			<div
+				class="dep-map-layout-segment"
+				class:dep-map-btn-group-hidden={viewMode !== 'graph'}
+				role="group"
+				aria-label="Graph layout controls"
+			>
 				<button
 					type="button"
-					class="dep-map-btn"
-					class:dep-map-btn-active={radialLayout}
-					on:click={selectRadialLayout}
+					class="dep-map-segment-btn"
+					class:dep-map-segment-btn-active={radialLayout}
+					onclick={selectRadialLayout}
 					aria-pressed={radialLayout}
 				>
 					Radial
 				</button>
 				<button
 					type="button"
-					class="dep-map-btn"
-					class:dep-map-btn-active={!radialLayout}
-					on:click={selectForceLayout}
+					class="dep-map-segment-btn"
+					class:dep-map-segment-btn-active={!radialLayout}
+					onclick={selectForceLayout}
 					aria-pressed={!radialLayout}
 				>
 					Force
 				</button>
-				<button type="button" class="dep-map-btn" on:click={fitGraph}>Fit</button>
-				<button type="button" class="dep-map-btn" on:click={showFullGraph}>Full</button>
-				<button type="button" class="dep-map-btn dep-map-btn-ghost" on:click={clearAll}>Reset</button>
-			</div>
-
-			<div class="dep-map-btn-group" role="group" aria-label="Dependency chain depth">
-				<button
-					type="button"
-					class="dep-map-btn"
-					class:dep-map-btn-active={chainMode === 'full'}
-					on:click={() => setChainMode('full')}
-					aria-pressed={chainMode === 'full'}
-				>
-					Full chain
+				<span class="dep-map-segment-divider" aria-hidden="true"></span>
+				<button type="button" class="dep-map-segment-btn" onclick={fitGraph} title="Fit all visible nodes and labels in view">
+					Fit
 				</button>
 				<button
 					type="button"
-					class="dep-map-btn"
-					class:dep-map-btn-active={chainMode === 'direct'}
-					on:click={() => setChainMode('direct')}
-					aria-pressed={chainMode === 'direct'}
+					class="dep-map-segment-btn"
+					onclick={resetZoom}
+					title="Reset zoom to 100%"
 				>
-					Direct only
+					1:1
+				</button>
+				{#if showLabelToggle}
+					<span class="dep-map-segment-divider" aria-hidden="true"></span>
+					<button
+						type="button"
+						class="dep-map-segment-btn"
+						class:dep-map-segment-btn-active={showAllLabels}
+						onclick={toggleShowAllLabels}
+						aria-pressed={showAllLabels}
+						title="Show labels on all nodes (direct neighbors always visible)"
+					>
+						Labels
+					</button>
+				{/if}
+				<button type="button" class="dep-map-segment-btn dep-map-segment-btn-ghost" onclick={clearAll}>
+					Reset
 				</button>
 			</div>
 
@@ -389,7 +544,8 @@
 				type="button"
 				class="dep-map-btn dep-map-inspector-toggle"
 				class:dep-map-btn-active={inspectorOpen}
-				on:click={() => toggleInspector()}
+				class:dep-map-btn-hidden={viewMode !== 'graph'}
+				onclick={() => toggleInspector()}
 				aria-pressed={inspectorOpen}
 				aria-label={inspectorOpen ? 'Hide inspector panel' : 'Show inspector panel'}
 				title={inspectorOpen ? 'Hide inspector' : 'Show inspector'}
@@ -412,6 +568,47 @@
 		</div>
 	</div>
 
+	{#if breadcrumbTrail.length > 1}
+		<nav class="dep-map-breadcrumb" aria-label="Focus navigation">
+			{#each breadcrumbTrail as crumb, i}
+				{#if i > 0}
+					<span class="dep-map-breadcrumb-sep" aria-hidden="true">›</span>
+				{/if}
+				{#if i < breadcrumbTrail.length - 1}
+					<button
+						type="button"
+						class="dep-map-breadcrumb-link"
+						onclick={() => onBreadcrumbNavigate?.(crumb.id)}
+					>
+						{crumb.label}
+					</button>
+				{:else}
+					<span class="dep-map-breadcrumb-current" aria-current="page">{crumb.label}</span>
+				{/if}
+			{/each}
+		</nav>
+	{/if}
+
+	{#if focusNodeId}
+		<div class="dep-map-overview-shell" class:dep-map-view-hidden={viewMode !== 'overview'}>
+			<DependencyMapOverview
+				graph={{ ...overviewGraph, links: overviewLinks }}
+				focusNodeId={focusNodeId}
+				{chainMode}
+				{depSearch}
+				{showDependsOn}
+				{showRequiredBy}
+				onSelect={handleDepClick}
+				{onViewCrd}
+			/>
+		</div>
+	{/if}
+
+	<div
+		class="dep-map-graph-view"
+		class:dep-map-view-hidden={viewMode === 'overview'}
+		class:dep-map-graph-view--active={viewMode === 'graph'}
+	>
 	<div class="dep-map-legend-strip" aria-label="Graph legend">
 		<div class="dep-map-legend-group">
 			<span class="dep-map-legend-label">Nodes</span>
@@ -423,8 +620,18 @@
 			</span>
 		</div>
 		<span class="dep-map-legend-divider" aria-hidden="true"></span>
+		<div class="dep-map-legend-group dep-map-legend-group-direction">
+			<span class="dep-map-legend-label">Direction</span>
+			<span class="dep-map-legend-item">
+				<span class="dep-map-dir-swatch dep-map-dir-swatch-out"></span> Depends on
+			</span>
+			<span class="dep-map-legend-item">
+				<span class="dep-map-dir-swatch dep-map-dir-swatch-in"></span> Required by
+			</span>
+		</div>
+		<span class="dep-map-legend-divider" aria-hidden="true"></span>
 		<div class="dep-map-legend-group dep-map-legend-group-edges">
-			<span class="dep-map-legend-label">Edges</span>
+			<span class="dep-map-legend-label">Relations</span>
 			{#each LEGEND_REL_ORDER as rel}
 				<span class="dep-map-legend-item">
 					<span class="dep-map-rel-swatch" style:background={palette.rel[rel]}></span>
@@ -436,55 +643,42 @@
 
 	<div class="dep-map-body" class:dep-map-body--panel-hidden={!inspectorOpen}>
 		<div class="dep-map-canvas-wrap" bind:this={containerEl}>
-			{#if !graphReady}
-				<div class="dep-map-canvas-loading" aria-live="polite" aria-busy="true">
-					<svg class="dep-map-canvas-spinner" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-						<path
-							class="opacity-75"
-							fill="currentColor"
-							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-						/>
-					</svg>
-					<span class="dep-map-canvas-loading-text">Rendering graph…</span>
+			{#if filteredNodes.length === 0}
+				<div class="dep-map-canvas-empty" aria-live="polite">
+					<p class="dep-map-canvas-empty-title">No nodes to display</p>
+					<p class="dep-map-canvas-empty-hint">
+						Adjust filters or search to show matching CRDs in the graph.
+					</p>
 				</div>
 			{/if}
 
-			<svg class="dep-map-svg" bind:this={svgEl} role="img" aria-label="CRD dependency graph"></svg>
+			<svg
+				class="dep-map-svg"
+				bind:this={svgEl}
+				role="img"
+				aria-label="CRD dependency graph"
+				aria-hidden={filteredNodes.length === 0}
+			></svg>
 			<div class="dep-map-tooltip" bind:this={tooltipEl} aria-hidden="true"></div>
 
-			{#if !inspectorOpen}
-				<button
-					type="button"
-					class="dep-map-inspector-reopen"
-					on:click={() => toggleInspector(true)}
-					aria-label="Show inspector panel"
-					title="Show inspector"
-				>
-					<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-						/>
-					</svg>
-					<span>Show inspector</span>
-				</button>
-			{/if}
-
 			<div class="dep-map-zoom-controls" role="toolbar" aria-label="Graph zoom controls">
-				<button type="button" class="dep-map-zoom-btn" on:click={zoomIn} aria-label="Zoom in">
+				<button type="button" class="dep-map-zoom-btn" onclick={zoomIn} aria-label="Zoom in">
 					<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12M6 12h12" />
 					</svg>
 				</button>
-				<button type="button" class="dep-map-zoom-btn" on:click={zoomOut} aria-label="Zoom out">
+				<button type="button" class="dep-map-zoom-btn" onclick={zoomOut} aria-label="Zoom out">
 					<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 12h12" />
 					</svg>
 				</button>
-				<button type="button" class="dep-map-zoom-btn" on:click={fitGraph} aria-label="Fit graph to view">
+				<button
+					type="button"
+					class="dep-map-zoom-btn"
+					onclick={fitGraph}
+					aria-label="Fit graph to view"
+					title="Fit all visible nodes and labels in view"
+				>
 					<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path
 							stroke-linecap="round"
@@ -508,7 +702,7 @@
 					<button
 						type="button"
 						class="dep-map-panel-close"
-						on:click={() => selectNode(null)}
+						onclick={() => selectNode(null)}
 						aria-label="Clear selection"
 					>
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -548,14 +742,14 @@
 								<button
 									type="button"
 									class="dep-map-rel-group-toggle"
-									aria-expanded={!isRelGroupCollapsed('required', rel)}
-									on:click={() => toggleRelGroup('required', rel)}
+									aria-expanded={isRelGroupExpanded('required', rel)}
+									onclick={() => toggleRelGroup('required', rel)}
 								>
 									<span class="dep-map-rel-pill" style:--rel-color={relColor(rel)}>{relLabel(rel)}</span>
 									<span class="dep-map-rel-group-count">{deps.length}</span>
 									<svg
 										class="dep-map-rel-chevron"
-										class:dep-map-rel-chevron-open={!isRelGroupCollapsed('required', rel)}
+										class:dep-map-rel-chevron-open={isRelGroupExpanded('required', rel)}
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -564,7 +758,7 @@
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 									</svg>
 								</button>
-								{#if !isRelGroupCollapsed('required', rel)}
+								{#if isRelGroupExpanded('required', rel)}
 									<ul class="dep-map-dep-cards" role="list">
 										{#each deps as dep (depKey(dep))}
 											{@const key = depKey(dep)}
@@ -575,8 +769,8 @@
 													class="dep-map-dep-card"
 													role="button"
 													tabindex="0"
-													on:click={() => handleDepClick(dep.id)}
-													on:keydown={(e) => e.key === 'Enter' && handleDepClick(dep.id)}
+													onclick={() => handleDepClick(dep.id)}
+													onkeydown={(e) => e.key === 'Enter' && handleDepClick(dep.id)}
 												>
 													<div class="dep-map-dep-card-head">
 														<span class="dep-map-dep-name">{nodeLabel(dep.id)}</span>
@@ -592,7 +786,10 @@
 															<button
 																type="button"
 																class="dep-map-reason-toggle"
-																on:click|stopPropagation={() => toggleReason(key)}
+																onclick={(e) => {
+																	e.stopPropagation();
+																	toggleReason(key);
+																}}
 															>
 																{isReasonExpanded(key) ? 'Show less' : 'Show more'}
 															</button>
@@ -609,14 +806,14 @@
 							</div>
 						{/each}
 
-						{#if chainMode === 'full' && transitiveRequiredBy.length > 0}
+						{#if chainMode === 'extended' && transitiveRequiredBy.length > 0}
 							<details class="dep-map-transitive-block">
 								<summary>Transitive required-by ({transitiveRequiredBy.length})</summary>
 								{#each transitiveRequiredByGrouped as [rel, deps] (rel)}
 									<ul class="dep-map-dep-cards dep-map-dep-cards-compact" role="list">
 										{#each deps as dep (depKey(dep))}
 											<li>
-												<button type="button" class="dep-map-dep-card dep-map-dep-card-compact" on:click={() => handleDepClick(dep.id)}>
+												<button type="button" class="dep-map-dep-card dep-map-dep-card-compact" onclick={() => handleDepClick(dep.id)}>
 													<span class="dep-map-dep-depth">L{dep.depth}</span>
 													<span class="dep-map-dep-name">{nodeLabel(dep.id)}</span>
 												</button>
@@ -650,14 +847,14 @@
 								<button
 									type="button"
 									class="dep-map-rel-group-toggle"
-									aria-expanded={!isRelGroupCollapsed('depends', rel)}
-									on:click={() => toggleRelGroup('depends', rel)}
+									aria-expanded={isRelGroupExpanded('depends', rel)}
+									onclick={() => toggleRelGroup('depends', rel)}
 								>
 									<span class="dep-map-rel-pill" style:--rel-color={relColor(rel)}>{relLabel(rel)}</span>
 									<span class="dep-map-rel-group-count">{deps.length}</span>
 									<svg
 										class="dep-map-rel-chevron"
-										class:dep-map-rel-chevron-open={!isRelGroupCollapsed('depends', rel)}
+										class:dep-map-rel-chevron-open={isRelGroupExpanded('depends', rel)}
 										fill="none"
 										stroke="currentColor"
 										viewBox="0 0 24 24"
@@ -666,7 +863,7 @@
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 									</svg>
 								</button>
-								{#if !isRelGroupCollapsed('depends', rel)}
+								{#if isRelGroupExpanded('depends', rel)}
 									<ul class="dep-map-dep-cards" role="list">
 										{#each deps as dep (depKey(dep))}
 											{@const key = depKey(dep)}
@@ -677,8 +874,8 @@
 													class="dep-map-dep-card"
 													role="button"
 													tabindex="0"
-													on:click={() => handleDepClick(dep.id)}
-													on:keydown={(e) => e.key === 'Enter' && handleDepClick(dep.id)}
+													onclick={() => handleDepClick(dep.id)}
+													onkeydown={(e) => e.key === 'Enter' && handleDepClick(dep.id)}
 												>
 													<div class="dep-map-dep-card-head">
 														<span class="dep-map-dep-name">{nodeLabel(dep.id)}</span>
@@ -694,7 +891,10 @@
 															<button
 																type="button"
 																class="dep-map-reason-toggle"
-																on:click|stopPropagation={() => toggleReason(key)}
+																onclick={(e) => {
+																	e.stopPropagation();
+																	toggleReason(key);
+																}}
 															>
 																{isReasonExpanded(key) ? 'Show less' : 'Show more'}
 															</button>
@@ -711,14 +911,14 @@
 							</div>
 						{/each}
 
-						{#if chainMode === 'full' && transitiveDependsOn.length > 0}
+						{#if chainMode === 'extended' && transitiveDependsOn.length > 0}
 							<details class="dep-map-transitive-block">
 								<summary>Transitive depends-on ({transitiveDependsOn.length})</summary>
 								{#each transitiveDependsOnGrouped as [rel, deps] (rel)}
 									<ul class="dep-map-dep-cards dep-map-dep-cards-compact" role="list">
 										{#each deps as dep (depKey(dep))}
 											<li>
-												<button type="button" class="dep-map-dep-card dep-map-dep-card-compact" on:click={() => handleDepClick(dep.id)}>
+												<button type="button" class="dep-map-dep-card dep-map-dep-card-compact" onclick={() => handleDepClick(dep.id)}>
 													<span class="dep-map-dep-depth">L{dep.depth}</span>
 													<span class="dep-map-dep-name">{nodeLabel(dep.id)}</span>
 												</button>
@@ -732,7 +932,7 @@
 				</section>
 
 				{#if onViewCrd}
-					<button type="button" class="dep-map-view-crd" on:click={() => onViewCrd?.(selectedNode)}>
+					<button type="button" class="dep-map-view-crd" onclick={() => onViewCrd?.(selectedNode)}>
 						View CRD schema
 					</button>
 				{/if}
@@ -745,10 +945,104 @@
 			</aside>
 		{/if}
 	</div>
+	</div>
 
 </div>
 
 <style>
+	.dep-map-view-hidden {
+		display: none !important;
+	}
+
+	.dep-map-breadcrumb {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.35rem;
+		padding: 0.35rem 0.75rem;
+		border: 1px solid var(--dep-panel-border);
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--dep-panel) 90%, var(--dep-bg));
+		font-size: 0.75rem;
+	}
+
+	.dep-map-breadcrumb-link {
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--dep-chip-active);
+		font-size: inherit;
+		font-weight: 600;
+		cursor: pointer;
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
+	.dep-map-breadcrumb-link:hover {
+		opacity: 0.85;
+	}
+
+	.dep-map-breadcrumb-current {
+		font-weight: 700;
+		color: var(--dep-text);
+	}
+
+	.dep-map-breadcrumb-sep {
+		color: var(--dep-text-muted);
+		opacity: 0.7;
+	}
+
+	.dep-map-view-tabs {
+		display: flex;
+		gap: 0.2rem;
+		padding: 0.2rem;
+		border: 1px solid var(--dep-panel-border);
+		border-radius: 0.5rem;
+		background: var(--dep-bg);
+		flex-shrink: 0;
+	}
+
+	.dep-map-view-tab {
+		padding: 0.35rem 0.75rem;
+		border: none;
+		border-radius: 0.375rem;
+		background: transparent;
+		color: var(--dep-text-muted);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.dep-map-view-tab-active {
+		background: var(--dep-chip-active);
+		color: #fff;
+	}
+
+	.dep-map-overview-shell {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		padding: 0.15rem 0.25rem 0.5rem;
+	}
+
+	.dep-map-graph-view {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+		gap: 0.5rem;
+	}
+
+	.dep-map-graph-view--active {
+		min-height: min(480px, 56vh);
+	}
+
+	:global(.dep-map-btn-group-hidden),
+	.dep-map-btn-hidden {
+		display: none;
+	}
+
 	.dep-map-root {
 		display: flex;
 		flex-direction: column;
@@ -836,6 +1130,67 @@
 		color: #fff;
 	}
 
+	.dep-map-direction-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+		margin-left: auto;
+	}
+
+	.dep-map-chip-direction-out.dep-map-chip-active {
+		background: #4f46e5;
+		border-color: #4f46e5;
+	}
+
+	.dep-map-chip-direction-in.dep-map-chip-active {
+		background: #059669;
+		border-color: #059669;
+	}
+
+	.dep-map-layout-segment {
+		display: inline-flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.15rem;
+		padding: 0.15rem;
+		border: 1px solid var(--dep-panel-border);
+		border-radius: 0.5rem;
+		background: var(--dep-bg);
+	}
+
+	.dep-map-segment-btn {
+		padding: 0.32rem 0.65rem;
+		border: none;
+		border-radius: 0.375rem;
+		background: transparent;
+		color: var(--dep-text-muted);
+		font-size: 0.72rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.15s, color 0.15s;
+	}
+
+	.dep-map-segment-btn:hover {
+		color: var(--dep-text);
+		background: color-mix(in srgb, var(--dep-chip-active) 8%, transparent);
+	}
+
+	.dep-map-segment-btn-active {
+		background: var(--dep-chip-active);
+		color: #fff;
+	}
+
+	.dep-map-segment-btn-ghost {
+		opacity: 0.85;
+	}
+
+	.dep-map-segment-divider {
+		width: 1px;
+		height: 1.1rem;
+		margin: 0 0.15rem;
+		background: var(--dep-panel-border);
+	}
+
 	.dep-map-group-select-wrap {
 		flex: 0 1 auto;
 	}
@@ -895,42 +1250,6 @@
 		margin-left: auto;
 	}
 
-	.dep-map-inspector-reopen {
-		position: absolute;
-		top: 50%;
-		right: 0;
-		z-index: 20;
-		pointer-events: auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.5rem 0.55rem 0.5rem 0.65rem;
-		border: 1px solid var(--dep-panel-border);
-		border-right: none;
-		border-radius: 0.5rem 0 0 0.5rem;
-		background: color-mix(in srgb, var(--dep-panel) 94%, transparent);
-		color: var(--dep-text-muted);
-		font-size: 0.7rem;
-		font-weight: 600;
-		cursor: pointer;
-		box-shadow: -2px 0 10px rgba(15, 23, 42, 0.08);
-		backdrop-filter: blur(6px);
-		transform: translateY(-50%);
-		transition: border-color 0.15s, color 0.15s, background 0.15s;
-	}
-
-	.dep-map-inspector-reopen svg {
-		width: 0.95rem;
-		height: 0.95rem;
-		flex-shrink: 0;
-	}
-
-	.dep-map-inspector-reopen:hover {
-		border-color: var(--dep-chip-active);
-		color: var(--dep-chip-active);
-		background: color-mix(in srgb, var(--dep-chip-active) 8%, var(--dep-panel));
-	}
-
 	.dep-map-inspector-icon {
 		width: 0.95rem;
 		height: 0.95rem;
@@ -957,14 +1276,15 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.4rem 0.75rem;
-		padding: 0.45rem 0.75rem;
+		gap: 0.5rem 0.85rem;
+		padding: 0.55rem 0.85rem;
 		border: 1px solid var(--dep-panel-border);
-		border-radius: 0.5rem;
-		background: var(--dep-panel);
-		font-size: 0.75rem;
+		border-radius: 0.65rem;
+		background: color-mix(in srgb, var(--dep-panel) 92%, var(--dep-bg));
+		font-size: 0.72rem;
 		color: var(--dep-text-muted);
 		flex-shrink: 0;
+		letter-spacing: 0.01em;
 	}
 
 	.dep-map-legend-group {
@@ -1030,8 +1350,9 @@
 		min-height: min(48vh, 28rem);
 		width: 100%;
 		border: 1px solid var(--dep-panel-border);
-		border-radius: 0.75rem;
+		border-radius: 0.85rem;
 		background: var(--dep-bg);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 		overflow: auto;
 		isolation: isolate;
 	}
@@ -1070,7 +1391,14 @@
 		}
 	}
 
-	.dep-map-canvas-loading {
+	.dep-map-svg,
+	:global(svg.dep-map-svg-inner) {
+		display: block;
+		position: relative;
+		z-index: 1;
+	}
+
+	.dep-map-canvas-empty {
 		position: absolute;
 		inset: 0;
 		z-index: 3;
@@ -1078,35 +1406,24 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 0.65rem;
-		background: color-mix(in srgb, var(--dep-bg) 88%, transparent);
-		backdrop-filter: blur(2px);
+		gap: 0.35rem;
+		padding: 1.5rem;
+		text-align: center;
 		color: var(--dep-text-muted);
 	}
 
-	.dep-map-canvas-spinner {
-		width: 1.75rem;
-		height: 1.75rem;
-		color: var(--dep-chip-active);
-		animation: dep-map-spin 0.85s linear infinite;
+	.dep-map-canvas-empty-title {
+		margin: 0;
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: var(--dep-text);
 	}
 
-	.dep-map-canvas-loading-text {
+	.dep-map-canvas-empty-hint {
+		margin: 0;
+		max-width: 18rem;
 		font-size: 0.75rem;
-		font-weight: 600;
-	}
-
-	@keyframes dep-map-spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.dep-map-svg,
-	:global(svg.dep-map-svg-inner) {
-		display: block;
-		position: relative;
-		z-index: 1;
+		line-height: 1.45;
 	}
 
 	:global(.dep-map-svg .dep-node--hover) {
@@ -1417,6 +1734,7 @@
 		border: 1px solid var(--dep-panel-border);
 		border-radius: 0.5rem;
 		background: var(--dep-bg);
+		color: var(--dep-text);
 		text-align: left;
 		cursor: pointer;
 		transition: border-color 0.15s, box-shadow 0.15s;
@@ -1544,5 +1862,37 @@
 		height: 0.22rem;
 		border-radius: 9999px;
 		flex-shrink: 0;
+	}
+
+	.dep-map-dir-swatch {
+		display: inline-block;
+		width: 1.1rem;
+		height: 0.24rem;
+		border-radius: 9999px;
+		flex-shrink: 0;
+	}
+
+	.dep-map-dir-swatch-out {
+		background: #4f46e5;
+	}
+
+	.dep-map-dir-swatch-in {
+		background: #059669;
+	}
+
+	:global(.dep-map-svg .dep-node-hit) {
+		cursor: pointer;
+	}
+
+	:global(.dep-map-svg .dep-node-label-group) {
+		pointer-events: none;
+	}
+
+	:global(.dep-map-svg .dep-node-label) {
+		paint-order: stroke fill;
+	}
+
+	:global(.dep-map-svg .dep-node-label-bg) {
+		pointer-events: none;
 	}
 </style>

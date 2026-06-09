@@ -9,13 +9,8 @@
  *   npm run embed:rebuild-manifest -- --index eda-crd-corpus-v1
  *   npm run embed:rebuild-manifest -- --index eda-docs-v1
  */
-import { listAllVectorIds } from './lib/vectorizeEmbed';
-import {
-	DEFAULT_MANIFEST_PATH,
-	loadVectorizeManifest,
-	saveVectorizeManifest,
-	setManifestIds
-} from './lib/vectorizeManifest';
+import { syncManifestWithIndex } from './lib/vectorizeEmbed';
+import { DEFAULT_MANIFEST_PATH, loadVectorizeManifest } from './lib/vectorizeManifest';
 
 const DEFAULT_INDEXES = ['eda-crd-corpus-v1', 'eda-docs-v1'] as const;
 
@@ -33,13 +28,10 @@ async function main(): Promise<void> {
 	const manifest = await loadVectorizeManifest();
 
 	for (const indexName of indexes) {
-		console.log(`Listing vectors in ${indexName}...`);
-		const ids = await listAllVectorIds(indexName);
-		setManifestIds(manifest, indexName, ids);
-		console.log(`  Recorded ${ids.length} vector ID(s)`);
+		const { remoteCount } = await syncManifestWithIndex(indexName, manifest);
+		console.log(`  Recorded ${remoteCount} vector ID(s)`);
 	}
 
-	await saveVectorizeManifest(manifest);
 	console.log(`\nWrote ${DEFAULT_MANIFEST_PATH}`);
 }
 

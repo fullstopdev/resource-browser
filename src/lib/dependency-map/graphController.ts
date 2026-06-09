@@ -15,6 +15,7 @@ import {
 } from 'd3';
 import { escapeHtml } from '$lib/comparison/highlight';
 import { getGraphPalette, nodeFill, nodeFillLight, REL_LABELS } from './graphColors';
+import { getDirectNeighborIds, linkConfidenceTier } from './graphFilters';
 import type { GraphLink, GraphNode, LinkRelation } from './types';
 import { getHighlightSets, type ChainMode } from './transitiveClosure';
 
@@ -29,17 +30,22 @@ type SimLink = Omit<GraphLink, 'source' | 'target'> &
 		target: SimNode | string;
 	};
 
-const FOCUS_RADIUS = 26;
-const NODE_RADIUS = 18;
-const STATE_RADIUS = 15;
-const RING_GAP = 140;
-const INNER_RING = 120;
-const NODE_SEPARATION = 56;
+const FOCUS_RADIUS = 30;
+const NODE_RADIUS = 16;
+const STATE_RADIUS = 13;
+const RING_GAP = 168;
+const INNER_RING = 148;
+const NODE_SEPARATION = 72;
 const LABEL_MAX_CHARS = 18;
-const CANVAS_MIN_HEIGHT = 360;
-const FIT_PADDING_X = 80;
-const FIT_PADDING_TOP = 96;
-const FIT_PADDING_BOTTOM = 80;
+const DENSE_LABEL_THRESHOLD = 10;
+const CANVAS_MIN_HEIGHT = 400;
+/** Viewport padding when fitting zoom/pan to visible graph content. */
+const FIT_PADDING = 40;
+const CONTENT_PADDING_X = 110;
+const CONTENT_PADDING_TOP = 120;
+const CONTENT_PADDING_BOTTOM = 100;
+/** Gap from node bottom edge to label pill top (local coords). */
+const LABEL_OFFSET = 12;
 
 export type GraphControllerOptions = {
 	container: HTMLDivElement;
@@ -50,9 +56,12 @@ export type GraphControllerOptions = {
 	radialLayout: boolean;
 	theme: 'light' | 'dark';
 	onSelect: (id: string | null) => void;
+	onRefocus?: (id: string) => void;
 	getSelectedId: () => string | null;
 	getChainMode: () => ChainMode;
 	getCenterNodeId?: () => string | null;
+	getShowAllLabels?: () => boolean;
+	onLayoutReady?: () => void;
 };
 
 export type GraphController = {
@@ -60,7 +69,7 @@ export type GraphController = {
 	updateTheme: (theme: 'light' | 'dark') => void;
 	updateHighlight: () => void;
 	focusNode: (id: string) => void;
-	fitToScreen: () => void;
+	fitToScreen: (animate?: boolean) => void;
 	showFullExtent: () => void;
 	reflowLayout: () => void;
 	zoomIn: () => void;
@@ -72,6 +81,34 @@ export type GraphController = {
 function truncateLabel(text: string, max = LABEL_MAX_CHARS): string {
 	if (text.length <= max) return text;
 	return `${text.slice(0, max - 1).trim()}…`;
+}
+
+function linkTooltipHtml(link: SimLink): string {
+	const relLabel = REL_LABELS[link.rel] ?? link.rel;
+	const paths =
+		link.fieldPaths && link.fieldPaths.length > 0
+			? link.fieldPaths
+			: link.field
+				? [link.field]
+				: [];
+	const refCount = link.refCount ?? (paths.length > 1 ? paths.length : 0);
+
+	let html = `<strong>${escapeHtml(relLabel)}</strong>`;
+	if (refCount > 1) {
+		html += `<br/><span style="opacity:0.8">${refCount} references</span>`;
+	}
+	if (link.relations && link.relations.length > 1) {
+		const relNames = link.relations.map((rel) => REL_LABELS[rel] ?? rel).join(', ');
+		html += `<br/><span style="opacity:0.75">${escapeHtml(relNames)}</span>`;
+	}
+	if (paths.length > 0) {
+		const shown = paths.slice(0, 6);
+		html += `<br/><span style="opacity:0.7;font-size:0.9em">${shown.map((path) => escapeHtml(path)).join('<br/>')}</span>`;
+		if (paths.length > shown.length) {
+			html += `<br/><span style="opacity:0.65;font-size:0.85em">+${paths.length - shown.length} more</span>`;
+		}
+	}
+	return html;
 }
 
 function endpointId(endpoint: SimNode | string): string {
@@ -107,6 +144,20 @@ function bfsDepth(startId: string, adjacency: Map<string, string[]>): Map<string
 	return depths;
 }
 
+function separationForCount(count: number): number {
+	if (count > 48) return 108;
+	if (count > 36) return 96;
+	if (count > 24) return 86;
+	if (count > 16) return 78;
+	return NODE_SEPARATION;
+}
+
+function ringGapForCount(nodeCount: number): number {
+	if (nodeCount > 40) return RING_GAP + 36;
+	if (nodeCount > 24) return RING_GAP + 20;
+	return RING_GAP;
+}
+
 function placeArc(
 	ids: string[],
 	cx: number,
@@ -117,8 +168,9 @@ function placeArc(
 	positions: Map<string, { x: number; y: number }>
 ) {
 	if (ids.length === 0) return;
-	const safeRadius = Math.max(radius, 48);
-	const minAngle = 2 * Math.asin(Math.min(1, NODE_SEPARATION / (2 * safeRadius)));
+	const separation = separationForCount(ids.length);
+	const safeRadius = Math.max(radius, separation * 1.1);
+	const minAngle = 2 * Math.asin(Math.min(1, separation / (2 * safeRadius)));
 	const neededSpan = minAngle * Math.max(ids.length - 1, 1);
 	let arcStart = startAngle;
 	let arcEnd = endAngle;
@@ -178,9 +230,9 @@ function computeRadialPositions(
 	}
 
 	positions.set(centerId, { x: cx, y: cy });
-	const { incoming, outgoing } = buildAdjacency(links);
-	const upDepth = bfsDepth(centerId, incoming);
-	const downDepth = bfsDepth(centerId, outgoing);
+	const neighborCount = nodes.length - 1;
+	const innerRing = Math.max(INNER_RING, 112 + neighborCount * 3.6);
+	assignFocusDepths(nodes, links, centerId);
 
 	const upstreamByRing = new Map<number, string[]>();
 	const downstreamByRing = new Map<number, string[]>();
@@ -189,10 +241,8 @@ function computeRadialPositions(
 
 	for (const node of nodes) {
 		if (node.id === centerId) continue;
-		const ud = upDepth.get(node.id);
-		const dd = downDepth.get(node.id);
-		node.upstreamDepth = ud ?? null;
-		node.downstreamDepth = dd ?? null;
+		const ud = node.upstreamDepth ?? undefined;
+		const dd = node.downstreamDepth ?? undefined;
 
 		if (ud !== undefined && dd !== undefined) {
 			const depth = Math.max(ud, dd);
@@ -206,17 +256,16 @@ function computeRadialPositions(
 		}
 	}
 
-	const innerRing = INNER_RING;
-	const ringGap = RING_GAP;
+	const ringGap = ringGapForCount(nodes.length);
 
 	for (const [depth, ids] of upstreamByRing) {
 		const radius = innerRing + (depth - 1) * ringGap;
-		placeArc(ids, cx, cy, radius, Math.PI * 0.52, Math.PI * 1.48, positions);
+		placeArc(ids, cx, cy, radius, Math.PI * 0.55, Math.PI * 1.45, positions);
 	}
 
 	for (const [depth, ids] of downstreamByRing) {
 		const radius = innerRing + (depth - 1) * ringGap;
-		placeArc(ids, cx, cy, radius, -Math.PI * 0.48, Math.PI * 0.48, positions);
+		placeArc(ids, cx, cy, radius, -Math.PI * 0.45, Math.PI * 0.45, positions);
 	}
 
 	for (const [depth, ids] of bridgeByRing) {
@@ -241,6 +290,118 @@ function nodeRadius(d: SimNode, centerId: string | null): number {
 	return d.type === 'state' ? STATE_RADIUS : NODE_RADIUS;
 }
 
+type Point = { x: number; y: number };
+
+function nodeCenter(node: SimNode): Point {
+	return { x: node.x ?? 0, y: node.y ?? 0 };
+}
+
+function computeLinkAttachments(
+	nodes: SimNode[],
+	links: SimLink[],
+	centerId: string | null
+): Map<string, { start: Point; end: Point }> {
+	const nodeById = new Map(nodes.map((n) => [n.id, n]));
+	const byNode = new Map<string, Array<{ linkId: string; peerId: string; isSource: boolean }>>();
+
+	for (const link of links) {
+		const sId = endpointId(link.source);
+		const tId = endpointId(link.target);
+		const sList = byNode.get(sId) ?? [];
+		sList.push({ linkId: link.id, peerId: tId, isSource: true });
+		byNode.set(sId, sList);
+		const tList = byNode.get(tId) ?? [];
+		tList.push({ linkId: link.id, peerId: sId, isSource: false });
+		byNode.set(tId, tList);
+	}
+
+	const attachments = new Map<string, { start: Point; end: Point }>();
+	const portByNodeLink = new Map<string, Point>();
+
+	for (const [nodeId, incidents] of byNode) {
+		const node = nodeById.get(nodeId);
+		if (!node) continue;
+		const { x: cx, y: cy } = nodeCenter(node);
+		const r = nodeRadius(node, centerId) + 4;
+		const withAngles = incidents
+			.map((inc) => {
+				const peer = nodeById.get(inc.peerId);
+				const px = peer?.x ?? cx;
+				const py = peer?.y ?? cy;
+				return { ...inc, angle: Math.atan2(py - cy, px - cx) };
+			})
+			.sort((a, b) => a.angle - b.angle);
+
+		const spread = Math.min(Math.PI / 2.4, Math.max(0.16, withAngles.length * 0.13));
+		withAngles.forEach((inc, i) => {
+			const t = withAngles.length === 1 ? 0.5 : i / (withAngles.length - 1);
+			const offset = (t - 0.5) * spread;
+			const angle = inc.angle + offset;
+			portByNodeLink.set(
+				`${nodeId}|${inc.linkId}`,
+				{ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
+			);
+		});
+	}
+
+	for (const link of links) {
+		const sId = endpointId(link.source);
+		const tId = endpointId(link.target);
+		const start = portByNodeLink.get(`${sId}|${link.id}`);
+		const end = portByNodeLink.get(`${tId}|${link.id}`);
+		if (start && end) attachments.set(link.id, { start, end });
+	}
+
+	return attachments;
+}
+
+function linkPathBetween(start: Point, end: Point): string {
+	return `M${start.x},${start.y} L${end.x},${end.y}`;
+}
+
+/** Label anchor in node-local coordinates (node group is translated to node.x/y). */
+function labelPlacement(
+	node: SimNode,
+	centerId: string | null
+): { labelX: number; labelY: number } {
+	const r = nodeRadius(node, centerId);
+	return { labelX: 0, labelY: r + LABEL_OFFSET };
+}
+
+function minHopDepthFromFocus(d: SimNode, centerId: string | null): number {
+	if (!centerId || d.id === centerId) return 0;
+	const hops: number[] = [];
+	if (d.upstreamDepth != null) hops.push(d.upstreamDepth);
+	if (d.downstreamDepth != null) hops.push(d.downstreamDepth);
+	return hops.length > 0 ? Math.min(...hops) : Number.POSITIVE_INFINITY;
+}
+
+function isDirectNeighborOfFocus(d: SimNode, centerId: string | null): boolean {
+	return minHopDepthFromFocus(d, centerId) === 1;
+}
+
+function assignFocusDepths(nodes: SimNode[], links: SimLink[], centerId: string | null) {
+	if (!centerId) {
+		for (const node of nodes) {
+			node.upstreamDepth = null;
+			node.downstreamDepth = null;
+		}
+		return;
+	}
+	const { incoming, outgoing } = buildAdjacency(links);
+	const upDepth = bfsDepth(centerId, incoming);
+	const downDepth = bfsDepth(centerId, outgoing);
+	for (const node of nodes) {
+		if (node.id === centerId) {
+			node.upstreamDepth = null;
+			node.downstreamDepth = null;
+			continue;
+		}
+		node.upstreamDepth = upDepth.get(node.id) ?? null;
+		node.downstreamDepth = downDepth.get(node.id) ?? null;
+	}
+}
+
 function countRels(nodeId: string, links: SimLink[]) {
 	let inCount = 0;
 	let outCount = 0;
@@ -259,6 +420,7 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		svg,
 		tooltip,
 		onSelect,
+		onRefocus,
 		getSelectedId,
 		getChainMode,
 		getFilteredNodes,
@@ -286,28 +448,126 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 	let hoveredLinkId: string | null = null;
 	let hoveredNodeId: string | null = null;
 	let resizeObserver: ResizeObserver | null = null;
+	let denseLabels = false;
+	let directNeighborIds = new Set<string>();
+	let linkAttachments = new Map<string, { start: Point; end: Point }>();
+	let layoutGeneration = 0;
+
+	function notifyLayoutReady(expectedGeneration?: number) {
+		if (expectedGeneration !== undefined && expectedGeneration !== layoutGeneration) return;
+		options.onLayoutReady?.();
+	}
 
 	function relColor(rel: LinkRelation): string {
 		return palette.rel[rel] ?? palette.link;
 	}
 
+	function linkDirectionColor(d: SimLink, centerId: string | null): string {
+		if (!centerId) return relColor(d.rel);
+		const s = endpointId(d.source);
+		const t = endpointId(d.target);
+		if (s === centerId) return palette.linkOut;
+		if (t === centerId) return palette.linkIn;
+		return relColor(d.rel);
+	}
+
+	function isFocusIncidentEdge(d: SimLink, centerId: string | null): boolean {
+		if (!centerId) return false;
+		const s = endpointId(d.source);
+		const t = endpointId(d.target);
+		return s === centerId || t === centerId;
+	}
+
+	function linkStrokeOpacity(d: SimLink, centerId: string | null, highlight: ReturnType<typeof getHighlightSets> | null): number {
+		if (hoveredLinkId === d.id) return 1;
+		const focusEdge = isFocusIncidentEdge(d, centerId);
+		if (focusEdge) return 0.92;
+		if (getChainMode() === 'extended' && linkConfidenceTier(d) === 3) return 0.08;
+		if (!highlight) return 0.5;
+		const s = endpointId(d.source);
+		const t = endpointId(d.target);
+		return highlight.isHighlightedEdge(s, t) ? 0.82 : 0.1;
+	}
+
+	function linkStrokeWidth(d: SimLink, highlight: ReturnType<typeof getHighlightSets> | null, centerId: string | null): number {
+		if (hoveredLinkId === d.id) return 2.5;
+		if (isFocusIncidentEdge(d, centerId)) return 2.15;
+		if (!highlight) return 1.3;
+		const s = endpointId(d.source);
+		const t = endpointId(d.target);
+		return highlight.isHighlightedEdge(s, t) ? 1.9 : 0.75;
+	}
+
+	function labelOpacity(d: SimNode, centerId: string | null, selectedId: string | null): number {
+		if (getChainMode() === 'direct') return 1;
+		if (options.getShowAllLabels?.()) return 1;
+		if (hoveredNodeId === d.id) return 1;
+		if (selectedId === d.id) return 1;
+		if (!denseLabels) return 1;
+		if (centerId && d.id === centerId) return 1;
+		if (centerId && (directNeighborIds.has(d.id) || isDirectNeighborOfFocus(d, centerId))) {
+			return 1;
+		}
+		return 0;
+	}
+
+	function expandBounds(
+		minX: number,
+		maxX: number,
+		minY: number,
+		maxY: number,
+		x0: number,
+		y0: number,
+		x1: number,
+		y1: number
+	) {
+		return {
+			minX: Math.min(minX, x0),
+			maxX: Math.max(maxX, x1),
+			minY: Math.min(minY, y0),
+			maxY: Math.max(maxY, y1)
+		};
+	}
+
 	function getNodeBounds() {
 		if (simNodes.length === 0) return null;
 		const centerId = getCenterNodeId?.() ?? null;
-		const labelPad = 42;
+		const selectedId = getSelectedId();
 		let minX = Infinity;
 		let maxX = -Infinity;
 		let minY = Infinity;
 		let maxY = -Infinity;
+
 		for (const n of simNodes) {
 			const x = n.x ?? 0;
 			const y = n.y ?? 0;
-			const r = nodeRadius(n, centerId) + 10;
-			minX = Math.min(minX, x - r);
-			maxX = Math.max(maxX, x + r);
-			minY = Math.min(minY, y - r);
-			maxY = Math.max(maxY, y + r + labelPad);
+			const r = nodeRadius(n, centerId) + 6;
+			({ minX, maxX, minY, maxY } = expandBounds(minX, maxX, minY, maxY, x - r, y - r, x + r, y + r));
+
+			if (nodeSel && labelOpacity(n, centerId, selectedId) > 0) {
+				const labelGroup = nodeSel
+					.filter((d: SimNode) => d.id === n.id)
+					.select('.dep-node-label-group')
+					.node() as SVGGElement | null;
+				if (labelGroup) {
+					const bbox = labelGroup.getBBox();
+					if (bbox.width > 0 && bbox.height > 0) {
+						({ minX, maxX, minY, maxY } = expandBounds(
+							minX,
+							maxX,
+							minY,
+							maxY,
+							x + bbox.x,
+							y + bbox.y,
+							x + bbox.x + bbox.width,
+							y + bbox.y + bbox.height
+						));
+					}
+				}
+			}
 		}
+
+		if (!Number.isFinite(minX)) return null;
 		return { minX, maxX, minY, maxY };
 	}
 
@@ -333,7 +593,10 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		const parent = container.parentElement;
 		const parentWidth =
 			parent?.getBoundingClientRect().width ?? container.getBoundingClientRect().width;
-		viewportWidth = Math.max(parentWidth, 1);
+		const containerWidth = container.getBoundingClientRect().width;
+		const measured = Math.max(parentWidth, containerWidth);
+		const fallback = Math.min(window.innerWidth * 0.92, 1200);
+		viewportWidth = measured > 0 ? measured : Math.max(fallback, CANVAS_MIN_HEIGHT);
 		width = viewportWidth;
 	}
 
@@ -341,12 +604,8 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		const rect = container.getBoundingClientRect();
 		const cssMin = Number.parseFloat(getComputedStyle(container).minHeight) || 0;
 		const fallback = Math.min(window.innerHeight * 0.48, 576);
-		viewportHeight = Math.max(
-			CANVAS_MIN_HEIGHT,
-			rect.height,
-			cssMin,
-			fallback
-		);
+		const measured = rect.height > 0 ? rect.height : 0;
+		viewportHeight = Math.max(CANVAS_MIN_HEIGHT, measured, cssMin, fallback);
 		height = viewportHeight;
 	}
 
@@ -372,8 +631,8 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		if (!bounds) return;
 
 		measureWidth();
-		const contentW = bounds.maxX - bounds.minX + FIT_PADDING_X * 2;
-		const contentH = bounds.maxY - bounds.minY + FIT_PADDING_TOP + FIT_PADDING_BOTTOM;
+		const contentW = bounds.maxX - bounds.minX + CONTENT_PADDING_X * 2;
+		const contentH = bounds.maxY - bounds.minY + CONTENT_PADDING_TOP + CONTENT_PADDING_BOTTOM;
 		const targetW = Math.max(viewportWidth, contentW);
 		const targetH = Math.max(viewportHeight, contentH);
 		centerGraphInCanvas(targetW, targetH);
@@ -392,8 +651,10 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		const centerId = getCenterNodeId?.() ?? null;
 		const positions = computeRadialPositions(simNodes, simLinks, centerId, width, height);
 		applyPositions(positions, simNodes);
+		refreshLinkAttachments();
 		linkSel?.attr('d', linkPath);
 		nodeSel?.attr('transform', (d: SimNode) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+		updateLabelPositions();
 	}
 
 	function finalizeLayoutSize() {
@@ -425,28 +686,38 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		}
 	}
 
-	function linkPath(d: SimLink): string {
+	function refreshLinkAttachments() {
 		const centerId = getCenterNodeId?.() ?? null;
-		const source = d.source as SimNode;
-		const target = d.target as SimNode;
-		const sx = source.x ?? 0;
-		const sy = source.y ?? 0;
-		const tx = target.x ?? 0;
-		const ty = target.y ?? 0;
-		const dx = tx - sx;
-		const dy = ty - sy;
-		const dist = Math.hypot(dx, dy) || 1;
-		const trimStart = nodeRadius(source, centerId) + 5;
-		const trimEnd = nodeRadius(target, centerId) + 8;
-		const endX = tx - (dx / dist) * trimEnd;
-		const endY = ty - (dy / dist) * trimEnd;
-		const startX = sx + (dx / dist) * trimStart;
-		const startY = sy + (dy / dist) * trimStart;
-		const curve = Math.min(52, Math.max(14, dist * 0.14));
-		const sign = d.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 2 === 0 ? 1 : -1;
-		const mx = (startX + endX) / 2 + (-dy / dist) * curve * sign;
-		const my = (startY + endY) / 2 + (dx / dist) * curve * sign;
-		return `M${startX},${startY} Q${mx},${my} ${endX},${endY}`;
+		linkAttachments = computeLinkAttachments(simNodes, simLinks, centerId);
+	}
+
+	function linkPath(d: SimLink): string {
+		const att = linkAttachments.get(d.id);
+		if (!att) return '';
+		return linkPathBetween(att.start, att.end);
+	}
+
+	function updateLabelPositions() {
+		if (!nodeSel) return;
+		const centerId = getCenterNodeId?.() ?? null;
+		nodeSel.select('.dep-node-label-group').each(function (this: SVGGElement, d: SimNode) {
+			const g = select(this);
+			const place = labelPlacement(d, centerId);
+			const text = g
+				.select('.dep-node-label')
+				.attr('x', place.labelX)
+				.attr('y', place.labelY)
+				.attr('text-anchor', 'middle')
+				.attr('dominant-baseline', 'hanging');
+			const bbox = (text.node() as SVGTextElement | null)?.getBBox();
+			if (bbox) {
+				g.select('.dep-node-label-bg')
+					.attr('x', bbox.x - 6)
+					.attr('y', bbox.y - 3)
+					.attr('width', bbox.width + 12)
+					.attr('height', bbox.height + 6);
+			}
+		});
 	}
 
 	function updateHighlight() {
@@ -463,26 +734,16 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 
 		linkSel
 			.attr('stroke', (d: SimLink) => {
-				if (hoveredLinkId === d.id) return relColor(d.rel);
-				if (!highlight) return relColor(d.rel);
+				if (hoveredLinkId === d.id) return linkDirectionColor(d, centerId);
+				if (!highlight) return linkDirectionColor(d, centerId);
 				const s = endpointId(d.source);
 				const t = endpointId(d.target);
-				return highlight.isHighlightedEdge(s, t) ? relColor(d.rel) : palette.linkDim;
+				return highlight.isHighlightedEdge(s, t)
+					? linkDirectionColor(d, centerId)
+					: palette.linkDim;
 			})
-			.attr('stroke-opacity', (d: SimLink) => {
-				if (hoveredLinkId === d.id) return 1;
-				if (!highlight) return 0.88;
-				const s = endpointId(d.source);
-				const t = endpointId(d.target);
-				return highlight.isHighlightedEdge(s, t) ? 0.95 : 0.18;
-			})
-			.attr('stroke-width', (d: SimLink) => {
-				if (hoveredLinkId === d.id) return 2.75;
-				if (!highlight) return 1.75;
-				const s = endpointId(d.source);
-				const t = endpointId(d.target);
-				return highlight.isHighlightedEdge(s, t) ? 2.25 : 1;
-			})
+			.attr('stroke-opacity', (d: SimLink) => linkStrokeOpacity(d, centerId, highlight))
+			.attr('stroke-width', (d: SimLink) => linkStrokeWidth(d, highlight, centerId))
 			.attr('marker-end', (d: SimLink) => {
 				if (!highlight && hoveredLinkId !== d.id) return `url(#dep-arrow-${d.rel})`;
 				const s = endpointId(d.source);
@@ -513,11 +774,9 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 			return 2.25;
 		});
 
-		nodeSel.select('.dep-node-label-group').attr('opacity', (d: SimNode) => {
-			if (hoveredNodeId === d.id) return 1;
-			if (!highlight) return 1;
-			return highlight.nodes.has(d.id) ? 1 : 0.55;
-		});
+		nodeSel.select('.dep-node-label-group').attr('opacity', (d: SimNode) =>
+			labelOpacity(d, centerId, selectedId)
+		);
 
 		nodeSel.attr('class', (d: SimNode) => {
 			const classes = ['dep-node'];
@@ -528,37 +787,73 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 		});
 	}
 
-	function fitToScreen() {
+	function fitToScreen(animate = true) {
 		if (!zoomBehavior || simNodes.length === 0) return;
+		measureViewport();
+		updateLabelPositions();
 		const bounds = getNodeBounds();
 		if (!bounds) return;
 		const { minX, minY } = bounds;
 		const dx = bounds.maxX - bounds.minX || 1;
 		const dy = bounds.maxY - bounds.minY || 1;
-		const availableW = viewportWidth - FIT_PADDING_X * 2;
-		const availableH = viewportHeight - FIT_PADDING_TOP - FIT_PADDING_BOTTOM;
-		const scale = Math.min(availableW / dx, availableH / dy, 3.2);
-		const tx = FIT_PADDING_X + (availableW - scale * dx) / 2 - scale * minX;
-		const ty = FIT_PADDING_TOP + (availableH - scale * dy) / 2 - scale * minY;
+		const availableW = Math.max(viewportWidth - FIT_PADDING * 2, 1);
+		const availableH = Math.max(viewportHeight - FIT_PADDING * 2, 1);
+		const scale = Math.min(availableW / dx, availableH / dy);
+		const tx = FIT_PADDING + (availableW - scale * dx) / 2 - scale * minX;
+		const ty = FIT_PADDING + (availableH - scale * dy) / 2 - scale * minY;
 		if (!Number.isFinite(scale) || !Number.isFinite(tx) || !Number.isFinite(ty)) return;
-		select(svg)
-			.transition()
-			.duration(550)
-			.ease((t) => 1 - Math.pow(1 - t, 3))
-			.call(zoomBehavior.transform, zoomIdentity.translate(tx, ty).scale(scale));
+		const transform = zoomIdentity.translate(tx, ty).scale(scale);
+		if (animate) {
+			select(svg)
+				.transition()
+				.duration(550)
+				.ease((t) => 1 - Math.pow(1 - t, 3))
+				.call(zoomBehavior.transform, transform);
+		} else {
+			select(svg).call(zoomBehavior.transform, transform);
+		}
 	}
 
-	function scheduleFitToScreen() {
+	function completeLayoutReveal(animateFit = false) {
+		const generation = layoutGeneration;
 		requestAnimationFrame(() => {
-			finalizeLayoutSize();
-			requestAnimationFrame(() => fitToScreen());
+			try {
+				finalizeLayoutSize();
+			} catch (err) {
+				console.error('[dep-map] finalizeLayoutSize failed', err);
+			}
+			requestAnimationFrame(() => {
+				try {
+					fitToScreen(animateFit);
+				} catch (err) {
+					console.error('[dep-map] fitToScreen failed', err);
+				} finally {
+					notifyLayoutReady(generation);
+				}
+			});
 		});
 	}
 
+	function settleForceSimulation(sim: Simulation<SimNode, SimLink>) {
+		const maxTicks = 320;
+		let ticks = 0;
+		while (sim.alpha() > sim.alphaMin() && ticks < maxTicks) {
+			sim.tick();
+			ticks++;
+		}
+	}
+
 	function reflowForResize() {
-		if (simNodes.length === 0) return;
-		finalizeLayoutSize();
-		fitToScreen();
+		const generation = layoutGeneration;
+		try {
+			if (simNodes.length === 0) return;
+			finalizeLayoutSize();
+			fitToScreen(false);
+		} catch (err) {
+			console.error('[dep-map] reflowForResize failed', err);
+		} finally {
+			notifyLayoutReady(generation);
+		}
 	}
 
 	function showFullExtent() {
@@ -691,22 +986,42 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 	}
 
 	function rebuild() {
+		layoutGeneration++;
+		const generation = layoutGeneration;
 		simulation?.stop();
-		measure();
 
-		const filteredNodes = getFilteredNodes();
-		const filteredLinks = getFilteredLinks();
-		const centerId = getCenterNodeId?.() ?? null;
+		try {
+			measure();
 
-		simNodes = filteredNodes.map((n) => ({ ...n }));
-		const nodeById = new Map(simNodes.map((n) => [n.id, n]));
-		simLinks = filteredLinks
-			.map((l) => ({
-				...l,
-				source: nodeById.get(typeof l.source === 'object' ? l.source.id : l.source)!,
-				target: nodeById.get(typeof l.target === 'object' ? l.target.id : l.target)!
-			}))
-			.filter((l) => l.source && l.target);
+			const filteredNodes = getFilteredNodes();
+			const filteredLinks = getFilteredLinks();
+			const centerId = getCenterNodeId?.() ?? null;
+
+			simNodes = filteredNodes.map((n) => ({ ...n }));
+			denseLabels = simNodes.length > DENSE_LABEL_THRESHOLD;
+			directNeighborIds = getDirectNeighborIds(centerId, filteredLinks);
+			const nodeById = new Map(simNodes.map((n) => [n.id, n]));
+			simLinks = filteredLinks
+				.map((l) => ({
+					...l,
+					source: nodeById.get(typeof l.source === 'object' ? l.source.id : l.source)!,
+					target: nodeById.get(typeof l.target === 'object' ? l.target.id : l.target)!
+				}))
+				.filter((l) => l.source && l.target);
+
+			assignFocusDepths(simNodes, simLinks, centerId);
+
+			if (simNodes.length === 0) {
+				const root = select(svg);
+				if (!gRoot) {
+					root.selectAll('*').remove();
+					root.attr('class', 'dep-map-svg dep-map-svg-inner');
+				} else {
+					gRoot.selectAll('*').remove();
+				}
+				notifyLayoutReady(generation);
+				return;
+			}
 
 		const root = select(svg);
 		if (!gRoot) {
@@ -720,7 +1035,7 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 				.attr('width', 24)
 				.attr('height', 24)
 				.attr('patternUnits', 'userSpaceOnUse');
-			gridPattern.append('circle').attr('cx', 1.5).attr('cy', 1.5).attr('r', 1.15).attr('class', 'dep-grid-dot');
+			gridPattern.append('circle').attr('cx', 1.5).attr('cy', 1.5).attr('r', 0.9).attr('class', 'dep-grid-dot');
 
 			root.append('rect').attr('class', 'dep-map-bg').attr('width', '100%').attr('height', '100%');
 			root
@@ -754,14 +1069,14 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 			.join('path')
 			.attr('fill', 'none')
 			.attr('stroke-linecap', 'round')
+			.attr('stroke', (d: SimLink) => linkDirectionColor(d, centerId))
+			.attr('stroke-opacity', (d: SimLink) => linkStrokeOpacity(d, centerId, null))
+			.attr('stroke-width', (d: SimLink) => linkStrokeWidth(d, null, centerId))
 			.attr('marker-end', (d: SimLink) => `url(#dep-arrow-${d.rel})`)
 			.on('mouseenter', (event: MouseEvent, d: SimLink) => {
 				hoveredLinkId = d.id;
 				updateHighlight();
-				showTooltip(
-					event,
-					`<strong>${escapeHtml(REL_LABELS[d.rel] ?? d.rel)}</strong>`
-				);
+				showTooltip(event, linkTooltipHtml(d));
 			})
 			.on('mousemove', (event: MouseEvent) => {
 				tooltip.style.left = `${event.pageX + 14}px`;
@@ -771,7 +1086,7 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 				hoveredLinkId = null;
 				updateHighlight();
 				hideTooltip();
-			});
+			})
 
 		const dragBehavior = drag<SVGGElement, SimNode>()
 			.on('start', (event, d) => {
@@ -799,28 +1114,14 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 			.join('g')
 			.attr('class', 'dep-node')
 			.attr('cursor', 'pointer')
-			.call(dragBehavior);
-
-		nodeSel
-			.append('circle')
-			.attr('class', 'dep-node-ring')
-			.attr('r', (d: SimNode) => nodeRadius(d, centerId) + 7)
-			.attr('fill', 'none')
-			.attr('stroke', palette.focusRing)
-			.attr('stroke-width', 3)
-			.attr('opacity', (d: SimNode) => (centerId && d.id === centerId ? 0.9 : 0));
-
-		nodeSel
-			.append('circle')
-			.attr('class', 'dep-node-shape')
-			.attr('r', (d: SimNode) => nodeRadius(d, centerId))
-			.attr('fill', (d: SimNode) => `url(#dep-node-grad-${d.type === 'config' || d.type === 'state' ? d.type : 'other'})`)
-			.attr('stroke', palette.nodeStroke)
-			.attr('stroke-width', (d: SimNode) => (centerId && d.id === centerId ? 3 : 2.25))
-			.attr('filter', 'url(#dep-node-shadow)')
-			.on('click', (_: unknown, d: SimNode) => {
-				const current = getSelectedId();
-				onSelect(d.id === current ? null : d.id);
+			.on('click', (event: MouseEvent, d: SimNode) => {
+				event.stopPropagation();
+				const centerId = getCenterNodeId?.() ?? null;
+				if (centerId && d.id !== centerId) {
+					onRefocus?.(d.id);
+					return;
+				}
+				onSelect(d.id);
 				updateHighlight();
 			})
 			.on('mouseenter', (event: MouseEvent, d: SimNode) => {
@@ -842,21 +1143,57 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 				hoveredNodeId = null;
 				updateHighlight();
 				hideTooltip();
-			});
+			})
+			.call(dragBehavior);
+
+		nodeSel
+			.insert('circle', ':first-child')
+			.attr('class', 'dep-node-hit')
+			.attr('r', (d: SimNode) => nodeRadius(d, centerId) + 14)
+			.attr('fill', 'transparent')
+			.attr('stroke', 'none')
+			.style('pointer-events', 'all');
+
+		nodeSel
+			.append('circle')
+			.attr('class', 'dep-node-ring')
+			.attr('r', (d: SimNode) => nodeRadius(d, centerId) + 8)
+			.attr('fill', 'none')
+			.attr('stroke', palette.focusRing)
+			.attr('stroke-width', 2.5)
+			.attr('opacity', (d: SimNode) => (centerId && d.id === centerId ? 0.95 : 0));
+
+		nodeSel
+			.append('circle')
+			.attr('class', 'dep-node-shape')
+			.attr('r', (d: SimNode) => nodeRadius(d, centerId))
+			.attr('fill', (d: SimNode) =>
+				`url(#dep-node-grad-${d.type === 'config' || d.type === 'state' ? d.type : 'other'})`
+			)
+			.attr('stroke', palette.nodeStroke)
+			.attr('stroke-width', (d: SimNode) => {
+				if (centerId && d.id === centerId) return 2.75;
+				return 2;
+			})
+			.attr('filter', 'url(#dep-node-shadow)')
+			.style('pointer-events', 'none');
 
 		const labelGroups = nodeSel.append('g').attr('class', 'dep-node-label-group').attr('pointer-events', 'none');
 
 		labelGroups.each(function (this: SVGGElement, d: SimNode) {
 			const g = select(this);
-			const r = nodeRadius(d, centerId);
+			const place = labelPlacement(d, centerId);
 			const label = truncateLabel(d.kind || d.shortName);
 			const text = g
 				.append('text')
 				.attr('class', 'dep-node-label')
+				.attr('x', place.labelX)
+				.attr('y', place.labelY)
 				.attr('text-anchor', 'middle')
-				.attr('y', r + 22)
-				.attr('font-size', centerId && d.id === centerId ? '13px' : '12px')
-				.attr('font-weight', 700)
+				.attr('dominant-baseline', 'hanging')
+				.attr('font-size', centerId && d.id === centerId ? '13px' : '11.5px')
+				.attr('font-weight', centerId && d.id === centerId ? 700 : 600)
+				.attr('font-family', 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif')
 				.attr('fill', palette.nodeLabel)
 				.text(label);
 
@@ -870,44 +1207,65 @@ export function createGraphController(options: GraphControllerOptions): GraphCon
 				.attr('rx', 5)
 				.attr('fill', palette.nodeLabelBg)
 				.attr('stroke', palette.panelBorder)
-				.attr('stroke-width', 1);
+				.attr('stroke-width', 0.75);
 		});
 
 		const positions = computeRadialPositions(simNodes, simLinks, centerId, width, height);
 		applyPositions(positions, simNodes);
+		refreshLinkAttachments();
 
 		if (radialLayout) {
 			simulation = null;
 			linkSel.attr('d', linkPath);
 			nodeSel.attr('transform', (d: SimNode) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+			updateLabelPositions();
 			updateHighlight();
-			scheduleFitToScreen();
+			completeLayoutReveal(false);
 		} else {
 			clearFixedPositions(simNodes);
+			const nodeCount = simNodes.length;
+			const linkDistance = Math.min(240, 130 + nodeCount * 2.2);
+			const chargeStrength = -480 - Math.min(nodeCount, 40) * 8;
+			const collisionPad = 40 + Math.min(nodeCount, 32);
 			simulation = forceSimulation(simNodes)
 				.force(
 					'link',
 					forceLink<SimNode, SimLink>(simLinks)
 						.id((d) => d.id)
-						.distance(150)
-						.strength(0.24)
+						.distance(linkDistance)
+						.strength(0.2)
 				)
-				.force('charge', forceManyBody().strength(-420))
-				.force('center', forceCenter(viewportWidth / 2, viewportHeight / 2))
-				.force('collision', forceCollide<SimNode>().radius((d) => nodeRadius(d, centerId) + 32))
-				.alphaDecay(0.045)
-				.velocityDecay(0.55);
+				.force('charge', forceManyBody().strength(chargeStrength))
+				.force('center', forceCenter(width / 2, height / 2))
+				.force(
+					'collision',
+					forceCollide<SimNode>().radius((d) => nodeRadius(d, centerId) + collisionPad)
+				)
+				.alphaDecay(0.042)
+				.velocityDecay(0.58);
+
+			settleForceSimulation(simulation);
+			refreshLinkAttachments();
+			linkSel.attr('d', linkPath);
+			nodeSel.attr('transform', (d: SimNode) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+			updateLabelPositions();
+			updateHighlight();
 
 			simulation.on('tick', () => {
+				refreshLinkAttachments();
 				linkSel?.attr('d', linkPath);
 				nodeSel?.attr('transform', (d: SimNode) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+				updateLabelPositions();
 			});
 
-			updateHighlight();
-			simulation.on('end', () => scheduleFitToScreen());
+			completeLayoutReveal(false);
 		}
 
-		setupResizeObserver();
+			setupResizeObserver();
+		} catch (err) {
+			console.error('[dep-map] rebuild failed', err);
+			notifyLayoutReady(generation);
+		}
 	}
 
 	return {

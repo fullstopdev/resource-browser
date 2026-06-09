@@ -1,6 +1,6 @@
-import type { DependencyGraph, GraphLink, LinkRelation } from './types';
+import type { DependencyGraph, GraphLink, GraphNode, LinkRelation } from './types';
 
-export type ChainMode = 'full' | 'direct';
+export type ChainMode = 'direct' | 'extended';
 
 type LinkEndpoint = string | { id: string };
 
@@ -63,26 +63,31 @@ function isAllowed(id: string, allowedIds?: Set<string>): boolean {
 export function getAllDescendants(
 	nodeId: string,
 	outgoing: Map<string, Set<string>>,
-	allowedIds?: Set<string>
+	allowedIds?: Set<string>,
+	maxDepth?: number
 ): Set<string> {
 	const result = new Set<string>();
-	const queue: string[] = [];
+	const queue: Array<{ id: string; depth: number }> = [];
 	const visited = new Set<string>([nodeId]);
 
 	for (const target of outgoing.get(nodeId) ?? []) {
 		if (!isAllowed(target, allowedIds) || visited.has(target)) continue;
 		visited.add(target);
 		result.add(target);
-		queue.push(target);
+		if (maxDepth === undefined || 1 < maxDepth) {
+			queue.push({ id: target, depth: 1 });
+		}
 	}
 
 	while (queue.length > 0) {
-		const current = queue.shift()!;
+		const { id: current, depth } = queue.shift()!;
+		if (maxDepth !== undefined && depth >= maxDepth) continue;
+
 		for (const target of outgoing.get(current) ?? []) {
 			if (!isAllowed(target, allowedIds) || visited.has(target)) continue;
 			visited.add(target);
 			result.add(target);
-			queue.push(target);
+			queue.push({ id: target, depth: depth + 1 });
 		}
 	}
 
@@ -92,26 +97,31 @@ export function getAllDescendants(
 export function getAllAncestors(
 	nodeId: string,
 	incoming: Map<string, Set<string>>,
-	allowedIds?: Set<string>
+	allowedIds?: Set<string>,
+	maxDepth?: number
 ): Set<string> {
 	const result = new Set<string>();
-	const queue: string[] = [];
+	const queue: Array<{ id: string; depth: number }> = [];
 	const visited = new Set<string>([nodeId]);
 
 	for (const source of incoming.get(nodeId) ?? []) {
 		if (!isAllowed(source, allowedIds) || visited.has(source)) continue;
 		visited.add(source);
 		result.add(source);
-		queue.push(source);
+		if (maxDepth === undefined || 1 < maxDepth) {
+			queue.push({ id: source, depth: 1 });
+		}
 	}
 
 	while (queue.length > 0) {
-		const current = queue.shift()!;
+		const { id: current, depth } = queue.shift()!;
+		if (maxDepth !== undefined && depth >= maxDepth) continue;
+
 		for (const source of incoming.get(current) ?? []) {
 			if (!isAllowed(source, allowedIds) || visited.has(source)) continue;
 			visited.add(source);
 			result.add(source);
-			queue.push(source);
+			queue.push({ id: source, depth: depth + 1 });
 		}
 	}
 
@@ -218,7 +228,7 @@ export function buildTransitiveDepList(
 	}
 
 	while (queue.length > 0) {
-		const { id: current, depth, parentId } = queue.shift()!;
+		const { id: current, depth } = queue.shift()!;
 
 		if (mode === 'direct') continue;
 
@@ -256,8 +266,45 @@ export function getTransitiveClosureNodeIds(nodeId: string, links: GraphLink[]):
 	return new Set([nodeId, ...ancestors, ...descendants]);
 }
 
-export function extractSubgraph(graph: DependencyGraph, focusNodeId: string): DependencyGraph | null {
+export function getDirectNeighborNodeIds(nodeId: string, links: GraphLink[]): Set<string> {
+	const { incoming, outgoing } = getDirectNeighbors(nodeId, links);
+	return new Set([nodeId, ...incoming, ...outgoing]);
+}
+
+export function extractDirectSubgraph(
+	graph: DependencyGraph,
+	focusNodeId: string
+): DependencyGraph | null {
 	if (!graph.nodes.some((n) => n.id === focusNodeId)) return null;
+
+	const nodeIds = getDirectNeighborNodeIds(focusNodeId, graph.links);
+	const nodes = graph.nodes.filter((n) => nodeIds.has(n.id));
+	const links = graph.links.filter((link) => {
+		const source = linkEndpointId(link.source as LinkEndpoint);
+		const target = linkEndpointId(link.target as LinkEndpoint);
+		if (!nodeIds.has(source) || !nodeIds.has(target)) return false;
+		return source === focusNodeId || target === focusNodeId;
+	});
+
+	return {
+		nodes,
+		links,
+		releaseFolder: graph.releaseFolder,
+		generatedAt: graph.generatedAt
+	};
+}
+
+export function extractSubgraph(
+	graph: DependencyGraph,
+	focusNodeId: string,
+	options?: { transitive?: boolean }
+): DependencyGraph | null {
+	if (!graph.nodes.some((n) => n.id === focusNodeId)) return null;
+
+	const transitive = options?.transitive === true;
+	if (!transitive) {
+		return extractDirectSubgraph(graph, focusNodeId);
+	}
 
 	const nodeIds = getTransitiveClosureNodeIds(focusNodeId, graph.links);
 	const nodes = graph.nodes.filter((n) => nodeIds.has(n.id));

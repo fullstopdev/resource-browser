@@ -1,5 +1,5 @@
 import type { CrdResource } from '$lib/structure';
-import type { GraphLink, GraphNode, LinkRelation, NodeType } from './types';
+import type { ConfidenceTier, EdgeRecord, EdgeSource, GraphLink, GraphNode, InferencePass, LinkRelation, NodeType } from './types';
 
 type CatalogEntry = {
 	id: string;
@@ -9,21 +9,9 @@ type CatalogEntry = {
 	description?: string;
 };
 
-type IntentMatch = {
-	kind: string;
-	rel: LinkRelation;
-	confidence: number;
-	reason: string;
-};
+type PendingEdge = EdgeRecord & { field?: string };
 
-type PendingEdge = {
-	source: string;
-	target: string;
-	rel: LinkRelation;
-	field?: string;
-	reason: string;
-	confidence: number;
-};
+export type { EdgeRecord, InferencePass };
 
 const STOP_KINDS = new Set([
 	'API',
@@ -36,7 +24,10 @@ const STOP_KINDS = new Set([
 	'Type',
 	'Value',
 	'CamelCase',
-	'Default'
+	'Default',
+	'Router',
+	'Interface',
+	'Resource'
 ]);
 
 const REL_PRIORITY: Record<LinkRelation, number> = {
@@ -51,154 +42,128 @@ const REL_PRIORITY: Record<LinkRelation, number> = {
 	references: 60
 };
 
+const SOURCE_PRIORITY: Record<EdgeSource, number> = {
+	catalog: 4,
+	explicit: 3,
+	semantic: 2,
+	inferred: 1
+};
+
+const PASS_PRIORITY: Record<InferencePass, number> = {
+	1: 4,
+	2: 3,
+	3: 2,
+	4: 1
+};
+
 const MIN_CONFIDENCE = 55;
 
-const DESCRIPTION_INTENT_PATTERNS: Array<{
+const REFERENCE_FIELD_PATTERN = /(?:Ref|Refs|Reference|resourceRef)$/i;
+
+/** Pass 2: explicit "Reference to Kind" in field descriptions. */
+const EXPLICIT_REF_DESCRIPTION = /Reference to (?:a|an|the)\s+([A-Z][A-Za-z0-9]+)/;
+
+/** Pass 4: conservative kind mention in spec field descriptions. */
+const DESCRIPTION_KIND_PATTERNS: Array<{
 	regex: RegExp;
 	rel: LinkRelation | ((kind: string, description: string) => LinkRelation);
 	confidence: number;
-	reason: (kind: string, description: string) => string;
+	reason: (kind: string) => string;
 }> = [
 	{
-		regex: /Reference to (?:a|an) ([A-Z][A-Za-z0-9]+)/g,
-		rel: (kind, desc) => (kind === 'Policy' && /route|policy|evaluat/i.test(desc) ? 'appliesTo' : 'references'),
-		confidence: 95,
+		regex: /Reference to (?:a|an|the)\s+([A-Z][A-Za-z0-9]+)/g,
+		rel: (kind, desc) =>
+			kind === 'Policy' && /route|policy|evaluat/i.test(desc) ? 'appliesTo' : 'references',
+		confidence: 72,
 		reason: (kind) => `Description references ${kind}`
-	},
-	{
-		regex: /Reference to ([A-Z][A-Za-z0-9]+)(?:\s|$|[.,])/g,
-		rel: (kind, desc) => (kind === 'Policy' ? 'appliesTo' : 'references'),
-		confidence: 90,
-		reason: (kind) => `Description references ${kind}`
-	},
-	{
-		regex: /List of ([A-Z][A-Za-z0-9]+)(?:\s+references?|\s+resource|\s+in|\s|$)/gi,
-		rel: 'references',
-		confidence: 88,
-		reason: (kind) => `Description lists ${kind} resources`
-	},
-	{
-		regex: /(?:selects?|Selects)\s+(?:to\s+)?(?:a\s+|an\s+|the\s+)?([A-Z][A-Za-z0-9]+)/g,
-		rel: 'references',
-		confidence: 85,
-		reason: (kind) => `Description selects ${kind}`
-	},
-	{
-		regex: /select(?:s|ing)?\s+([A-Z][A-Za-z0-9]+)\s+to\s+configure/gi,
-		rel: 'bindsTo',
-		confidence: 85,
-		reason: (kind) => `Description binds configuration to ${kind}`
 	},
 	{
 		regex: /creating an?\s+([A-Z][A-Za-z0-9]+)\s+resource/gi,
 		rel: 'orchestrates',
-		confidence: 92,
+		confidence: 70,
 		reason: (kind) => `Description orchestrates creation of ${kind}`
-	},
-	{
-		regex: /members?\s+of\s+the\s+([A-Z][A-Za-z0-9]+)/gi,
-		rel: 'member',
-		confidence: 82,
-		reason: (kind) => `Description indicates membership in ${kind}`
-	},
-	{
-		regex: /Name of the ([A-Z][A-Za-z0-9]+)/g,
-		rel: 'references',
-		confidence: 80,
-		reason: (kind) => `Field holds ${kind} identity`
-	},
-	{
-		regex: /operational state of the following resources[^:]*:\s*([A-Z][A-Za-z0-9]+(?:,\s*[A-Z][A-Za-z0-9]+)*)/gi,
-		rel: 'references',
-		confidence: 68,
-		reason: (kind) => `Status tracks ${kind} operational state`
-	},
-	{
-		regex: /resources emitted by the Fabric such as ([A-Z][A-Za-z0-9]+)/gi,
-		rel: 'orchestrates',
-		confidence: 72,
-		reason: (kind) => `Fabric orchestrates ${kind}`
-	},
-	{
-		regex: /\b(Keychain)s?\b/gi,
-		rel: 'references',
-		confidence: 84,
-		reason: (kind) => `Description references ${kind}`
-	},
-	{
-		regex: /([A-Z][A-Za-z0-9]+)\s+resource(?:s)?(?:\s|$|[.,])/g,
-		rel: 'references',
-		confidence: 65,
-		reason: (kind) => `Description mentions ${kind} resource`
 	}
 ];
 
-const FIELD_INTENT_PATTERNS: Array<{
+/** Pass 3: whitelisted EDA semantic patterns — never generic *Selector → kind. */
+const SEMANTIC_FIELD_PATTERNS: Array<{
 	propPattern: RegExp;
+	pathPattern?: RegExp;
 	kind: string;
-	rel: LinkRelation;
+	relation: LinkRelation;
 	confidence: number;
 	reason: string;
+	requireTopoNodeInDescription?: boolean;
 }> = [
 	{
 		propPattern: /^interSwitchLinks$/i,
 		kind: 'ISL',
-		rel: 'orchestrates',
-		confidence: 78,
-		reason: 'Fabric inter-switch link configuration orchestrates ISL'
+		relation: 'orchestrates',
+		confidence: 92,
+		reason: 'interSwitchLinks orchestrates ISL resources'
+	},
+	{
+		propPattern: /^linkSelectors$/i,
+		pathPattern: /interSwitchLinks/i,
+		kind: 'ISL',
+		relation: 'orchestrates',
+		confidence: 88,
+		reason: 'linkSelectors under interSwitchLinks orchestrate ISL (not TopoLink)'
 	},
 	{
 		propPattern: /^fabricSelectors$/i,
 		kind: 'Fabric',
-		rel: 'references',
-		confidence: 80,
-		reason: 'Fabric selector references peer Fabric instances'
+		relation: 'references',
+		confidence: 90,
+		reason: 'fabricSelectors reference peer Fabric instances'
 	},
 	{
-		propPattern: /^linkSelectors$/i,
-		kind: 'TopoLink',
-		rel: 'references',
-		confidence: 82,
-		reason: 'Link selector references TopoLink resources'
-	},
-	{
-		propPattern: /NodeSelectors?$/i,
-		kind: 'TopoNode',
-		rel: 'bindsTo',
-		confidence: 80,
-		reason: 'Node selector binds fabric roles to TopoNode'
+		propPattern: /^nodeProfile$/i,
+		kind: 'NodeProfile',
+		relation: 'references',
+		confidence: 95,
+		reason: 'nodeProfile references NodeProfile'
 	},
 	{
 		propPattern: /^asnPool$/i,
 		kind: 'IndexAllocationPool',
-		rel: 'references',
-		confidence: 88,
-		reason: 'ASN pool field references IndexAllocationPool'
+		relation: 'references',
+		confidence: 90,
+		reason: 'asnPool references IndexAllocationPool'
 	},
 	{
 		propPattern: /^(poolIPv4|poolIPv6|systemPoolIPv4|systemPoolIPv6)$/i,
 		kind: 'IPAllocationPool',
-		rel: 'references',
-		confidence: 88,
+		relation: 'references',
+		confidence: 90,
 		reason: 'IP pool field references IPAllocationPool'
 	},
 	{
 		propPattern: /^keychain$/i,
 		kind: 'Keychain',
-		rel: 'references',
-		confidence: 85,
-		reason: 'Keychain field references Keychain resource'
+		relation: 'references',
+		confidence: 88,
+		reason: 'keychain references Keychain resource'
 	},
 	{
 		propPattern: /^(exportPolicy|importPolicy|exportPolicies|importPolicies)$/i,
 		kind: 'Policy',
-		rel: 'appliesTo',
-		confidence: 86,
-		reason: 'Routing policy field applies Policy'
+		relation: 'appliesTo',
+		confidence: 88,
+		reason: 'routing policy field applies Policy'
+	},
+	{
+		propPattern: /NodeSelectors?$/i,
+		kind: 'TopoNode',
+		relation: 'bindsTo',
+		confidence: 85,
+		reason: 'node selector binds to TopoNode',
+		requireTopoNodeInDescription: true
 	}
 ];
 
-const REFERENCE_FIELD_PATTERN = /(?:Ref|Reference|Selector|resourceRef)$/i;
+const TOPO_NODE_IN_DESCRIPTION = /toponode/i;
+const ISL_FROM_LINK_SELECTORS = /creating an?\s+ISL\b/i;
 
 function shortResourceName(name: string): string {
 	return name.split('.')[0] ?? name;
@@ -296,6 +261,12 @@ function resolveNameSibling(
 	return catalog.has(targetName) ? targetName : null;
 }
 
+function stemToKind(propName: string): string | null {
+	const stem = propName.replace(REFERENCE_FIELD_PATTERN, '');
+	if (!stem || stem === propName) return null;
+	return stem.charAt(0).toUpperCase() + stem.slice(1);
+}
+
 function resolveRel(
 	rel: LinkRelation | ((kind: string, description: string) => LinkRelation),
 	kind: string,
@@ -304,185 +275,39 @@ function resolveRel(
 	return typeof rel === 'function' ? rel(kind, description) : rel;
 }
 
-function extractIntentFromDescription(description: string, path: string): IntentMatch[] {
-	const matches: IntentMatch[] = [];
-	const seen = new Set<string>();
-
-	for (const pattern of DESCRIPTION_INTENT_PATTERNS) {
-		for (const match of description.matchAll(pattern.regex)) {
-			const kind = match[1];
-			if (!kind || kind.length < 2 || STOP_KINDS.has(kind)) continue;
-
-			if (pattern.regex.source.includes('operational state')) {
-				const resourceList = kind.split(/,\s*/);
-				for (const resourceKind of resourceList) {
-					const trimmed = resourceKind.trim();
-					if (!trimmed || STOP_KINDS.has(trimmed)) continue;
-					const rel = resolveRel(pattern.rel, trimmed, description);
-					const dedupe = `${trimmed}|${rel}|${path}`;
-					if (seen.has(dedupe)) continue;
-					seen.add(dedupe);
-					matches.push({
-						kind: trimmed,
-						rel,
-						confidence: pattern.confidence,
-						reason: `${pattern.reason(trimmed, description)} (${path})`
-					});
-				}
-				continue;
-			}
-
-			const rel = resolveRel(pattern.rel, kind, description);
-			const dedupe = `${kind}|${rel}|${path}`;
-			if (seen.has(dedupe)) continue;
-			seen.add(dedupe);
-			matches.push({
-				kind,
-				rel,
-				confidence: pattern.confidence,
-				reason: `${pattern.reason(kind, description)} (${path})`
-			});
-		}
-	}
-
-	return matches;
+function isPeerFabricSelfEdge(sourceId: string, targetId: string, fieldPath: string, reason: string): boolean {
+	return (
+		targetId === sourceId &&
+		(fieldPath.includes('fabricSelectors') || /peer Fabric|connecting multiple Fabrics/i.test(reason))
+	);
 }
 
-function extractIntentFromField(
-	propName: string,
-	description: string | undefined,
-	path: string
-): IntentMatch[] {
-	const matches: IntentMatch[] = [];
-
-	for (const fieldPattern of FIELD_INTENT_PATTERNS) {
-		if (!fieldPattern.propPattern.test(propName)) continue;
-		matches.push({
-			kind: fieldPattern.kind,
-			rel: fieldPattern.rel,
-			confidence: fieldPattern.confidence,
-			reason: `${fieldPattern.reason} (${path})`
-		});
+function shouldSkipPass4(propName: string, fieldPath: string, description: string): boolean {
+	if (/^linkSelectors$/i.test(propName) && /interSwitchLinks/i.test(fieldPath)) {
+		return true;
 	}
-
-	if (REFERENCE_FIELD_PATTERN.test(propName) && description) {
-		for (const intent of extractIntentFromDescription(description, path)) {
-			matches.push({
-				...intent,
-				confidence: Math.max(intent.confidence, 70)
-			});
-		}
+	if (/Selectors?$/i.test(propName) && ISL_FROM_LINK_SELECTORS.test(description)) {
+		return true;
 	}
-
-	return matches;
+	return false;
 }
 
-function walkSchema(
-	node: unknown,
-	path: string,
-	onProperty: (name: string, description: string | undefined, path: string) => void,
-	onDescription: (description: string, path: string) => void
-): void {
-	if (!node || typeof node !== 'object') return;
-	const n = node as Record<string, unknown>;
-
-	if (typeof n.description === 'string' && n.description.trim()) {
-		onDescription(n.description, path);
-	}
-
-	if (n.properties && typeof n.properties === 'object') {
-		for (const [key, val] of Object.entries(n.properties as Record<string, unknown>)) {
-			const child = val as Record<string, unknown> | undefined;
-			const childPath = path ? `${path}.${key}` : key;
-			onProperty(
-				key,
-				typeof child?.description === 'string' ? child.description : undefined,
-				childPath
-			);
-			walkSchema(val, childPath, onProperty, onDescription);
-		}
-	}
-
-	if (n.additionalProperties && typeof n.additionalProperties === 'object') {
-		walkSchema(n.additionalProperties, `${path}.*`, onProperty, onDescription);
-	}
-
-	if (n.items) {
-		walkSchema(n.items, `${path}[]`, onProperty, onDescription);
-	}
-
-	for (const comb of ['allOf', 'anyOf', 'oneOf'] as const) {
-		if (Array.isArray(n[comb])) {
-			for (const el of n[comb]) {
-				walkSchema(el, path, onProperty, onDescription);
-			}
-		}
-	}
+function edgeFromRecord(record: EdgeRecord): PendingEdge {
+	return { ...record, field: record.fieldPath };
 }
 
-function addPendingEdge(pending: PendingEdge[], edge: PendingEdge, allowSelf = false): void {
+function addEdge(edges: EdgeRecord[], edge: EdgeRecord, allowSelf = false): void {
 	if (edge.source === edge.target && !allowSelf) return;
 	if (edge.confidence < MIN_CONFIDENCE) return;
-	pending.push(edge);
+	edges.push(edge);
 }
 
-function mergeEdgeCandidates<T extends PendingEdge | GraphLink>(
-	edges: T[],
-	toPending: (edge: T) => PendingEdge
-): GraphLink[] {
-	const byPair = new Map<string, PendingEdge>();
-
-	for (const edge of edges) {
-		const pending = toPending(edge);
-		if (pending.source === pending.target) continue;
-		const key = `${pending.source}|${pending.target}`;
-		const existing = byPair.get(key);
-		if (!existing) {
-			byPair.set(key, pending);
-			continue;
-		}
-
-		const existingPriority = REL_PRIORITY[existing.rel];
-		const nextPriority = REL_PRIORITY[pending.rel];
-		if (
-			nextPriority > existingPriority ||
-			(nextPriority === existingPriority && pending.confidence > existing.confidence)
-		) {
-			byPair.set(key, pending);
-		}
-	}
-
-	return [...byPair.values()].map((edge) => ({
-		id: `${edge.source}|${edge.target}|${edge.rel}`,
-		source: edge.source,
-		target: edge.target,
-		rel: edge.rel,
-		field: edge.field,
-		reason: edge.reason,
-		confidence: edge.confidence
-	}));
-}
-
-export function mergeIntentEdges(edges: PendingEdge[]): GraphLink[] {
-	return mergeEdgeCandidates(edges, (edge) => edge);
-}
-
-export function mergeGraphLinks(links: GraphLink[]): GraphLink[] {
-	return mergeEdgeCandidates(links, (edge) => ({
-		source: edge.source,
-		target: edge.target,
-		rel: edge.rel,
-		field: edge.field,
-		reason: edge.reason ?? 'Inferred dependency',
-		confidence: edge.confidence ?? MIN_CONFIDENCE
-	}));
-}
-
-export function inferCatalogLinks(
+/** Pass 1: catalog config/state and deployment pairings. */
+export function inferCatalogEdges(
 	catalog: Map<string, CatalogEntry>,
 	kindIndex: Map<string, string[]>
-): GraphLink[] {
-	const pending: PendingEdge[] = [];
+): EdgeRecord[] {
+	const edges: EdgeRecord[] = [];
 
 	for (const entry of catalog.values()) {
 		if (entry.type === 'state') {
@@ -497,12 +322,16 @@ export function inferCatalogLinks(
 					resolveNameSibling(entry.id, 'states', '', catalog);
 			}
 			if (configId) {
-				addPendingEdge(pending, {
+				addEdge(edges, {
 					source: configId,
 					target: entry.id,
-					rel: 'observes',
+					relation: 'observes',
+					fieldPath: '',
 					reason: 'Config/state catalog pairing',
-					confidence: 100
+					confidence: 100,
+					pass: 1,
+					edgeSource: 'catalog',
+					confidenceTier: 1
 				});
 			}
 		}
@@ -519,28 +348,360 @@ export function inferCatalogLinks(
 					resolveNameSibling(entry.id, 'deployments', '', catalog);
 			}
 			if (targetId) {
-				addPendingEdge(pending, {
+				addEdge(edges, {
 					source: entry.id,
 					target: targetId,
-					rel: 'deploys',
+					relation: 'deploys',
+					fieldPath: '',
 					reason: 'Deployment catalog pairing',
-					confidence: 100
+					confidence: 100,
+					pass: 1,
+					edgeSource: 'catalog',
+					confidenceTier: 1
 				});
 			}
 		}
 	}
 
-	return mergeIntentEdges(pending);
+	return edges;
 }
 
-type SchemaZone = 'spec' | 'status' | 'metadata' | 'root';
+function resolveTargetAndRecord(
+	edges: EdgeRecord[],
+	sourceId: string,
+	sourceGroup: string,
+	kind: string,
+	partial: Omit<EdgeRecord, 'source' | 'target'>,
+	kindIndex: Map<string, string[]>,
+	catalog: Map<string, CatalogEntry>
+): void {
+	const targetId = resolveKindTarget(kind, sourceGroup, kindIndex, catalog);
+	if (!targetId) return;
+	const isPeerFabric = isPeerFabricSelfEdge(sourceId, targetId, partial.fieldPath, partial.reason);
+	if (targetId === sourceId && !isPeerFabric) return;
+	addEdge(
+		edges,
+		{
+			source: sourceId,
+			target: targetId,
+			...partial
+		},
+		isPeerFabric
+	);
+}
 
-function isStatusObservedStateNoise(intent: IntentMatch, zone: SchemaZone): boolean {
-	if (zone !== 'status') return false;
-	if (/operational state of the following resources/i.test(intent.reason)) return true;
-	if (/Status tracks .+ operational state/i.test(intent.reason)) return true;
-	if (intent.rel === 'references' && intent.confidence < 75) return true;
-	return false;
+function extractPass2RefEdge(
+	propName: string,
+	description: string | undefined,
+	fieldPath: string,
+	node: Record<string, unknown> | undefined
+): Omit<EdgeRecord, 'source' | 'target'> | null {
+	if (!REFERENCE_FIELD_PATTERN.test(propName)) return null;
+
+	let kind: string | null = null;
+	let reason = '';
+
+	if (description) {
+		const match = description.match(EXPLICIT_REF_DESCRIPTION);
+		if (match?.[1] && !STOP_KINDS.has(match[1])) {
+			kind = match[1];
+			reason = `Explicit ref: ${description.trim().slice(0, 80)}`;
+		}
+	}
+
+	if (!kind) {
+		const stemKind = stemToKind(propName);
+		if (stemKind && !STOP_KINDS.has(stemKind)) {
+			kind = stemKind;
+			reason = `Ref field stem ${propName} → ${stemKind}`;
+		}
+	}
+
+	const editable = node?.['x-editable'];
+	if (!kind && typeof editable === 'object' && editable !== null) {
+		const editableKind = (editable as Record<string, unknown>).kind;
+		if (typeof editableKind === 'string') {
+			kind = editableKind;
+			reason = `x-editable kind ${editableKind}`;
+		}
+	}
+
+	if (!kind) return null;
+
+	const rel: LinkRelation =
+		kind === 'Policy' && description && /route|policy|evaluat/i.test(description)
+			? 'appliesTo'
+			: 'references';
+
+	return {
+		relation: rel,
+		fieldPath,
+		confidence: description ? 94 : 88,
+		reason: `${reason} (${fieldPath})`,
+		pass: 2,
+		edgeSource: 'explicit',
+		confidenceTier: 1
+	};
+}
+
+function extractPass3SemanticEdge(
+	propName: string,
+	description: string | undefined,
+	fieldPath: string
+): (Omit<EdgeRecord, 'source' | 'target'> & { kind: string }) | null {
+	for (const pattern of SEMANTIC_FIELD_PATTERNS) {
+		if (!pattern.propPattern.test(propName)) continue;
+		if (pattern.pathPattern && !pattern.pathPattern.test(fieldPath)) continue;
+		if (pattern.requireTopoNodeInDescription) {
+			if (!description || !TOPO_NODE_IN_DESCRIPTION.test(description)) continue;
+		}
+		return {
+			kind: pattern.kind,
+			relation: pattern.relation,
+			fieldPath,
+			confidence: pattern.confidence,
+			reason: `${pattern.reason} (${fieldPath})`,
+			pass: 3,
+			edgeSource: 'semantic',
+			confidenceTier: 2
+		};
+	}
+	return null;
+}
+
+function extractPass4DescriptionEdges(
+	propName: string,
+	description: string | undefined,
+	fieldPath: string
+): Array<Omit<EdgeRecord, 'source' | 'target'>> {
+	if (!description || !fieldPath.startsWith('spec')) return [];
+	if (shouldSkipPass4(propName, fieldPath, description)) return [];
+	if (REFERENCE_FIELD_PATTERN.test(propName)) return [];
+
+	const results: Array<Omit<EdgeRecord, 'source' | 'target'>> = [];
+	const seen = new Set<string>();
+
+	for (const pattern of DESCRIPTION_KIND_PATTERNS) {
+		for (const match of description.matchAll(pattern.regex)) {
+			const kind = match[1];
+			if (!kind || kind.length < 2 || STOP_KINDS.has(kind)) continue;
+			const rel = resolveRel(pattern.rel, kind, description);
+			const dedupe = `${kind}|${rel}`;
+			if (seen.has(dedupe)) continue;
+			seen.add(dedupe);
+			results.push({
+				relation: rel,
+				fieldPath,
+				confidence: pattern.confidence,
+				reason: `${pattern.reason(kind)} (${fieldPath})`,
+				pass: 4,
+				edgeSource: 'inferred',
+				confidenceTier: 3
+			});
+		}
+	}
+
+	return results;
+}
+
+type SpecProperty = {
+	name: string;
+	description?: string;
+	path: string;
+	node?: Record<string, unknown>;
+};
+
+function collectSpecProperties(schema: unknown, path = 'spec'): SpecProperty[] {
+	const properties: SpecProperty[] = [];
+	if (!schema || typeof schema !== 'object') return properties;
+
+	const walk = (node: unknown, currentPath: string) => {
+		if (!node || typeof node !== 'object') return;
+		const n = node as Record<string, unknown>;
+
+		if (n.properties && typeof n.properties === 'object') {
+			for (const [key, val] of Object.entries(n.properties as Record<string, unknown>)) {
+				const child = val as Record<string, unknown> | undefined;
+				const childPath = `${currentPath}.${key}`;
+				properties.push({
+					name: key,
+					description: typeof child?.description === 'string' ? child.description : undefined,
+					path: childPath,
+					node: child
+				});
+				walk(val, childPath);
+			}
+		}
+
+		if (n.additionalProperties && typeof n.additionalProperties === 'object') {
+			walk(n.additionalProperties, `${currentPath}.*`);
+		}
+		if (n.items) {
+			walk(n.items, `${currentPath}[]`);
+		}
+		for (const comb of ['allOf', 'anyOf', 'oneOf'] as const) {
+			if (Array.isArray(n[comb])) {
+				for (const el of n[comb]) {
+					walk(el, currentPath);
+				}
+			}
+		}
+	};
+
+	walk(schema, path);
+	return properties;
+}
+
+/** Passes 2–4: walk spec properties only. Pass 4 runs only when enabled. */
+export function inferSpecSchemaEdges(
+	sourceId: string,
+	sourceGroup: string,
+	specSchema: unknown,
+	kindIndex: Map<string, string[]>,
+	catalog: Map<string, CatalogEntry>,
+	options?: { enableDescriptionPass?: boolean }
+): EdgeRecord[] {
+	const edges: EdgeRecord[] = [];
+	if (!specSchema) return edges;
+
+	const properties = collectSpecProperties(specSchema);
+	const handledPaths = new Set<string>();
+
+	for (const prop of properties) {
+		if (prop.name === 'apiVersion' || prop.name === 'kind' || prop.name === 'metadata') continue;
+
+		const pass3 = extractPass3SemanticEdge(prop.name, prop.description, prop.path);
+		if (pass3) {
+			const { kind, ...partial } = pass3;
+			resolveTargetAndRecord(edges, sourceId, sourceGroup, kind, partial, kindIndex, catalog);
+			handledPaths.add(prop.path);
+		}
+
+		const pass2 = extractPass2RefEdge(prop.name, prop.description, prop.path, prop.node);
+		if (pass2) {
+			const kind = extractKindFromPass2(prop.name, prop.description);
+			if (kind) {
+				resolveTargetAndRecord(edges, sourceId, sourceGroup, kind, pass2, kindIndex, catalog);
+				handledPaths.add(prop.path);
+			}
+		}
+
+		if (!options?.enableDescriptionPass || handledPaths.has(prop.path)) continue;
+
+		for (const pass4 of extractPass4DescriptionEdges(prop.name, prop.description, prop.path)) {
+			const kind = extractKindFromPass4(prop.description!, pass4.relation);
+			if (kind) {
+				resolveTargetAndRecord(edges, sourceId, sourceGroup, kind, pass4, kindIndex, catalog);
+			}
+		}
+	}
+
+	return edges;
+}
+
+function extractKindFromPass2(propName: string, description?: string): string | null {
+	if (description) {
+		const match = description.match(EXPLICIT_REF_DESCRIPTION);
+		if (match?.[1] && !STOP_KINDS.has(match[1])) return match[1];
+	}
+	const stem = stemToKind(propName);
+	return stem && !STOP_KINDS.has(stem) ? stem : null;
+}
+
+function extractKindFromPass4(description: string, rel: LinkRelation): string | null {
+	for (const pattern of DESCRIPTION_KIND_PATTERNS) {
+		for (const match of description.matchAll(pattern.regex)) {
+			const kind = match[1];
+			if (!kind || STOP_KINDS.has(kind)) continue;
+			const resolvedRel = resolveRel(pattern.rel, kind, description);
+			if (resolvedRel === rel) return kind;
+		}
+	}
+	return null;
+}
+
+function edgeDedupKey(edge: PendingEdge): string {
+	return `${edge.source}|${edge.target}|${edge.relation}|${edge.fieldPath}`;
+}
+
+function isStrongerEdge(candidate: PendingEdge, existing: PendingEdge): boolean {
+	const existingPass = PASS_PRIORITY[existing.pass];
+	const nextPass = PASS_PRIORITY[candidate.pass];
+	if (nextPass !== existingPass) return nextPass > existingPass;
+
+	const existingSourcePriority = SOURCE_PRIORITY[existing.edgeSource];
+	const nextSourcePriority = SOURCE_PRIORITY[candidate.edgeSource];
+	if (nextSourcePriority !== existingSourcePriority) return nextSourcePriority > existingSourcePriority;
+
+	const existingRelPriority = REL_PRIORITY[existing.relation];
+	const nextRelPriority = REL_PRIORITY[candidate.relation];
+	if (nextRelPriority !== existingRelPriority) return nextRelPriority > existingRelPriority;
+
+	return candidate.confidence > existing.confidence;
+}
+
+function mergeEdgeCandidates(edges: PendingEdge[]): GraphLink[] {
+	const byKey = new Map<string, PendingEdge>();
+
+	for (const edge of edges) {
+		if (
+			edge.source === edge.target &&
+			!isPeerFabricSelfEdge(edge.source, edge.target, edge.fieldPath, edge.reason)
+		) {
+			continue;
+		}
+		const key = edgeDedupKey(edge);
+		const existing = byKey.get(key);
+		if (!existing || isStrongerEdge(edge, existing)) {
+			byKey.set(key, edge);
+		}
+	}
+
+	return [...byKey.values()].map((edge) => ({
+		id: edgeDedupKey(edge),
+		source: edge.source,
+		target: edge.target,
+		rel: edge.relation,
+		field: edge.fieldPath,
+		reason: edge.reason,
+		confidence: edge.confidence,
+		edgeSource: edge.edgeSource,
+		confidenceTier: edge.confidenceTier
+	}));
+}
+
+export function mergeIntentEdges(edges: EdgeRecord[]): GraphLink[] {
+	return mergeEdgeCandidates(edges.map(edgeFromRecord));
+}
+
+export function mergeGraphLinks(links: GraphLink[]): GraphLink[] {
+	return mergeEdgeCandidates(
+		links.map((edge) => ({
+			source: edge.source,
+			target: edge.target,
+			relation: edge.rel,
+			fieldPath: edge.field ?? '',
+			confidence: edge.confidence ?? MIN_CONFIDENCE,
+			reason: edge.reason ?? 'Inferred dependency',
+			pass: (edge.confidenceTier === 3 ? 4 : edge.confidenceTier === 2 ? 3 : edge.edgeSource === 'catalog' ? 1 : 2) as InferencePass,
+			edgeSource: edge.edgeSource ?? 'inferred',
+			confidenceTier:
+				edge.confidenceTier ??
+				(edge.edgeSource === 'catalog'
+					? 1
+					: edge.edgeSource === 'explicit' || edge.edgeSource === 'semantic'
+						? 2
+						: 3),
+			field: edge.field
+		}))
+	);
+}
+
+export function inferCatalogLinks(
+	catalog: Map<string, CatalogEntry>,
+	kindIndex: Map<string, string[]>
+): GraphLink[] {
+	return mergeIntentEdges(inferCatalogEdges(catalog, kindIndex));
 }
 
 export function inferSchemaLinks(
@@ -553,77 +714,33 @@ export function inferSchemaLinks(
 	options?: {
 		metadataSchema?: unknown;
 		rootDescription?: string;
+		enableDescriptionPass?: boolean;
 	}
 ): GraphLink[] {
-	const pending: PendingEdge[] = [];
+	void statusSchema;
+	void options?.metadataSchema;
+	void options?.rootDescription;
 
-	const recordIntent = (intent: IntentMatch, path: string, zone: SchemaZone) => {
-		if (isStatusObservedStateNoise(intent, zone)) return;
-		const targetId = resolveKindTarget(intent.kind, sourceGroup, kindIndex, catalog);
-		if (!targetId) return;
-		const isPeerFabric =
-			targetId === sourceId &&
-			(path.includes('fabricSelectors') || /peer Fabric|connecting multiple Fabrics/i.test(intent.reason));
-		if (targetId === sourceId && !isPeerFabric) return;
-		addPendingEdge(
-			pending,
-			{
-				source: sourceId,
-				target: targetId,
-				rel: intent.rel,
-				field: path,
-				reason: intent.reason,
-				confidence: intent.confidence
-			},
-			isPeerFabric
-		);
-	};
+	const edges = inferSpecSchemaEdges(
+		sourceId,
+		sourceGroup,
+		specSchema,
+		kindIndex,
+		catalog,
+		{ enableDescriptionPass: options?.enableDescriptionPass ?? false }
+	);
+	return mergeIntentEdges(edges);
+}
 
-	const handleProperty = (
-		propName: string,
-		description: string | undefined,
-		path: string,
-		zone: SchemaZone
-	) => {
-		if (propName === 'apiVersion' || propName === 'kind' || propName === 'metadata') return;
-
-		for (const intent of extractIntentFromField(propName, description, path)) {
-			recordIntent(intent, path, zone);
-		}
-
-		if (!description || zone === 'status') return;
-
-		for (const intent of extractIntentFromDescription(description, path)) {
-			recordIntent(intent, path, zone);
-		}
-	};
-
-	const handleDescription = (description: string, path: string, zone: SchemaZone) => {
-		if (zone === 'status') return;
-		for (const intent of extractIntentFromDescription(description, path)) {
-			recordIntent(intent, path, zone);
-		}
-	};
-
-	if (options?.rootDescription) {
-		handleDescription(options.rootDescription, 'schema', 'root');
-	}
-
-	for (const [schema, rootPath, zone] of [
-		[options?.metadataSchema, 'metadata', 'metadata'],
-		[specSchema, 'spec', 'spec'],
-		[statusSchema, 'status', 'status']
-	] as const) {
-		if (!schema) continue;
-		walkSchema(
-			schema,
-			rootPath,
-			(propName, description, path) => handleProperty(propName, description, path, zone),
-			(description, path) => handleDescription(description, path, zone)
-		);
-	}
-
-	return mergeIntentEdges(pending);
+export function inferAllSchemaEdges(
+	sourceId: string,
+	sourceGroup: string,
+	specSchema: unknown,
+	kindIndex: Map<string, string[]>,
+	catalog: Map<string, CatalogEntry>,
+	options?: { enableDescriptionPass?: boolean }
+): EdgeRecord[] {
+	return inferSpecSchemaEdges(sourceId, sourceGroup, specSchema, kindIndex, catalog, options);
 }
 
 export function buildCatalogFromManifest(resources: CrdResource[]): Map<string, CatalogEntry> {

@@ -331,16 +331,17 @@ async function main(): Promise<void> {
 		}
 	}));
 
-	const { upserted, skipped } = await embedAndUpsert(INDEX_NAME, records, {
+	const { upserted, skipped, indexed, total } = await embedAndUpsert(INDEX_NAME, records, {
 		force,
-		onProgress: (done, total) => {
-			console.log(`  Upserted ${done}/${total}`);
+		onProgress: (indexedNow, totalChunks, upsertedThisRun) => {
+			console.log(`  Progress ${indexedNow}/${totalChunks} (${upsertedThisRun} new this run)`);
 		}
 	});
 
 	console.log(
-		`Done — upserted ${upserted} new vector(s) into ${INDEX_NAME}` +
-			(skipped > 0 ? ` (${skipped} skipped from manifest)` : '')
+		`Done — ${indexed}/${total} indexed in ${INDEX_NAME}` +
+			(upserted > 0 ? ` (+${upserted} new this run)` : '') +
+			(skipped > 0 ? `, ${skipped} skipped` : '')
 	);
 }
 

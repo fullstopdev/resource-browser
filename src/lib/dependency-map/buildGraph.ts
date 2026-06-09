@@ -118,9 +118,12 @@ export function resolveFocusNodeId(
 
 export function buildFocusSubgraph(
 	graph: DependencyGraph,
-	focusNodeId: string
+	focusNodeId: string,
+	options?: { transitive?: boolean }
 ): DependencyGraph | null {
-	return extractSubgraph(graph, focusNodeId);
+	return extractSubgraph(graph, focusNodeId, {
+		transitive: options?.transitive
+	});
 }
 
 export function clearDependencyGraphCache(releaseFolder?: string): void {
@@ -209,7 +212,8 @@ export async function buildDependencyGraph(
 				catalog,
 				{
 					metadataSchema: parsed.metadata,
-					rootDescription: parsed.description
+					rootDescription: parsed.description,
+					enableDescriptionPass: true
 				}
 			);
 			schemaLinks.push(...edges);

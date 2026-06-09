@@ -5112,9 +5112,9 @@ html:not(.dark) .react-select__menu {
 
 .dep-map-svg-inner .dep-node-label {
 	font-family: 'NokiaPureText', ui-sans-serif, system-ui, sans-serif;
-	letter-spacing: -0.015em;
-	font-size: 12px;
-	font-weight: 700;
+	letter-spacing: -0.01em;
+	font-size: 11.5px;
+	font-weight: 600;
 }
 
 .dep-map-svg-inner .dep-node--focus .dep-node-label {
@@ -5143,7 +5143,11 @@ html:not(.dark) .react-select__menu {
 }
 
 .dep-map-svg-inner .dep-node-label-bg {
-	filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.08));
+	filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.12));
+}
+
+.dark .dep-map-svg-inner .dep-node-label-bg {
+	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 /* ============================================
