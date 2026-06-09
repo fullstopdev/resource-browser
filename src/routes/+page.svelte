@@ -21,6 +21,13 @@ import {
 	import releasesYaml from '$lib/releases.yaml?raw';
 	import type { EdaRelease, ReleasesConfig, CrdResource } from '$lib/structure';
 	import { searchResources } from '$lib/resourceSearch';
+	import {
+		buildCatalogPath,
+		catalogBrowseFromParams,
+		crdParamForResource,
+		parseCatalogParams,
+		resolveReleaseName
+	} from '$lib/urlState';
 
 	const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
 
@@ -95,6 +102,8 @@ import {
 	let isValidating = false;
 	let validationResult: 'valid' | 'invalid' | null = null;
 	let releaseAvailability: Map<string, boolean> = new Map();
+	let catalogUrlCrd: string | undefined;
+	let catalogUrlVersion: string | undefined;
 
 	$: currentResourceDef = selectedResource
 		? $crdMetaStore.find((x) => x.name === selectedResource)
@@ -115,16 +124,24 @@ import {
 	let initialLoaded = false;
 	onMount(() => {
 		const urlParams = new URLSearchParams(window.location.search);
-		const releaseParam = urlParams.get('release');
-		const browseParam = urlParams.get('browse');
-		if (releaseParam) {
-			const foundRelease = releasesConfig.releases.find((r) => r.name === releaseParam);
-			if (foundRelease) {
-				selectedRelease.set(foundRelease);
-			}
+		const catalogState = parseCatalogParams(urlParams);
+		const resolvedRelease = resolveReleaseName(
+			releasesConfig.releases,
+			catalogState.release,
+			defaultRelease
+		);
+		const foundRelease = releasesConfig.releases.find((r) => r.name === resolvedRelease);
+		if (foundRelease) {
+			selectedRelease.set(foundRelease);
 		}
-		if (browseParam === 'true') {
+		if (catalogBrowseFromParams(urlParams)) {
 			showBrowseMode = true;
+		}
+		if (catalogState.crd) {
+			catalogUrlCrd = catalogState.crd;
+		}
+		if (catalogState.version) {
+			catalogUrlVersion = catalogState.version;
 		}
 
 		const startLoad = () => {
@@ -150,16 +167,17 @@ import {
 		const name = $selectedRelease.name;
 		if (name !== previousBrowseRelease) {
 			previousBrowseRelease = name;
-			syncBrowseUrl(name);
+			syncCatalogUrl({ release: name, crd: catalogUrlCrd, version: catalogUrlVersion });
 		}
 	}
 
-	function syncBrowseUrl(releaseName: string) {
+	function syncCatalogUrl(state: {
+		release: string;
+		crd?: string;
+		version?: string;
+	}) {
 		if (!browser || !showBrowseMode) return;
-		const params = new URLSearchParams();
-		params.set('browse', 'true');
-		params.set('release', releaseName);
-		const targetUrl = `/?${params.toString()}`;
+		const targetUrl = buildCatalogPath(state);
 		const currentUrl = `${$page.url.pathname}${$page.url.search}`;
 		if (targetUrl === currentUrl) return;
 		goto(targetUrl, { replaceState: true, noScroll: true, keepFocus: true });
@@ -257,22 +275,30 @@ import {
 	async function enterBrowseMode(release: EdaRelease) {
 		showBrowseMode = true;
 		previousBrowseRelease = release.name;
+		catalogUrlCrd = undefined;
+		catalogUrlVersion = undefined;
 		selectedRelease.set(release);
 		await loadCrdsForRelease(release);
-		goto(`/?browse=true&release=${release.name}`, { replaceState: true, keepFocus: true });
+		syncCatalogUrl({ release: release.name });
 	}
 
 	function exitBrowseMode() {
 		showBrowseMode = false;
 		mobileMenuOpen = false;
 		resourceSearch.set('');
+		catalogUrlCrd = undefined;
+		catalogUrlVersion = undefined;
 		goto('/', { replaceState: true });
 	}
 
 	async function handleBrowseReleaseChange(release: EdaRelease) {
 		selectedRelease.set(release);
 		await loadCrdsForRelease(release);
-		goto(`/?browse=true&release=${release.name}`, { replaceState: true, keepFocus: true });
+		syncCatalogUrl({
+			release: release.name,
+			crd: catalogUrlCrd,
+			version: catalogUrlVersion
+		});
 	}
 
 	async function handleHomeResourceClick(resourceName: string) {
@@ -280,23 +306,45 @@ import {
 		const resourceInRelease = $crdMetaStore.find((r) => r.name === resourceName);
 		showBrowseMode = true;
 		previousBrowseRelease = $selectedRelease.name;
-		const release = encodeURIComponent($selectedRelease.name);
 		if (resourceInRelease) {
-			goto(`/?browse=true&release=${release}&resource=${encodeURIComponent(resourceName)}`, {
-				keepFocus: true
+			catalogUrlCrd = crdParamForResource(resourceInRelease);
+			catalogUrlVersion = undefined;
+			syncCatalogUrl({
+				release: $selectedRelease.name,
+				crd: catalogUrlCrd
 			});
 		} else {
-			goto(`/?browse=true&release=${release}`, { keepFocus: true });
+			catalogUrlCrd = undefined;
+			catalogUrlVersion = undefined;
+			syncCatalogUrl({ release: $selectedRelease.name });
 		}
+	}
+
+	function handleCatalogModalOpen(crd: string, version?: string) {
+		catalogUrlCrd = crd;
+		catalogUrlVersion = version;
+		syncCatalogUrl({
+			release: $selectedRelease.name,
+			crd,
+			version
+		});
+	}
+
+	function handleCatalogVersionChange(version: string) {
+		if (!catalogUrlCrd) return;
+		catalogUrlVersion = version;
+		syncCatalogUrl({
+			release: $selectedRelease.name,
+			crd: catalogUrlCrd,
+			version
+		});
 	}
 
 	function clearBrowseResourceFromUrl() {
 		if (!browser || !showBrowseMode) return;
-		const params = new URLSearchParams($page.url.search);
-		if (!params.has('resource')) return;
-		params.delete('resource');
-		const targetUrl = `/?${params.toString()}`;
-		goto(targetUrl, { replaceState: true, noScroll: true, keepFocus: true });
+		catalogUrlCrd = undefined;
+		catalogUrlVersion = undefined;
+		syncCatalogUrl({ release: $selectedRelease.name });
 	}
 	async function toggleDiff(version: string) {
 		if (showDiff && compareVersion === version) {
@@ -540,10 +588,13 @@ import {
 					allResources={$crdMetaStore}
 					selectedRelease={$selectedRelease}
 					allReleases={releasesConfig.releases}
-					initialResourceName={$page.url.searchParams.get('resource')}
+					initialCrd={catalogUrlCrd ?? parseCatalogParams($page.url.searchParams).crd ?? null}
+					initialVersion={catalogUrlVersion ?? parseCatalogParams($page.url.searchParams).version ?? null}
 					onReleaseChange={handleBrowseReleaseChange}
 					onExitBrowse={exitBrowseMode}
 					onResourceModalClose={clearBrowseResourceFromUrl}
+					onResourceModalOpen={handleCatalogModalOpen}
+					onResourceVersionChange={handleCatalogVersionChange}
 				/>
 			{:else if loading}
 				<div class="flex flex-1 items-center justify-center bg-gray-50 dark:bg-gray-800">

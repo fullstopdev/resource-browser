@@ -4,6 +4,7 @@
 	import type { ResourceViewMode } from '$lib/resourceView';
 	import { displayGroup, displayKind } from '$lib/resourceSearch';
 	import type { CrdResource, EdaRelease } from '$lib/structure';
+	import { crdParamForResource } from '$lib/urlState';
 	import { getLatestVersion } from '$lib/versions';
 
 	export let allResources: CrdResource[] = [];
@@ -11,9 +12,15 @@
 	export let allReleases: EdaRelease[] = [];
 	export let onReleaseChange: (release: EdaRelease) => void | Promise<void> = () => {};
 	export let onExitBrowse: () => void = () => {};
-	/** Open ResourceModal for this CRD name when catalog loads (from URL ?resource=) */
-	export let initialResourceName: string | null = null;
+	/** Open ResourceModal for this CRD when catalog loads (from URL ?crd=). */
+	export let initialCrd: string | null = null;
+	/** API version for the initial modal open (from URL ?version=). */
+	export let initialVersion: string | null = null;
 	export let onResourceModalClose: (() => void) | undefined = undefined;
+	export let onResourceModalOpen:
+		| ((crd: string, version?: string) => void)
+		| undefined = undefined;
+	export let onResourceVersionChange: ((version: string) => void) | undefined = undefined;
 
 	let searchQuery = '';
 	let typeFilter: 'all' | 'state' | 'config' = 'all';
@@ -89,6 +96,7 @@
 		modalResource = res;
 		modalInitialViewMode = viewMode;
 		modalOpen = true;
+		onResourceModalOpen?.(crdParamForResource(res));
 	}
 
 	function closeResourceModal() {
@@ -98,20 +106,19 @@
 		onResourceModalClose?.();
 	}
 
-	$: if (
-		initialResourceName &&
-		initialResourceName !== openedInitialResource &&
-		allResources.length > 0
-	) {
-		const res = allResources.find((r) => r.name === initialResourceName);
-		openedInitialResource = initialResourceName;
+	$: if (initialCrd && initialCrd !== openedInitialResource && allResources.length > 0) {
+		const res =
+			allResources.find((r) => r.name === initialCrd) ||
+			allResources.find((r) => displayKind(r).toLowerCase() === initialCrd.toLowerCase()) ||
+			allResources.find((r) => r.name.split('.')[0].toLowerCase() === initialCrd.toLowerCase());
+		openedInitialResource = initialCrd;
 		if (res) {
 			modalResource = res;
 			modalOpen = true;
 		}
 	}
 
-	$: if (!initialResourceName) {
+	$: if (!initialCrd) {
 		openedInitialResource = null;
 	}
 </script>
@@ -394,6 +401,8 @@
 	resourceDef={modalResource}
 	{selectedRelease}
 	{allReleases}
+	initialVersion={initialVersion}
 	initialViewMode={modalInitialViewMode}
+	onActiveVersionChange={onResourceVersionChange}
 	onClose={closeResourceModal}
 />

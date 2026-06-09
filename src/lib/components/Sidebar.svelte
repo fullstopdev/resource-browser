@@ -158,18 +158,18 @@
 							goto(`/${currentResourceName}/${targetVersion}?release=${newRelease.name}`);
 						} else {
 							// No version found; redirect to browse mode for the new release
-							goto(`/?browse=true&release=${newRelease.name}`);
+							goto(`/?release=${newRelease.name}`);
 						}
 					} else {
 						// Resource doesn't exist in new release, go to browse mode
-						goto(`/?browse=true&release=${newRelease.name}`);
+						goto(`/?release=${newRelease.name}`);
 					}
 					return;
 				}
 			}
 
 			// Default: redirect to homepage in browse mode
-			goto(`/?browse=true&release=${newRelease.name}`);
+			goto(`/?release=${newRelease.name}`);
 		}
 	}
 
@@ -183,14 +183,14 @@
 			if (targetVersion) {
 				goto(`/${resource}/${targetVersion}?release=${$selectedRelease.name}`);
 			} else {
-				goto(`/?browse=true&release=${$selectedRelease.name}`);
+				goto(`/?release=${$selectedRelease.name}`);
 			}
 		} catch (e) {
 			const fallbackVersion = getLatestVersion(resDef);
 			if (fallbackVersion) {
 				goto(`/${resource}/${fallbackVersion}?release=${$selectedRelease.name}`);
 			} else {
-				goto(`/?browse=true&release=${$selectedRelease.name}`);
+				goto(`/?release=${$selectedRelease.name}`);
 			}
 		}
 		mobileSidebarOpen.set(false);

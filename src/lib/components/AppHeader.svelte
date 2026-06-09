@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { buildCatalogPath } from '$lib/urlState';
 	import GlobalAskButton from '$lib/components/GlobalAskButton.svelte';
 	import { askAiEnabled } from '$lib/featureFlags';
 	import Theme from '$lib/components/Theme.svelte';
@@ -14,7 +15,7 @@
 	let mobileNavOpen = false;
 
 	const toolsNav = [
-		{ href: '/?browse=true', label: 'Catalog', match: (path: string) => path === '/' },
+		{ href: '/', label: 'Catalog', match: (path: string) => path === '/' },
 		{ href: '/spec-search', label: 'Spec Search', match: (path: string) => path.startsWith('/spec-search') },
 		{ href: '/validate-yaml', label: 'Validate YAML', match: (path: string) => path.startsWith('/validate-yaml') },
 		{ href: '/comparison', label: 'Comparison', match: (path: string) => path.startsWith('/comparison') },
@@ -31,7 +32,7 @@
 
 	function catalogHref(): string {
 		const release = $page.url.searchParams.get('release');
-		return release ? `/?browse=true&release=${encodeURIComponent(release)}` : '/?browse=true';
+		return release ? buildCatalogPath({ release }) : '/';
 	}
 
 	function closeMobileNav() {

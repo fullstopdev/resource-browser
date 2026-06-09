@@ -21,6 +21,7 @@
 	import { getManifestCache } from '$lib/manifest';
 	import releasesYaml from '$lib/releases.yaml?raw';
 	import type { CrdResource, EdaRelease, ReleasesConfig } from '$lib/structure';
+	import { buildComparisonPath, parseComparisonParams, resolveReleaseName } from '$lib/urlState';
 
 	const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
 
@@ -87,12 +88,12 @@
 
 	function updateURL() {
 		if (!browser) return;
-		const params = new URLSearchParams();
-		if (sourceReleaseName) params.set('sr', sourceReleaseName);
-		if (sourceVersion) params.set('sv', sourceVersion);
-		if (targetReleaseName) params.set('tr', targetReleaseName);
-		if (targetVersion) params.set('tv', targetVersion);
-		const targetUrl = `/comparison${params.toString() ? `?${params.toString()}` : ''}`;
+		const targetUrl = buildComparisonPath({
+			sourceRelease: sourceReleaseName || undefined,
+			sourceVersion: sourceVersion || undefined,
+			targetRelease: targetReleaseName || undefined,
+			targetVersion: targetVersion || undefined
+		});
 		const currentUrl = `${$page.url.pathname}${$page.url.search}`;
 		if (targetUrl === currentUrl) return;
 		goto(targetUrl, { replaceState: true, noScroll: true, keepFocus: true });
@@ -287,10 +288,7 @@
 	}
 
 	onMount(async () => {
-		const urlSr = $page.url.searchParams.get('sr');
-		const urlSv = $page.url.searchParams.get('sv');
-		const urlTr = $page.url.searchParams.get('tr');
-		const urlTv = $page.url.searchParams.get('tv');
+		const urlState = parseComparisonParams($page.url.searchParams);
 
 		const defaultRelease =
 			releasesConfig.releases.find((r) => r.default) || releasesConfig.releases[0];
@@ -298,23 +296,36 @@
 			releasesConfig.releases.find((r) => r.name !== defaultRelease?.name) ||
 			releasesConfig.releases[1];
 
-		sourceReleaseName = urlSr || defaultRelease?.name || '';
-		targetReleaseName = urlTr || fallbackTarget?.name || '';
+		sourceReleaseName = resolveReleaseName(
+			releasesConfig.releases,
+			urlState.sourceRelease,
+			defaultRelease
+		);
+		targetReleaseName = resolveReleaseName(
+			releasesConfig.releases,
+			urlState.targetRelease,
+			fallbackTarget
+		);
 
-		if (urlSv) sourceVersion = urlSv;
-		if (urlTv) targetVersion = urlTv;
+		if (urlState.sourceVersion) sourceVersion = urlState.sourceVersion;
+		if (urlState.targetVersion) targetVersion = urlState.targetVersion;
 
 		previousSourceRelease = sourceReleaseName;
 		previousTargetRelease = targetReleaseName;
 
 		await Promise.all([
-			loadSourceVersions(urlSv || undefined),
-			loadTargetVersions(urlTv || undefined)
+			loadSourceVersions(urlState.sourceVersion),
+			loadTargetVersions(urlState.targetVersion)
 		]);
 
 		clientReady = true;
 
-		if (urlSr && urlSv && urlTr && urlTv) {
+		if (
+			urlState.sourceRelease &&
+			urlState.sourceVersion &&
+			urlState.targetRelease &&
+			urlState.targetVersion
+		) {
 			await runComparison();
 		}
 	});

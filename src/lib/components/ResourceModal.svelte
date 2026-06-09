@@ -44,6 +44,8 @@
 	/** Open modal on this tab (schema or compare). */
 	export let initialViewMode: ResourceViewMode = 'schema';
 	export let onClose: () => void = () => {};
+	/** Fired when the user changes the active API version in the modal. */
+	export let onActiveVersionChange: ((version: string) => void) | undefined = undefined;
 
 	let loading = false;
 	let error: string | null = null;
@@ -255,6 +257,7 @@
 		compareVersion = null;
 		comparisonResult = null;
 		await loadVersionYaml(newVersion, selectedRelease);
+		onActiveVersionChange?.(newVersion);
 	}
 
 	async function loadVersionsForCompareRelease(releaseName: string, resourceName: string) {

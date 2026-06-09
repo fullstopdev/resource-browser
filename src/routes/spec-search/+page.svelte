@@ -26,6 +26,12 @@
     // expandAll controls removed from this auto-search page (no UI button)
     import releasesYaml from '$lib/releases.yaml?raw';
     import type { EdaRelease, ReleasesConfig } from '$lib/structure';
+    import {
+        buildSpecSearchPath,
+        normalizeSpecSearchVersion,
+        parseSpecSearchParams,
+        resolveReleaseName
+    } from '$lib/urlState';
 
     const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
 
@@ -50,12 +56,11 @@
     function updateURL() {
         if (!browser) return;
 
-        const params = new URLSearchParams();
-        if (releaseName) params.set('release', releaseName);
-        if (version) params.set('version', version);
-        if (query && query.trim()) params.set('q', query);
-
-        const targetUrl = `/spec-search${params.toString() ? `?${params.toString()}` : ''}`;
+        const targetUrl = buildSpecSearchPath({
+            release: releaseName || undefined,
+            version: version || undefined,
+            query: query || undefined
+        });
         const currentUrl = `${$page.url.pathname}${$page.url.search}`;
         if (targetUrl === currentUrl) return;
 
@@ -226,7 +231,7 @@
                 }
             }
 
-            if (!versions.includes(version) && version !== ALL_VERSIONS_SCOPE) version = '';
+            version = normalizeSpecSearchVersion(version, versions);
             if (manifest) {
                 prefetchReleaseSchemas(rel.folder, manifest, yamlCache, parsedCache, version);
             }
@@ -353,25 +358,21 @@
     }
 
     onMount(async () => {
-        const urlRelease = $page.url.searchParams.get('release');
-        const urlVersion = $page.url.searchParams.get('version');
-        const urlQuery = $page.url.searchParams.get('q');
+        const urlState = parseSpecSearchParams($page.url.searchParams);
+        const defaultRelease =
+            releasesConfig.releases.find((r) => r.default) || releasesConfig.releases[0];
 
-        if (urlRelease) {
-            releaseName = urlRelease;
-        } else {
-            const defaultRelease =
-                releasesConfig.releases.find((r) => r.default) || releasesConfig.releases[0];
-            if (defaultRelease) {
-                releaseName = defaultRelease.name;
-            }
+        releaseName = resolveReleaseName(
+            releasesConfig.releases,
+            urlState.release,
+            defaultRelease
+        );
+        if (urlState.version) {
+            version = urlState.version;
         }
-        if (urlVersion) {
-            version = urlVersion;
-        }
-        if (urlQuery) {
-            query = urlQuery;
-            previousQuery = urlQuery;
+        if (urlState.query) {
+            query = urlState.query;
+            previousQuery = urlState.query;
         }
         previousSearchInDescription = searchInDescription;
 
@@ -387,7 +388,7 @@
 
         clientReady = true;
 
-        if (urlQuery?.trim() && release?.folder) {
+        if (urlState.query?.trim() && release?.folder) {
             void performSearch();
         }
 
