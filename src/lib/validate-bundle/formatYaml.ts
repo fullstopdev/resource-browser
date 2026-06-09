@@ -1,5 +1,9 @@
 import yaml from 'js-yaml';
-import { findManifestEntry, findManifestEntryCaseInsensitive } from '$lib/manifest/lookup';
+import {
+	findManifestEntry,
+	findManifestEntryCaseInsensitive,
+	resolveEntryKind
+} from '$lib/manifest/lookup';
 import { getLatestVersion, pickLatestApiVersion } from '$lib/versions';
 import { resolveObjectSchema } from '$lib/schema/requiredFields';
 import { parseDocuments } from '$lib/yaml-validation/parseDocuments';
@@ -266,14 +270,15 @@ export function fixManifestIdentity(
 	const [group, version] = parts;
 
 	const entry = findManifestEntryCaseInsensitive(manifest, kind, group);
-	if (!entry?.group || !entry.kind) return { data, fixes };
+	if (!entry?.group) return { data, fixes };
 
+	const canonicalKind = resolveEntryKind(entry);
 	const out = { ...data };
 	const canonicalApiVersion = `${entry.group}/${version}`;
 
-	if (out.kind !== entry.kind) {
-		fixes.push({ kind: 'kindCase', path: 'kind', from: out.kind, to: entry.kind, docIndex });
-		out.kind = entry.kind;
+	if (out.kind !== canonicalKind) {
+		fixes.push({ kind: 'kindCase', path: 'kind', from: out.kind, to: canonicalKind, docIndex });
+		out.kind = canonicalKind;
 	}
 	if (String(out.apiVersion) !== canonicalApiVersion) {
 		fixes.push({

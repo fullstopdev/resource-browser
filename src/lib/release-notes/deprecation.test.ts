@@ -31,7 +31,8 @@ const emptyKindResource: ManifestResource = {
 describe('deprecation helpers', () => {
 	it('resolves kind from manifest or short name', () => {
 		expect(resolveResourceKind(aggregateRoute)).toBe('AggregateRoute');
-		expect(resolveResourceKind(emptyKindResource)).toBe('alarmoverlays');
+		expect(resolveResourceKind({ ...emptyKindResource, kind: 'AlarmOverlay' })).toBe('AlarmOverlay');
+		expect(resolveResourceKind(emptyKindResource)).toBe('Alarmoverlay');
 	});
 
 	it('builds full apiVersion and migration path', () => {

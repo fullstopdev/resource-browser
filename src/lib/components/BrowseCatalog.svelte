@@ -2,6 +2,7 @@
 	import AppHeader from '$lib/components/AppHeader.svelte';
 	import ResourceModal from '$lib/components/ResourceModal.svelte';
 	import type { ResourceViewMode } from '$lib/resourceView';
+	import { displayGroup, displayKind } from '$lib/resourceSearch';
 	import type { CrdResource, EdaRelease } from '$lib/structure';
 	import { getLatestVersion } from '$lib/versions';
 
@@ -38,7 +39,7 @@
 		const query = searchQuery.trim().toLowerCase();
 		if (query) {
 			const terms = query.split(/\s+/);
-			const haystack = `${res.name} ${res.kind} ${res.group}`.toLowerCase();
+			const haystack = `${res.name} ${displayKind(res)} ${displayGroup(res)}`.toLowerCase();
 			if (!terms.every((term) => haystack.includes(term))) return false;
 		}
 		if (typeFilter === 'state') return res.name.toLowerCase().includes('states');
@@ -57,14 +58,6 @@
 		}
 		return sortAsc ? cmp : -cmp;
 	});
-
-	function displayKind(res: CrdResource) {
-		return res.kind || res.name.split('.')[0];
-	}
-
-	function displayGroup(res: CrdResource) {
-		return res.group || res.name.split('.').slice(1).join('.');
-	}
 
 	function isAllDeprecated(res: CrdResource) {
 		return res.versions.length > 0 && res.versions.every((v) => v.deprecated);

@@ -187,7 +187,7 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 			'required-apiVersion',
 			'error',
 			"Missing required 'apiVersion' field",
-			'apiVersion'
+			'/apiVersion'
 		);
 	} else if (!isNonEmptyString(apiVersion)) {
 		pushIssue(
@@ -196,7 +196,7 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 			'required-apiVersion',
 			'error',
 			'apiVersion must be a non-empty string',
-			'apiVersion'
+			'/apiVersion'
 		);
 	} else if (!isValidApiVersion(apiVersion)) {
 		pushIssue(
@@ -205,7 +205,7 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 			'invalid-apiVersion-format',
 			'error',
 			`Invalid apiVersion format: '${apiVersion}' (expected 'group/version' or core version such as 'v1')`,
-			'apiVersion'
+			'/apiVersion'
 		);
 	}
 
@@ -217,7 +217,7 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 			'required-kind',
 			'error',
 			"Missing required 'kind' field",
-			'kind'
+			'/kind'
 		);
 	} else if (!isNonEmptyString(kind)) {
 		pushIssue(
@@ -226,7 +226,7 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 			'required-kind',
 			'error',
 			'kind must be a non-empty string',
-			'kind'
+			'/kind'
 		);
 	}
 

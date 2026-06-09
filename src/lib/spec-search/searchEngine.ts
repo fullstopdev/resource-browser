@@ -7,6 +7,7 @@ import {
 } from './schemaUtils';
 
 import type { ManifestResource } from '$lib/manifest';
+import { resolveEntryKind } from '$lib/manifest/lookup';
 
 export type { ManifestResource };
 
@@ -110,7 +111,7 @@ function searchResourceVersion(
 		if (pruned) {
 			matches.push({
 				name: res.name,
-				kind: res.kind,
+				kind: resolveEntryKind(res),
 				version: ver,
 				type: 'spec',
 				schema: prepareMatchSchema(pruned as Record<string, unknown>, spec as Record<string, unknown>),
@@ -126,7 +127,7 @@ function searchResourceVersion(
 		if (prunedStatus) {
 			matches.push({
 				name: res.name,
-				kind: res.kind,
+				kind: resolveEntryKind(res),
 				version: ver,
 				type: 'status',
 				schema: prepareMatchSchema(

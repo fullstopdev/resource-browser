@@ -16,6 +16,7 @@
         type PathInfo
     } from '$lib/spec-search/schemaUtils';
     import { fetchManifest } from '$lib/manifest';
+    import { displayKind, displayGroup } from '$lib/resourceSearch';
     import { searchManifest, type SearchMatch } from '$lib/spec-search/searchEngine';
     // expandAll controls removed from this auto-search page (no UI button)
     import releasesYaml from '$lib/releases.yaml?raw';
@@ -136,10 +137,15 @@
             ? markMatchingNodes(g.fullStatus, matchedPaths, 'status')
             : null;
         modalInitialVersion = g.version || null;
+        const catalogResource = {
+            name: g.name,
+            kind: g.kind ?? '',
+            group: g.name.split('.').slice(1).join('.')
+        };
         modalResource = {
             name: g.name,
-            kind: g.kind || g.name.split('.')[0],
-            group: g.name.split('.').slice(1).join('.'),
+            kind: displayKind(catalogResource),
+            group: displayGroup(catalogResource),
             versions: g.version
                 ? [{ name: g.version, deprecated: false, appVersion: '' }]
                 : []

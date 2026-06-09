@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { validateBundle } from './index';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
 
@@ -18,6 +18,10 @@ const manifest: ManifestEntry[] = [
 ];
 
 describe('validateBundle error accumulation', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it('reports issues from all three documents', async () => {
 		const yaml = `metadata:
   name: doc-one
@@ -92,13 +96,23 @@ spec: {}
 		).toBe(true);
 	});
 
-	it('errors when kind case does not match the manifest CRD', async () => {
+	it('normalizes kind casing before CRD lookup', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue({
+				ok: true,
+				text: async () =>
+					'schema:\n  openAPIV3Schema:\n    properties:\n      spec:\n        type: object\n        properties:\n          operatingSystem:\n            type: string'
+			})
+		);
+
 		const yaml = `apiVersion: topologies.eda.nokia.com/v1
 kind: topology
 metadata:
   name: test-topology
   namespace: eda
-spec: {}
+spec:
+  operatingSystem: srl
 `;
 
 		const result = await validateBundle({
@@ -108,16 +122,8 @@ spec: {}
 			manifest
 		});
 
-		expect(result.valid).toBe(false);
-		expect(
-			result.issues.some(
-				(i) =>
-					i.severity === 'error' &&
-					i.message.includes(`Invalid kind: 'topology' must be 'Topology'`)
-			)
-		).toBe(true);
-		const kindIssue = result.issues.find((i) => i.message.includes('Invalid kind:'));
-		expect(kindIssue?.suggestedFix).toEqual({ field: 'kind', value: 'Topology', line: 2 });
+		expect(result.issues.some((i) => i.message.includes('Invalid kind:'))).toBe(false);
+		expect(result.issues.some((i) => i.message.includes('Could not find CRD'))).toBe(false);
 	});
 
 	it('errors when apiVersion group is invalid for a known kind', async () => {

@@ -1,9 +1,10 @@
+import { resolveEntryKind } from '$lib/manifest/lookup';
 import type { CrdResource } from '$lib/structure';
 
 export type SearchableResource = Pick<CrdResource, 'name' | 'kind' | 'group'>;
 
 export function displayKind(resource: SearchableResource): string {
-	return resource.kind || resource.name.split('.')[0];
+	return resolveEntryKind(resource);
 }
 
 export function displayGroup(resource: SearchableResource): string {
