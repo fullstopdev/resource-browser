@@ -104,11 +104,17 @@ function emptyContext(): ResolvedAskContext {
 	};
 }
 
-function resourceFromManifest(entry: ManifestResource, versionOverride?: string): ResolvedAskContext {
+function resourceFromManifest(
+	entry: ManifestResource,
+	versionOverride?: string,
+	releaseName?: string
+): ResolvedAskContext {
 	const kind = entry.kind || entry.name.split('.')[0] || '';
 	const group = entry.group || entry.name.split('.').slice(1).join('.') || '';
+	const scopedRelease = releaseName ?? getDefaultReleaseName();
 	return {
-		kvRelease: getDefaultReleaseName(),
+		release: scopedRelease,
+		kvRelease: scopedRelease,
 		kind,
 		group,
 		name: entry.name,
@@ -117,11 +123,13 @@ function resourceFromManifest(entry: ManifestResource, versionOverride?: string)
 	};
 }
 
-function crdContextFromName(name: string, version: string): ResolvedAskContext {
+function crdContextFromName(name: string, version: string, releaseName?: string): ResolvedAskContext {
 	const kind = name.split('.')[0] || '';
 	const group = name.split('.').slice(1).join('.') || '';
+	const scopedRelease = releaseName ?? getDefaultReleaseName();
 	return {
-		kvRelease: getDefaultReleaseName(),
+		release: scopedRelease,
+		kvRelease: scopedRelease,
 		kind,
 		group,
 		name,
@@ -142,9 +150,7 @@ async function resolveFromExplicit(ctx: GlobalAskContext): Promise<ResolvedAskCo
 			if (ctx.name) {
 				const byName = manifest.find((r) => r.name === ctx.name);
 				if (byName) {
-					const resolved = resourceFromManifest(byName, ctx.version);
-					if (release) resolved.release = release;
-					return resolved;
+					return resourceFromManifest(byName, ctx.version, lookupRelease);
 				}
 			}
 			if (ctx.kind) {
@@ -154,30 +160,28 @@ async function resolveFromExplicit(ctx: GlobalAskContext): Promise<ResolvedAskCo
 						(!ctx.group || r.group === ctx.group || r.name.endsWith('.' + ctx.group))
 				);
 				if (byKind) {
-					const resolved = resourceFromManifest(byKind, ctx.version);
-					if (release) resolved.release = release;
-					return resolved;
+					return resourceFromManifest(byKind, ctx.version, lookupRelease);
 				}
 			}
 		}
 
 		const resolved: ResolvedAskContext = {
-			kvRelease: getDefaultReleaseName(),
+			release: lookupRelease,
+			kvRelease: lookupRelease,
 			kind: ctx.kind ?? '',
 			group: ctx.group ?? '',
 			name: ctx.name ?? (ctx.kind && ctx.group ? `${ctx.kind}.${ctx.group}` : ''),
 			version: ctx.version ?? '',
 			hasCrdContext: !!(ctx.kind && ctx.group)
 		};
-		if (release) resolved.release = release;
 		return resolved;
 	}
 
 	if (release) {
-		return { ...emptyContext(), release };
+		return { ...emptyContext(), release, kvRelease: release };
 	}
 
-	return emptyContext();
+	return { ...emptyContext(), release: getDefaultReleaseName(), kvRelease: getDefaultReleaseName() };
 }
 
 export async function resolveGlobalAskContext(
@@ -189,31 +193,35 @@ export async function resolveGlobalAskContext(
 	}
 
 	const parsed = parseCrdPageUrl(pageUrl.pathname);
+	const urlRelease = getDefaultReleaseName(pageUrl.searchParams.get('release'));
+
 	if (parsed) {
-		const defaultRelease = getDefaultReleaseName();
-		const rel = allReleases.find((r) => r.name === defaultRelease);
+		const rel = allReleases.find((r) => r.name === urlRelease);
 		if (rel) {
 			const manifest = (await fetchManifest(rel.folder)) ?? [];
 			const entry = manifest.find((r) => r.name === parsed.name);
 			if (entry) {
-				return resourceFromManifest(entry, parsed.version);
+				return resourceFromManifest(entry, parsed.version, urlRelease);
 			}
 		}
-		return crdContextFromName(parsed.name, parsed.version);
+		return crdContextFromName(parsed.name, parsed.version, urlRelease);
 	}
 
-	return emptyContext();
+	return { ...emptyContext(), release: urlRelease, kvRelease: urlRelease };
 }
 
 /** Minimal scoped-context label (CRD kind/group or explicit release only). */
 export function contextSummary(ctx: ResolvedAskContext): string {
+	const releaseLabel = ctx.release
+		? allReleases.find((r) => r.name === ctx.release)?.label ?? ctx.release
+		: '';
 	if (ctx.hasCrdContext && ctx.kind) {
 		const groupPart = ctx.group ? ` (${ctx.group})` : '';
-		return `${ctx.kind}${groupPart}`;
+		const releasePart = releaseLabel ? ` · ${releaseLabel}` : '';
+		return `${ctx.kind}${groupPart}${releasePart}`;
 	}
 	if (ctx.release) {
-		const rel = allReleases.find((r) => r.name === ctx.release);
-		return rel?.label ?? ctx.release;
+		return releaseLabel || ctx.release;
 	}
 	return '';
 }

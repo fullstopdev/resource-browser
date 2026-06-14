@@ -15,6 +15,8 @@ export interface AskAIResult {
 	answer?: string;
 	sources?: RagSource[];
 	error?: string;
+	grounded?: boolean;
+	release?: string;
 }
 
 function friendlyError(status: number, message?: string): string {
@@ -59,7 +61,13 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		return { error: friendlyError(0) };
 	}
 
-	let data: { answer?: string; sources?: RagSource[]; error?: string };
+	let data: {
+		answer?: string;
+		sources?: RagSource[];
+		error?: string;
+		grounded?: boolean;
+		release?: string;
+	};
 	try {
 		data = await response.json();
 	} catch {
@@ -72,6 +80,8 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 
 	return {
 		answer: data.answer ?? 'No answer returned.',
-		sources: data.sources
+		sources: data.sources,
+		grounded: data.grounded,
+		release: data.release
 	};
 }

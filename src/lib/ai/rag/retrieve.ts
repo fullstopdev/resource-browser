@@ -8,13 +8,15 @@ import {
 } from './chunkTypes';
 import { trimToBudget } from '$lib/ai/tokenBudget';
 
-export const DEFAULT_TOP_K = 4;
+export const DEFAULT_TOP_K = 6;
 const RAG_CONTEXT_CHAR_LIMIT = 6000;
 
 /** Enough retrieved chunks to skip full CRD spec in the LLM prompt. */
 export const MIN_SUFFICIENT_RAG_CHUNKS = 3;
 /** Top match score (cosine) that alone can justify slim context. */
 export const MIN_RAG_SCORE = 0.65;
+/** Drop weak Vectorize matches to reduce off-topic context. */
+export const MIN_CHUNK_SCORE = 0.45;
 
 export type RagFilters = {
 	release?: string;
@@ -30,6 +32,8 @@ export type RetrieveResult = {
 	mergedCount: number;
 	topScore: number;
 	sufficient: boolean;
+	/** True when release filter was applied but Vectorize returned no matches. */
+	releaseNotIndexed: boolean;
 };
 
 export function isRagSufficient(mergedCount: number, topScore: number): boolean {
@@ -141,6 +145,10 @@ function dedupeSources(sources: RagSource[]): RagSource[] {
 	return out;
 }
 
+function filterByScore(matches: VectorizeMatch[]): VectorizeMatch[] {
+	return matches.filter((match) => (match.score ?? 0) >= MIN_CHUNK_SCORE);
+}
+
 async function queryIndex(
 	index: VectorizeIndex,
 	vector: number[],
@@ -152,7 +160,24 @@ async function queryIndex(
 		returnMetadata: 'all',
 		...(filter ? { filter } : {})
 	});
-	return result.matches;
+	return filterByScore(result.matches);
+}
+
+/** Release-scoped query with kind/group fallback when strict metadata filter is too narrow. */
+async function queryCrdIndex(
+	index: VectorizeIndex,
+	vector: number[],
+	topK: number,
+	filters: RagFilters
+): Promise<VectorizeMatch[]> {
+	const strictFilter = buildCrdMetadataFilter(filters);
+	let matches = await queryIndex(index, vector, topK, strictFilter);
+
+	if (matches.length === 0 && filters.release && (filters.kind || filters.group)) {
+		matches = await queryIndex(index, vector, topK, { release: filters.release });
+	}
+
+	return matches;
 }
 
 /** Embed the question and query Vectorize for CRD schema and EDA docs chunks. */
@@ -171,7 +196,8 @@ export async function retrieveRagContext(
 		contextText: '',
 		mergedCount: 0,
 		topScore: 0,
-		sufficient: false
+		sufficient: false,
+		releaseNotIndexed: false
 	};
 	if (!crdIndex && !docsIndex) return empty;
 
@@ -184,7 +210,7 @@ export async function retrieveRagContext(
 	try {
 		const [crdMatches, docsMatches] = await Promise.all([
 			crdIndex
-				? queryIndex(crdIndex, vector, crdTopK, buildCrdMetadataFilter(filters))
+				? queryCrdIndex(crdIndex, vector, crdTopK, filters)
 				: Promise.resolve([]),
 			docsIndex
 				? queryIndex(docsIndex, vector, docsTopK, {
@@ -234,6 +260,9 @@ export async function retrieveRagContext(
 			RAG_CONTEXT_CHAR_LIMIT
 		);
 
+		const releaseNotIndexed =
+			!!filters.release && chunks.length === 0 && docsChunks.length === 0;
+
 		return {
 			chunks,
 			docsChunks,
@@ -241,7 +270,8 @@ export async function retrieveRagContext(
 			contextText,
 			mergedCount,
 			topScore,
-			sufficient
+			sufficient,
+			releaseNotIndexed
 		};
 	} catch (err) {
 		console.error('Vectorize query error:', err);

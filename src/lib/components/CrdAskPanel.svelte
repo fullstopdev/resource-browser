@@ -2,13 +2,17 @@
 	import { askAI } from '$lib/ai/askAI';
 	import { explainCRD, explainField, generateExample } from '$lib/ai/aiClient';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
+	import { resourceBrowserUrl } from '$lib/ai/rag/resourceLinks';
 	import { parseReleaseFromQuestion } from '$lib/globalAsk';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
+	import { page } from '$app/stores';
 
 	export let kind = '';
 	export let group = '';
 	export let name = '';
 	export let version = '';
+	/** Release scoped for Vectorize RAG and API defaults (e.g. 26.4.2). */
+	export let release = '';
 	/** Default release for KV chip actions on CRD detail pages only. */
 	export let kvRelease = '';
 	/** When true, show CRD-specific starter chips (explain, example, required fields). */
@@ -26,11 +30,14 @@
 	];
 
 	const genericStarterQuestions = [
-		'What CRDs are available for workflows?',
-		'Explain Topology resource',
-		'Example YAML for a Fabric',
-		'What changed between 26.4.1 and 26.4.2?'
+		'What is the Policy CRD in 26.4.2?',
+		'Required fields for Interface in 26.4.2?',
+		'Explain Topology resource for release 26.4.2',
+		'Example YAML for a Fabric in 26.4.2?'
 	];
+
+	$: effectiveRelease = release || kvRelease || '';
+	$: releaseLabel = effectiveRelease ? `EDA ${effectiveRelease}` : '';
 
 	$: activeStarters = hasCrdContext ? crdStarterQuestions : genericStarterQuestions;
 
@@ -42,6 +49,8 @@
 	let sourcesOpen = false;
 	let hasAsked = false;
 	let answerCached = false;
+	let answerGrounded = false;
+	let answerRelease = '';
 
 	$: resourceLabel = hasCrdContext && kind
 		? `${kind} (${group}/${version || 'latest'})`
@@ -61,10 +70,20 @@
 		sourcesOpen = false;
 		hasAsked = true;
 		answerCached = false;
+		answerGrounded = false;
+		answerRelease = '';
 
-		let result: { answer?: string; sources?: RagSource[]; error?: string; cached?: boolean };
+		let result: {
+			answer?: string;
+			sources?: RagSource[];
+			error?: string;
+			cached?: boolean;
+			grounded?: boolean;
+			release?: string;
+		};
 
 		const questionRelease = parseReleaseFromQuestion(trimmed);
+		const scopedRelease = questionRelease || effectiveRelease || undefined;
 
 		if (hasCrdContext && kvRelease && kind && group && CACHED_STARTERS.has(trimmed)) {
 			const actionResult =
@@ -82,14 +101,14 @@
 						answer: `**Required fields for ${kind}:**\n\n${actionResult.answer}`,
 						cached: actionResult.cached
 					};
-		} else if (questionRelease) {
+		} else {
 			result = await askAI({
 				question: trimmed,
-				release: questionRelease,
-				version: version || undefined
+				release: scopedRelease,
+				...(hasCrdContext && kind && group
+					? { kind, group, version: version || undefined }
+					: {})
 			});
-		} else {
-			result = await askAI({ question: trimmed });
 		}
 
 		loading = false;
@@ -100,7 +119,13 @@
 			answer = result.answer ?? null;
 			sources = result.sources ?? [];
 			answerCached = !!result.cached;
+			answerGrounded = !!result.grounded;
+			answerRelease = result.release ?? scopedRelease ?? '';
 		}
+	}
+
+	function browserLink(source: RagSource): string | null {
+		return resourceBrowserUrl($page.url.origin, source);
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -143,6 +168,14 @@
 						>
 							Workers AI
 						</span>
+						{#if releaseLabel}
+							<span
+								class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+								title="Vectorize RAG scoped to this release"
+							>
+								{releaseLabel}
+							</span>
+						{/if}
 					</div>
 					<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
 						Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
@@ -297,7 +330,23 @@
 		>
 			<div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
 				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
-				{#if answerCached}
+				<div class="flex flex-wrap items-center gap-1.5">
+					{#if answerGrounded}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+							title="Answer grounded in retrieved schema/docs context"
+						>
+							Grounded
+						</span>
+					{/if}
+					{#if answerRelease}
+						<span
+							class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+						>
+							{answerRelease}
+						</span>
+					{/if}
+					{#if answerCached}
 					<span
 						class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
 						title="Served from KV cache"
@@ -307,7 +356,8 @@
 						</svg>
 						Cached
 					</span>
-				{/if}
+					{/if}
+				</div>
 			</div>
 			<div class="px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
 				<SimpleMarkdown source={answer} className="crd-ask-answer" />
@@ -374,6 +424,13 @@
 															class="text-blue-600 hover:underline dark:text-blue-400"
 														>
 															{source.path}
+														</a>
+													{:else if browserLink(source)}
+														<a
+															href={browserLink(source)}
+															class="text-blue-600 hover:underline dark:text-blue-400"
+														>
+															Open in resource browser
 														</a>
 													{:else}
 														{source.path}

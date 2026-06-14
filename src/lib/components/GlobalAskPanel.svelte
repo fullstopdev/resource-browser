@@ -110,6 +110,7 @@
 							group={resolved.group}
 							name={resolved.name}
 							version={resolved.version}
+							release={resolved.release ?? resolved.kvRelease ?? ''}
 							kvRelease={resolved.kvRelease}
 							hasCrdContext={resolved.hasCrdContext}
 							embedded={true}
