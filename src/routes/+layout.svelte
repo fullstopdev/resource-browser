@@ -3,6 +3,7 @@
 
 	import { initTheme } from '$lib/theme';
 	import GlobalAskPanel from '$lib/components/GlobalAskPanel.svelte';
+	import GlobalAskButton from '$lib/components/GlobalAskButton.svelte';
 	import { askAiEnabled } from '$lib/featureFlags';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { onMount } from 'svelte';
@@ -22,11 +23,21 @@
 
 	// Only show the global footer on the homepage
 	// no special-case: show credits on all pages
+	const isDependencyMapPage = derived(page, ($page) =>
+		($page.url.pathname || '').startsWith('/dependency-map')
+	);
+
 	onMount(() => initTheme());
 </script>
 
 {#if askAiEnabled}
 	<GlobalAskPanel />
+{/if}
+
+{#if askAiEnabled && $isDependencyMapPage}
+	<div class="global-ask-fab">
+		<GlobalAskButton />
+	</div>
 {/if}
 
 {#if $isDetailPage}

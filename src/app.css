@@ -5665,13 +5665,24 @@ html.dark .release-notes-page .rn-val-after {
 }
 
 .global-ask-btn__label {
-	display: none;
+	display: inline;
 }
 
-@media (min-width: 640px) {
-	.global-ask-btn__label {
-		display: inline;
-	}
+
+.global-ask-fab {
+	position: fixed;
+	right: max(0.75rem, env(safe-area-inset-right));
+	bottom: max(0.75rem, env(safe-area-inset-bottom));
+	z-index: 120;
+}
+
+.global-ask-fab .global-ask-btn {
+	border-width: 2px;
+	box-shadow: 0 6px 20px rgba(29, 78, 216, 0.35);
+}
+
+.dark .global-ask-fab .global-ask-btn {
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 .global-ask-overlay {
