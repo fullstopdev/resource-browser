@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@xyflow/svelte':
+        specifier: ^1.6.0
+        version: 1.6.0(svelte@5.36.13)
+      '@xyflow/system':
+        specifier: ^0.0.77
+        version: 0.0.77
       ajv:
         specifier: ^8.17.1
         version: 8.17.1
@@ -1154,6 +1160,11 @@ packages:
   '@speed-highlight/core@1.2.7':
     resolution: {integrity: sha512-0dxmVj4gxg3Jg879kvFS/msl4s9F3T9UXC1InxgOf7t5NvcPD97u/WTA5vL/IxWHMn7qSxBozqrnnE2wvl1m8g==}
 
+  '@svelte-put/shortcut@4.1.0':
+    resolution: {integrity: sha512-wImNEIkbxAIWFqlfuhcbC+jRPDeRa/uJGIXHMEVVD+jqL9xCwWNnkGQJ6Qb2XVszuRLHlb8SGZDL3Io/h3vs8w==}
+    peerDependencies:
+      svelte: ^5.1.0
+
   '@sveltejs/acorn-typescript@1.0.5':
     resolution: {integrity: sha512-IwQk4yfwLdibDlrXVE04jTZYlLnwsTT2PIOQQGNLWfjavGifnk1JD1LcZjZaBTRcxZu2FfPfNLOE04DSu9lqtQ==}
     peerDependencies:
@@ -1518,6 +1529,14 @@ packages:
 
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
+
+  '@xyflow/svelte@1.6.0':
+    resolution: {integrity: sha512-msCT95OqTThh7gWhdFJ03Qzhc0Q8QYfA8K03M4I+KTtHdvatoTuRo9ofkFHJDbMfS243y+fOs5TCvU9T1kEUUA==}
+    peerDependencies:
+      svelte: ^5.25.0
+
+  '@xyflow/system@0.0.77':
+    resolution: {integrity: sha512-qCDCMCQAAgUu8yHnhloHG9F5mwPX5E+Wl8McpYIOPSSXfzFJJoZcwOcsDiAjitVKIg2de1WmJbCHfpcvxprsgg==}
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -3619,6 +3638,10 @@ snapshots:
 
   '@speed-highlight/core@1.2.7': {}
 
+  '@svelte-put/shortcut@4.1.0(svelte@5.36.13)':
+    dependencies:
+      svelte: 5.36.13
+
   '@sveltejs/acorn-typescript@1.0.5(acorn@8.15.0)':
     dependencies:
       acorn: 8.15.0
@@ -4070,6 +4093,24 @@ snapshots:
       '@vitest/pretty-format': 3.2.4
       loupe: 3.1.4
       tinyrainbow: 2.0.0
+
+  '@xyflow/svelte@1.6.0(svelte@5.36.13)':
+    dependencies:
+      '@svelte-put/shortcut': 4.1.0(svelte@5.36.13)
+      '@xyflow/system': 0.0.77
+      svelte: 5.36.13
+
+  '@xyflow/system@0.0.77':
+    dependencies:
+      '@types/d3-drag': 3.0.7
+      '@types/d3-interpolate': 3.0.4
+      '@types/d3-selection': 3.0.11
+      '@types/d3-transition': 3.0.9
+      '@types/d3-zoom': 3.0.8
+      d3-drag: 3.0.0
+      d3-interpolate: 3.0.1
+      d3-selection: 3.0.0
+      d3-zoom: 3.0.0
 
   abbrev@1.1.1: {}
 
