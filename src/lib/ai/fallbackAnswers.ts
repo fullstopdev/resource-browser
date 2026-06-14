@@ -1,5 +1,6 @@
 import type { AiSchemaPayload } from './loadAiSchema';
 import type { RagSource } from './rag/chunkTypes';
+import { formatCrdAnswer } from './formatAnswer';
 import { resolveObjectSchema } from '$lib/schema/requiredFields';
 import { WORKERS_AI_NEURON_LIMIT_MESSAGE, isWorkersAINeuronLimitError } from './workersAIQuota';
 
@@ -32,40 +33,11 @@ function navigateSchemaProperty(schema: unknown, fieldPath: string): unknown {
 	return current;
 }
 
-function topLevelSpecSummary(schema: AiSchemaPayload, maxFields = 5): string[] {
-	const resolved = resolveObjectSchema(schema.specSchema);
-	if (!resolved) return [];
-	const bullets: string[] = [];
-	for (const key of Object.keys(resolved.properties).slice(0, maxFields)) {
-		const prop = resolved.properties[key] as Record<string, unknown> | undefined;
-		const desc =
-			typeof prop?.description === 'string' && prop.description.length < 160
-				? `: ${prop.description}`
-				: '';
-		bullets.push(`- \`${key}\`${desc}`);
-	}
-	return bullets;
-}
+const FALLBACK_NOTICE =
+	'Generated from the CRD schema (Workers AI unavailable). Verify details in the Resource Browser spec view.';
 
 export function buildSchemaExplainFallback(schema: AiSchemaPayload): string {
-	const header = `**${schema.kind}** (\`${schema.apiVersion}\`) — EDA release **${schema.release}**`;
-	const notice =
-		'_Generated from the CRD schema (Workers AI unavailable). Verify details in the Resource Browser spec view._';
-	const required =
-		schema.specRequired.length > 0
-			? `**Required spec fields:** ${schema.specRequired.join(', ')}`
-			: '**Required spec fields:** none listed at the top level of spec.';
-	const statusLine =
-		schema.statusSchema && resolveObjectSchema(schema.statusSchema)
-			? 'This CRD exposes a **status** sub-resource (state/reporting).'
-			: 'This CRD appears to be primarily a **configuration** resource (spec-driven).';
-	const bullets = topLevelSpecSummary(schema);
-	const keyFields =
-		bullets.length > 0
-			? `**Key spec fields (sample):**\n${bullets.join('\n')}`
-			: '**Key spec fields:** see the full schema in the browser.';
-
-	return [header, '', notice, '', required, '', statusLine, '', keyFields].join('\n');
+	return formatCrdAnswer(schema, { notice: FALLBACK_NOTICE });
 }
 
 export function buildSchemaFieldFallback(schema: AiSchemaPayload, fieldPath: string): string | null {
@@ -76,16 +48,17 @@ export function buildSchemaFieldFallback(schema: AiSchemaPayload, fieldPath: str
 			: `spec.${fieldPath}`
 	);
 	if (!node) {
-		return `Field \`${fieldPath}\` is not defined in **${schema.kind}** for release **${schema.release}**.`;
+		return `## Field not found\n\nField \`${fieldPath}\` is not defined in **${schema.kind}** (\`${schema.apiVersion}\`) for release **${schema.release}**.`;
 	}
 
 	const resolved = resolveObjectSchema(node);
 	const o = node as Record<string, unknown>;
 	const lines = [
-		`**Field \`${fieldPath}\` in ${schema.kind}** (release ${schema.release})`,
+		`## Field \`${fieldPath}\``,
 		'',
-		'_Schema-derived summary (Workers AI unavailable)._',
+		`_${FALLBACK_NOTICE}_`,
 		'',
+		`- **CRD:** ${schema.kind} (\`${schema.apiVersion}\`)`,
 		`- **Type:** ${schemaTypeLabel(node)}`,
 		`- **Required:** ${
 			fieldPath.includes('.')
@@ -103,7 +76,7 @@ export function buildSchemaFieldFallback(schema: AiSchemaPayload, fieldPath: str
 		lines.push(`- **Default:** ${JSON.stringify(o.default)}`);
 	}
 	if (typeof o.description === 'string') {
-		lines.push(`- **Description:** ${o.description}`);
+		lines.push('', '### Description', '', o.description);
 	} else if (resolved) {
 		const req = resolved.required.length ? resolved.required.join(', ') : 'none';
 		lines.push(`- **Nested required:** ${req}`);
@@ -132,17 +105,18 @@ export function buildRagOnlyAnswer(params: {
 					.join('; ')}`
 			: '';
 
-	const body = context.trim();
 	return [
-		`**Retrieved context for EDA ${release}**`,
+		`## Retrieved context for EDA ${release}`,
 		'',
-		`_${reasonLine} The excerpts below are copied from indexed schema/documentation — they are not paraphrased by a model._`,
+		`_${reasonLine} Excerpts below are from indexed schema/documentation — not paraphrased by a model._`,
 		'',
 		`**Question:** ${question}`,
 		'',
-		body,
+		context.trim(),
 		sourceLines
-	].join('\n');
+	]
+		.filter(Boolean)
+		.join('\n');
 }
 
 export function llmFallbackReason(err: unknown): 'quota' | 'llm_error' {
@@ -155,33 +129,38 @@ export function buildContextFirstFallbackAnswer(params: {
 	kind: string;
 	group: string;
 	version?: string;
-	schemaSummary?: string;
-	richContext?: string;
+	schema?: AiSchemaPayload;
+	kvAnswer?: string;
 	ragContext?: string;
 	sources?: RagSource[];
 	reason?: 'quota' | 'llm_error';
 }): string {
-	const { question, release, kind, group, version, schemaSummary, richContext, ragContext, sources, reason } =
-		params;
-	const api = version ? `${group}/${version}` : group;
-	const gvk = `**${kind}** (\`${api}\`) — EDA **${release}**`;
+	const { question, release, kind, group, schema, kvAnswer, ragContext, sources, reason } = params;
+	const api = schema?.apiVersion ?? (group ? `${group}` : group);
 	const reasonLine =
 		reason === 'quota'
 			? WORKERS_AI_NEURON_LIMIT_MESSAGE
 			: 'Workers AI could not generate a narrative answer right now.';
+
 	const intro = [
-		gvk,
+		`## ${kind} (\`${api}\`) — EDA ${release}`,
 		'',
-		`_${reasonLine} Summary below is from the CRD schema for this exact kind and API group (not other *Policy* resources)._`,
+		`_${reasonLine} Answer below is grounded on this exact kind and API group (not other similarly named resources)._`,
 		'',
 		`**Question:** ${question}`,
 		''
 	].join('\n');
 
-	const primary = schemaSummary?.trim() || richContext?.trim() || '';
+	const primary = kvAnswer?.trim()
+		? kvAnswer.trim()
+		: schema
+			? formatCrdAnswer(schema, { notice: FALLBACK_NOTICE })
+			: '';
+
 	const rag =
 		ragContext?.trim() &&
-		`**Indexed excerpts (${kind} / ${group} only):**\n\n${ragContext.trim()}`;
+		['## Related indexed excerpts', '', ragContext.trim()].join('\n');
+
 	const sourceLines =
 		sources && sources.length
 			? `\n**Sources:** ${sources
@@ -192,4 +171,3 @@ export function buildContextFirstFallbackAnswer(params: {
 
 	return [intro, primary, rag || '', sourceLines].filter(Boolean).join('\n\n');
 }
-

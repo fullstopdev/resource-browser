@@ -49,6 +49,7 @@
 	let sourcesOpen = false;
 	let hasAsked = false;
 	let answerCached = false;
+	let answerKvContext = false;
 	let answerGrounded = false;
 	let answerRelease = '';
 	let answerLlmFallback = false;
@@ -77,6 +78,7 @@
 		sourcesOpen = false;
 		hasAsked = true;
 		answerCached = false;
+		answerKvContext = false;
 		answerGrounded = false;
 		answerRelease = '';
 		answerLlmFallback = false;
@@ -87,6 +89,7 @@
 			sources?: RagSource[];
 			error?: string;
 			cached?: boolean;
+			kvCached?: boolean;
 			grounded?: boolean;
 			release?: string;
 			llmFallback?: boolean;
@@ -137,6 +140,7 @@
 			answer = result.answer ?? null;
 			sources = result.sources ?? [];
 			answerCached = !!result.cached;
+			answerKvContext = !!result.kvCached;
 			answerGrounded = !!result.grounded;
 			answerRelease = result.release ?? scopedRelease ?? '';
 			answerLlmFallback = !!result.llmFallback;
@@ -161,13 +165,18 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	{#if embedded && focusedCrdLabel}
-		<p class="crd-ask-context-banner rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100">
+	{#if focusedCrdLabel}
+		<p
+			class="crd-ask-context-banner rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+		>
 			<span class="font-semibold">Asking about:</span>
 			{focusedCrdLabel}
 			{#if releaseLabel}
 				<span class="text-sky-800/80 dark:text-sky-200/80">· {releaseLabel}</span>
 			{/if}
+			<span class="mt-1 block text-xs text-sky-800/70 dark:text-sky-200/70">
+				Answers prioritize warmed KV schema summaries, then Vectorize RAG for this exact apiGroup.
+			</span>
 		</p>
 	{/if}
 	{#if !embedded}
@@ -208,7 +217,7 @@
 					</div>
 					<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
 						Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
-						from CRD schemas, Nokia EDA official docs, and Vectorize RAG.
+						from warmed KV summaries, CRD schemas, Nokia EDA docs, and Vectorize RAG.
 					</p>
 				</div>
 			</div>
@@ -363,9 +372,17 @@
 					{#if answerLlmFallback}
 						<span
 							class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
-							title={answerFallbackReason === 'quota' ? 'Workers AI quota reached' : 'Schema/RAG excerpt without LLM paraphrase'}
+							title={answerFallbackReason === 'quota' ? 'Workers AI quota reached' : 'Schema/KV fallback without LLM paraphrase'}
 						>
-							{answerFallbackReason === 'quota' ? 'Quota fallback' : 'Schema excerpts'}
+							{answerFallbackReason === 'quota' ? 'Quota fallback' : 'Schema fallback'}
+						</span>
+					{/if}
+					{#if answerKvContext}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-900 dark:bg-teal-900/40 dark:text-teal-200"
+							title="KV warmed summary included in context"
+						>
+							KV context
 						</span>
 					{/if}
 					{#if answerGrounded}

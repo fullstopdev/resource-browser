@@ -32,7 +32,9 @@ const SLEEP_MS = 300;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function loadKinds(releaseName: string): Promise<string[]> {
+async function loadCrdTargets(
+	releaseName: string
+): Promise<{ kind: string; group: string }[]> {
 	const raw = await fs.readFile(RELEASES_PATH, 'utf8');
 	const config = yaml.load(raw, { schema: yaml.CORE_SCHEMA }) as ReleasesConfig;
 	const release = config.releases.find((r) => r.name === releaseName || r.label === releaseName);
@@ -43,13 +45,15 @@ async function loadKinds(releaseName: string): Promise<string[]> {
 	const folder = assertSafeFolderPath(release.folder);
 	const manifestPath = path.join(STATIC_ROOT, folder, 'manifest.json');
 	const manifestRaw = await fs.readFile(manifestPath, 'utf8');
-	const manifest = JSON.parse(manifestRaw) as { kind?: string }[];
+	const manifest = JSON.parse(manifestRaw) as { kind?: string; group?: string }[];
 
-	const kinds = new Set<string>();
+	const targets: { kind: string; group: string }[] = [];
 	for (const entry of manifest) {
-		if (entry.kind?.trim()) kinds.add(entry.kind.trim());
+		const kind = entry.kind?.trim();
+		const group = entry.group?.trim();
+		if (kind && group) targets.push({ kind, group });
 	}
-	return [...kinds].sort();
+	return targets.sort((a, b) => `${a.kind}:${a.group}`.localeCompare(`${b.kind}:${b.group}`));
 }
 
 async function main() {
@@ -60,34 +64,36 @@ async function main() {
 
 	console.log(`\nWarming AI cache for release ${RELEASE} at ${SITE_URL}\n`);
 
-	let kinds: string[];
+	let targets: { kind: string; group: string }[];
 	try {
-		kinds = await loadKinds(RELEASE);
+		targets = await loadCrdTargets(RELEASE);
 	} catch (err) {
 		console.error(err instanceof Error ? err.message : err);
 		process.exit(1);
 	}
 
-	console.log(`Found ${kinds.length} CRD kinds to warm.\n`);
+	console.log(`Found ${targets.length} CRD kind/group pairs to warm.\n`);
 
 	let total = 0;
 	let cached = 0;
 	let fresh = 0;
 	let errors = 0;
 
-	for (const kind of kinds) {
+	for (const { kind, group } of targets) {
 		for (const action of WARM_ACTIONS) {
 			total++;
 			try {
 				const res = await fetch(`${SITE_URL}/api/ai`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ release: RELEASE, kind, action })
+					body: JSON.stringify({ release: RELEASE, kind, group, action })
 				});
 
 				if (!res.ok) {
 					const errBody = await res.text().catch(() => '');
-					console.warn(`  warn ${kind}:${action} -> HTTP ${res.status} ${errBody.slice(0, 80)}`);
+					console.warn(
+						`  warn ${kind}/${group}:${action} -> HTTP ${res.status} ${errBody.slice(0, 80)}`
+					);
 					errors++;
 					continue;
 				}
@@ -103,7 +109,9 @@ async function main() {
 
 				await sleep(SLEEP_MS);
 			} catch (err) {
-				console.warn(`\n  fail ${kind}:${action} -> ${err instanceof Error ? err.message : err}`);
+				console.warn(
+					`\n  fail ${kind}/${group}:${action} -> ${err instanceof Error ? err.message : err}`
+				);
 				errors++;
 			}
 		}

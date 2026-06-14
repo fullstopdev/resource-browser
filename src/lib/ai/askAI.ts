@@ -17,6 +17,7 @@ export interface AskAIResult {
 	error?: string;
 	grounded?: boolean;
 	release?: string;
+	kvCached?: boolean;
 	llmFallback?: boolean;
 	fallbackReason?: 'quota' | 'llm_error';
 }
@@ -88,6 +89,7 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		error?: string;
 		grounded?: boolean;
 		release?: string;
+		kvCached?: boolean;
 		llmFallback?: boolean;
 		fallbackReason?: 'quota' | 'llm_error';
 	};
@@ -106,6 +108,7 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		sources: data.sources,
 		grounded: data.grounded,
 		release: data.release,
+		kvCached: data.kvCached,
 		llmFallback: data.llmFallback,
 		fallbackReason: data.fallbackReason
 	};

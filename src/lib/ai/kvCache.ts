@@ -13,6 +13,21 @@ export type AiCachePayload = {
 export function buildCacheKey(params: {
 	release: string;
 	kind: string;
+	group?: string;
+	field?: string;
+	compareRelease?: string;
+	action: string;
+}): string {
+	const groupSegment = params.group ? encodeURIComponent(params.group) : 'none';
+	const fieldSegment = params.field ? encodeURIComponent(params.field) : 'none';
+	const compareSegment = params.compareRelease ?? 'none';
+	return `${AI_CACHE_PREFIX}:${params.release}:${params.kind}:${groupSegment}:${fieldSegment}:${compareSegment}:${params.action}`;
+}
+
+/** Legacy cache keys (pre group segment) for warmed KV without apiGroup. */
+export function buildLegacyCacheKey(params: {
+	release: string;
+	kind: string;
 	field?: string;
 	compareRelease?: string;
 	action: string;
@@ -20,6 +35,26 @@ export function buildCacheKey(params: {
 	const fieldSegment = params.field ? encodeURIComponent(params.field) : 'none';
 	const compareSegment = params.compareRelease ?? 'none';
 	return `${AI_CACHE_PREFIX}:${params.release}:${params.kind}:${fieldSegment}:${compareSegment}:${params.action}`;
+}
+
+export async function getCachedAiResponseWithFallback(
+	kv: KVNamespace | undefined,
+	params: {
+		release: string;
+		kind: string;
+		group?: string;
+		field?: string;
+		compareRelease?: string;
+		action: string;
+	}
+): Promise<AiCachePayload | null> {
+	if (!kv) return null;
+	const primary = await getCachedAiResponse(kv, buildCacheKey(params));
+	if (primary) return primary;
+	if (params.group) {
+		return getCachedAiResponse(kv, buildLegacyCacheKey(params));
+	}
+	return null;
 }
 
 export function isCacheableAction(action: string): boolean {

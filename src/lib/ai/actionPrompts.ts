@@ -1,4 +1,5 @@
 import type { AiSchemaPayload } from './loadAiSchema';
+import { formatSchemaContextForLlm } from './formatAnswer';
 
 export type ActionPrompt = {
 	system: string;
@@ -29,6 +30,7 @@ function truncateJson(value: unknown, limit: number): string {
 }
 
 export function buildBasePrompt(release: string, kind: string, schema: AiSchemaPayload): string {
+	const structured = formatSchemaContextForLlm(schema);
 	const truncated = truncateJson(schemaForPrompt(schema), SCHEMA_JSON_LIMIT);
 	return `You are an expert assistant for Nokia EDA (Event-Driven Automation) Custom Resource Definitions (CRDs).
 You work exclusively with the Kubernetes-style CRD schemas used by Nokia's EDA platform.
@@ -40,13 +42,18 @@ STRICT RULES:
 - Never use filler phrases like "Great question!" or "Certainly!".
 - Use field paths in dot notation (e.g. spec.adminState, metadata.labels).
 - For enums, always list ALL valid values.
+- Format responses as structured Markdown: ## Overview, ## Key fields, ## Example (with \`\`\`yaml fence when showing manifests).
 
 CONTEXT:
   Nokia EDA Release: ${release}
   Resource Kind: ${kind}
+  API Group: ${schema.group}
   API Version: ${schema.apiVersion}
 
-CRD SCHEMA (JSON):
+STRUCTURED SCHEMA SUMMARY:
+${structured}
+
+FULL CRD SCHEMA (JSON — reference only, prefer structured summary above):
 \`\`\`json
 ${truncated}
 \`\`\``;
@@ -55,15 +62,23 @@ ${truncated}
 export function promptExplain(release: string, kind: string, schema: AiSchemaPayload): ActionPrompt {
 	return {
 		system: buildBasePrompt(release, kind, schema),
-		user: `Explain the "${kind}" resource in Nokia EDA release ${release}.
+		user: `Explain the "${kind}" resource (API group ${schema.group}) in Nokia EDA release ${release}.
 
-Provide:
-1. What this resource represents in the network (1-2 sentences)
-2. Its primary use case (1 sentence)
-3. Key top-level fields under spec (bullet list, 5 max)
-4. Whether it is a Config or State resource (infer from schema)
+Use this Markdown structure:
 
-Keep the total response under 200 words.`
+## Overview
+(1–2 sentences: what this resource represents in the network)
+
+## Use case
+(1 sentence: primary purpose)
+
+## Key fields
+(bullet list, up to 5 top-level spec fields with brief descriptions)
+
+## Resource type
+(Config vs State — infer from schema)
+
+Keep under 220 words. No raw JSON dumps.`
 	};
 }
 

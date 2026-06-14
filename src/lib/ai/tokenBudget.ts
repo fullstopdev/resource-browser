@@ -1,9 +1,10 @@
 /** Approximate chars-per-token for English technical text (conservative). */
 export const CHARS_PER_TOKEN = 4;
 
-export type ContextTier = 'target' | 'siblings' | 'related' | 'schemaWalk' | 'rag';
+export type ContextTier = 'kv' | 'target' | 'siblings' | 'related' | 'schemaWalk' | 'rag';
 
 export const TIER_CHAR_LIMITS: Record<ContextTier, number> = {
+	kv: 4_000,
 	target: 12_000,
 	siblings: 4_000,
 	related: 2_000,

@@ -1,15 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { buildRichContext, trimLegacyContext } from '$lib/ai/buildRichContext';
+import { formatKvContextSection, formatSchemaContextForLlm } from '$lib/ai/formatAnswer';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
 import { crdChunkMatchesFilters, hasStrictCrdTarget, retrieveRagContext } from '$lib/ai/rag/retrieve';
 import {
 	buildContextFirstFallbackAnswer,
 	buildRagOnlyAnswer,
-	buildSchemaExplainFallback,
 	llmFallbackReason
 } from '$lib/ai/fallbackAnswers';
+import { getCachedAiResponseWithFallback } from '$lib/ai/kvCache';
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
 import { assembleContext, MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
@@ -105,9 +106,12 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	let ragSources: RagSource[] = [];
 	let context = '';
+	let kvContextText = '';
+	let schemaContextText = '';
 	let richContextText = '';
 	let ragContextText = '';
-	let targetSchemaSummary = '';
+	let schemaPayload: Awaited<ReturnType<typeof loadAiSchema>> = null;
+	let kvCached = false;
 	let ragMeta: {
 		chunkCount: number;
 		topScore: number;
@@ -116,6 +120,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	} | undefined;
 	let releaseNotIndexed = false;
 
+	const kv = platform?.env?.AI_CACHE;
 	const crdIndex = platform?.env?.CRD_INDEX;
 	const docsIndex = platform?.env?.DOCS_INDEX;
 	const hasRagIndexes = !!(crdIndex || docsIndex);
@@ -127,6 +132,22 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	};
 
 	if (hasTarget) {
+		schemaPayload = await loadAiSchema(release, kind, originFetch, group, version || undefined);
+		if (schemaPayload) {
+			schemaContextText = formatSchemaContextForLlm(schemaPayload);
+		}
+
+		const cachedExplain = await getCachedAiResponseWithFallback(kv, {
+			release,
+			kind,
+			group,
+			action: 'explain'
+		});
+		if (cachedExplain?.answer?.trim()) {
+			kvContextText = formatKvContextSection(cachedExplain.answer);
+			kvCached = true;
+		}
+
 		const rich = await buildRichContext(
 			{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
 			originFetch,
@@ -134,10 +155,6 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		);
 		if (rich?.context) {
 			richContextText = rich.context;
-		}
-		const schemaPayload = await loadAiSchema(release, kind, originFetch, group, version || undefined);
-		if (schemaPayload) {
-			targetSchemaSummary = buildSchemaExplainFallback(schemaPayload);
 		}
 	}
 
@@ -165,11 +182,14 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	}
 
 	if (hasTarget) {
-		const parts: { tier: 'target' | 'rag'; text: string }[] = [];
-		if (richContextText) {
+		const parts: { tier: 'kv' | 'target' | 'rag'; text: string }[] = [];
+		if (kvContextText) {
+			parts.push({ tier: 'kv', text: kvContextText });
+		}
+		if (schemaContextText) {
+			parts.push({ tier: 'target', text: schemaContextText });
+		} else if (richContextText) {
 			parts.push({ tier: 'target', text: richContextText });
-		} else if (targetSchemaSummary) {
-			parts.push({ tier: 'target', text: `## Target CRD schema\n${targetSchemaSummary}` });
 		}
 		if (ragContextText) {
 			parts.push({
@@ -220,11 +240,13 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			sources?: RagSource[];
 			grounded: boolean;
 			release: string;
+			kvCached?: boolean;
 			rag?: typeof ragMeta;
 		} = {
 			answer,
 			grounded: true,
-			release
+			release,
+			kvCached
 		};
 		if (ragSources.length > 0) {
 			payload.sources = ragSources;
@@ -237,6 +259,9 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		console.error('Workers AI error:', err);
 		if (hasGroundingContext(context)) {
 			const reason = llmFallbackReason(err);
+			const cachedExplain = kvContextText
+				? kvContextText.replace(/^## Cached CRD summary \(KV — authoritative for this kind\/release\)\n/, '')
+				: undefined;
 			const answer = hasTarget
 				? buildContextFirstFallbackAnswer({
 						question,
@@ -244,8 +269,8 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 						kind,
 						group,
 						version: version || undefined,
-						schemaSummary: targetSchemaSummary || undefined,
-						richContext: richContextText || undefined,
+						schema: schemaPayload ?? undefined,
+						kvAnswer: cachedExplain,
 						ragContext: ragContextText || undefined,
 						sources: ragSources.length ? ragSources : undefined,
 						reason
@@ -263,6 +288,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				llmFallback: true,
 				fallbackReason: reason,
 				release,
+				kvCached,
 				...(ragSources.length ? { sources: ragSources } : {}),
 				...(ragMeta ? { rag: ragMeta } : {})
 			});

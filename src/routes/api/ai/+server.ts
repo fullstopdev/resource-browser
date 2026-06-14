@@ -12,7 +12,7 @@ import {
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import {
 	buildCacheKey,
-	getCachedAiResponse,
+	getCachedAiResponseWithFallback,
 	isCacheableAction,
 	parseExamples,
 	pickRandomExample,
@@ -113,12 +113,19 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		return fetch(href, init);
 	};
 
-	const cacheKey = buildCacheKey({ release, kind, field, compareRelease, action });
+	const cacheKey = buildCacheKey({ release, kind, group, field, compareRelease, action });
 	const kv = platform?.env?.AI_CACHE;
 	const cacheable = isCacheableAction(action);
 
 	if (cacheable) {
-		const cached = await getCachedAiResponse(kv, cacheKey);
+		const cached = await getCachedAiResponseWithFallback(kv, {
+			release,
+			kind,
+			group,
+			field,
+			compareRelease,
+			action
+		});
 		if (cached) {
 			const response =
 				action === 'example' && cached.examples?.length
