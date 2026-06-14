@@ -75,12 +75,22 @@
 
 	const statsLabel = $derived(`${nodes.length} nodes · ${edges.length} links`);
 
-	function handleNodeClick({ node }: { node: Node }) {
-		selectedNodeId = node.id;
-	}
+	const DOUBLE_CLICK_MS = 400;
+	let lastNodeClick: { id: string; time: number } | null = null;
 
-	function handleNodeDoubleClick({ node }: { node: Node }) {
-		if (node.id) onRefocus?.(node.id);
+	function handleNodeClick({ node }: { node: Node }) {
+		const id = node.id;
+		if (!id) return;
+
+		const now = Date.now();
+		if (lastNodeClick?.id === id && now - lastNodeClick.time < DOUBLE_CLICK_MS) {
+			lastNodeClick = null;
+			onRefocus?.(id);
+			return;
+		}
+
+		lastNodeClick = { id, time: now };
+		selectedNodeId = id;
 	}
 
 	function handlePaneClick() {
@@ -106,7 +116,6 @@
 	edgesFocusable={false}
 	colorMode={themeMode === 'dark' ? 'dark' : 'light'}
 	onnodeclick={handleNodeClick}
-	onnodedoubleclick={handleNodeDoubleClick}
 	onpaneclick={handlePaneClick}
 	proOptions={{ hideAttribution: true }}
 	class="intent-topo-flow-canvas"
