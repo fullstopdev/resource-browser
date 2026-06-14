@@ -148,3 +148,48 @@ export function buildRagOnlyAnswer(params: {
 export function llmFallbackReason(err: unknown): 'quota' | 'llm_error' {
 	return isWorkersAINeuronLimitError(err) ? 'quota' : 'llm_error';
 }
+
+export function buildContextFirstFallbackAnswer(params: {
+	question: string;
+	release: string;
+	kind: string;
+	group: string;
+	version?: string;
+	schemaSummary?: string;
+	richContext?: string;
+	ragContext?: string;
+	sources?: RagSource[];
+	reason?: 'quota' | 'llm_error';
+}): string {
+	const { question, release, kind, group, version, schemaSummary, richContext, ragContext, sources, reason } =
+		params;
+	const api = version ? `${group}/${version}` : group;
+	const gvk = `**${kind}** (\`${api}\`) — EDA **${release}**`;
+	const reasonLine =
+		reason === 'quota'
+			? WORKERS_AI_NEURON_LIMIT_MESSAGE
+			: 'Workers AI could not generate a narrative answer right now.';
+	const intro = [
+		gvk,
+		'',
+		`_${reasonLine} Summary below is from the CRD schema for this exact kind and API group (not other *Policy* resources)._`,
+		'',
+		`**Question:** ${question}`,
+		''
+	].join('\n');
+
+	const primary = schemaSummary?.trim() || richContext?.trim() || '';
+	const rag =
+		ragContext?.trim() &&
+		`**Indexed excerpts (${kind} / ${group} only):**\n\n${ragContext.trim()}`;
+	const sourceLines =
+		sources && sources.length
+			? `\n**Sources:** ${sources
+					.slice(0, 6)
+					.map((s) => s.label)
+					.join('; ')}`
+			: '';
+
+	return [intro, primary, rag || '', sourceLines].filter(Boolean).join('\n\n');
+}
+

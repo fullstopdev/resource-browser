@@ -1,14 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import {
-	buildRichContext,
-	buildSlimTargetContext,
-	trimLegacyContext
-} from '$lib/ai/buildRichContext';
+import { buildRichContext, trimLegacyContext } from '$lib/ai/buildRichContext';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
-import { retrieveRagContext } from '$lib/ai/rag/retrieve';
-import { buildRagOnlyAnswer, llmFallbackReason } from '$lib/ai/fallbackAnswers';
+import { crdChunkMatchesFilters, hasStrictCrdTarget, retrieveRagContext } from '$lib/ai/rag/retrieve';
+import {
+	buildContextFirstFallbackAnswer,
+	buildRagOnlyAnswer,
+	buildSchemaExplainFallback,
+	llmFallbackReason
+} from '$lib/ai/fallbackAnswers';
+import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
 import { assembleContext, MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
 import releasesYaml from '$lib/releases.yaml?raw';
@@ -103,6 +105,9 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	let ragSources: RagSource[] = [];
 	let context = '';
+	let richContextText = '';
+	let ragContextText = '';
+	let targetSchemaSummary = '';
 	let ragMeta: {
 		chunkCount: number;
 		topScore: number;
@@ -115,14 +120,41 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const docsIndex = platform?.env?.DOCS_INDEX;
 	const hasRagIndexes = !!(crdIndex || docsIndex);
 	const hasTarget = !!(release && kind && group);
+	const ragFilters = {
+		release: release || undefined,
+		kind: kind || undefined,
+		group: group || undefined
+	};
+
+	if (hasTarget) {
+		const rich = await buildRichContext(
+			{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
+			originFetch,
+			{ mode: 'trimmed' }
+		);
+		if (rich?.context) {
+			richContextText = rich.context;
+		}
+		const schemaPayload = await loadAiSchema(release, kind, originFetch, group, version || undefined);
+		if (schemaPayload) {
+			targetSchemaSummary = buildSchemaExplainFallback(schemaPayload);
+		}
+	}
 
 	if (hasRagIndexes) {
-		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, {
-			release: release || undefined,
-			kind: kind || undefined,
-			group: group || undefined
-		});
+		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, ragFilters);
 		ragSources = rag.sources;
+		if (hasStrictCrdTarget(ragFilters)) {
+			ragSources = ragSources.filter(
+				(s) =>
+					s.source !== 'crd-corpus' ||
+					crdChunkMatchesFilters(
+						{ kind: s.kind ?? '', group: s.group ?? '', release: s.release },
+						ragFilters
+					)
+			);
+		}
+		ragContextText = rag.contextText;
 		releaseNotIndexed = rag.releaseNotIndexed;
 		ragMeta = {
 			chunkCount: rag.mergedCount,
@@ -130,48 +162,24 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			release,
 			sufficient: rag.sufficient
 		};
+	}
 
-		if (hasTarget && rag.sufficient && rag.contextText) {
-			const slim = buildSlimTargetContext({
-				release,
-				kind,
-				group,
-				version: version || undefined,
-				fieldPath: fieldPath || undefined
+	if (hasTarget) {
+		const parts: { tier: 'target' | 'rag'; text: string }[] = [];
+		if (richContextText) {
+			parts.push({ tier: 'target', text: richContextText });
+		} else if (targetSchemaSummary) {
+			parts.push({ tier: 'target', text: `## Target CRD schema\n${targetSchemaSummary}` });
+		}
+		if (ragContextText) {
+			parts.push({
+				tier: 'rag',
+				text: `## Indexed excerpts (${kind} / ${group} only)\n${ragContextText}`
 			});
-			context = assembleContext([
-				{ tier: 'rag', text: `## Retrieved schema excerpts\n${rag.contextText}` },
-				{ tier: 'target', text: slim }
-			]);
-		} else if (hasTarget) {
-			const rich = await buildRichContext(
-				{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
-				originFetch,
-				{ mode: 'trimmed' }
-			);
-			if (rich?.context) {
-				context = assembleContext([
-					{
-						tier: 'rag',
-						text: rag.contextText ? `## Retrieved schema excerpts\n${rag.contextText}` : ''
-					},
-					{ tier: 'target', text: rich.context }
-				]);
-			} else if (rag.contextText) {
-				context = `## Retrieved schema excerpts\n${rag.contextText}`;
-			}
-		} else if (rag.contextText) {
-			context = `## Retrieved schema excerpts\n${rag.contextText}`;
 		}
-	} else if (hasTarget) {
-		const rich = await buildRichContext(
-			{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
-			originFetch,
-			{ mode: 'trimmed' }
-		);
-		if (rich?.context) {
-			context = rich.context;
-		}
+		context = parts.length ? assembleContext(parts) : '';
+	} else if (ragContextText) {
+		context = `## Retrieved schema excerpts\n${ragContextText}`;
 	} else {
 		const legacy = trimLegacyContext(body.context);
 		if (legacy) {
@@ -229,13 +237,26 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		console.error('Workers AI error:', err);
 		if (hasGroundingContext(context)) {
 			const reason = llmFallbackReason(err);
-			const answer = buildRagOnlyAnswer({
-				question,
-				context,
-				release,
-				sources: ragSources.length ? ragSources : undefined,
-				reason
-			});
+			const answer = hasTarget
+				? buildContextFirstFallbackAnswer({
+						question,
+						release,
+						kind,
+						group,
+						version: version || undefined,
+						schemaSummary: targetSchemaSummary || undefined,
+						richContext: richContextText || undefined,
+						ragContext: ragContextText || undefined,
+						sources: ragSources.length ? ragSources : undefined,
+						reason
+					})
+				: buildRagOnlyAnswer({
+						question,
+						context,
+						release,
+						sources: ragSources.length ? ragSources : undefined,
+						reason
+					});
 			return json({
 				answer,
 				grounded: true,

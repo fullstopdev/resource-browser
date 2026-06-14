@@ -54,6 +54,11 @@
 	let answerLlmFallback = false;
 	let answerFallbackReason: 'quota' | 'llm_error' | '' = '';
 
+	$: focusedCrdLabel =
+		hasCrdContext && kind && group
+			? `${kind} (${group}${version ? `/${version}` : ''})`
+			: '';
+
 	$: resourceLabel = hasCrdContext && kind
 		? `${kind} (${group}/${version || 'latest'})`
 		: hasCrdContext && name
@@ -156,6 +161,15 @@
 </script>
 
 <div class="flex flex-col gap-4">
+	{#if embedded && focusedCrdLabel}
+		<p class="crd-ask-context-banner rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100">
+			<span class="font-semibold">Asking about:</span>
+			{focusedCrdLabel}
+			{#if releaseLabel}
+				<span class="text-sky-800/80 dark:text-sky-200/80">· {releaseLabel}</span>
+			{/if}
+		</p>
+	{/if}
 	{#if !embedded}
 		<!-- Header -->
 		<header

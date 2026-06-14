@@ -24,6 +24,33 @@ export type RagFilters = {
 	group?: string;
 };
 
+/** When the UI pins a CRD, embedding must not treat "Policy" as generic policy-* kinds. */
+export function buildRagEmbeddingQuery(question: string, filters: RagFilters): string {
+	const q = question.trim();
+	if (filters.kind && filters.group) {
+		const rel = filters.release ? ` release ${filters.release}` : '';
+		return `Kubernetes CRD kind ${filters.kind} apiGroup ${filters.group}${rel}. ${q}`;
+	}
+	if (filters.kind) {
+		return `Kubernetes CRD kind ${filters.kind}. ${q}`;
+	}
+	return q;
+}
+
+export function crdChunkMatchesFilters(
+	meta: { kind: string; group: string; release?: string },
+	filters: RagFilters
+): boolean {
+	if (filters.kind && meta.kind !== filters.kind) return false;
+	if (filters.group && meta.group !== filters.group) return false;
+	if (filters.release && meta.release && meta.release !== filters.release) return false;
+	return true;
+}
+
+export function hasStrictCrdTarget(filters: RagFilters): boolean {
+	return !!(filters.kind && filters.group);
+}
+
 export type RetrieveResult = {
 	chunks: RetrievedChunk[];
 	docsChunks: RetrievedDocsChunk[];
@@ -163,7 +190,7 @@ async function queryIndex(
 	return filterByScore(result.matches);
 }
 
-/** Release-scoped query with kind/group fallback when strict metadata filter is too narrow. */
+/** CRD Vectorize query — never widen to release-only when kind+group are pinned. */
 async function queryCrdIndex(
 	index: VectorizeIndex,
 	vector: number[],
@@ -173,8 +200,25 @@ async function queryCrdIndex(
 	const strictFilter = buildCrdMetadataFilter(filters);
 	let matches = await queryIndex(index, vector, topK, strictFilter);
 
-	if (matches.length === 0 && filters.release && (filters.kind || filters.group)) {
+	if (matches.length === 0 && hasStrictCrdTarget(filters)) {
+		matches = await queryIndex(index, vector, topK, {
+			kind: filters.kind!,
+			group: filters.group!
+		});
+	} else if (
+		matches.length === 0 &&
+		filters.release &&
+		(filters.kind || filters.group) &&
+		!hasStrictCrdTarget(filters)
+	) {
 		matches = await queryIndex(index, vector, topK, { release: filters.release });
+	}
+
+	if (hasStrictCrdTarget(filters)) {
+		matches = matches.filter((match) => {
+			const chunk = crdChunkFromMatch(match);
+			return chunk ? crdChunkMatchesFilters(chunk.metadata, filters) : false;
+		});
 	}
 
 	return matches;
@@ -201,7 +245,7 @@ export async function retrieveRagContext(
 	};
 	if (!crdIndex && !docsIndex) return empty;
 
-	const vector = await embedQuestion(ai, question);
+	const vector = await embedQuestion(ai, buildRagEmbeddingQuery(question, filters));
 	if (!vector?.length) return empty;
 
 	const crdTopK = docsIndex ? Math.ceil(topK * 0.6) : topK;
@@ -229,6 +273,9 @@ export async function retrieveRagContext(
 		for (const match of crdMatches) {
 			const chunk = crdChunkFromMatch(match);
 			if (!chunk) continue;
+			if (hasStrictCrdTarget(filters) && !crdChunkMatchesFilters(chunk.metadata, filters)) {
+				continue;
+			}
 			chunks.push(chunk);
 			sources.push(formatCrdSource(chunk.metadata));
 		}
