@@ -8,6 +8,7 @@ import {
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
 import { retrieveRagContext } from '$lib/ai/rag/retrieve';
+import { buildRagOnlyAnswer, llmFallbackReason } from '$lib/ai/fallbackAnswers';
 import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
 import { assembleContext, MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
 import releasesYaml from '$lib/releases.yaml?raw';
@@ -226,7 +227,26 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		return json(payload);
 	} catch (err) {
 		console.error('Workers AI error:', err);
+		if (hasGroundingContext(context)) {
+			const reason = llmFallbackReason(err);
+			const answer = buildRagOnlyAnswer({
+				question,
+				context,
+				release,
+				sources: ragSources.length ? ragSources : undefined,
+				reason
+			});
+			return json({
+				answer,
+				grounded: true,
+				llmFallback: true,
+				fallbackReason: reason,
+				release,
+				...(ragSources.length ? { sources: ragSources } : {}),
+				...(ragMeta ? { rag: ragMeta } : {})
+			});
+		}
 		const { status, error } = workersAIErrorResponse(err);
-		return json({ error }, { status });
+		return json({ error, fallbackReason: llmFallbackReason(err) }, { status });
 	}
 };

@@ -19,6 +19,11 @@ import {
 	putCachedAiResponse,
 	type AiCachePayload
 } from '$lib/ai/kvCache';
+import {
+	buildSchemaExplainFallback,
+	buildSchemaFieldFallback,
+	llmFallbackReason
+} from '$lib/ai/fallbackAnswers';
 import { runWorkersAIMessages, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
 
 const VALID_ACTIONS = ['explain', 'field', 'validate', 'example', 'compare', 'spec-search'] as const;
@@ -193,7 +198,35 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		return json({ ...clientPayload, cached: false });
 	} catch (err) {
 		console.error('Workers AI action error:', err);
+		const reason = llmFallbackReason(err);
+		if (action === 'explain') {
+			const answer = buildSchemaExplainFallback(schema);
+			return json({
+				answer,
+				release,
+				kind,
+				action,
+				llmFallback: true,
+				fallbackReason: reason,
+				cached: false
+			});
+		}
+		if (action === 'field' && field) {
+			const answer = buildSchemaFieldFallback(schema, field);
+			if (answer) {
+				return json({
+					answer,
+					release,
+					kind,
+					field,
+					action,
+					llmFallback: true,
+					fallbackReason: reason,
+					cached: false
+				});
+			}
+		}
 		const { status, error } = workersAIErrorResponse(err);
-		return json({ error }, { status });
+		return json({ error, fallbackReason: reason, action }, { status });
 	}
 };

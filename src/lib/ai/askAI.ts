@@ -17,13 +17,19 @@ export interface AskAIResult {
 	error?: string;
 	grounded?: boolean;
 	release?: string;
+	llmFallback?: boolean;
+	fallbackReason?: 'quota' | 'llm_error';
 }
 
-function friendlyError(status: number, message?: string): string {
+function friendlyError(
+	status: number,
+	message?: string,
+	fallbackReason?: string
+): string {
 	if (status === 503) {
 		return (
 			message ??
-			'AI service is temporarily unavailable. Start the app with `npm run dev:ai` or check that Workers AI is configured in production.'
+			'Workers AI is temporarily unavailable (quota or binding). Try a suggested prompt like “What is this CRD for?” which uses cached schema summaries.'
 		);
 	}
 	if (status === 504) {
@@ -32,8 +38,23 @@ function friendlyError(status: number, message?: string): string {
 			'The request timed out. Check your network or proxy access to Cloudflare Workers AI and try a shorter question.'
 		);
 	}
+	if (status === 404) {
+		return (
+			message ??
+			'No indexed schema or docs for that release. Run embed:crd-corpus / embed:eda-docs for this release.'
+		);
+	}
+	if (status === 422) {
+		return (
+			message ??
+			'Not enough grounded context. Open a CRD page or include release + kind in your question.'
+		);
+	}
 	if (status === 0 || (typeof navigator !== 'undefined' && !navigator.onLine)) {
 		return 'Network error — check your connection and try again.';
+	}
+	if (fallbackReason === 'quota') {
+		return message ?? 'Workers AI daily limit reached. Cached actions and schema excerpts may still work.';
 	}
 	return message ?? `Request failed (${status}). Please try again.`;
 }
@@ -67,6 +88,8 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		error?: string;
 		grounded?: boolean;
 		release?: string;
+		llmFallback?: boolean;
+		fallbackReason?: 'quota' | 'llm_error';
 	};
 	try {
 		data = await response.json();
@@ -75,13 +98,15 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 	}
 
 	if (!response.ok) {
-		return { error: friendlyError(response.status, data.error) };
+		return { error: friendlyError(response.status, data.error, data.fallbackReason) };
 	}
 
 	return {
 		answer: data.answer ?? 'No answer returned.',
 		sources: data.sources,
 		grounded: data.grounded,
-		release: data.release
+		release: data.release,
+		llmFallback: data.llmFallback,
+		fallbackReason: data.fallbackReason
 	};
 }

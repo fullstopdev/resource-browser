@@ -51,6 +51,8 @@
 	let answerCached = false;
 	let answerGrounded = false;
 	let answerRelease = '';
+	let answerLlmFallback = false;
+	let answerFallbackReason: 'quota' | 'llm_error' | '' = '';
 
 	$: resourceLabel = hasCrdContext && kind
 		? `${kind} (${group}/${version || 'latest'})`
@@ -72,6 +74,8 @@
 		answerCached = false;
 		answerGrounded = false;
 		answerRelease = '';
+		answerLlmFallback = false;
+		answerFallbackReason = '';
 
 		let result: {
 			answer?: string;
@@ -80,6 +84,8 @@
 			cached?: boolean;
 			grounded?: boolean;
 			release?: string;
+			llmFallback?: boolean;
+			fallbackReason?: 'quota' | 'llm_error';
 		};
 
 		const questionRelease = parseReleaseFromQuestion(trimmed);
@@ -92,14 +98,21 @@
 					: await generateExample(kvRelease, kind, group);
 			result = actionResult.error
 				? { error: actionResult.error }
-				: { answer: actionResult.answer, cached: actionResult.cached };
+				: {
+						answer: actionResult.answer,
+						cached: actionResult.cached,
+						llmFallback: actionResult.llmFallback,
+						fallbackReason: actionResult.fallbackReason
+					};
 		} else if (hasCrdContext && kvRelease && kind && group && trimmed === 'Required fields?') {
 			const actionResult = await explainField(kvRelease, kind, 'spec', group);
 			result = actionResult.error
 				? { error: actionResult.error }
 				: {
 						answer: `**Required fields for ${kind}:**\n\n${actionResult.answer}`,
-						cached: actionResult.cached
+						cached: actionResult.cached,
+						llmFallback: actionResult.llmFallback,
+						fallbackReason: actionResult.fallbackReason
 					};
 		} else {
 			result = await askAI({
@@ -121,6 +134,8 @@
 			answerCached = !!result.cached;
 			answerGrounded = !!result.grounded;
 			answerRelease = result.release ?? scopedRelease ?? '';
+			answerLlmFallback = !!result.llmFallback;
+			answerFallbackReason = result.fallbackReason ?? '';
 		}
 	}
 
@@ -331,6 +346,14 @@
 			<div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
 				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
 				<div class="flex flex-wrap items-center gap-1.5">
+					{#if answerLlmFallback}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
+							title={answerFallbackReason === 'quota' ? 'Workers AI quota reached' : 'Schema/RAG excerpt without LLM paraphrase'}
+						>
+							{answerFallbackReason === 'quota' ? 'Quota fallback' : 'Schema excerpts'}
+						</span>
+					{/if}
 					{#if answerGrounded}
 						<span
 							class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"

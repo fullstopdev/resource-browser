@@ -26,6 +26,8 @@ export type AiActionResult = {
 	action?: string;
 	examples?: string[];
 	error?: string;
+	llmFallback?: boolean;
+	fallbackReason?: 'quota' | 'llm_error';
 };
 
 function friendlyError(status: number, message?: string): string {
@@ -38,6 +40,7 @@ function friendlyError(status: number, message?: string): string {
 	if (status === 0) {
 		return 'Network error — check your connection and try again.';
 	}
+	if (status === 404) return message ?? 'Schema not found for that kind/release.';
 	return message ?? `Request failed (${status}). Please try again.`;
 }
 
