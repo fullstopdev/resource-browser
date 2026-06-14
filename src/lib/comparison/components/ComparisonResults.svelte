@@ -16,8 +16,6 @@
 	export let report: BulkDiffReport;
 	export let sourceReleaseName = '';
 	export let targetReleaseName = '';
-	export let sourceVersion = '';
-	export let targetVersion = '';
 	export let statusFilter: DiffStatus[] = [];
 	export let expandedCrdNames: string[] = [];
 	export let searchQuery = '';

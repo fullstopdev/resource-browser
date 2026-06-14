@@ -7,6 +7,7 @@ import type { CrdResource } from '$lib/structure';
 import {
 	buildCatalogFromManifest,
 	getKindIndex,
+	getGvkIndex,
 	inferSchemaLinks,
 	mergeGraphLinks
 } from './inferEdges';
@@ -31,14 +32,16 @@ describe('collapseVisualLinks', () => {
 	it('collapses Fabric→Policy to one visual edge with aggregated fieldPaths', () => {
 		const catalog = buildCatalogFromManifest(manifest);
 		const kindIndex = getKindIndex(catalog);
+		const gvkIndex = getGvkIndex(catalog);
 		const links = mergeGraphLinks(
 			inferSchemaLinks(
 				FABRIC_ID,
 				'fabrics.eda.nokia.com',
-				fabricSchema.schema?.openAPIV3Schema?.properties?.spec,
+				fabricSchema.schema?.openAPIV3Schema,
 				undefined,
 				kindIndex,
-				catalog
+				catalog,
+				gvkIndex
 			)
 		);
 

@@ -1,28 +1,14 @@
 import { loadStaticYaml } from '$lib/yaml/safeYaml';
 import { fetchManifest, getManifestCache } from '$lib/manifest';
 import type { ManifestResource } from '$lib/manifest';
-import { getLatestVersion } from '$lib/versions';
 import type { CrdResource, EdaRelease } from '$lib/structure';
-import {
-	buildCatalogFromManifest,
-	catalogToNodes,
-	getKindIndex,
-	inferCatalogLinks,
-	inferSchemaLinks,
-	mergeGraphLinks
-} from './inferEdges';
+import { releaseAssetPath } from '$lib/yaml-validation/schemaCache';
+import { buildDependencyGraphFromResources, type ParsedCrdSchema } from './buildGraphCore';
 import type { BuildProgress, DependencyGraph } from './types';
 import { extractSubgraph } from './transitiveClosure';
 
 const FETCH_CONCURRENCY = 10;
 const graphCache = new Map<string, DependencyGraph>();
-
-type ParsedCrdSchema = {
-	spec?: unknown;
-	status?: unknown;
-	metadata?: unknown;
-	description?: string;
-};
 
 function yieldToMain(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
@@ -51,9 +37,17 @@ async function loadCrdSchema(
 					properties?: { spec?: unknown; status?: unknown; metadata?: unknown };
 				};
 			};
+			spec?: {
+				validation?: { openAPIV3Schema?: unknown };
+				versions?: Array<{ schema?: { openAPIV3Schema?: unknown } }>;
+			};
 		};
-		const root = parsed?.schema?.openAPIV3Schema;
+		const root =
+			parsed?.schema?.openAPIV3Schema ??
+			parsed?.spec?.validation?.openAPIV3Schema ??
+			null;
 		return {
+			openApiRoot: root ?? undefined,
 			spec: root?.properties?.spec,
 			status: root?.properties?.status,
 			metadata: root?.properties?.metadata,
@@ -61,6 +55,21 @@ async function loadCrdSchema(
 		};
 	} catch {
 		return null;
+	}
+}
+
+async function tryLoadPrecomputedGraph(
+	releaseFolder: string
+): Promise<{ graph: DependencyGraph | null; missing: boolean }> {
+	try {
+		const resp = await fetch(releaseAssetPath(releaseFolder, 'dependency-graph.json'));
+		if (resp.status === 404) return { graph: null, missing: true };
+		if (!resp.ok) return { graph: null, missing: false };
+		const graph = (await resp.json()) as DependencyGraph;
+		if (!graph?.nodes?.length || !graph?.links) return { graph: null, missing: false };
+		return { graph: { ...graph, precomputed: true }, missing: false };
+	} catch {
+		return { graph: null, missing: false };
 	}
 }
 
@@ -118,12 +127,9 @@ export function resolveFocusNodeId(
 
 export function buildFocusSubgraph(
 	graph: DependencyGraph,
-	focusNodeId: string,
-	options?: { transitive?: boolean }
+	focusNodeId: string
 ): DependencyGraph | null {
-	return extractSubgraph(graph, focusNodeId, {
-		transitive: options?.transitive
-	});
+	return extractSubgraph(graph, focusNodeId);
 }
 
 export function clearDependencyGraphCache(releaseFolder?: string): void {
@@ -138,6 +144,7 @@ export async function buildDependencyGraph(
 		yamlCache?: Map<string, string>;
 		onProgress?: (progress: BuildProgress) => void;
 		signal?: AbortSignal;
+		skipPrecomputed?: boolean;
 	}
 ): Promise<DependencyGraph> {
 	const manifestCache = options?.cache ?? getManifestCache();
@@ -145,6 +152,28 @@ export async function buildDependencyGraph(
 
 	if (graphCache.has(release.folder)) {
 		return graphCache.get(release.folder)!;
+	}
+
+	if (!options?.skipPrecomputed) {
+		const { graph: precomputed, missing } = await tryLoadPrecomputedGraph(release.folder);
+		if (precomputed) {
+			graphCache.set(release.folder, precomputed);
+			options?.onProgress?.({
+				phase: 'done',
+				current: 1,
+				total: 1,
+				message: 'Loaded precomputed dependency graph'
+			});
+			return precomputed;
+		}
+		if (missing) {
+			options?.onProgress?.({
+				phase: 'manifest',
+				current: 0,
+				total: 1,
+				message: 'Precomputed graph not found; building from schemas…'
+			});
+		}
 	}
 
 	options?.onProgress?.({
@@ -165,17 +194,6 @@ export async function buildDependencyGraph(
 	}
 
 	const resources = manifest as CrdResource[];
-	const catalog = buildCatalogFromManifest(resources);
-	const kindIndex = getKindIndex(catalog);
-	const versions = new Map<string, string>();
-	const descriptions = new Map<string, string>();
-
-	for (const res of resources) {
-		versions.set(res.name, getLatestVersion(res));
-	}
-
-	const catalogLinks = inferCatalogLinks(catalog, kindIndex);
-	const schemaLinks: typeof catalogLinks = [];
 	const total = resources.length;
 
 	options?.onProgress?.({
@@ -186,37 +204,16 @@ export async function buildDependencyGraph(
 	});
 
 	let processed = 0;
+	const schemaCache = new Map<string, ParsedCrdSchema | null>();
+
 	await mapConcurrent(resources, FETCH_CONCURRENCY, async (res) => {
 		if (options?.signal?.aborted) return;
 
-		const version = versions.get(res.name);
-		if (!version) {
-			processed++;
-			return;
-		}
-
-		const parsed = await loadCrdSchema(release.folder, res.name, version, yamlCache);
-		if (parsed?.description) {
-			descriptions.set(res.name, parsed.description);
-		}
-
-		if (parsed?.spec || parsed?.status || parsed?.metadata || parsed?.description) {
-			const entry = catalog.get(res.name);
-			const group = entry?.group ?? res.group;
-			const edges = inferSchemaLinks(
-				res.name,
-				group,
-				parsed.spec,
-				parsed.status,
-				kindIndex,
-				catalog,
-				{
-					metadataSchema: parsed.metadata,
-					rootDescription: parsed.description,
-					enableDescriptionPass: true
-				}
-			);
-			schemaLinks.push(...edges);
+		for (const version of res.versions.filter((v) => v?.name && !v.deprecated)) {
+			const key = `${res.name}|${version.name}`;
+			if (!schemaCache.has(key)) {
+				schemaCache.set(key, await loadCrdSchema(release.folder, res.name, version.name, yamlCache));
+			}
 		}
 
 		processed++;
@@ -242,12 +239,11 @@ export async function buildDependencyGraph(
 		message: 'Building dependency graph…'
 	});
 
-	const graph: DependencyGraph = {
-		nodes: catalogToNodes(catalog, versions, descriptions),
-		links: mergeGraphLinks([...catalogLinks, ...schemaLinks]),
-		releaseFolder: release.folder,
-		generatedAt: new Date().toISOString()
-	};
+	const graph = await buildDependencyGraphFromResources(
+		release.folder,
+		resources,
+		(resourceName, apiVersion) => schemaCache.get(`${resourceName}|${apiVersion}`) ?? null
+	);
 
 	graphCache.set(release.folder, graph);
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, tick } from 'svelte';
+	import { createEventDispatcher, onMount, tick } from 'svelte';
 	import { highlightYaml, tokenClass } from '$lib/validate-bundle/yamlHighlight';
 
 	export let value = '';
@@ -43,8 +43,11 @@
 		const lineLen = lineTexts[line - 1]?.length ?? 0;
 		textareaEl.focus();
 		textareaEl.setSelectionRange(pos, pos + lineLen);
-		const lineHeight = 20;
-		textareaEl.scrollTop = Math.max(0, (line - 4) * lineHeight);
+
+		const style = getComputedStyle(textareaEl);
+		const lineHeight = parseFloat(style.lineHeight) || 20;
+		const paddingTop = parseFloat(style.paddingTop) || 0;
+		textareaEl.scrollTop = Math.max(0, paddingTop + (line - 1) * lineHeight - textareaEl.clientHeight / 3);
 		syncScrollPosition();
 	}
 
@@ -58,6 +61,13 @@
 			dispatch('validate');
 		}
 	}
+
+	onMount(() => {
+		if (!textareaEl) return;
+		const observer = new ResizeObserver(() => syncScrollPosition());
+		observer.observe(textareaEl);
+		return () => observer.disconnect();
+	});
 </script>
 
 <div class="yaml-editor-shell">
@@ -82,15 +92,17 @@
 	</div>
 
 	<div class="yaml-editor-body">
-		<div class="yaml-gutter" aria-hidden="true" style:transform="translateY({-scrollTop}px)">
-			{#each Array(lineCount) as _, i}
-				<div
-					class="yaml-gutter-line"
-					class:yaml-gutter-line--highlight={highlightLine === i + 1}
-				>
-					{i + 1}
-				</div>
-			{/each}
+		<div class="yaml-gutter" aria-hidden="true">
+			<div class="yaml-gutter-inner" style:transform="translateY({-scrollTop}px)">
+				{#each Array(lineCount) as _, i}
+					<div
+						class="yaml-gutter-line"
+						class:yaml-gutter-line--highlight={highlightLine === i + 1}
+					>
+						{i + 1}
+					</div>
+				{/each}
+			</div>
 		</div>
 
 		<div class="yaml-editor-stack">

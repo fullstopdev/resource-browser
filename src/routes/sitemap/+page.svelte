@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 
-	export let data;
+	let { data }: {
+		data: {
+			staticPages: string[];
+			groupedResources: Array<{
+				group: string;
+				resources: Array<{ name: string; versions: string[] }>;
+			}>;
+		};
+	} = $props();
+
 	const staticPages: string[] = data.staticPages;
 	const groupedResources = data.groupedResources;
 </script>

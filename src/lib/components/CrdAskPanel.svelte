@@ -15,9 +15,6 @@
 	export let hasCrdContext = false;
 	/** Hide duplicate header when embedded in GlobalAskPanel. */
 	export let embedded = false;
-	export let deprecated = false;
-	export let spec: unknown = null;
-	export let status: unknown = null;
 
 	const CACHED_STARTERS = new Set(['What is this CRD for?', 'Example YAML?']);
 

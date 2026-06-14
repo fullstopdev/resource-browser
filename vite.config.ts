@@ -17,7 +17,11 @@ const suppressCrdCheckLogs = (): Plugin => ({
 		// @ts-ignore - Override stdout
 		proc.stdout.write = (chunk: any, ...args: any[]) => {
 			const str = chunk?.toString() || '';
-			if (str.includes('Not found:') && str.includes('/resources/') && str.includes('.yaml')) {
+			if (
+				str.includes('Not found:') &&
+				str.includes('/resources/') &&
+				(str.includes('.yaml') || str.includes('dependency-graph.json'))
+			) {
 				return true; // Suppress this output
 			}
 			return originalStdoutWrite(chunk, ...args);
@@ -26,7 +30,11 @@ const suppressCrdCheckLogs = (): Plugin => ({
 		// @ts-ignore - Override stderr
 		proc.stderr.write = (chunk: any, ...args: any[]) => {
 			const str = chunk?.toString() || '';
-			if (str.includes('Not found:') && str.includes('/resources/') && str.includes('.yaml')) {
+			if (
+				str.includes('Not found:') &&
+				str.includes('/resources/') &&
+				(str.includes('.yaml') || str.includes('dependency-graph.json'))
+			) {
 				return true; // Suppress this output
 			}
 			return originalStderrWrite(chunk, ...args);

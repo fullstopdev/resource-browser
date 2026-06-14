@@ -34,22 +34,15 @@ describe('transitiveClosure', () => {
 		expect([...getAllAncestors('a', adj.incoming)]).toEqual(['d']);
 	});
 
-	it('extended mode includes full transitive closure', () => {
-		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a')];
-		const highlight = getHighlightSets('a', links, 'extended');
-
-		expect([...highlight.nodes].sort()).toEqual(['a', 'b', 'c', 'd']);
-		expect(highlight.directOutgoing.size).toBe(1);
-		expect(highlight.descendants.size).toBe(2);
-		expect(highlight.directIncoming.size).toBe(1);
-		expect(highlight.ancestors.size).toBe(1);
-	});
-
-	it('direct mode stays at level 1', () => {
+	it('highlight sets stay at direct neighbors only', () => {
 		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a')];
 		const highlight = getHighlightSets('a', links, 'direct');
 
 		expect([...highlight.nodes].sort()).toEqual(['a', 'b', 'd']);
+		expect(highlight.directOutgoing.size).toBe(1);
+		expect(highlight.descendants.size).toBe(1);
+		expect(highlight.directIncoming.size).toBe(1);
+		expect(highlight.ancestors.size).toBe(1);
 	});
 
 	it('normalizes D3-style object link endpoints', () => {
@@ -57,9 +50,9 @@ describe('transitiveClosure', () => {
 			{ ...link('a', 'b'), source: { id: 'a' }, target: { id: 'b' } },
 			{ ...link('b', 'c'), source: { id: 'b' }, target: { id: 'c' } }
 		] as Parameters<typeof getHighlightSets>[1];
-		const highlight = getHighlightSets('a', links, 'extended');
+		const highlight = getHighlightSets('a', links, 'direct');
 
-		expect([...highlight.nodes].sort()).toEqual(['a', 'b', 'c']);
+		expect([...highlight.nodes].sort()).toEqual(['a', 'b']);
 	});
 
 	it('extractDirectSubgraph keeps only one-hop neighbors and focus-incident edges', () => {
@@ -77,7 +70,7 @@ describe('transitiveClosure', () => {
 		expect(subgraph!.links.map((l) => `${l.source}|${l.target}`).sort()).toEqual(['a|b', 'd|a']);
 	});
 
-	it('extractSubgraph direct mode matches extractDirectSubgraph', () => {
+	it('extractSubgraph matches extractDirectSubgraph', () => {
 		const links = [link('a', 'b'), link('b', 'c'), link('d', 'a')];
 		const graph = {
 			nodes: ['a', 'b', 'c', 'd'].map(node),
@@ -86,37 +79,10 @@ describe('transitiveClosure', () => {
 			generatedAt: '2026-01-01T00:00:00.000Z'
 		};
 
-		const direct = extractSubgraph(graph, 'a', { transitive: false });
+		const direct = extractSubgraph(graph, 'a');
 		expect(direct).not.toBeNull();
 		expect([...direct!.nodes.map((n) => n.id)].sort()).toEqual(['a', 'b', 'd']);
 		expect(direct!.links).toHaveLength(2);
-	});
-
-	it('extractSubgraph extended mode returns full transitive subgraph', () => {
-		const links = [
-			link('a', 'b'),
-			link('b', 'c'),
-			link('c', 'd'),
-			link('d', 'e'),
-			link('up', 'a')
-		];
-		const graph = {
-			nodes: ['a', 'b', 'c', 'd', 'e', 'up'].map(node),
-			links,
-			releaseFolder: '26.4.2',
-			generatedAt: '2026-01-01T00:00:00.000Z'
-		};
-
-		const subgraph = extractSubgraph(graph, 'a', { transitive: true });
-		expect(subgraph).not.toBeNull();
-		expect([...subgraph!.nodes.map((n) => n.id)].sort()).toEqual(['a', 'b', 'c', 'd', 'e', 'up']);
-		expect(subgraph!.links.map((l) => `${l.source}|${l.target}`).sort()).toEqual([
-			'a|b',
-			'b|c',
-			'c|d',
-			'd|e',
-			'up|a'
-		]);
 	});
 
 	it('getTransitiveClosureNodeIds includes all reachable nodes', () => {

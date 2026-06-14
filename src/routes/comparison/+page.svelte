@@ -459,8 +459,6 @@
 				{report}
 				{sourceReleaseName}
 				{targetReleaseName}
-				{sourceVersion}
-				{targetVersion}
 				bind:statusFilter
 				bind:expandedCrdNames
 				bind:searchQuery

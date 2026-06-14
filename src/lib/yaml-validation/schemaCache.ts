@@ -46,6 +46,12 @@ export function schemaPath(releaseFolder: string, resourceName: string, version:
 	return `/${folder}/${name}/${ver}.yaml`;
 }
 
+export function releaseAssetPath(releaseFolder: string, filename: string): string {
+	const folder = assertSafeFolderPath(releaseFolder);
+	const file = assertSafePathSegment(filename, 'filename');
+	return `/${folder}/${file}`;
+}
+
 function parseSchemaText(text: string): SchemaSections {
 	const schemaParsed = loadStaticYaml(text) as {
 		schema?: { openAPIV3Schema?: { properties?: { spec?: unknown; status?: unknown }; required?: string[] } };

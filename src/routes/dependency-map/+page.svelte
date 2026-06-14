@@ -13,7 +13,12 @@
 		buildFocusSubgraph,
 		resolveFocusNodeId
 	} from '$lib/dependency-map/buildGraph';
-	import { historyAfterBreadcrumb, historyAfterRefocus } from '$lib/dependency-map/drillDown';
+	import {
+		breadcrumbPath,
+		historyAfterBreadcrumb,
+		historyAfterRefocus,
+		normalizeFocusHistory
+	} from '$lib/dependency-map/drillDown';
 	import type { BuildProgress, DependencyGraph, GraphNode } from '$lib/dependency-map/types';
 	import { fetchManifest } from '$lib/manifest';
 	import { searchResources } from '$lib/resourceSearch';
@@ -25,7 +30,7 @@
 	const workflowSteps = [
 		{ num: 1, title: 'Search', desc: 'Find a CRD by kind or name' },
 		{ num: 2, title: 'Select', desc: 'Pick the resource to map' },
-		{ num: 3, title: 'Explore', desc: 'Direct deps first, graph optional' }
+		{ num: 3, title: 'Explore', desc: 'Navigate the intent topology map' }
 	] as const;
 
 	let releaseName = '';
@@ -40,8 +45,6 @@
 	let rootFocusNodeId: string | null = null;
 	let focusHistory: string[] = [];
 	let subgraph: DependencyGraph | null = null;
-	let showTransitive = false;
-	let showInferredEdges = false;
 	let fullGraph: DependencyGraph | null = null;
 
 	let buildingGraph = false;
@@ -64,18 +67,6 @@
 
 	$: progressPercent =
 		progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
-
-	$: focusKind = focusNodeId
-		? manifestResources.find((r) => r.name === focusNodeId)?.kind ??
-			subgraph?.nodes.find((n) => n.id === focusNodeId)?.kind ??
-			shortName(focusNodeId)
-		: '';
-
-	$: focusGroup = focusNodeId
-		? manifestResources.find((r) => r.name === focusNodeId)?.group ??
-			subgraph?.nodes.find((n) => n.id === focusNodeId)?.group ??
-			groupName(focusNodeId)
-		: '';
 
 	$: filteredResources = searchResources(manifestResources, resourceSearch);
 
@@ -124,11 +115,14 @@
 	}
 
 	$: breadcrumbTrail = focusNodeId
-		? [...focusHistory, focusNodeId].map((id) => ({
+		? breadcrumbPath(focusHistory, focusNodeId).map((id) => ({
 				id,
 				label: nodeDisplayLabel(id)
 			}))
 		: [];
+
+	$: focusDisplayKind = focusNodeId ? nodeDisplayLabel(focusNodeId) : '';
+	$: focusDisplayResource = focusNodeId ?? focusResource ?? '';
 
 	function clearFocus() {
 		cancelPendingBuild();
@@ -138,8 +132,6 @@
 		focusHistory = [];
 		subgraph = null;
 		fullGraph = null;
-		showTransitive = false;
-		showInferredEdges = false;
 		error = null;
 		resourceSearch = '';
 		searchFocused = false;
@@ -165,9 +157,7 @@
 
 	function applyFocusSubgraph(nodeId: string) {
 		if (!fullGraph) return;
-		const result = buildFocusSubgraph(fullGraph, nodeId, {
-			transitive: showTransitive
-		});
+		const result = buildFocusSubgraph(fullGraph, nodeId);
 		if (!result) {
 			error = `Could not build dependency map for "${focusResource}".`;
 			focusNodeId = null;
@@ -194,9 +184,12 @@
 			if (generation !== buildGeneration) return;
 
 			fullGraph = built;
-			const result = buildFocusSubgraph(built, nodeId, {
-				transitive: showTransitive
-			});
+			if (!built.nodes.length) {
+				error = `Dependency graph is not available for ${rel.label}.`;
+				focusNodeId = null;
+				return;
+			}
+			const result = buildFocusSubgraph(built, nodeId);
 			if (!result) {
 				error = `Could not build dependency map for "${focusResource}".`;
 				focusNodeId = null;
@@ -242,18 +235,24 @@
 		await buildSubgraphForFocus(release, resource.name);
 	}
 
+	function historiesEqual(a: string[], b: string[]): boolean {
+		return a.length === b.length && a.every((id, i) => id === b[i]);
+	}
+
 	function applyFocusAt(nodeId: string, history: string[]) {
 		if (!fullGraph) return;
+		const nextHistory = normalizeFocusHistory(history, nodeId);
+		if (focusNodeId === nodeId && historiesEqual(focusHistory, nextHistory)) return;
+		focusHistory = nextHistory;
 		focusNodeId = nodeId;
 		focusResource = nodeId;
-		focusHistory = history;
 		applyFocusSubgraph(nodeId);
 		updateURL();
 	}
 
 	function handleRefocus(nodeId: string) {
 		if (!fullGraph || !focusNodeId || nodeId === focusNodeId) return;
-		applyFocusAt(nodeId, historyAfterRefocus(focusHistory, focusNodeId));
+		applyFocusAt(nodeId, historyAfterRefocus(focusHistory, focusNodeId, nodeId));
 	}
 
 	function handleBreadcrumbNavigate(nodeId: string) {
@@ -315,18 +314,12 @@
 		modalResource = null;
 	}
 
-	function countRealGraphNodes(graph: DependencyGraph | null, excludeId: string | null): number {
-		if (!graph || !excludeId) return 0;
-		return graph.nodes.filter((node) => node.id !== excludeId).length;
-	}
-
-	$: directNeighborCount = countRealGraphNodes(subgraph, focusNodeId);
-	$: extendedNeighborCount = countRealGraphNodes(subgraph, focusNodeId);
-
-	$: if (browser && clientReady && focusNodeId && fullGraph) {
-		showTransitive;
-		showInferredEdges;
-		applyFocusSubgraph(focusNodeId);
+	$: if (browser && clientReady && focusNodeId && fullGraph && !buildingGraph) {
+		const needsSubgraph =
+			!subgraph ||
+			!subgraph.nodes.some((n) => n.id === focusNodeId) ||
+			subgraph.releaseFolder !== fullGraph.releaseFolder;
+		if (needsSubgraph) applyFocusSubgraph(focusNodeId);
 	}
 
 	let previousReleaseName = '';
@@ -365,7 +358,7 @@
 	<title>EDA Resource Browser | CRD Dependency Map</title>
 	<meta
 		name="description"
-		content="Interactive dependency map of Nokia EDA CRDs — explore config, state, and schema-inferred relationships for a release."
+		content="Interactive dependency map of Nokia EDA CRDs — explore config, state, and schema relationships for a release."
 	/>
 </svelte:head>
 
@@ -376,16 +369,30 @@
 	<AppHeader fixed={false} />
 
 	<div class="spec-search-main">
-		<section class="comparison-hero" aria-labelledby="dependency-map-heading">
+		<section class="comparison-hero" class:dep-map-hero--active={!!subgraph} aria-labelledby="dependency-map-heading">
 			<div class="comparison-hero__content">
-				<p class="homepage-hero-kicker">Schema relationships</p>
-				<h1 id="dependency-map-heading" class="homepage-title text-slate-900 dark:text-slate-100">
-					CRD Dependency Map
-				</h1>
-				<p class="homepage-subtitle text-slate-600 dark:text-slate-400">
-					Search for a CRD, then scan direct dependencies grouped by relationship type. Click
-					neighbors to drill down, or enable Extended for the full dependency chain.
+				<p class="homepage-hero-kicker">
+					{#if subgraph && focusNodeId}
+						Map focus
+					{:else}
+						Schema relationships
+					{/if}
 				</p>
+				<h1 id="dependency-map-heading" class="homepage-title text-slate-900 dark:text-slate-100">
+					{#if subgraph && focusNodeId}
+						{focusDisplayKind}
+					{:else}
+						CRD Dependency Map
+					{/if}
+				</h1>
+				{#if subgraph && focusNodeId}
+					<p class="dep-map-hero-resource text-slate-600 dark:text-slate-400">{focusDisplayResource}</p>
+				{:else}
+					<p class="homepage-subtitle text-slate-600 dark:text-slate-400">
+						Search for a CRD, then explore its intent dependency map — filter by type,
+						direction, and drill down by double-clicking neighbors.
+					</p>
+				{/if}
 			</div>
 
 			<ol class="comparison-workflow" aria-label="Dependency map workflow">
@@ -421,22 +428,6 @@
 			</select>
 
 			{#if subgraph && focusNodeId}
-				<label class="dep-map-transitive-toggle flex shrink-0 cursor-pointer items-center gap-2">
-					<input
-						type="checkbox"
-						class="dep-map-transitive-checkbox"
-						bind:checked={showInferredEdges}
-					/>
-					<span class="dep-map-transitive-label">Schema inferred</span>
-				</label>
-				<label class="dep-map-transitive-toggle ml-auto flex shrink-0 cursor-pointer items-center gap-2">
-					<input
-						type="checkbox"
-						class="dep-map-transitive-checkbox"
-						bind:checked={showTransitive}
-					/>
-					<span class="dep-map-transitive-label">Extended</span>
-				</label>
 				<button
 					type="button"
 					class="spec-search-select shrink-0 border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-blue-300 dark:hover:bg-slate-700"
@@ -654,43 +645,18 @@
 					</div>
 				</div>
 			{:else if subgraph && focusNodeId}
-				<div class="dep-map-focus-banner">
-					<div class="dep-map-focus-banner-inner">
-						<div class="dep-map-focus-chip" aria-label="Selected resource">
-							<svg class="dep-map-focus-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-							</svg>
-							<div class="dep-map-focus-text">
-								<span class="dep-map-focus-kind">{focusKind}</span>
-								<span class="dep-map-focus-group">{focusGroup}</span>
-							</div>
-						</div>
-						<div class="dep-map-focus-stats">
-							<span class="dep-map-focus-stat">
-								{showTransitive ? extendedNeighborCount : directNeighborCount} connected CRDs
-							</span>
-							<span class="dep-map-focus-stat-sep" aria-hidden="true">·</span>
-							<span class="dep-map-focus-stat">{subgraph.links.length} edges</span>
-							<span class="dep-map-focus-badge">
-								{showTransitive ? 'Extended' : 'Direct only'}
-							</span>
-						</div>
-					</div>
-				</div>
 				<div class="dependency-map-graph-shell">
-					{#key `${focusNodeId}-${showTransitive}-${showInferredEdges}`}
-						<DependencyMapGraph
-							graph={subgraph}
-							{fullGraph}
-							focusNodeId={focusNodeId}
-							{showTransitive}
-							{showInferredEdges}
-							breadcrumbTrail={breadcrumbTrail}
-							onRefocus={handleRefocus}
-							onBreadcrumbNavigate={handleBreadcrumbNavigate}
-							onViewCrd={handleViewCrd}
-						/>
-					{/key}
+					<DependencyMapGraph
+						graph={subgraph}
+						{fullGraph}
+						focusNodeId={focusNodeId}
+						focusKind={focusDisplayKind}
+						focusResourceName={focusDisplayResource}
+						breadcrumbTrail={breadcrumbTrail}
+						onRefocus={handleRefocus}
+						onBreadcrumbNavigate={handleBreadcrumbNavigate}
+						onViewCrd={handleViewCrd}
+					/>
 				</div>
 			{:else}
 				<div class="spec-search-empty">
@@ -708,8 +674,7 @@
 						Search for a CRD to explore its dependencies
 					</p>
 					<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-						Start with direct dependencies — grouped, searchable, and scannable. Toggle transitive or
-						open the graph view for deeper exploration.
+						The intent topology map shows direct catalog and semantic relationships.
 					</p>
 				</div>
 			{/if}
@@ -732,303 +697,3 @@
 	/>
 {/if}
 
-<style>
-	.dep-map-focus-banner {
-		border-bottom: 1px solid rgb(226 232 240);
-		background: linear-gradient(to right, rgb(239 246 255), rgb(248 250 252));
-		padding: 0.85rem 1rem;
-	}
-
-	:global(.dark) .dep-map-focus-banner {
-		border-bottom-color: rgb(51 65 85);
-		background: linear-gradient(to right, rgb(30 41 59), rgb(15 23 42));
-	}
-
-	@media (min-width: 768px) {
-		.dep-map-focus-banner {
-			padding: 0.85rem 1.25rem;
-		}
-	}
-
-	.dep-map-focus-banner-inner {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-
-	.dep-map-focus-chip {
-		display: flex;
-		align-items: center;
-		gap: 0.65rem;
-		min-width: 0;
-	}
-
-	.dep-map-focus-icon {
-		flex-shrink: 0;
-		width: 1.25rem;
-		height: 1.25rem;
-		color: rgb(37 99 235);
-	}
-
-	:global(.dark) .dep-map-focus-icon {
-		color: rgb(96 165 250);
-	}
-
-	.dep-map-focus-text {
-		display: flex;
-		flex-direction: column;
-		gap: 0.1rem;
-		min-width: 0;
-	}
-
-	.dep-map-focus-kind {
-		font-size: 1rem;
-		font-weight: 700;
-		color: rgb(15 23 42);
-	}
-
-	:global(.dark) .dep-map-focus-kind {
-		color: rgb(241 245 249);
-	}
-
-	.dep-map-focus-group {
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-		font-size: 0.7rem;
-		color: rgb(100 116 139);
-		word-break: break-all;
-	}
-
-	:global(.dark) .dep-map-focus-group {
-		color: rgb(148 163 184);
-	}
-
-	.dep-map-focus-stats {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.35rem 0.5rem;
-	}
-
-	.dep-map-focus-stat {
-		font-size: 0.75rem;
-		color: rgb(100 116 139);
-	}
-
-	:global(.dark) .dep-map-focus-stat {
-		color: rgb(148 163 184);
-	}
-
-	.dep-map-focus-stat-sep {
-		color: rgb(203 213 225);
-	}
-
-	.dep-map-focus-badge {
-		padding: 0.15rem 0.55rem;
-		border-radius: 9999px;
-		background: rgb(219 234 254);
-		font-size: 0.65rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: rgb(29 78 216);
-	}
-
-	:global(.dark) .dep-map-focus-badge {
-		background: rgb(30 58 138 / 0.45);
-		color: rgb(147 197 253);
-	}
-
-	.dep-map-search-results {
-		position: absolute;
-		z-index: 30;
-		margin-top: 0.35rem;
-		width: 100%;
-		max-height: 18rem;
-		overflow-y: auto;
-		border: 1px solid rgb(226 232 240);
-		border-radius: 0.75rem;
-		background: rgb(255 255 255);
-		box-shadow: 0 10px 30px rgb(15 23 42 / 0.1);
-		list-style: none;
-		padding: 0.35rem;
-	}
-
-	:global(.dark) .dep-map-search-results {
-		border-color: rgb(51 65 85);
-		background: rgb(30 41 59);
-		box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
-	}
-
-	.dep-map-search-hint,
-	.dep-map-search-empty {
-		padding: 0.55rem 0.75rem;
-		font-size: 0.75rem;
-		color: rgb(100 116 139);
-	}
-
-	.dep-map-search-row {
-		display: flex;
-		width: 100%;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.6rem 0.75rem;
-		border: none;
-		border-radius: 0.5rem;
-		background: transparent;
-		text-align: left;
-		cursor: pointer;
-		transition: background 0.12s;
-	}
-
-	.dep-map-search-row:hover,
-	.dep-map-search-row-active {
-		background: rgb(241 245 249);
-	}
-
-	:global(.dark) .dep-map-search-row:hover,
-	:global(.dark) .dep-map-search-row-active {
-		background: rgb(51 65 85);
-	}
-
-	.dep-map-search-row-main {
-		min-width: 0;
-		flex: 1;
-	}
-
-	.dep-map-search-kind {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: rgb(15 23 42);
-	}
-
-	:global(.dark) .dep-map-search-kind {
-		color: rgb(241 245 249);
-	}
-
-	.dep-map-search-group {
-		margin: 0.15rem 0 0;
-		font-size: 0.7rem;
-		color: rgb(100 116 139);
-	}
-
-	:global(.dark) .dep-map-search-group {
-		color: rgb(148 163 184);
-	}
-
-	.dep-map-search-version {
-		flex-shrink: 0;
-		padding: 0.15rem 0.45rem;
-		border-radius: 0.375rem;
-		background: rgb(241 245 249);
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-		font-size: 0.65rem;
-		color: rgb(71 85 105);
-	}
-
-	:global(.dark) .dep-map-search-version {
-		background: rgb(51 65 85);
-		color: rgb(203 213 225);
-	}
-
-	.dep-map-search-tag {
-		margin-left: 0.35rem;
-		padding: 0.05rem 0.35rem;
-		border-radius: 0.25rem;
-		font-size: 0.6rem;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
-
-	.dep-map-search-tag-warn {
-		background: rgb(254 243 199);
-		color: rgb(180 83 9);
-	}
-
-	:global(.dark) .dep-map-search-tag-warn {
-		background: rgb(120 53 15 / 0.35);
-		color: rgb(252 211 77);
-	}
-
-	:global(.dep-map-page--active) {
-		display: flex;
-		flex-direction: column;
-		min-height: 100dvh;
-	}
-
-	:global(.dep-map-page--active .spec-search-main) {
-		flex: 1;
-		padding-bottom: 0.5rem;
-		gap: 0.5rem;
-	}
-
-	:global(.dep-map-page--active .comparison-hero) {
-		flex-shrink: 0;
-		padding: 0.65rem 0.85rem;
-		gap: 0.65rem;
-	}
-
-	:global(.dep-map-page--active .spec-search-filters) {
-		flex-shrink: 0;
-		padding: 0.5rem 0.65rem;
-	}
-
-	:global(.dep-map-page--active .spec-search-results-panel) {
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-start;
-	}
-
-	:global(.dep-map-page--active .dep-map-focus-banner) {
-		flex-shrink: 0;
-	}
-
-	.dependency-map-graph-shell {
-		padding: 0.5rem 0.65rem 0.65rem;
-	}
-
-	:global(.dep-map-page--active) .dependency-map-graph-shell {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-height: 0;
-		padding: 0.35rem 0.5rem 0.5rem;
-	}
-
-	@media (min-width: 768px) {
-		.dependency-map-graph-shell {
-			padding: 0.5rem 0.75rem 0.75rem;
-		}
-
-		:global(.dep-map-page--active) .dependency-map-graph-shell {
-			padding: 0.4rem 0.65rem 0.65rem;
-		}
-	}
-
-	:global(.dep-map-page-credits--hidden) {
-		display: none;
-	}
-
-	.dep-map-transitive-toggle {
-		user-select: none;
-	}
-
-	.dep-map-transitive-checkbox {
-		width: 1rem;
-		height: 1rem;
-		accent-color: rgb(37 99 235);
-	}
-
-	.dep-map-transitive-label {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: rgb(71 85 105);
-		white-space: nowrap;
-	}
-
-	:global(.dark) .dep-map-transitive-label {
-		color: rgb(203 213 225);
-	}
-</style>

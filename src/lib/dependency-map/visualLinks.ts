@@ -1,5 +1,5 @@
 import { linkEndpointId } from './transitiveClosure';
-import type { GraphLink, LinkRelation } from './types';
+import type { EdgeClass, GraphLink, LinkRelation } from './types';
 
 const REL_PRIORITY: Record<LinkRelation, number> = {
 	observes: 100,
@@ -63,9 +63,12 @@ export function collapseVisualLinks(links: GraphLink[]): GraphLink[] {
 		const source = linkEndpointId(group[0]!.source);
 		const target = linkEndpointId(group[0]!.target);
 		const representative = pickRepresentativeLink(group);
-		const fieldPaths = uniqueStrings(group.map((link) => link.field));
-		const reasons = uniqueStrings(group.map((link) => link.reason));
+		const fieldPaths = uniqueStrings(group.flatMap((link) => link.fieldPaths ?? [link.field]));
+		const reasons = uniqueStrings(group.flatMap((link) => link.reasons ?? [link.reason]));
 		const relations = [...new Set(group.map((link) => link.rel))];
+		const apiVersions = uniqueStrings(group.flatMap((link) => link.apiVersions ?? []));
+		const resolvedCandidates = uniqueStrings(group.flatMap((link) => link.resolvedCandidates ?? []));
+		const edgeClasses = [...new Set(group.map((link) => link.edgeClass).filter(Boolean))] as EdgeClass[];
 
 		return {
 			...representative,
@@ -76,6 +79,11 @@ export function collapseVisualLinks(links: GraphLink[]): GraphLink[] {
 			fieldPaths,
 			reasons,
 			relations: relations.length > 1 ? relations : undefined,
+			edgeClasses: edgeClasses.length > 1 ? edgeClasses : undefined,
+			edgeClass: edgeClasses.length === 1 ? edgeClasses[0] : representative.edgeClass,
+			apiVersions: apiVersions.length > 0 ? apiVersions : representative.apiVersions,
+			resolvedCandidates:
+				resolvedCandidates.length > 0 ? resolvedCandidates : representative.resolvedCandidates,
 			refCount: group.length
 		};
 	});

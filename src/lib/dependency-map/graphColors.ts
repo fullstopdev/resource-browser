@@ -1,6 +1,18 @@
 import type { ThemeMode } from '$lib/theme';
 import type { LinkRelation, NodeType } from './types';
 
+export {
+	directionDisplayLabel,
+	getRelationLabel,
+	LEGEND_TITLE,
+	MAP_DIRECTION,
+	MAP_ROLE_LABELS,
+	relationDisplayLabel,
+	REL_DESCRIPTIONS,
+	REL_LABELS
+} from './relationLabels';
+export type { RelationDisplayContext, TopologyDirection } from './relationLabels';
+
 export type GraphPalette = {
 	background: string;
 	gridDot: string;
@@ -31,9 +43,10 @@ export type GraphPalette = {
 	rel: Record<LinkRelation, string>;
 };
 
+/** Light surfaces — match spec-search-page tokens in app.css */
 const light: GraphPalette = {
 	background: '#f8fafc',
-	gridDot: '#cbd5e1',
+	gridDot: 'transparent',
 	panel: '#ffffff',
 	panelBorder: '#e2e8f0',
 	text: '#0f172a',
@@ -60,34 +73,35 @@ const light: GraphPalette = {
 		orchestrates: '#d97706',
 		observes: '#16a34a',
 		deploys: '#059669',
-		references: '#2563eb',
+		references: '#1d4ed8',
 		member: '#0891b2',
 		memberOf: '#0e7490',
 		bindsTo: '#7c3aed',
-		appliesTo: '#e11d48',
+		appliesTo: '#dc2626',
 		extends: '#db2777'
 	}
 };
 
+/** Dark surfaces — match .dark .surface-panel / spec-search tokens in app.css */
 const dark: GraphPalette = {
-	background: '#0b1220',
-	gridDot: '#1e293b',
-	panel: '#1e293b',
-	panelBorder: '#334155',
+	background: 'rgba(7, 20, 40, 0.45)',
+	gridDot: 'transparent',
+	panel: 'rgba(15, 42, 72, 0.88)',
+	panelBorder: 'rgba(56, 100, 150, 0.35)',
 	text: '#f1f5f9',
 	textMuted: '#94a3b8',
 	link: '#64748b',
 	linkHighlight: '#60a5fa',
-	linkDim: '#293548',
+	linkDim: 'rgba(56, 100, 150, 0.35)',
 	linkOut: '#818cf8',
 	linkIn: '#34d399',
 	nodeStroke: '#cbd5e1',
 	nodeLabel: '#f1f5f9',
-	nodeLabelBg: 'rgba(11, 18, 32, 0.92)',
-	tooltipBg: '#1e293b',
-	tooltipBorder: '#475569',
+	nodeLabelBg: 'rgba(15, 42, 72, 0.92)',
+	tooltipBg: 'rgba(15, 42, 72, 0.95)',
+	tooltipBorder: 'rgba(56, 100, 150, 0.35)',
 	chipActive: '#3b82f6',
-	chipInactive: '#334155',
+	chipInactive: 'rgba(51, 65, 85, 0.8)',
 	focusRing: '#60a5fa',
 	config: '#3b82f6',
 	configLight: '#60a5fa',
@@ -102,7 +116,7 @@ const dark: GraphPalette = {
 		member: '#22d3ee',
 		memberOf: '#06b6d4',
 		bindsTo: '#a78bfa',
-		appliesTo: '#fb7185',
+		appliesTo: '#f87171',
 		extends: '#f472b6'
 	}
 };
@@ -133,26 +147,18 @@ export function nodeFillLight(type: NodeType, palette: GraphPalette): string {
 	}
 }
 
-export const REL_LABELS: Record<LinkRelation, string> = {
-	observes: 'observes',
-	deploys: 'deploys',
-	references: 'references',
-	member: 'member',
-	memberOf: 'member of',
-	bindsTo: 'binds to',
-	appliesTo: 'applies to',
-	orchestrates: 'orchestrates',
-	extends: 'extends'
-};
-
-/** Primary intent relations shown in the compact canvas legend */
-export const LEGEND_REL_ORDER: LinkRelation[] = [
+/** Primary schema/intent relations for Map legend (operational types excluded). */
+export const MAP_REL_ORDER: LinkRelation[] = [
+	'appliesTo',
 	'orchestrates',
 	'observes',
 	'references',
 	'bindsTo',
-	'appliesTo'
+	'extends'
 ];
+
+/** @deprecated Use MAP_REL_ORDER for Map / intent topology views. */
+export const LEGEND_REL_ORDER: LinkRelation[] = MAP_REL_ORDER;
 
 export const REL_ORDER: LinkRelation[] = [
 	'orchestrates',

@@ -90,7 +90,7 @@
 	font-family: 'NokiaPureHeadline';
 	src:
 		url('/fonts/NokiaPureHeadline_XBd.woff2') format('woff2'),
-		url('/fonts/NokiaPureHeadline_XBd..ttf') format('truetype');
+		url('/fonts/NokiaPureHeadline_XBd.ttf') format('truetype');
 	font-weight: 800;
 	font-style: normal;
 	font-display: swap;
@@ -102,9 +102,12 @@
 @theme {
 	--font-nunito: 'Nunito', sans-serif;
 	--font-fira: 'Fira Code', monospace;
+	--font-code: var(--font-fira), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 	--font-nokia: 'NokiaPureText', sans-serif;
 	--font-nokia-headline: 'NokiaPureHeadline', sans-serif;
 	--default-font-family: 'NokiaPureText', sans-serif;
+	--editor-surface-bg: #f8fafc;
+	--editor-code-color: #0f172a;
 }
 
 /* ============================================
@@ -1145,6 +1148,12 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 			flex-direction: column;
 			min-height: 0;
 		}
+
+		.validate-yaml-panel--editor .yaml-editor-shell {
+			flex: 1;
+			min-height: 0;
+			height: auto;
+		}
 	}
 
 	.validate-yaml-panel--issues {
@@ -1663,6 +1672,56 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		box-shadow: none;
 	}
 
+	.dark {
+		--editor-surface-bg: rgba(7, 20, 40, 0.45);
+		--editor-code-color: #e2e8f0;
+	}
+
+	.yaml-editor-plain-body {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		background: var(--editor-surface-bg);
+	}
+
+	.yaml-editor-plain-code,
+	.yaml-editor-readonly {
+		font-family: var(--font-code);
+		font-size: 0.8125rem;
+		line-height: 1.35;
+		tab-size: 2;
+		color: var(--editor-code-color);
+	}
+
+	.yaml-editor-plain-code {
+		display: block;
+		width: 100%;
+		height: 100%;
+		min-height: 18rem;
+		margin: 0;
+		border: 0;
+		background: transparent;
+		padding: 0.75rem;
+		resize: none;
+		outline: none;
+	}
+
+	.yaml-editor-plain-code:focus {
+		outline: 2px solid rgba(37, 99, 235, 0.35);
+		outline-offset: 1px;
+	}
+
+	.yaml-editor-readonly {
+		margin: 0;
+		width: 100%;
+		min-height: 18rem;
+		padding: 0.75rem;
+		background: transparent;
+		white-space: pre-wrap;
+		word-break: break-word;
+		overflow: visible;
+	}
+
 	.yaml-editor-toolbar {
 		position: sticky;
 		top: 0;
@@ -1723,16 +1782,16 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		display: flex;
 		flex: 1;
 		min-height: 0;
+		align-items: stretch;
 		overflow: hidden;
 	}
 
 	.yaml-gutter {
 		flex-shrink: 0;
 		width: 3rem;
-		padding: 0.625rem 0.5rem;
 		border-right: 1px solid #e2e8f0;
 		background: #f8fafc;
-		font-family: ui-monospace, monospace;
+		font-family: var(--font-code);
 		font-size: 0.8125rem;
 		line-height: 1.25rem;
 		color: #94a3b8;
@@ -1742,6 +1801,12 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		min-height: 0;
 	}
 
+	.yaml-gutter-inner {
+		padding: 0.625rem 0.5rem;
+		box-sizing: border-box;
+		will-change: transform;
+	}
+
 	.dark .yaml-gutter {
 		border-color: rgba(56, 100, 150, 0.35);
 		background: rgba(7, 20, 40, 0.45);
@@ -1749,7 +1814,7 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 	}
 
 	.yaml-gutter-line {
-		height: 1.25rem;
+		line-height: 1.25rem;
 		border-radius: 0.125rem;
 	}
 
@@ -1777,10 +1842,12 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		inset: 0;
 		pointer-events: none;
 		padding: 0.625rem;
+		box-sizing: border-box;
+		will-change: transform;
 	}
 
 	.yaml-line-highlight {
-		height: 1.25rem;
+		line-height: 1.25rem;
 	}
 
 	.yaml-line-highlight--active {
@@ -1800,11 +1867,12 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		margin: 0;
 		padding: 0.625rem;
 		border: 0;
-		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		font-family: var(--font-code);
 		font-size: 0.8125rem;
 		line-height: 1.25rem;
 		tab-size: 2;
 		white-space: pre;
+		box-sizing: border-box;
 	}
 
 	.yaml-highlight {
@@ -1812,6 +1880,7 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		color: #0f172a;
 		z-index: 1;
 		overflow: visible;
+		will-change: transform;
 	}
 
 	.dark .yaml-highlight {
@@ -1887,6 +1956,42 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 
 	.dark .yaml-hl-doc {
 		color: #c4b5fd;
+	}
+
+	.yaml-readonly-viewer {
+		width: 100%;
+	}
+
+	.yaml-readonly-viewer__body {
+		display: flex;
+		align-items: stretch;
+		width: 100%;
+		overflow: visible;
+	}
+
+	.yaml-readonly-viewer__gutter {
+		position: static;
+		flex-shrink: 0;
+		overflow: visible;
+		padding-top: 0.75rem;
+		padding-bottom: 0.75rem;
+		border-right: 1px solid #e2e8f0;
+	}
+
+	.dark .yaml-readonly-viewer__gutter {
+		border-right-color: rgba(56, 100, 150, 0.35);
+	}
+
+	.yaml-readonly-viewer__code {
+		position: static;
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		padding: 0.75rem;
+		overflow: visible;
+		white-space: pre-wrap;
+		word-break: break-word;
+		background: transparent;
 	}
 
 	/* Comparison page */
@@ -5059,6 +5164,279 @@ html:not(.dark) .react-select__menu {
    ============================================ */
 .dependency-map-graph-shell {
 	font-family: 'NokiaPureText', ui-sans-serif, system-ui, sans-serif;
+	padding: 0.5rem 0.65rem 0.65rem;
+}
+
+@media (min-width: 768px) {
+	.dependency-map-graph-shell {
+		padding: 0.5rem 0.75rem 0.75rem;
+	}
+}
+
+/* Surface tokens — aligned with spec-search / comparison pages */
+.dep-map-root,
+.dep-intent-flow {
+	--dep-font: 'NokiaPureText', ui-sans-serif, system-ui, sans-serif;
+	--dep-font-code: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	--dep-bg: #f8fafc;
+	--dep-canvas-top: #ffffff;
+	--dep-canvas-bottom: #f1f5f9;
+	--dep-grid-dot: transparent;
+	--dep-panel: #ffffff;
+	--dep-panel-border: #e2e8f0;
+	--dep-panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+	--dep-text: #0f172a;
+	--dep-text-muted: #64748b;
+	--dep-chip-active: #2563eb;
+	--dep-chip-inactive: #e2e8f0;
+	--dep-focus-ring: #2563eb;
+	--dep-link-out: #4f46e5;
+	--dep-link-in: #059669;
+	--dep-config: #2563eb;
+	--dep-state: #16a34a;
+	--dep-radius-sm: 0.375rem;
+	--dep-radius: 0.5rem;
+	--dep-radius-lg: 0.625rem;
+	--dep-edge-dim: 0.62;
+	--dep-node-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+	--dep-node-shadow-hover: 0 3px 10px rgba(15, 23, 42, 0.07),
+		0 0 0 1px color-mix(in srgb, var(--dep-focus-ring) 8%, transparent);
+	--dep-path-glow-ring: color-mix(in srgb, var(--dep-focus-ring) 42%, transparent);
+	--dep-path-glow-spread: 0 0 0 2px var(--dep-path-glow-ring);
+	--dep-path-glow-halo:
+		0 0 14px color-mix(in srgb, var(--dep-focus-ring) 28%, transparent),
+		0 0 4px color-mix(in srgb, var(--dep-focus-ring) 18%, transparent);
+	--dep-path-glow-strong-ring: color-mix(in srgb, var(--dep-focus-ring) 58%, transparent);
+	--dep-path-glow-strong-spread: 0 0 0 3px var(--dep-path-glow-strong-ring);
+	--dep-path-glow-strong-halo:
+		0 0 20px color-mix(in srgb, var(--dep-focus-ring) 38%, transparent),
+		0 0 8px color-mix(in srgb, var(--dep-focus-ring) 26%, transparent);
+	--dep-path-map-color: #f59e0b;
+	--dep-path-map-color-bright: #fb923c;
+	--dep-path-map-glow-ring: color-mix(in srgb, var(--dep-path-map-color) 50%, transparent);
+	--dep-path-map-glow-spread: 0 0 0 2px var(--dep-path-map-glow-ring);
+	--dep-path-map-glow-halo:
+		inset 0 0 14px color-mix(in srgb, var(--dep-path-map-color) 20%, transparent),
+		inset 0 1px 0 color-mix(in srgb, var(--dep-path-map-color-bright) 18%, transparent),
+		0 0 14px color-mix(in srgb, var(--dep-path-map-color) 30%, transparent),
+		0 0 4px color-mix(in srgb, var(--dep-path-map-color-bright) 22%, transparent);
+	--dep-path-map-glow-strong-ring: color-mix(in srgb, var(--dep-path-map-color) 64%, transparent);
+	--dep-path-map-glow-strong-spread: 0 0 0 3px var(--dep-path-map-glow-strong-ring);
+	--dep-path-map-glow-strong-halo:
+		inset 0 0 20px color-mix(in srgb, var(--dep-path-map-color) 28%, transparent),
+		inset 0 1px 0 color-mix(in srgb, var(--dep-path-map-color-bright) 24%, transparent),
+		0 0 20px color-mix(in srgb, var(--dep-path-map-color) 40%, transparent),
+		0 0 8px color-mix(in srgb, var(--dep-path-map-color-bright) 30%, transparent);
+	--dep-path-map-node-border: color-mix(in srgb, var(--dep-path-map-color) 58%, var(--dep-panel-border));
+	--dep-path-map-node-bg-top: color-mix(in srgb, var(--dep-path-map-color) 12%, var(--dep-panel));
+	--dep-path-map-node-bg-bottom: var(--dep-panel);
+	--dep-path-map-node-shadow: var(--dep-path-map-glow-spread), var(--dep-path-map-glow-halo);
+	--dep-path-map-node-focus-shadow: var(--dep-path-map-glow-strong-spread), var(--dep-path-map-glow-strong-halo);
+	--dep-path-pill-ancestor-bg: color-mix(in srgb, var(--dep-focus-ring) 10%, #ffffff);
+	--dep-path-pill-ancestor-border: color-mix(in srgb, var(--dep-focus-ring) 48%, var(--dep-panel-border));
+	--dep-path-pill-ancestor-text: color-mix(in srgb, var(--dep-focus-ring) 82%, var(--dep-text));
+	--dep-path-pill-ancestor-shadow: var(--dep-path-glow-spread);
+	--dep-path-pill-ancestor-hover-bg: color-mix(in srgb, var(--dep-focus-ring) 12%, #ffffff);
+	--dep-path-pill-ancestor-hover-border: color-mix(in srgb, var(--dep-focus-ring) 48%, var(--dep-panel-border));
+	--dep-path-pill-ancestor-hover-text: var(--dep-focus-ring);
+	--dep-path-pill-ancestor-hover-shadow:
+		var(--dep-path-glow-spread),
+		0 2px 8px color-mix(in srgb, var(--dep-focus-ring) 16%, transparent);
+	--dep-path-pill-current-bg-top: color-mix(in srgb, var(--dep-focus-ring) 24%, #ffffff);
+	--dep-path-pill-current-bg-bottom: color-mix(in srgb, var(--dep-focus-ring) 14%, #ffffff);
+	--dep-path-pill-current-border: color-mix(in srgb, var(--dep-focus-ring) 58%, var(--dep-panel-border));
+	--dep-path-pill-current-text: var(--dep-text);
+	--dep-path-pill-current-shadow: var(--dep-path-glow-strong-spread);
+	font-family: var(--dep-font);
+	color: var(--dep-text);
+}
+
+.dark .dep-map-root,
+.dark .dep-intent-flow {
+	--dep-bg: rgba(7, 20, 40, 0.45);
+	--dep-canvas-top: rgba(15, 42, 72, 0.55);
+	--dep-canvas-bottom: rgba(7, 20, 40, 0.65);
+	--dep-grid-dot: transparent;
+	--dep-panel: rgba(15, 42, 72, 0.88);
+	--dep-panel-border: rgba(56, 100, 150, 0.35);
+	--dep-panel-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+	--dep-text: #f1f5f9;
+	--dep-text-muted: #94a3b8;
+	--dep-chip-active: #3b82f6;
+	--dep-chip-inactive: rgba(51, 65, 85, 0.8);
+	--dep-focus-ring: #60a5fa;
+	--dep-link-out: #818cf8;
+	--dep-link-in: #34d399;
+	--dep-config: #3b82f6;
+	--dep-state: #22c55e;
+	--dep-edge-dim: 0.55;
+	--dep-node-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+	--dep-node-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.32),
+		0 0 0 1px color-mix(in srgb, var(--dep-focus-ring) 14%, transparent);
+	--dep-path-glow-ring: color-mix(in srgb, var(--dep-focus-ring) 48%, transparent);
+	--dep-path-glow-spread: 0 0 0 2px var(--dep-path-glow-ring);
+	--dep-path-glow-halo:
+		0 0 16px color-mix(in srgb, var(--dep-focus-ring) 32%, transparent),
+		0 0 5px color-mix(in srgb, var(--dep-focus-ring) 22%, transparent);
+	--dep-path-glow-strong-ring: color-mix(in srgb, var(--dep-focus-ring) 62%, transparent);
+	--dep-path-glow-strong-spread: 0 0 0 3px var(--dep-path-glow-strong-ring);
+	--dep-path-glow-strong-halo:
+		0 0 22px color-mix(in srgb, var(--dep-focus-ring) 42%, transparent),
+		0 0 10px color-mix(in srgb, var(--dep-focus-ring) 30%, transparent);
+	--dep-path-map-color: #fbbf24;
+	--dep-path-map-color-bright: #fb923c;
+	--dep-path-map-glow-ring: color-mix(in srgb, var(--dep-path-map-color) 54%, transparent);
+	--dep-path-map-glow-spread: 0 0 0 2px var(--dep-path-map-glow-ring);
+	--dep-path-map-glow-halo:
+		inset 0 0 16px color-mix(in srgb, var(--dep-path-map-color) 24%, transparent),
+		inset 0 1px 0 color-mix(in srgb, var(--dep-path-map-color-bright) 20%, transparent),
+		0 0 16px color-mix(in srgb, var(--dep-path-map-color) 34%, transparent),
+		0 0 5px color-mix(in srgb, var(--dep-path-map-color-bright) 26%, transparent);
+	--dep-path-map-glow-strong-ring: color-mix(in srgb, var(--dep-path-map-color) 68%, transparent);
+	--dep-path-map-glow-strong-spread: 0 0 0 3px var(--dep-path-map-glow-strong-ring);
+	--dep-path-map-glow-strong-halo:
+		inset 0 0 22px color-mix(in srgb, var(--dep-path-map-color) 32%, transparent),
+		inset 0 1px 0 color-mix(in srgb, var(--dep-path-map-color-bright) 28%, transparent),
+		0 0 22px color-mix(in srgb, var(--dep-path-map-color) 44%, transparent),
+		0 0 10px color-mix(in srgb, var(--dep-path-map-color-bright) 34%, transparent);
+	--dep-path-map-node-border: color-mix(in srgb, var(--dep-path-map-color) 62%, var(--dep-panel-border));
+	--dep-path-map-node-bg-top: color-mix(in srgb, var(--dep-path-map-color) 16%, var(--dep-panel));
+	--dep-path-map-node-bg-bottom: var(--dep-panel);
+	--dep-path-map-node-shadow: var(--dep-path-map-glow-spread), var(--dep-path-map-glow-halo);
+	--dep-path-map-node-focus-shadow: var(--dep-path-map-glow-strong-spread), var(--dep-path-map-glow-strong-halo);
+	--dep-path-pill-ancestor-bg: color-mix(in srgb, var(--dep-focus-ring) 14%, rgba(22, 52, 88, 0.94));
+	--dep-path-pill-ancestor-border: color-mix(in srgb, var(--dep-focus-ring) 52%, rgba(71, 120, 170, 0.52));
+	--dep-path-pill-ancestor-text: color-mix(in srgb, var(--dep-focus-ring) 34%, #e2e8f0);
+	--dep-path-pill-ancestor-shadow: var(--dep-path-glow-spread);
+	--dep-path-pill-ancestor-hover-bg: color-mix(in srgb, var(--dep-focus-ring) 16%, rgba(22, 52, 88, 0.94));
+	--dep-path-pill-ancestor-hover-border: color-mix(in srgb, var(--dep-focus-ring) 54%, rgba(71, 120, 170, 0.52));
+	--dep-path-pill-ancestor-hover-text: var(--dep-focus-ring);
+	--dep-path-pill-ancestor-hover-shadow:
+		var(--dep-path-glow-spread),
+		0 2px 10px color-mix(in srgb, var(--dep-focus-ring) 20%, transparent);
+	--dep-path-pill-current-bg-top: color-mix(in srgb, var(--dep-focus-ring) 30%, rgba(22, 52, 88, 0.94));
+	--dep-path-pill-current-bg-bottom: color-mix(in srgb, var(--dep-focus-ring) 18%, rgba(22, 52, 88, 0.94));
+	--dep-path-pill-current-border: color-mix(in srgb, var(--dep-focus-ring) 66%, rgba(71, 120, 170, 0.52));
+	--dep-path-pill-current-text: #f8fafc;
+	--dep-path-pill-current-shadow: var(--dep-path-glow-strong-spread);
+}
+
+/* Resource search dropdown (dependency map landing) */
+.dep-map-search-results {
+	position: absolute;
+	z-index: 30;
+	margin-top: 0.35rem;
+	width: 100%;
+	max-height: 18rem;
+	overflow-y: auto;
+	border: 1px solid #e2e8f0;
+	border-radius: 0.75rem;
+	background: #fff;
+	box-shadow: 0 10px 30px rgb(15 23 42 / 0.1);
+	list-style: none;
+	padding: 0.35rem;
+}
+
+.dark .dep-map-search-results {
+	border-color: rgba(56, 100, 150, 0.35);
+	background: rgba(15, 42, 72, 0.95);
+	box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.dep-map-search-hint,
+.dep-map-search-empty {
+	padding: 0.55rem 0.75rem;
+	font-size: 0.75rem;
+	color: #64748b;
+}
+
+.dark .dep-map-search-hint,
+.dark .dep-map-search-empty {
+	color: #94a3b8;
+}
+
+.dep-map-search-row {
+	display: flex;
+	width: 100%;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.6rem 0.75rem;
+	border: none;
+	border-radius: 0.5rem;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+	transition: background 0.12s;
+}
+
+.dep-map-search-row:hover,
+.dep-map-search-row-active {
+	background: #f1f5f9;
+}
+
+.dark .dep-map-search-row:hover,
+.dark .dep-map-search-row-active {
+	background: rgba(7, 20, 40, 0.55);
+}
+
+.dep-map-search-row-main {
+	min-width: 0;
+	flex: 1;
+}
+
+.dep-map-search-kind {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #0f172a;
+}
+
+.dark .dep-map-search-kind {
+	color: #f1f5f9;
+}
+
+.dep-map-search-group {
+	margin: 0.15rem 0 0;
+	font-size: 0.7rem;
+	color: #64748b;
+}
+
+.dark .dep-map-search-group {
+	color: #94a3b8;
+}
+
+.dep-map-search-version {
+	flex-shrink: 0;
+	padding: 0.15rem 0.45rem;
+	border-radius: 0.375rem;
+	background: #f1f5f9;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 0.65rem;
+	color: #475569;
+}
+
+.dark .dep-map-search-version {
+	background: rgba(7, 20, 40, 0.7);
+	color: #cbd5e1;
+}
+
+.dep-map-search-tag {
+	margin-left: 0.35rem;
+	padding: 0.05rem 0.35rem;
+	border-radius: 0.25rem;
+	font-size: 0.6rem;
+	font-weight: 700;
+	text-transform: uppercase;
+}
+
+.dep-map-search-tag-warn {
+	background: #fef3c7;
+	color: #b45309;
+}
+
+.dark .dep-map-search-tag-warn {
+	background: rgb(120 53 15 / 0.35);
+	color: #fcd34d;
 }
 
 .dep-map-page--active {
@@ -5071,21 +5449,78 @@ html:not(.dark) .react-select__menu {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
-	padding-bottom: 0.5rem;
-	gap: 0.5rem;
+	padding-bottom: 0.35rem;
+	gap: 0.35rem;
+	min-height: 0;
+}
+
+.dep-map-page--active .comparison-hero {
+	flex-shrink: 0;
+	padding: 0.45rem 0.75rem;
+	gap: 0.45rem;
+}
+
+.dep-map-page--active .comparison-hero .homepage-subtitle,
+.dep-map-page--active .comparison-workflow {
+	display: none;
+}
+
+.dep-map-hero-resource {
+	margin: 0.15rem 0 0;
+	font-family: var(--dep-font-code, 'Fira Code', ui-monospace, monospace);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	line-height: 1.45;
+	word-break: break-all;
+}
+
+.dep-map-page--active .dep-map-hero-resource {
+	display: block;
+}
+
+.dep-map-page--active .comparison-hero .homepage-title {
+	font-size: 1.125rem;
+	line-height: 1.3;
+}
+
+.dep-map-page--active .comparison-hero .homepage-hero-kicker {
+	font-size: 0.625rem;
+	margin-bottom: 0.1rem;
+}
+
+.dep-map-page--active .spec-search-filters {
+	flex-shrink: 0;
+	padding: 0.35rem 0.55rem;
 }
 
 .dep-map-page--active .spec-search-results-panel {
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-start;
+	flex: 1;
+	min-height: 0;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 0;
 }
 
-.dep-map-page--active .spec-search-results-panel > .dependency-map-graph-shell {
+.dep-map-page--active .dependency-map-graph-shell {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	min-height: 0;
+	padding: 0.25rem 0.45rem 0.45rem;
+}
+
+@media (min-width: 768px) {
+	.dep-map-page--active .dependency-map-graph-shell {
+		padding: 0.4rem 0.65rem 0.65rem;
+	}
+}
+
+.dep-map-page-credits--hidden {
+	display: none;
 }
 
 .dep-map-page--active .dep-map-root {

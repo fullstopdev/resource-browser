@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assertSafeFolderPath, assertSafePathSegment, schemaPath } from './schemaCache';
+import {
+	assertSafeFolderPath,
+	assertSafePathSegment,
+	releaseAssetPath,
+	schemaPath
+} from './schemaCache';
 
 describe('assertSafePathSegment', () => {
 	it('accepts safe release resource and version segments', () => {
@@ -25,5 +30,14 @@ describe('assertSafePathSegment', () => {
 			'/resources/26.4.2/configlets.config.eda.nokia.com/v1alpha1.yaml'
 		);
 		expect(() => schemaPath('resources/../etc', 'x', 'v1')).toThrow();
+	});
+
+	it('builds release asset paths without duplicating the resources prefix', () => {
+		expect(releaseAssetPath('resources/26.4.2', 'dependency-graph.json')).toBe(
+			'/resources/26.4.2/dependency-graph.json'
+		);
+		expect(releaseAssetPath('resources/26.4.2', 'manifest.json')).toBe(
+			'/resources/26.4.2/manifest.json'
+		);
 	});
 });

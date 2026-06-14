@@ -113,9 +113,6 @@
 							kvRelease={resolved.kvRelease}
 							hasCrdContext={resolved.hasCrdContext}
 							embedded={true}
-							deprecated={false}
-							spec={null}
-							status={null}
 						/>
 					{/key}
 				{/if}

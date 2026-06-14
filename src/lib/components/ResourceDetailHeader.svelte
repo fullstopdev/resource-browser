@@ -1,11 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 
-	export let kind = '';
 	export let group = '';
-	export let name = '';
 	export let versionOnFocus = '';
-	export let releaseLabel = '';
 	export let deprecated = false;
 	export let deprecatedSince: string | null = null;
 

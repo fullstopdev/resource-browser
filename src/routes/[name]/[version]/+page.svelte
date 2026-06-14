@@ -297,11 +297,8 @@
 		<main class="flex-1 px-3 pt-2 pb-8 sm:px-3 sm:pt-3 md:px-4 md:pt-4">
 			<div class="mx-auto w-full max-w-7xl space-y-3">
 				<ResourceDetailHeader
-					{kind}
 					{group}
-					{name}
 					{versionOnFocus}
-					{releaseLabel}
 					{deprecated}
 					deprecatedSince={clientDeprecatedSince}
 				/>

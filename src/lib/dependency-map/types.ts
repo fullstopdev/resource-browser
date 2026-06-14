@@ -9,6 +9,11 @@ export type EdgeRecord = {
 	pass: InferencePass;
 	edgeSource: EdgeSource;
 	confidenceTier: ConfidenceTier;
+	edgeClass: EdgeClass;
+	/** API version(s) that contributed this edge when merging multi-version schemas. */
+	apiVersions?: string[];
+	/** Other catalog IDs that matched kind resolution (ambiguous). */
+	resolvedCandidates?: string[];
 };
 
 /** Inference pipeline pass (1 = catalog … 4 = description-only). */
@@ -41,10 +46,20 @@ export type LinkRelation =
 export type EdgeSource = 'catalog' | 'explicit' | 'semantic' | 'inferred';
 
 /**
+ * Evidence class: schema-hard reference vs operational intent dependency.
+ * hardRef = explicit field/annotation naming another CRD; intentDependency = catalog/semantic/inferred.
+ */
+export type EdgeClass = 'hardRef' | 'intentDependency';
+
+export function edgeClassFromSource(edgeSource: EdgeSource): EdgeClass {
+	return edgeSource === 'explicit' ? 'hardRef' : 'intentDependency';
+}
+
+/**
  * Intent confidence tier for default vs opt-in weak inference.
- * 1 = catalog / explicit *Ref — always show
- * 2 = field-pattern + schema confirmation — show by default
- * 3 = description-only / weak selector — opt-in via "Schema inferred"
+ * 1 = schema annotations (x-references, GVK, kind+apiVersion) and catalog pairing — always show
+ * 2 = description-based refs, *Ref stems, semantic field patterns — show by default (strict)
+ * 3 = weak description-only inference (hidden from map UI)
  */
 export type ConfidenceTier = 1 | 2 | 3;
 
@@ -58,6 +73,9 @@ export type GraphLink = {
 	confidence?: number;
 	edgeSource?: EdgeSource;
 	confidenceTier?: ConfidenceTier;
+	edgeClass?: EdgeClass;
+	/** Distinct evidence classes when a collapsed edge mixes hard refs and intent deps. */
+	edgeClasses?: EdgeClass[];
 	/** Aggregated schema paths when multiple inference edges share source→target. */
 	fieldPaths?: string[];
 	/** Aggregated inference reasons for collapsed visual edges. */
@@ -66,6 +84,10 @@ export type GraphLink = {
 	relations?: LinkRelation[];
 	/** Number of inference edges merged into this visual edge. */
 	refCount?: number;
+	/** API versions that contributed merged edges. */
+	apiVersions?: string[];
+	/** Ambiguous resolution candidates for tooltip display. */
+	resolvedCandidates?: string[];
 };
 
 export type DependencyGraph = {
@@ -73,6 +95,31 @@ export type DependencyGraph = {
 	links: GraphLink[];
 	releaseFolder: string;
 	generatedAt: string;
+	/** Precomputed graph metadata when loaded from static cache. */
+	precomputed?: boolean;
+	/** Corpus audit metrics from last graph build (optional). */
+	coverage?: CorpusCoverage;
+	/** Per-CRD reference-field coverage (excludes skipped meta fields). */
+	crdCoverage?: Record<string, { matched: number; total: number }>;
+};
+
+export type AuditMetric = {
+	matched: number;
+	total: number;
+	rate: number;
+};
+
+export type CorpusCoverage = {
+	/** Legacy flat fields — mirror referenceDescriptions for older consumers. */
+	matched: number;
+	total: number;
+	rate: number;
+	referenceDescriptions: AuditMetric;
+	refFieldStems: AuditMetric;
+	metaInterface: AuditMetric;
+	selectorIntent: AuditMetric;
+	/** intentDependency edge counts per source CRD, grouped by LinkRelation. */
+	intentEdgesByCrd: Record<string, Partial<Record<LinkRelation, number>>>;
 };
 
 export type BuildProgress = {

@@ -25,21 +25,19 @@ function base64UrlDecode(encoded: string): Uint8Array {
 }
 
 async function gzipBytes(input: Uint8Array): Promise<Uint8Array> {
-	if (typeof CompressionStream !== 'undefined') {
-		const stream = new Blob([input]).stream().pipeThrough(new CompressionStream('gzip'));
-		return new Uint8Array(await new Response(stream).arrayBuffer());
+	if (typeof CompressionStream === 'undefined') {
+		throw new Error('Gzip is not supported in this environment');
 	}
-	const { gzipSync } = await import('node:zlib');
-	return new Uint8Array(gzipSync(input));
+	const stream = new Blob([input]).stream().pipeThrough(new CompressionStream('gzip'));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 async function gunzipBytes(input: Uint8Array): Promise<Uint8Array> {
-	if (typeof DecompressionStream !== 'undefined') {
-		const stream = new Blob([input]).stream().pipeThrough(new DecompressionStream('gzip'));
-		return new Uint8Array(await new Response(stream).arrayBuffer());
+	if (typeof DecompressionStream === 'undefined') {
+		throw new Error('Gunzip is not supported in this environment');
 	}
-	const { gunzipSync } = await import('node:zlib');
-	return new Uint8Array(gunzipSync(input));
+	const stream = new Blob([input]).stream().pipeThrough(new DecompressionStream('gzip'));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 export type EncodeBundleResult = {

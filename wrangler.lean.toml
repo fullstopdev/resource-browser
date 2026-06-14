@@ -1,0 +1,6 @@
+# Cloudflare Pages — lean deploy (no Workers AI, Vectorize, or KV).
+# Use: npm run deploy:cloudflare:lean
+name = "eda-resource-browser"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"

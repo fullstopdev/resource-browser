@@ -14,10 +14,12 @@ remote = true
 [[vectorize]]
 binding = "CRD_INDEX"
 index_name = "eda-crd-corpus-v1"
+remote = true
 
 [[vectorize]]
 binding = "DOCS_INDEX"
 index_name = "eda-docs-v1"
+remote = true
 
 # KV namespace for deterministic Workers AI action cache (explain, example, field, compare, spec-search).
 # Create with: wrangler kv namespace create AI_CACHE

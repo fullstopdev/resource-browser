@@ -10,7 +10,13 @@ const adapter =
 			fallback: 'plaintext',
 			routes: {
 				include: ['/*'],
-				exclude: ['/_app/*', '/fonts/*', '/images/*', '/releases/*']
+				exclude: [
+					'/_app/*',
+					'/fonts/*',
+					'/images/*',
+					'/releases/*',
+					'/google795c3198bb040340.html'
+				]
 			},
 			// Workers AI is remote-only; disable during vite build/prerender so CI/local builds
 			// succeed without `wrangler login`. Use `npm run dev:ai` to test AI locally.
