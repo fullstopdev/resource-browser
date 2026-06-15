@@ -12,7 +12,13 @@ const crdResources = loadStaticYaml(res);
 const resources = crdResources as CrdVersionsMap;
 const releaseConfig = loadStaticYaml(releases) as ReleasesConfig;
 
+const RESERVED_RESOURCE_SEGMENTS = new Set(['sitemaps', 'sitemap.xml', 'robots.txt', 'index.xml']);
+
 export const load: PageLoad = async ({ fetch, params, url }) => {
+	if (RESERVED_RESOURCE_SEGMENTS.has(params.name) || params.version.endsWith('.xml')) {
+		throw error(404, 'Not found');
+	}
+
 	const requestedRelease = url.searchParams.get('release');
 	let selectedRelease = releaseConfig.releases.find((r) => r.default) ?? releaseConfig.releases[0];
 
