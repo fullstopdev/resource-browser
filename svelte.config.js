@@ -15,7 +15,11 @@ const adapter =
 					'/fonts/*',
 					'/images/*',
 					'/releases/*',
-					'/google795c3198bb040340.html'
+					'/resources/*',
+					'/google795c3198bb040340.html',
+					'/robots.txt',
+					'/sitemap.xml',
+					'/sitemaps/*'
 				]
 			},
 			// Workers AI is remote-only; disable during vite build/prerender so CI/local builds

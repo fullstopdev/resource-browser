@@ -1,10 +1,13 @@
-import sitemapData from '$lib/seo/sitemapUrls.generated.json';
-import { renderSitemapXml, type SitemapUrlData } from '$lib/seo/renderSitemap';
+import { canonicalSiteOrigin, renderSitemapIndexXml } from '$lib/seo/renderSitemap';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
-	const origin = url.origin.replace(/\/$/, '');
-	const body = renderSitemapXml(origin, sitemapData as SitemapUrlData);
+	const origin = canonicalSiteOrigin(url.origin);
+	const now = new Date().toISOString().split('T')[0];
+	const body = renderSitemapIndexXml(origin, [
+		{ loc: '/sitemaps/pages.xml', lastmod: now },
+		{ loc: '/sitemaps/crds.xml', lastmod: now }
+	]);
 
 	return new Response(body, {
 		headers: {

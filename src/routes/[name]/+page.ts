@@ -13,8 +13,14 @@ const crdResources = loadStaticYaml(res);
 const resources = crdResources as CrdVersionsMap;
 const releaseConfig = loadStaticYaml(releases) as ReleasesConfig;
 
+const RESERVED_SINGLE_SEGMENT =
+	/^(?:sitemap\.xml|robots\.txt|index\.xml|google[\w-]+\.html|favicon\.ico)$/i;
+
 export const load: PageLoad = async ({ params, url, fetch }) => {
 	const name = params.name;
+	if (RESERVED_SINGLE_SEGMENT.test(name)) {
+		throw error(404, 'Not found');
+	}
 	const rest = name.substring(name.indexOf('.') + 1);
 
 	const requestedRelease = url.searchParams.get('release');

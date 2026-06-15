@@ -2,7 +2,10 @@ import fs from 'fs/promises';
 import yaml from 'js-yaml';
 import path from 'path';
 
-const outputPath = process.env.SITEMAP_OUTPUT || 'src/lib/seo/sitemapUrls.generated.json';
+const siteUrl = (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || 'https://eda-resource-browser.pages.dev').replace(
+	/\/$/,
+	''
+);
 const releasesPath = 'src/lib/releases.yaml';
 
 const staticRoutes = [
@@ -16,6 +19,53 @@ const staticRoutes = [
 	{ loc: '/release-notes', priority: '0.7' }
 ];
 
+const escapeXml = (value) =>
+	value.replace(/[<>&"']/g, (char) => {
+		switch (char) {
+			case '<':
+				return '&lt;';
+			case '>':
+				return '&gt;';
+			case '&':
+				return '&amp;';
+			case '"':
+				return '&quot;';
+			case "'":
+				return '&apos;';
+			default:
+				return char;
+		}
+	});
+
+const absoluteLoc = (loc) => {
+	if (loc.startsWith('http://') || loc.startsWith('https://')) return loc;
+	return `${siteUrl}${loc.startsWith('/') ? loc : `/${loc}`}`;
+};
+
+const formatUrlset = (entries) =>
+	[
+		`<?xml version="1.0" encoding="UTF-8"?>`,
+		`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+		...entries.map(
+			(entry) =>
+				`  <url>\n    <loc>${escapeXml(absoluteLoc(entry.loc))}</loc>\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n    <changefreq>${escapeXml(entry.changefreq)}</changefreq>\n    <priority>${escapeXml(entry.priority)}</priority>\n  </url>`
+		),
+		`</urlset>`,
+		''
+	].join('\n');
+
+const formatSitemapIndex = (entries) =>
+	[
+		`<?xml version="1.0" encoding="UTF-8"?>`,
+		`<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+		...entries.map(
+			(entry) =>
+				`  <sitemap>\n    <loc>${escapeXml(absoluteLoc(entry.loc))}</loc>\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>\n  </sitemap>`
+		),
+		`</sitemapindex>`,
+		''
+	].join('\n');
+
 const main = async () => {
 	const rawReleases = await fs.readFile(releasesPath, 'utf8');
 	const releaseConfig = yaml.load(rawReleases, { schema: yaml.CORE_SCHEMA });
@@ -25,62 +75,57 @@ const main = async () => {
 		throw new Error('releases.yaml did not parse as expected');
 	}
 
-	/** @type {Array<{ loc: string; lastmod: string; changefreq: 'monthly'; priority: string }>} */
-	const entries = staticRoutes.map((route) => ({
+	const pageEntries = staticRoutes.map((route) => ({
 		loc: route.loc,
 		lastmod: now,
 		changefreq: 'monthly',
 		priority: route.priority
 	}));
 
-	for (const release of releaseConfig.releases) {
-		if (!release?.name || !release?.folder) continue;
+	const defaultRelease =
+		releaseConfig.releases.find((release) => release?.default) ?? releaseConfig.releases[0];
 
-		const manifestPath = path.join('static', release.folder, 'manifest.json');
-		let manifestRaw;
+	const crdEntries = [];
+	if (defaultRelease?.folder) {
+		const manifestPath = path.join('static', defaultRelease.folder, 'manifest.json');
 		try {
-			manifestRaw = await fs.readFile(manifestPath, 'utf8');
-		} catch {
-			console.warn(`Skipping release ${release.name}: could not read ${manifestPath}`);
-			continue;
-		}
-
-		let manifest;
-		try {
-			manifest = JSON.parse(manifestRaw);
-		} catch {
-			console.warn(`Skipping release ${release.name}: invalid JSON in ${manifestPath}`);
-			continue;
-		}
-
-		const releaseParam = release.default ? '' : `?release=${encodeURIComponent(release.name)}`;
-
-		if (!Array.isArray(manifest)) continue;
-
-		for (const entry of manifest) {
-			if (!entry?.name || !Array.isArray(entry.versions)) continue;
-			for (const version of entry.versions) {
-				if (!version?.name) continue;
-				entries.push({
-					loc: `/${entry.name}/${version.name}${releaseParam}`,
-					lastmod: now,
-					changefreq: 'monthly',
-					priority: '0.6'
-				});
+			const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+			if (Array.isArray(manifest)) {
+				for (const entry of manifest) {
+					if (!entry?.name || !Array.isArray(entry.versions)) continue;
+					for (const version of entry.versions) {
+						if (!version?.name) continue;
+						crdEntries.push({
+							loc: `/${entry.name}/${version.name}`,
+							lastmod: now,
+							changefreq: 'monthly',
+							priority: '0.6'
+						});
+					}
+				}
 			}
+		} catch (error) {
+			console.warn(`Could not read default release manifest for sitemap: ${manifestPath}`, error);
 		}
 	}
 
-	entries.sort((a, b) => a.loc.localeCompare(b.loc));
+	crdEntries.sort((a, b) => a.loc.localeCompare(b.loc));
 
-	const payload = {
-		generatedAt: now,
-		entries
-	};
+	const robots = [`User-agent: *`, `Allow: /`, `Sitemap: ${siteUrl}/sitemap.xml`, ``].join('\n');
+	const sitemapIndex = formatSitemapIndex([
+		{ loc: '/sitemaps/pages.xml', lastmod: now },
+		{ loc: '/sitemaps/crds.xml', lastmod: now }
+	]);
 
-	await fs.mkdir(path.dirname(outputPath), { recursive: true });
-	await fs.writeFile(outputPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
-	console.log(`Wrote ${entries.length} sitemap entries to ${outputPath}`);
+	await fs.mkdir('static/sitemaps', { recursive: true });
+	await fs.writeFile('static/robots.txt', robots, 'utf8');
+	await fs.writeFile('static/sitemap.xml', sitemapIndex, 'utf8');
+	await fs.writeFile('static/sitemaps/pages.xml', formatUrlset(pageEntries), 'utf8');
+	await fs.writeFile('static/sitemaps/crds.xml', formatUrlset(crdEntries), 'utf8');
+
+	console.log(`Wrote SEO files for ${siteUrl}`);
+	console.log(`  pages: ${pageEntries.length} urls`);
+	console.log(`  crds:  ${crdEntries.length} urls (default release only)`);
 };
 
 main().catch((error) => {
