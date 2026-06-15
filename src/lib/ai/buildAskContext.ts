@@ -1,12 +1,15 @@
 import { buildSlimTargetContext } from '$lib/ai/buildRichContext';
+import { classifyQuestionIntent, questionAsksRelationships } from '$lib/ai/classifyQuestionIntent';
 import {
 	assembleFullKvContext,
 	formatKvContextSection,
 	formatKvExampleContextSection,
 	formatKvFullContextSection,
 	formatSchemaContextForLlm,
+	formatSchemaSummaryForKv,
 	resolveKvExampleText
 } from '$lib/ai/formatAnswer';
+import { formatRelationshipsForKv } from '$lib/ai/formatRelationships';
 import { getCachedAiResponsesForTargets, type AiCachePayload } from '$lib/ai/kvCache';
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
@@ -36,10 +39,12 @@ export type TargetKvHit = {
 	kvAnswer?: string;
 	kvExample?: string;
 	kvSchemaSummary?: string;
+	kvRelationships?: string;
 	kvFullContext?: string;
 	kvContextText?: string;
 	kvExampleContextText?: string;
 	kvFullContextText?: string;
+	kvRelationshipsText?: string;
 	/** True when warmed full-context or schema-summary KV is present. */
 	hasCompleteKvContext?: boolean;
 };
@@ -70,6 +75,7 @@ export type BuildAskContextResult = {
 	schemas: TargetSchemaContext[];
 	ragSources: RagSource[];
 	ragContextText: string;
+	intent: ReturnType<typeof classifyQuestionIntent>;
 	ragMeta?: {
 		chunkCount: number;
 		topScore: number;
@@ -114,10 +120,12 @@ export function shouldSkipRag(params: {
 			h.kvFullContext?.trim() ||
 			h.kvAnswer?.trim() ||
 			h.kvExample?.trim() ||
-			h.kvSchemaSummary?.trim()
+			h.kvSchemaSummary?.trim() ||
+			h.kvRelationships?.trim()
 	).length;
 	const kvCoverage = kvHitCount / targets.length;
 
+	if (singleFocused && kvHits.some((h) => h.kvFullContext?.trim())) return true;
 	if (singleFocused && kvHitCount > 0 && hasSchema) return true;
 	if (kvCoverage >= 0.5 && !questionMentionsFieldPath(question)) return true;
 	return false;
@@ -138,33 +146,39 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 	} = input;
 
 	const release = targets[0]?.release ?? '';
+	const intent = classifyQuestionIntent(question);
 	const singleFocused = targets.length === 1;
 	const pinnedSingle = singleFocused && targets[0].source === 'pinned';
 	const asksExample = questionAsksExampleYaml(question);
+	const asksRelationships = questionAsksRelationships(question) || intent === 'relationships';
 	const targetCount = Math.max(targets.length, 1);
 	const kvLimit = perTargetKvCharLimit(targetCount);
 	const schemaLimit = perTargetSchemaCharLimit(targetCount);
 
 	const targetRefs = targets.map((t) => ({ release: t.release, kind: t.kind, group: t.group }));
 
-	const [explainMap, schemaSummaryMap, fullContextMap, exampleMap] = await Promise.all([
-		getCachedAiResponsesForTargets(kv, targetRefs, 'explain'),
-		getCachedAiResponsesForTargets(kv, targetRefs, 'schema-summary'),
-		getCachedAiResponsesForTargets(kv, targetRefs, 'full-context'),
-		asksExample
-			? getCachedAiResponsesForTargets(kv, targetRefs, 'example')
-			: Promise.resolve(new Map<string, AiCachePayload | null>())
-	]);
+	const [explainMap, schemaSummaryMap, fullContextMap, relationshipsMap, exampleMap] =
+		await Promise.all([
+			getCachedAiResponsesForTargets(kv, targetRefs, 'explain'),
+			getCachedAiResponsesForTargets(kv, targetRefs, 'schema-summary'),
+			getCachedAiResponsesForTargets(kv, targetRefs, 'full-context'),
+			getCachedAiResponsesForTargets(kv, targetRefs, 'relationships'),
+			asksExample
+				? getCachedAiResponsesForTargets(kv, targetRefs, 'example')
+				: Promise.resolve(new Map<string, AiCachePayload | null>())
+		]);
 
 	const kvHits: TargetKvHit[] = targets.map((target) => {
 		const key = targetKey(target);
 		const explainCached = explainMap.get(key);
 		const schemaSummaryCached = schemaSummaryMap.get(key);
 		const fullContextCached = fullContextMap.get(key);
+		const relationshipsCached = relationshipsMap.get(key);
 		const exampleCached = exampleMap.get(key);
 
 		const kvAnswer = explainCached?.answer?.trim();
 		const kvSchemaSummary = schemaSummaryCached?.answer?.trim();
+		const kvRelationships = relationshipsCached?.answer?.trim();
 		const kvFullContext = fullContextCached?.answer?.trim();
 		const kvExample = resolveKvExampleText(exampleCached);
 
@@ -173,9 +187,10 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 		let kvFullContextText: string | undefined;
 		if (kvFullContext?.trim()) {
 			kvFullContextText = formatKvFullContextSection(kvFullContext, target.kind);
-		} else if (hasCompleteKvContext) {
+		} else if (hasCompleteKvContext || kvRelationships || kvAnswer || kvExample) {
 			const assembled = assembleFullKvContext({
 				schemaSummary: kvSchemaSummary,
+				relationships: kvRelationships,
 				explain: kvAnswer,
 				example: kvExample
 			});
@@ -184,10 +199,15 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 			}
 		}
 
+		const kvRelationshipsText = kvRelationships
+			? `## CRD relationships — ${target.kind}\n${kvRelationships}`
+			: undefined;
+
 		return {
 			target,
 			kvAnswer: kvAnswer || undefined,
 			kvSchemaSummary: kvSchemaSummary || undefined,
+			kvRelationships: kvRelationships || undefined,
 			kvFullContext: kvFullContext || undefined,
 			kvExample: kvExample || undefined,
 			kvContextText: kvAnswer ? formatKvContextSection(kvAnswer, target.kind) : undefined,
@@ -195,6 +215,7 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 				? formatKvExampleContextSection(kvExample, target.kind)
 				: undefined,
 			kvFullContextText,
+			kvRelationshipsText,
 			hasCompleteKvContext
 		};
 	});
@@ -234,8 +255,18 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 		});
 
 	const hasRagIndexes = !!(crdIndex || docsIndex);
+	const kvCoverageRatio =
+		kvHits.filter(
+			(h) =>
+				h.kvFullContext?.trim() ||
+				h.kvSchemaSummary?.trim() ||
+				h.kvAnswer?.trim() ||
+				h.kvRelationships?.trim()
+		).length / Math.max(targets.length, 1);
+	const ragTopK = kvCoverageRatio < 0.5 ? 10 : 6;
+
 	if (hasRagIndexes && !skipRag) {
-		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, ragFilters);
+		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, ragFilters, ragTopK);
 		ragSources = rag.sources;
 		if (hasStrictCrdTarget(ragFilters)) {
 			ragSources = ragSources.filter(
@@ -267,21 +298,30 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 		};
 	}
 
-	const hasKvSchemaSummary = kvHits.some((h) => h.kvSchemaSummary?.trim() || h.kvFullContext?.trim());
+	const hasKvSchemaSummary = kvHits.some(
+		(h) => h.kvSchemaSummary?.trim() || h.kvFullContext?.trim()
+	);
+
+	const singleTargetColdKv =
+		singleFocused && !kvHits[0]?.hasCompleteKvContext && !kvHits[0]?.kvRelationships?.trim();
 
 	const needsSchema =
-		!hasKvSchemaSummary &&
-		(questionAsksRequiredFields(question) ||
-			questionMentionsFieldPath(question) ||
-			(asksExample && !kvHits.some((h) => h.kvExample?.trim())) ||
-			(!asksExample &&
-				kvHits.filter((h) => h.kvAnswer || h.kvFullContext || h.kvSchemaSummary).length <
-					targets.length) ||
-			(pinnedSingle &&
-				!kvHits[0]?.kvAnswer &&
-				!kvHits[0]?.kvExample &&
-				!kvHits[0]?.kvSchemaSummary &&
-				!kvHits[0]?.kvFullContext));
+		singleTargetColdKv ||
+		(!hasKvSchemaSummary &&
+			(questionAsksRequiredFields(question) ||
+				questionMentionsFieldPath(question) ||
+				asksRelationships ||
+				(asksExample && !kvHits.some((h) => h.kvExample?.trim())) ||
+				(!asksExample &&
+					kvHits.filter(
+						(h) => h.kvAnswer || h.kvFullContext || h.kvSchemaSummary || h.kvRelationships
+					).length < targets.length) ||
+				(pinnedSingle &&
+					!kvHits[0]?.kvAnswer &&
+					!kvHits[0]?.kvExample &&
+					!kvHits[0]?.kvSchemaSummary &&
+					!kvHits[0]?.kvFullContext &&
+					!kvHits[0]?.kvRelationships)));
 
 	const schemas: TargetSchemaContext[] = [];
 	if (needsSchema && targets.length) {
@@ -301,18 +341,27 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 					targets.length === 1 &&
 					ragSufficient &&
 					isRagSufficient(ragMeta?.chunkCount ?? 0, ragMeta?.topScore ?? 0) &&
-					!questionMentionsFieldPath(question);
+					!questionMentionsFieldPath(question) &&
+					!singleTargetColdKv;
 
-				const schemaContextText = useSlim
-					? buildSlimTargetContext({
-							release: target.release,
-							kind: target.kind,
-							group: target.group,
-							version: version || undefined,
-							fieldPath: fieldPath || undefined,
-							question
-						})
-					: formatSchemaContextForLlm(schema);
+				let schemaContextText: string;
+				if (useSlim) {
+					schemaContextText = buildSlimTargetContext({
+						release: target.release,
+						kind: target.kind,
+						group: target.group,
+						version: version || undefined,
+						fieldPath: fieldPath || undefined,
+						question
+					});
+				} else if (singleTargetColdKv || asksRelationships) {
+					schemaContextText = [
+						formatSchemaSummaryForKv(schema),
+						formatRelationshipsForKv(schema)
+					].join('\n\n');
+				} else {
+					schemaContextText = formatSchemaContextForLlm(schema);
+				}
 
 				return { target, schema, schemaContextText };
 			})
@@ -343,6 +392,10 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 		}
 		if (hit.kvSchemaSummary && !hit.kvFullContextText) {
 			const header = trimToBudget(`${headerBase}\n${hit.kvSchemaSummary}`, kvLimit);
+			sections.push({ tier: 'kv', text: header });
+		}
+		if (hit.kvRelationshipsText && !hit.kvFullContextText && asksRelationships) {
+			const header = trimToBudget(`${headerBase}\n${hit.kvRelationshipsText}`, kvLimit);
 			sections.push({ tier: 'kv', text: header });
 		}
 	}
@@ -382,6 +435,7 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 		ragSources,
 		ragContextText,
 		ragMeta,
-		releaseNotIndexed
+		releaseNotIndexed,
+		intent
 	};
 }

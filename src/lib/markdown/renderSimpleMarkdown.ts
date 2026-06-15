@@ -38,6 +38,10 @@ export function renderSimpleMarkdown(text: string): string {
 		/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
 		'<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>'
 	);
+	s = s.replace(
+		/\[([^\]]+)\]\((\/[^)\s]+)\)/g,
+		'<a href="$2" class="md-link md-link-internal">$1</a>'
+	);
 	s = s.replace(/^#### (.+)$/gm, '<h4 class="md-h4">$1</h4>');
 	s = s.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>');
 	s = s.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>');

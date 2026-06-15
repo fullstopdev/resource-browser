@@ -2,12 +2,19 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { buildAskContext } from '$lib/ai/buildAskContext';
 import { trimLegacyContext } from '$lib/ai/buildRichContext';
+import { enrichAnswerLinks } from '$lib/ai/enrichAnswerLinks';
 import { llmFallbackReason } from '$lib/ai/fallbackAnswers';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
 import { extractCrdCandidatesFromSources, retrieveRagContext } from '$lib/ai/rag/retrieve';
-import { resolveAskTargets } from '$lib/ai/resolveAskTargets';
-import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
+import { resolveAskTargetsWithMeta } from '$lib/ai/resolveAskTargets';
+import {
+	ASK_AI_MAX_TOKENS,
+	ASK_AI_MODEL,
+	ASK_AI_REQUEST_TIMEOUT_MS,
+	runWorkersAI,
+	workersAIErrorResponse
+} from '$lib/ai/runWorkersAI';
 import { MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
 import { fetchManifest } from '$lib/manifest/fetch';
 import releasesYaml from '$lib/releases.yaml?raw';
@@ -139,12 +146,30 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const folder = releaseFolder(release);
 	const manifest = folder ? (await fetchManifest(folder, undefined, originFetch)) ?? [] : [];
 
-	let targets = resolveAskTargets({
+	let { targets, confidence, ambiguousKinds } = resolveAskTargetsWithMeta({
 		question,
 		release,
 		pinned: hasPinnedTarget ? { kind, group } : undefined,
 		manifest
 	});
+
+	if (
+		confidence === 'low' &&
+		ambiguousKinds &&
+		ambiguousKinds.length > 1 &&
+		!hasPinnedTarget
+	) {
+		return json(
+			{
+				error: `Your question matches multiple CRDs: ${ambiguousKinds.join(', ')}. Please name the exact kind and apiGroup (e.g. "Required fields for Interface in ${release}").`,
+				ambiguousKinds,
+				confidence,
+				release,
+				grounded: false
+			},
+			{ status: 422 }
+		);
+	}
 
 	let ragSources: RagSource[] = [];
 	let ragContextText = '';
@@ -167,15 +192,17 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		});
 		const candidates = extractCrdCandidatesFromSources(probeRag.sources);
 		if (candidates.length) {
-			const enriched = resolveAskTargets({
+			const enriched = resolveAskTargetsWithMeta({
 				question,
 				release,
 				pinned: hasPinnedTarget ? { kind, group } : undefined,
 				manifest,
 				ragCandidates: candidates
 			});
-			if (enriched.length > targets.length) {
-				targets = enriched;
+			if (enriched.targets.length > targets.length) {
+				targets = enriched.targets;
+				confidence = enriched.confidence;
+				ambiguousKinds = enriched.ambiguousKinds;
 			}
 		}
 	}
@@ -183,6 +210,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	let context = '';
 	let kvHits: Awaited<ReturnType<typeof buildAskContext>>['kvHits'] = [];
 	let kvCached = false;
+	let askIntent: Awaited<ReturnType<typeof buildAskContext>>['intent'] = 'overview';
 
 	if (targets.length > 0) {
 		const built = await buildAskContext({
@@ -202,6 +230,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		ragContextText = built.ragContextText;
 		releaseNotIndexed = built.releaseNotIndexed;
 		ragMeta = built.ragMeta;
+		askIntent = built.intent;
 		kvCached = kvHits.some(
 			(h) =>
 				!!(
@@ -263,17 +292,53 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const targetScope = targets.map((t) => ({ kind: t.kind, group: t.group }));
 
 	try {
-		const answer = await runWorkersAI(
+		const llmStart = Date.now();
+		const rawAnswer = await runWorkersAI(
 			ai,
-			buildCrdUserMessage(context, question, targetScope),
-			{ temperature: ASK_TEMPERATURE }
+			buildCrdUserMessage(context, question, targetScope, askIntent),
+			{
+				model: ASK_AI_MODEL,
+				maxTokens: ASK_AI_MAX_TOKENS,
+				temperature: ASK_TEMPERATURE,
+				timeoutMs: ASK_AI_REQUEST_TIMEOUT_MS
+			}
 		);
+		const llmMs = Date.now() - llmStart;
+
+		const { answer, relatedLinks } = enrichAnswerLinks({
+			answer: rawAnswer,
+			release,
+			targets: targets.map((t) => ({
+				kind: t.kind,
+				group: t.group,
+				name: t.name,
+				version: version || undefined
+			})),
+			origin: url.origin
+		});
+
+		console.info(
+			JSON.stringify({
+				event: 'ask_ai',
+				intent: askIntent,
+				targetCount: targets.length,
+				kvCached,
+				contextChars: context.length,
+				llmMs,
+				model: ASK_AI_MODEL,
+				confidence
+			})
+		);
+
 		return json({
 			answer,
 			grounded: true,
 			release,
 			kvCached,
 			formattedBy: 'llm',
+			confidence,
+			intent: askIntent,
+			relatedLinks,
 			targetsResolved,
 			...(ragSources.length > 0 ? { sources: ragSources } : {}),
 			...(ragMeta ? { rag: ragMeta } : {})

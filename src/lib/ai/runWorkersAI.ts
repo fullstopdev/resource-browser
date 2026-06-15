@@ -6,8 +6,12 @@ import {
 
 /** Active replacement for deprecated `@cf/meta/llama-3.1-8b-instruct` (removed 2026-05-30). */
 export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast' as const;
+/** Higher-quality model for Global Ask AI (`/api/ask` only). 24k context window. */
+export const ASK_AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as const;
 export const AI_REQUEST_TIMEOUT_MS = 90_000;
+export const ASK_AI_REQUEST_TIMEOUT_MS = 120_000;
 export const AI_MAX_TOKENS = 2048;
+export const ASK_AI_MAX_TOKENS = 3584;
 export const AI_TEMPERATURE = 0.3;
 
 export class WorkersAIEmptyResponseError extends Error {
@@ -35,6 +39,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 export type RunWorkersAIOptions = {
 	systemPrompt?: string;
+	model?: string;
 	maxTokens?: number;
 	temperature?: number;
 	seed?: number;
@@ -112,6 +117,7 @@ export async function runWorkersAIMessages(
 	messages: AiMessage[],
 	options: Omit<RunWorkersAIOptions, 'systemPrompt'> = {}
 ): Promise<string> {
+	const model = options.model ?? WORKERS_AI_MODEL;
 	const maxTokens = options.maxTokens ?? AI_MAX_TOKENS;
 	const temperature = options.temperature ?? AI_TEMPERATURE;
 	const timeoutMs = options.timeoutMs ?? AI_REQUEST_TIMEOUT_MS;
@@ -125,7 +131,7 @@ export async function runWorkersAIMessages(
 		runOptions.seed = options.seed;
 	}
 
-	const result = await withTimeout(ai.run(WORKERS_AI_MODEL, runOptions), timeoutMs);
+	const result = await withTimeout(ai.run(model, runOptions), timeoutMs);
 	const answer = extractWorkersAIText(result);
 	if (!answer) {
 		throw new WorkersAIEmptyResponseError();

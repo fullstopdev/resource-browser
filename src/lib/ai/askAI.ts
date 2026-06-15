@@ -19,6 +19,12 @@ export type ResolvedTargetSummary = {
 	kvHit: boolean;
 };
 
+export type RelatedLink = {
+	label: string;
+	href: string;
+	type: 'crd' | 'dependency-map' | 'docs';
+};
+
 export interface AskAIResult {
 	answer?: string;
 	sources?: RagSource[];
@@ -28,6 +34,9 @@ export interface AskAIResult {
 	kvCached?: boolean;
 	targetsResolved?: ResolvedTargetSummary[];
 	formattedBy?: 'llm';
+	confidence?: 'high' | 'medium' | 'low';
+	intent?: string;
+	relatedLinks?: RelatedLink[];
 	rag?: {
 		chunkCount: number;
 		topScore: number;
@@ -92,6 +101,9 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		fallbackReason?: 'quota' | 'llm_error';
 		targetsResolved?: ResolvedTargetSummary[];
 		formattedBy?: 'llm';
+		confidence?: 'high' | 'medium' | 'low';
+		intent?: string;
+		relatedLinks?: RelatedLink[];
 		rag?: AskAIResult['rag'];
 	};
 	try {
@@ -112,6 +124,9 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		kvCached: data.kvCached,
 		targetsResolved: data.targetsResolved,
 		formattedBy: data.formattedBy,
+		confidence: data.confidence,
+		intent: data.intent,
+		relatedLinks: data.relatedLinks,
 		rag: data.rag
 	};
 }

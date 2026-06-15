@@ -7,13 +7,15 @@
  *
  * Actions warmed (in order per CRD):
  *   schema-summary — deterministic OpenAPI summary (no neurons)
+ *   relationships  — deterministic schema reference edges (no neurons)
  *   explain        — LLM-generated CRD overview (~10 neurons each)
  *   example        — LLM-generated YAML examples (~10 neurons each)
  *   full-context   — deterministic assembly of the above (no neurons)
  *
  * Optional env:
- *   WARM_ACTIONS=schema-summary,explain   — subset of actions (default: all four)
- *   SLEEP_MS=300                           — delay between requests
+ *   WARM_ACTIONS=schema-summary,explain   — subset of actions (default: all five)
+ *   SLEEP_MS=300                           — delay between batch rounds
+ *   CONCURRENCY=5                          — parallel CRDs per batch
  */
 import fs from 'fs/promises';
 import path from 'path';
@@ -39,6 +41,7 @@ const RELEASES_PATH = path.join(ROOT, 'src/lib/releases.yaml');
 const SITE_URL = process.env.SITE_URL ?? 'https://eda-resource-browser.pages.dev';
 const RELEASE = process.env.RELEASE;
 const SLEEP_MS = Number(process.env.SLEEP_MS) || 300;
+const CONCURRENCY = Math.max(1, Number(process.env.CONCURRENCY) || 5);
 
 function parseWarmActions(): string[] {
 	const raw = process.env.WARM_ACTIONS?.trim();
@@ -99,7 +102,8 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log(`Found ${targets.length} CRD kind/group pairs to warm.\n`);
+	console.log(`Found ${targets.length} CRD kind/group pairs to warm.`);
+	console.log(`Concurrency: ${CONCURRENCY}, sleep between batches: ${SLEEP_MS}ms\n`);
 
 	let total = 0;
 	let cached = 0;
@@ -107,44 +111,56 @@ async function main() {
 	let errors = 0;
 	let neuronsUsed = 0;
 
-	for (const { kind, group } of targets) {
-		for (const action of warmActions) {
-			total++;
-			try {
-				const res = await fetch(`${SITE_URL}/api/ai`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ release: RELEASE, kind, group, action })
-				});
+	async function warmOne(kind: string, group: string, action: string): Promise<void> {
+		total++;
+		try {
+			const res = await fetch(`${SITE_URL}/api/ai`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ release: RELEASE, kind, group, action })
+			});
 
-				if (!res.ok) {
-					const errBody = await res.text().catch(() => '');
-					console.warn(
-						`\n  warn ${kind}/${group}:${action} -> HTTP ${res.status} ${errBody.slice(0, 120)}`
-					);
-					errors++;
-					continue;
-				}
-
-				const data = (await res.json()) as { cached?: boolean };
-				if (data.cached) {
-					process.stdout.write('.');
-					cached++;
-				} else {
-					process.stdout.write('✓');
-					fresh++;
-					if (action === 'explain' || action === 'example') {
-						neuronsUsed += 10;
-					}
-				}
-
-				await sleep(SLEEP_MS);
-			} catch (err) {
+			if (!res.ok) {
+				const errBody = await res.text().catch(() => '');
 				console.warn(
-					`\n  fail ${kind}/${group}:${action} -> ${err instanceof Error ? err.message : err}`
+					`\n  warn ${kind}/${group}:${action} -> HTTP ${res.status} ${errBody.slice(0, 120)}`
 				);
 				errors++;
+				return;
 			}
+
+			const data = (await res.json()) as { cached?: boolean };
+			if (data.cached) {
+				process.stdout.write('.');
+				cached++;
+			} else {
+				process.stdout.write('✓');
+				fresh++;
+				if (action === 'explain' || action === 'example') {
+					neuronsUsed += 10;
+				}
+			}
+		} catch (err) {
+			console.warn(
+				`\n  fail ${kind}/${group}:${action} -> ${err instanceof Error ? err.message : err}`
+			);
+			errors++;
+		}
+	}
+
+	type Job = { kind: string; group: string; action: string };
+	const jobs: Job[] = [];
+	for (const { kind, group } of targets) {
+		for (const action of warmActions) {
+			jobs.push({ kind, group, action });
+		}
+	}
+
+	for (let i = 0; i < jobs.length; i += CONCURRENCY) {
+		const batch = jobs.slice(i, i + CONCURRENCY);
+		await Promise.all(batch.map((j) => warmOne(j.kind, j.group, j.action)));
+		if (i + CONCURRENCY < jobs.length) {
+			await sleep(SLEEP_MS);
 		}
 	}
 
@@ -154,7 +170,9 @@ async function main() {
 	console.log(`  Cached: ${cached} (already warm)`);
 	console.log(`  Errors: ${errors}`);
 	console.log(`\nLLM actions (explain/example) neurons used: ~${neuronsUsed} / 10,000 daily free tier`);
-	console.log(`Deterministic actions (schema-summary/full-context) use 0 neurons.`);
+	console.log(
+		`Deterministic actions (schema-summary/relationships/full-context) use 0 neurons.`
+	);
 }
 
 main().catch((err) => {

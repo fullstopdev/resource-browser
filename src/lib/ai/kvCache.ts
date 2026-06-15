@@ -1,10 +1,20 @@
 export const AI_CACHE_PREFIX = 'ai:v1';
 
 /** Actions warmed for Ask AI grounding (see scripts/warm-cache.ts). */
-export const ASK_WARM_ACTIONS = ['schema-summary', 'explain', 'example', 'full-context'] as const;
+export const ASK_WARM_ACTIONS = [
+	'schema-summary',
+	'relationships',
+	'explain',
+	'example',
+	'full-context'
+] as const;
 
 /** Deterministic cache actions — no Workers AI neurons required. */
-export const DETERMINISTIC_CACHE_ACTIONS = new Set(['schema-summary', 'full-context']);
+export const DETERMINISTIC_CACHE_ACTIONS = new Set([
+	'schema-summary',
+	'relationships',
+	'full-context'
+]);
 
 export type AiCachePayload = {
 	answer: string;

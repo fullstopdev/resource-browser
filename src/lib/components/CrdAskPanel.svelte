@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { askAI, type ResolvedTargetSummary } from '$lib/ai/askAI';
+	import { askAI, type RelatedLink, type ResolvedTargetSummary } from '$lib/ai/askAI';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
 	import { resourceBrowserUrl } from '$lib/ai/rag/resourceLinks';
 	import { parseReleaseFromQuestion } from '$lib/globalAsk';
@@ -14,10 +14,10 @@
 	export let initialQuestion = '';
 
 	const starterQuestions = [
-		'What is the Policy CRD in 26.4.2?',
 		'Required fields for Interface in 26.4.2?',
-		'Explain Topology resource for release 26.4.2',
-		'Example YAML for a Fabric in 26.4.2?'
+		'How does Fabric relate to Topology in 26.4.2?',
+		'Example YAML for BGP Peer in 26.4.2?',
+		'What Policy CRDs exist for routing in 26.4.2?'
 	];
 
 	$: releaseLabel = release ? `EDA ${release}` : '';
@@ -34,6 +34,17 @@
 	let answerGrounded = false;
 	let answerRelease = '';
 	let answerTargetsResolved: ResolvedTargetSummary[] = [];
+	let answerRelatedLinks: RelatedLink[] = [];
+
+	function crdHref(target: ResolvedTargetSummary, rel: string): string {
+		const name = target.name || `${target.kind.toLowerCase()}s.${target.group}`;
+		return `/${name}/v1alpha1?release=${encodeURIComponent(rel)}`;
+	}
+
+	function mapHref(target: ResolvedTargetSummary, rel: string): string {
+		const name = target.name || `${target.kind.toLowerCase()}s.${target.group}`;
+		return `/dependency-map?focus=${encodeURIComponent(name)}&release=${encodeURIComponent(rel)}`;
+	}
 
 	$: scopeChipLabel = (() => {
 		if (!answerTargetsResolved.length) return '';
@@ -64,6 +75,7 @@
 		answerGrounded = false;
 		answerRelease = '';
 		answerTargetsResolved = [];
+		answerRelatedLinks = [];
 
 		const questionRelease = parseReleaseFromQuestion(trimmed);
 		const scopedRelease = questionRelease || release || undefined;
@@ -84,6 +96,7 @@
 			answerGrounded = !!result.grounded;
 			answerRelease = result.release ?? scopedRelease ?? '';
 			answerTargetsResolved = result.targetsResolved ?? [];
+			answerRelatedLinks = result.relatedLinks ?? [];
 		}
 	}
 
@@ -105,15 +118,31 @@
 
 <div class="flex flex-col gap-4">
 	{#if scopeChipLabel && hasAsked}
-		<p
+		<div
 			class="crd-ask-scope-chip rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100"
 		>
 			<span class="font-semibold">Scope:</span>
-			{scopeChipLabel}
-			{#if answerTargetsResolved.some((t) => t.kvHit)}
-				<span class="ml-1 text-xs text-violet-800/70 dark:text-violet-200/70">· KV summaries loaded</span>
+			{#if answerTargetsResolved.length === 1 && answerRelease}
+				<a
+					href={crdHref(answerTargetsResolved[0], answerRelease)}
+					class="font-medium text-violet-800 underline decoration-violet-400/60 underline-offset-2 hover:text-violet-950 dark:text-violet-100"
+				>
+					{answerTargetsResolved[0].kind} ({answerTargetsResolved[0].group})
+				</a>
+				<span> · EDA {answerRelease}</span>
+				<a
+					href={mapHref(answerTargetsResolved[0], answerRelease)}
+					class="ml-2 text-xs text-violet-700 underline dark:text-violet-200"
+				>
+					intent topology
+				</a>
+			{:else}
+				{scopeChipLabel}
 			{/if}
-		</p>
+			{#if answerTargetsResolved.some((t) => t.kvHit)}
+				<span class="ml-1 text-xs text-violet-800/70 dark:text-violet-200/70">· KV context loaded</span>
+			{/if}
+		</div>
 	{/if}
 	{#if !embedded}
 		<!-- Header -->
@@ -326,6 +355,19 @@
 			<div class="px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
 				<SimpleMarkdown source={answer} className="crd-ask-answer" />
 			</div>
+
+			{#if answerRelatedLinks.length > 0}
+				<div class="flex flex-wrap gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-700">
+					{#each answerRelatedLinks as link}
+						<a
+							href={link.href}
+							class="inline-flex min-h-8 items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+						>
+							{link.label}
+						</a>
+					{/each}
+				</div>
+			{/if}
 
 			{#if sources.length > 0}
 				<div class="border-t border-slate-100 dark:border-slate-700">

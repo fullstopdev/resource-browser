@@ -3,7 +3,7 @@ export const CHARS_PER_TOKEN = 4;
 
 export type ContextTier = 'kv' | 'target' | 'siblings' | 'related' | 'schemaWalk' | 'rag';
 
-/** Per-target KV budget when exactly one CRD is in scope. */
+/** Per-target KV budget when exactly one CRD is in scope (full warmed full-context). */
 export const SINGLE_TARGET_KV_CHAR_LIMIT = 28_000;
 
 /** Shared KV pool for multi-target questions before per-target split. */
@@ -20,8 +20,8 @@ export const TIER_CHAR_LIMITS: Record<ContextTier, number> = {
 
 export const MAX_QUESTION_CHARS = 2000;
 export const MAX_LEGACY_CONTEXT_CHARS = 8000;
-/** ~20k tokens input budget — well within @cf/meta/llama-3.1-8b-instruct-fast 128k window. */
-export const MAX_TOTAL_CONTEXT_CHARS = 80_000;
+/** ~18k input tokens for @cf/meta/llama-3.3-70b-instruct-fp8-fast (24k window, reserve ~4k output). */
+export const MAX_TOTAL_CONTEXT_CHARS = 72_000;
 
 /** Rich-context fallback when Vectorize returns no/insufficient chunks. */
 export const TRIMMED_FALLBACK_CHAR_LIMIT = 4_000;

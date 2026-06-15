@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	ASK_AI_MODEL,
 	extractWorkersAIText,
 	WORKERS_AI_MODEL,
 	workersAIErrorMessage,
@@ -8,8 +9,12 @@ import {
 } from './runWorkersAI';
 
 describe('runWorkersAI helpers', () => {
-	it('uses the active fast llama model', () => {
+	it('uses the active fast llama model for cache warming', () => {
 		expect(WORKERS_AI_MODEL).toBe('@cf/meta/llama-3.1-8b-instruct-fast');
+	});
+
+	it('uses llama 3.3 70B for Ask AI', () => {
+		expect(ASK_AI_MODEL).toBe('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
 	});
 
 	it('extractWorkersAIText reads legacy response field', () => {

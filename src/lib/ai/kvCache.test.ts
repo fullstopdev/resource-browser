@@ -7,17 +7,19 @@ import {
 } from './kvCache';
 
 describe('kvCache warm actions', () => {
-	it('defines four Ask AI warm actions in dependency order', () => {
+	it('defines Ask AI warm actions in dependency order', () => {
 		expect(ASK_WARM_ACTIONS).toEqual([
 			'schema-summary',
+			'relationships',
 			'explain',
 			'example',
 			'full-context'
 		]);
 	});
 
-	it('marks schema-summary and full-context as deterministic', () => {
+	it('marks schema-summary, relationships, and full-context as deterministic', () => {
 		expect(DETERMINISTIC_CACHE_ACTIONS.has('schema-summary')).toBe(true);
+		expect(DETERMINISTIC_CACHE_ACTIONS.has('relationships')).toBe(true);
 		expect(DETERMINISTIC_CACHE_ACTIONS.has('full-context')).toBe(true);
 		expect(isDeterministicCacheAction('explain')).toBe(false);
 	});

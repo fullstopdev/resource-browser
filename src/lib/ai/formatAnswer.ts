@@ -65,19 +65,48 @@ function formatKeyFields(schema: AiSchemaPayload, maxFields: number, descMaxLen 
 	const resolved = resolveObjectSchema(schema.specSchema);
 	if (!resolved) return [];
 
+	const keys = Object.keys(resolved.properties);
+	const limit = maxFields <= 0 ? keys.length : Math.min(keys.length, maxFields);
+
 	const bullets: string[] = [];
-	for (const key of Object.keys(resolved.properties).slice(0, maxFields)) {
+	for (const key of keys.slice(0, limit)) {
 		const prop = resolved.properties[key];
 		const type = schemaTypeLabel(prop);
 		const desc = shortDescription(prop, descMaxLen);
 		const req = schema.specRequired.includes(key) ? ' **required**' : '';
+		const nested = formatNestedFieldHints(prop);
+		const detail = [desc, nested].filter(Boolean).join(' ');
 		bullets.push(
-			desc
-				? `- \`${key}\` (${type})${req} — ${desc}`
+			detail
+				? `- \`${key}\` (${type})${req} — ${detail}`
 				: `- \`${key}\` (${type})${req}`
 		);
 	}
 	return bullets;
+}
+
+/** Nested required children and enum values for network-engineer context. */
+function formatNestedFieldHints(node: unknown): string | undefined {
+	const resolved = resolveObjectSchema(node);
+	const hints: string[] = [];
+
+	if (resolved?.required?.length) {
+		hints.push(`required children: ${resolved.required.map((f) => `\`${f}\``).join(', ')}`);
+	}
+
+	if (node && typeof node === 'object') {
+		const o = node as Record<string, unknown>;
+		if (Array.isArray(o.enum) && o.enum.length) {
+			const vals = (o.enum as string[]).slice(0, 12);
+			const more = (o.enum as string[]).length > 12 ? '…' : '';
+			hints.push(`enum: ${vals.join(' | ')}${more}`);
+		}
+		if (o.default !== undefined) {
+			hints.push(`default: ${JSON.stringify(o.default)}`);
+		}
+	}
+
+	return hints.length ? hints.join('; ') : undefined;
 }
 
 function formatRequiredFieldDetails(schema: AiSchemaPayload): string[] {
@@ -230,17 +259,18 @@ export function formatCrdAnswer(schema: AiSchemaPayload, options: FormatAnswerOp
 
 /** Condensed schema context for LLM prompts (structured, not raw JSON dump). */
 export function formatSchemaContextForLlm(schema: AiSchemaPayload): string {
-	return formatSchemaSummaryForKv(schema, { maxSpecFields: 24 });
+	return formatSchemaSummaryForKv(schema, { maxSpecFields: 0 });
 }
 
-/** Comprehensive deterministic schema summary for KV cache (all required + key spec fields). */
+/** Comprehensive deterministic schema summary for KV cache (all required + spec fields). */
 export function formatSchemaSummaryForKv(
 	schema: AiSchemaPayload,
 	options: { maxSpecFields?: number } = {}
 ): string {
-	const maxSpecFields = options.maxSpecFields ?? 48;
+	const maxSpecFields = options.maxSpecFields ?? 0;
 	const resolved = resolveObjectSchema(schema.specSchema);
 	const specFieldCount = resolved ? Object.keys(resolved.properties).length : 0;
+	const fieldLimit = maxSpecFields <= 0 ? specFieldCount : maxSpecFields;
 
 	const parts = [
 		'## Schema summary (KV — authoritative for this kind/release)',
@@ -256,11 +286,11 @@ export function formatSchemaSummaryForKv(
 		'### Spec fields'
 	];
 
-	const keyBullets = formatKeyFields(schema, maxSpecFields, 280);
+	const keyBullets = formatKeyFields(schema, fieldLimit, 280);
 	if (keyBullets.length) {
 		parts.push(...keyBullets);
-		if (specFieldCount > maxSpecFields) {
-			parts.push(`_…and ${specFieldCount - maxSpecFields} more spec fields in the OpenAPI schema._`);
+		if (fieldLimit > 0 && specFieldCount > fieldLimit) {
+			parts.push(`_…and ${specFieldCount - fieldLimit} more spec fields in the OpenAPI schema._`);
 		}
 	} else {
 		parts.push('_No spec properties found in schema._');
@@ -278,11 +308,13 @@ export function formatSchemaSummaryForKv(
 /** Assemble warmed KV parts into one full-context block for Ask AI. */
 export function assembleFullKvContext(parts: {
 	schemaSummary?: string;
+	relationships?: string;
 	explain?: string;
 	example?: string;
 }): string {
 	const sections: string[] = [];
 	if (parts.schemaSummary?.trim()) sections.push(parts.schemaSummary.trim());
+	if (parts.relationships?.trim()) sections.push(parts.relationships.trim());
 	if (parts.explain?.trim()) {
 		sections.push(`## Cached CRD explanation\n${parts.explain.trim()}`);
 	}

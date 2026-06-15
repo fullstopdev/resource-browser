@@ -25,6 +25,7 @@ import {
 	formatSchemaSummaryForKv,
 	resolveKvExampleText
 } from '$lib/ai/formatAnswer';
+import { formatRelationshipsForKv } from '$lib/ai/formatRelationships';
 import {
 	buildSchemaExplainFallback,
 	buildSchemaFieldFallback,
@@ -40,6 +41,7 @@ const VALID_ACTIONS = [
 	'compare',
 	'spec-search',
 	'schema-summary',
+	'relationships',
 	'full-context'
 ] as const;
 type ValidAction = (typeof VALID_ACTIONS)[number];
@@ -169,6 +171,15 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		return json({ ...responsePayload, cached: false });
 	}
 
+	if (action === 'relationships') {
+		const answer = formatRelationshipsForKv(schema);
+		const responsePayload: AiCachePayload = { answer, release, kind, action };
+		if (cacheable) {
+			await putCachedAiResponse(kv, cacheKey, responsePayload);
+		}
+		return json({ ...responsePayload, cached: false });
+	}
+
 	if (action === 'full-context') {
 		const schemaSummary =
 			(
@@ -179,6 +190,16 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 					action: 'schema-summary'
 				})
 			)?.answer?.trim() || formatSchemaSummaryForKv(schema);
+
+		const relationships =
+			(
+				await getCachedAiResponseWithFallback(kv, {
+					release,
+					kind,
+					group,
+					action: 'relationships'
+				})
+			)?.answer?.trim() || formatRelationshipsForKv(schema);
 
 		const explainCached = await getCachedAiResponseWithFallback(kv, {
 			release,
@@ -195,6 +216,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 		const answer = assembleFullKvContext({
 			schemaSummary,
+			relationships,
 			explain: explainCached?.answer,
 			example: resolveKvExampleText(exampleCached)
 		});

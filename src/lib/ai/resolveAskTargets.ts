@@ -33,6 +33,31 @@ export type ResolveAskTargetsInput = {
 	ragCandidates?: Array<{ kind: string; group: string; score?: number }>;
 };
 
+export type TargetConfidence = 'high' | 'medium' | 'low';
+
+export type ResolveAskTargetsResult = {
+	targets: ResolvedAskTarget[];
+	confidence: TargetConfidence;
+	/** When confidence is low, kinds the user may have meant. */
+	ambiguousKinds?: string[];
+};
+
+/** Map colloquial / alternate names to manifest kinds. */
+const KIND_ALIASES: Record<string, string> = {
+	physicalinterface: 'Interface',
+	subinterface: 'Interface',
+	bgppeer: 'BGPPeer',
+	bgppeering: 'BGPPeer',
+	routingpolicy: 'Policy',
+	routepolicy: 'Policy'
+};
+
+function applyKindAlias(raw: string): string {
+	const norm = normalizeToken(raw);
+	if (KIND_ALIASES[norm]) return KIND_ALIASES[norm];
+	return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
 const STOP_WORDS = new Set([
 	'a',
 	'an',
@@ -166,7 +191,7 @@ export function extractKindFromRequiredFieldsQuestion(question: string): string 
 		if (!raw) continue;
 		const token = normalizeToken(raw);
 		if (token.length < 2 || STOP_WORDS.has(token)) continue;
-		return raw.charAt(0).toUpperCase() + raw.slice(1);
+		return applyKindAlias(raw);
 	}
 	return undefined;
 }
@@ -222,7 +247,7 @@ export function extractExplicitKindFromQuestion(question: string): string | unde
 		if (!raw) continue;
 		const token = normalizeToken(raw);
 		if (token.length < 2 || STOP_WORDS.has(token)) continue;
-		return raw.charAt(0).toUpperCase() + raw.slice(1);
+		return applyKindAlias(raw);
 	}
 	return undefined;
 }
@@ -455,6 +480,36 @@ export function resolveAskTargets(input: ResolveAskTargetsInput): ResolvedAskTar
 	}
 
 	return candidates.slice(0, MAX_ASK_TARGETS);
+}
+
+function assessResolutionConfidence(
+	targets: ResolvedAskTarget[],
+	question: string
+): Pick<ResolveAskTargetsResult, 'confidence' | 'ambiguousKinds'> {
+	if (!targets.length) return { confidence: 'low' };
+
+	if (targets[0].source === 'pinned') return { confidence: 'high' };
+	if (targets.length === 1 && targets[0].score >= 150) return { confidence: 'high' };
+
+	const exactMatches = targets.filter((t) => t.score === 100);
+	const uniqueKinds = [...new Set(exactMatches.map((t) => t.kind))];
+	if (
+		uniqueKinds.length > 1 &&
+		(isSpecificCrdQuestion(question) || questionAsksRequiredFields(question))
+	) {
+		return { confidence: 'low', ambiguousKinds: uniqueKinds };
+	}
+
+	if (targets.length === 1 && targets[0].score >= 100) return { confidence: 'high' };
+	if (targets.length === 1) return { confidence: 'medium' };
+	if (isBroadTopicQuestion(question)) return { confidence: 'medium' };
+	return { confidence: 'medium' };
+}
+
+/** Resolve targets with confidence metadata for clarifying errors. */
+export function resolveAskTargetsWithMeta(input: ResolveAskTargetsInput): ResolveAskTargetsResult {
+	const targets = resolveAskTargets(input);
+	return { targets, ...assessResolutionConfidence(targets, input.question) };
 }
 
 export function questionMentionsFieldPath(question: string): boolean {
