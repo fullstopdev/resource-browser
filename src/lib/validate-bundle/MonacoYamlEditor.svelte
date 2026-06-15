@@ -14,7 +14,11 @@ import { bundleIssuesToMarkers } from './yamlMarkers';
 import { yamlMonarchLanguage } from './yamlMonarch';
 import { resolveYamlCursor } from './yamlCursor';
 import { loadMonacoEditor, type MonacoApi } from './monacoLoader';
-import { isExternalValueUpdate } from './monacoValueSync';
+import {
+	isExternalValueUpdate,
+	normalizeYamlLineEndings,
+	setEditorValuePreservingCursor
+} from './monacoValueSync';
 import type { BundleIssue } from './types';
 
 type MonacoEditor = ReturnType<MonacoApi['editor']['create']>;
@@ -88,9 +92,9 @@ function scheduleEditorLayout() {
 
 let themeObserver: MutationObserver | null = null;
 
-function normalizeYamlInput(text: string): string {
-	return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-}
+/** Resolved stack — Monaco cannot measure CSS variables for hit-testing. */
+const MONACO_FONT_FAMILY =
+	"'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 
 function setupMonacoWorkers() {
 	if (typeof window === 'undefined') return;
@@ -299,14 +303,15 @@ async function ensureEditor() {
 	monacoApi.languages.setMonarchTokensProvider('yaml', yamlMonarchLanguage);
 
 	editor = monacoApi.editor.create(mountEl, {
-		value,
+		value: normalizeYamlLineEndings(value),
 		language: 'yaml',
 		theme: monacoTheme(),
 		automaticLayout: true,
 		fixedOverflowWidgets: true,
 		minimap: { enabled: false },
 		scrollBeyondLastLine: false,
-		fontFamily: 'var(--font-code)',
+		fontFamily: MONACO_FONT_FAMILY,
+		fontLigatures: false,
 		fontSize: 13,
 		lineHeight: 20,
 		tabSize: 2,
@@ -342,7 +347,9 @@ async function ensureEditor() {
 		}
 	});
 
-	lastEmittedValue = value;
+	const initialText = normalizeYamlLineEndings(value);
+	lastEmittedValue = initialText;
+	if (value !== initialText) value = initialText;
 
 	registerYamlCompletions();
 	registerYamlHover();
@@ -353,21 +360,19 @@ async function ensureEditor() {
 
 	editor.onDidChangeModelContent(() => {
 		if (!editor || ignoreModelChange) return;
-		let next = editor.getValue();
-		if (next.includes('\r')) next = normalizeYamlInput(next);
-		const { text, truncated } = clampYamlInput(next);
-		if (text !== next) {
-			const pos = editor.getPosition();
+		const raw = editor.getValue();
+		const normalized = normalizeYamlLineEndings(raw);
+		const { text, truncated } = clampYamlInput(normalized);
+		if (raw !== text) {
 			ignoreModelChange = true;
-			editor.setValue(text);
+			setEditorValuePreservingCursor(editor, text);
 			ignoreModelChange = false;
-			if (pos) editor.setPosition(pos);
 			if (truncated) {
 				onTruncate?.();
 				dispatch('truncate');
 			}
 		}
-		value = text;
+		if (value !== text) value = text;
 		lastEmittedValue = text;
 		updateValidationMarkers();
 	});
@@ -479,7 +484,7 @@ onDestroy(() => {
 
 $: if (editor && !ignoreModelChange && isExternalValueUpdate(value, lastEmittedValue)) {
 	ignoreModelChange = true;
-	editor.setValue(value);
+	setEditorValuePreservingCursor(editor, value);
 	lastEmittedValue = value;
 	ignoreModelChange = false;
 	updateValidationMarkers();
