@@ -2,45 +2,19 @@ import fs from 'fs/promises';
 import yaml from 'js-yaml';
 import path from 'path';
 
-const siteUrl = process.env.SITE_URL || 'https://resource-browser-92y.pages.dev';
-const outputPath = process.env.SITEMAP_OUTPUT || 'static/sitemap.xml';
+const outputPath = process.env.SITEMAP_OUTPUT || 'src/lib/seo/sitemapUrls.generated.json';
 const releasesPath = 'src/lib/releases.yaml';
+
 const staticRoutes = [
-	'/',
-	'/sitemap',
-	'/spec-search',
-	'/spec-search-auto',
-	'/comparison',
-	'/validate-yaml'
+	{ loc: '/', priority: '1.0' },
+	{ loc: '/sitemap', priority: '0.8' },
+	{ loc: '/spec-search', priority: '0.7' },
+	{ loc: '/spec-search-auto', priority: '0.7' },
+	{ loc: '/comparison', priority: '0.7' },
+	{ loc: '/validate-yaml', priority: '0.7' },
+	{ loc: '/dependency-map', priority: '0.7' },
+	{ loc: '/release-notes', priority: '0.7' }
 ];
-
-const priorityForPath = (path) => {
-	if (path === '/') return '1.0';
-	if (path === '/sitemap') return '0.8';
-	return '0.7';
-};
-
-const escapeXml = (value) =>
-	value.replace(/[<>&"']/g, (char) => {
-		switch (char) {
-			case '<':
-				return '&lt;';
-			case '>':
-				return '&gt;';
-			case '&':
-				return '&amp;';
-			case '"':
-				return '&quot;';
-			case "'":
-				return '&apos;';
-			default:
-				return char;
-		}
-	});
-
-const formatUrl = ({ loc, lastmod, changefreq, priority }) => {
-	return `  <url>\n    <loc>${escapeXml(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
-};
 
 const main = async () => {
 	const rawReleases = await fs.readFile(releasesPath, 'utf8');
@@ -51,16 +25,13 @@ const main = async () => {
 		throw new Error('releases.yaml did not parse as expected');
 	}
 
-	const urls = [];
-
-	for (const route of staticRoutes) {
-		urls.push({
-			loc: `${siteUrl}${route}`,
-			lastmod: now,
-			changefreq: 'monthly',
-			priority: priorityForPath(route)
-		});
-	}
+	/** @type {Array<{ loc: string; lastmod: string; changefreq: 'monthly'; priority: string }>} */
+	const entries = staticRoutes.map((route) => ({
+		loc: route.loc,
+		lastmod: now,
+		changefreq: 'monthly',
+		priority: route.priority
+	}));
 
 	for (const release of releaseConfig.releases) {
 		if (!release?.name || !release?.folder) continue;
@@ -69,7 +40,7 @@ const main = async () => {
 		let manifestRaw;
 		try {
 			manifestRaw = await fs.readFile(manifestPath, 'utf8');
-		} catch (error) {
+		} catch {
 			console.warn(`Skipping release ${release.name}: could not read ${manifestPath}`);
 			continue;
 		}
@@ -77,7 +48,7 @@ const main = async () => {
 		let manifest;
 		try {
 			manifest = JSON.parse(manifestRaw);
-		} catch (error) {
+		} catch {
 			console.warn(`Skipping release ${release.name}: invalid JSON in ${manifestPath}`);
 			continue;
 		}
@@ -90,8 +61,8 @@ const main = async () => {
 			if (!entry?.name || !Array.isArray(entry.versions)) continue;
 			for (const version of entry.versions) {
 				if (!version?.name) continue;
-				urls.push({
-					loc: `${siteUrl}/${entry.name}/${version.name}${releaseParam}`,
+				entries.push({
+					loc: `/${entry.name}/${version.name}${releaseParam}`,
 					lastmod: now,
 					changefreq: 'monthly',
 					priority: '0.6'
@@ -100,13 +71,16 @@ const main = async () => {
 		}
 	}
 
-	urls.sort((a, b) => a.loc.localeCompare(b.loc));
+	entries.sort((a, b) => a.loc.localeCompare(b.loc));
 
-	const xml = [`<?xml version="1.0" encoding="UTF-8"?>`, `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`, ...urls.map(formatUrl), `</urlset>`].join('\n');
+	const payload = {
+		generatedAt: now,
+		entries
+	};
 
 	await fs.mkdir(path.dirname(outputPath), { recursive: true });
-	await fs.writeFile(outputPath, xml + '\n', 'utf8');
-	console.log(`Wrote ${urls.length} urls to ${outputPath}`);
+	await fs.writeFile(outputPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+	console.log(`Wrote ${entries.length} sitemap entries to ${outputPath}`);
 };
 
 main().catch((error) => {

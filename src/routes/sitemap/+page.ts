@@ -2,7 +2,16 @@ import { loadStaticYaml } from '$lib/yaml/safeYaml';
 import resourcesYaml from '$lib/resources.yaml?raw';
 import type { PageLoad } from './$types';
 
-const staticPaths = ['/', '/spec-search', '/spec-search-auto', '/comparison', '/validate-yaml', '/dependency-map'];
+const staticPaths = [
+	'/',
+	'/sitemap',
+	'/spec-search',
+	'/spec-search-auto',
+	'/comparison',
+	'/validate-yaml',
+	'/dependency-map',
+	'/release-notes'
+];
 
 export const prerender = true;
 
