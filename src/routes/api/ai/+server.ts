@@ -14,11 +14,17 @@ import {
 	buildCacheKey,
 	getCachedAiResponseWithFallback,
 	isCacheableAction,
+	isDeterministicCacheAction,
 	parseExamples,
 	pickRandomExample,
 	putCachedAiResponse,
 	type AiCachePayload
 } from '$lib/ai/kvCache';
+import {
+	assembleFullKvContext,
+	formatSchemaSummaryForKv,
+	resolveKvExampleText
+} from '$lib/ai/formatAnswer';
 import {
 	buildSchemaExplainFallback,
 	buildSchemaFieldFallback,
@@ -26,7 +32,16 @@ import {
 } from '$lib/ai/fallbackAnswers';
 import { runWorkersAIMessages, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
 
-const VALID_ACTIONS = ['explain', 'field', 'validate', 'example', 'compare', 'spec-search'] as const;
+const VALID_ACTIONS = [
+	'explain',
+	'field',
+	'validate',
+	'example',
+	'compare',
+	'spec-search',
+	'schema-summary',
+	'full-context'
+] as const;
 type ValidAction = (typeof VALID_ACTIONS)[number];
 
 const DETERMINISTIC_SEED = 42;
@@ -49,15 +64,6 @@ function str(value: unknown): string {
 
 export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const ai = platform?.env?.AI;
-	if (!ai) {
-		return json(
-			{
-				error:
-					'Workers AI is not available. Run `npm run dev:ai` or deploy with the AI binding in wrangler.toml.'
-			},
-			{ status: 503 }
-		);
-	}
 
 	let body: AiBody;
 	try {
@@ -97,6 +103,17 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	}
 	if (action === 'spec-search' && !field) {
 		return json({ error: 'field (search query) is required for action=spec-search' }, { status: 400 });
+	}
+
+	const needsAi = !isDeterministicCacheAction(action);
+	if (needsAi && !ai) {
+		return json(
+			{
+				error:
+					'Workers AI is not available. Run `npm run dev:ai` or deploy with the AI binding in wrangler.toml.'
+			},
+			{ status: 503 }
+		);
 	}
 
 	const originFetch: typeof fetch = (input, init) => {
@@ -143,6 +160,52 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		);
 	}
 
+	if (action === 'schema-summary') {
+		const answer = formatSchemaSummaryForKv(schema);
+		const responsePayload: AiCachePayload = { answer, release, kind, action };
+		if (cacheable) {
+			await putCachedAiResponse(kv, cacheKey, responsePayload);
+		}
+		return json({ ...responsePayload, cached: false });
+	}
+
+	if (action === 'full-context') {
+		const schemaSummary =
+			(
+				await getCachedAiResponseWithFallback(kv, {
+					release,
+					kind,
+					group,
+					action: 'schema-summary'
+				})
+			)?.answer?.trim() || formatSchemaSummaryForKv(schema);
+
+		const explainCached = await getCachedAiResponseWithFallback(kv, {
+			release,
+			kind,
+			group,
+			action: 'explain'
+		});
+		const exampleCached = await getCachedAiResponseWithFallback(kv, {
+			release,
+			kind,
+			group,
+			action: 'example'
+		});
+
+		const answer = assembleFullKvContext({
+			schemaSummary,
+			explain: explainCached?.answer,
+			example: resolveKvExampleText(exampleCached)
+		});
+
+		const responsePayload: AiCachePayload = { answer, release, kind, action };
+		if (cacheable) {
+			await putCachedAiResponse(kv, cacheKey, responsePayload);
+		}
+		return json({ ...responsePayload, cached: false });
+	}
+
 	let prompt: { system: string; user: string };
 
 	if (action === 'explain') {
@@ -168,7 +231,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	try {
 		const answer = await runWorkersAIMessages(
-			ai,
+			ai!,
 			[
 				{ role: 'system', content: prompt.system },
 				{ role: 'user', content: prompt.user }

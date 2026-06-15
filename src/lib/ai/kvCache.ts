@@ -1,5 +1,11 @@
 export const AI_CACHE_PREFIX = 'ai:v1';
 
+/** Actions warmed for Ask AI grounding (see scripts/warm-cache.ts). */
+export const ASK_WARM_ACTIONS = ['schema-summary', 'explain', 'example', 'full-context'] as const;
+
+/** Deterministic cache actions — no Workers AI neurons required. */
+export const DETERMINISTIC_CACHE_ACTIONS = new Set(['schema-summary', 'full-context']);
+
 export type AiCachePayload = {
 	answer: string;
 	release: string;
@@ -37,6 +43,29 @@ export function buildLegacyCacheKey(params: {
 	return `${AI_CACHE_PREFIX}:${params.release}:${params.kind}:${fieldSegment}:${compareSegment}:${params.action}`;
 }
 
+export async function getCachedAiResponsesForTargets(
+	kv: KVNamespace | undefined,
+	targets: Array<{ release: string; kind: string; group: string }>,
+	action: string
+): Promise<Map<string, AiCachePayload | null>> {
+	const results = new Map<string, AiCachePayload | null>();
+	if (!kv || !targets.length) return results;
+
+	await Promise.all(
+		targets.map(async (target) => {
+			const key = `${target.kind}::${target.group}`;
+			const cached = await getCachedAiResponseWithFallback(kv, {
+				release: target.release,
+				kind: target.kind,
+				group: target.group,
+				action
+			});
+			results.set(key, cached);
+		})
+	);
+	return results;
+}
+
 export async function getCachedAiResponseWithFallback(
 	kv: KVNamespace | undefined,
 	params: {
@@ -59,6 +88,10 @@ export async function getCachedAiResponseWithFallback(
 
 export function isCacheableAction(action: string): boolean {
 	return action !== 'validate';
+}
+
+export function isDeterministicCacheAction(action: string): boolean {
+	return DETERMINISTIC_CACHE_ACTIONS.has(action);
 }
 
 export async function getCachedAiResponse(

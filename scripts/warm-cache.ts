@@ -4,11 +4,22 @@
  * Usage:
  *   RELEASE=26.4.2 npm run warm:cache
  *   SITE_URL=https://eda-resource-browser.pages.dev RELEASE=26.4.2 npm run warm:cache
+ *
+ * Actions warmed (in order per CRD):
+ *   schema-summary — deterministic OpenAPI summary (no neurons)
+ *   explain        — LLM-generated CRD overview (~10 neurons each)
+ *   example        — LLM-generated YAML examples (~10 neurons each)
+ *   full-context   — deterministic assembly of the above (no neurons)
+ *
+ * Optional env:
+ *   WARM_ACTIONS=schema-summary,explain   — subset of actions (default: all four)
+ *   SLEEP_MS=300                           — delay between requests
  */
 import fs from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { ASK_WARM_ACTIONS } from '../src/lib/ai/kvCache';
 import { assertSafeFolderPath } from '../src/lib/yaml-validation/schemaCache';
 import type { ReleasesConfig } from '../src/lib/structure';
 
@@ -27,8 +38,21 @@ const RELEASES_PATH = path.join(ROOT, 'src/lib/releases.yaml');
 
 const SITE_URL = process.env.SITE_URL ?? 'https://eda-resource-browser.pages.dev';
 const RELEASE = process.env.RELEASE;
-const WARM_ACTIONS = ['explain', 'example'] as const;
-const SLEEP_MS = 300;
+const SLEEP_MS = Number(process.env.SLEEP_MS) || 300;
+
+function parseWarmActions(): string[] {
+	const raw = process.env.WARM_ACTIONS?.trim();
+	if (!raw) return [...ASK_WARM_ACTIONS];
+	const requested = raw.split(',').map((s) => s.trim()).filter(Boolean);
+	const valid = new Set<string>(ASK_WARM_ACTIONS);
+	const actions = requested.filter((a) => valid.has(a));
+	if (!actions.length) {
+		throw new Error(
+			`WARM_ACTIONS must include at least one of: ${ASK_WARM_ACTIONS.join(', ')}`
+		);
+	}
+	return actions;
+}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -62,7 +86,10 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log(`\nWarming AI cache for release ${RELEASE} at ${SITE_URL}\n`);
+	const warmActions = parseWarmActions();
+
+	console.log(`\nWarming AI cache for release ${RELEASE} at ${SITE_URL}`);
+	console.log(`Actions: ${warmActions.join(' → ')}\n`);
 
 	let targets: { kind: string; group: string }[];
 	try {
@@ -78,9 +105,10 @@ async function main() {
 	let cached = 0;
 	let fresh = 0;
 	let errors = 0;
+	let neuronsUsed = 0;
 
 	for (const { kind, group } of targets) {
-		for (const action of WARM_ACTIONS) {
+		for (const action of warmActions) {
 			total++;
 			try {
 				const res = await fetch(`${SITE_URL}/api/ai`, {
@@ -92,7 +120,7 @@ async function main() {
 				if (!res.ok) {
 					const errBody = await res.text().catch(() => '');
 					console.warn(
-						`  warn ${kind}/${group}:${action} -> HTTP ${res.status} ${errBody.slice(0, 80)}`
+						`\n  warn ${kind}/${group}:${action} -> HTTP ${res.status} ${errBody.slice(0, 120)}`
 					);
 					errors++;
 					continue;
@@ -105,6 +133,9 @@ async function main() {
 				} else {
 					process.stdout.write('✓');
 					fresh++;
+					if (action === 'explain' || action === 'example') {
+						neuronsUsed += 10;
+					}
 				}
 
 				await sleep(SLEEP_MS);
@@ -119,10 +150,11 @@ async function main() {
 
 	console.log('\n\nDone!');
 	console.log(`  Total:  ${total}`);
-	console.log(`  Fresh:  ${fresh} (neurons used: ~${fresh * 10})`);
+	console.log(`  Fresh:  ${fresh}`);
 	console.log(`  Cached: ${cached} (already warm)`);
 	console.log(`  Errors: ${errors}`);
-	console.log(`\nFree tier budget used: ~${fresh * 10} / 10,000 neurons`);
+	console.log(`\nLLM actions (explain/example) neurons used: ~${neuronsUsed} / 10,000 daily free tier`);
+	console.log(`Deterministic actions (schema-summary/full-context) use 0 neurons.`);
 }
 
 main().catch((err) => {

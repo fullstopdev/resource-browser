@@ -144,7 +144,7 @@ Cloudflare bills Workers AI in **neurons** (10,000/day free on Workers Free and 
 | Model | Neurons |
 |-------|---------|
 | `@cf/baai/bge-base-en-v1.5` (embed) | 6,058 per M input tokens |
-| `@cf/meta/llama-3.1-8b-instruct` (Ask LLM) | 25,608 per M input tokens · 75,147 per M output tokens |
+| `@cf/meta/llama-3.1-8b-instruct-fast` (Ask LLM) | see [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) |
 
 **Per `/api/ask` request** (1 embed + 1 LLM call; Vectorize query is free):
 
@@ -235,7 +235,7 @@ curl -s -X POST http://localhost:8788/api/ai \
   -d '{"release":"26.4.2","kind":"Fabric","group":"fabrics.eda.nokia.com","action":"explain"}'
 ```
 
-**Neuron budget per action** (approximate, `@cf/meta/llama-3.1-8b-instruct`):
+**Neuron budget per action** (approximate, `@cf/meta/llama-3.1-8b-instruct-fast`):
 
 | Action | Neurons (est.) | Tokens in/out |
 |--------|----------------|---------------|

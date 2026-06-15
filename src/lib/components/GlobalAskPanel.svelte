@@ -4,31 +4,33 @@
 	import { page } from '$app/stores';
 	import {
 		closeGlobalAsk,
-		contextSummary,
+		getGlobalAskDefaults,
 		globalAskContext,
 		globalAskOpen,
-		resolveGlobalAskContext,
-		type ResolvedAskContext
+		openGlobalAsk,
+		releaseLabel,
+		type GlobalAskDefaults
 	} from '$lib/globalAsk';
 	import CrdAskPanel from '$lib/components/CrdAskPanel.svelte';
 
-	let resolved: ResolvedAskContext | null = null;
-	let resolving = false;
+	let defaults: GlobalAskDefaults = { release: '' };
 	let panelKey = 0;
+	let wasOpen = false;
 
-	async function initPanel() {
-		resolving = true;
+	function refreshPanel() {
 		const explicit = $globalAskContext;
 		if (explicit) {
 			globalAskContext.set(null);
 		}
-		resolved = await resolveGlobalAskContext($page.url, explicit);
+		defaults = getGlobalAskDefaults($page.url, explicit);
 		panelKey += 1;
-		resolving = false;
 	}
 
-	$: if ($globalAskOpen && $page.url) {
-		void initPanel();
+	$: {
+		if ($globalAskOpen && !wasOpen) {
+			refreshPanel();
+		}
+		wasOpen = $globalAskOpen;
 	}
 
 	function handleBackdropClick(event: MouseEvent) {
@@ -44,7 +46,7 @@
 				if ($globalAskOpen) {
 					closeGlobalAsk();
 				} else {
-					import('$lib/globalAsk').then(({ openGlobalAsk }) => openGlobalAsk());
+					openGlobalAsk();
 				}
 			}
 			if (event.key === 'Escape' && $globalAskOpen) {
@@ -56,8 +58,7 @@
 		return () => window.removeEventListener('keydown', onKeydown);
 	});
 
-	$: summary = resolved ? contextSummary(resolved) : '';
-	$: showScopedHint = !!(resolved?.hasCrdContext || resolved?.release);
+	$: releaseHint = defaults.release ? releaseLabel(defaults.release) : '';
 </script>
 
 {#if $globalAskOpen}
@@ -91,32 +92,23 @@
 				</button>
 			</header>
 
-			{#if resolving}
-				<p class="global-ask-panel__context-loading">Detecting context…</p>
-			{:else if resolved && showScopedHint && summary}
+			{#if releaseHint}
 				<p class="global-ask-panel__context-banner">
-					{#if resolved.hasCrdContext}
-						<span class="global-ask-panel__detected-badge">CRD context</span>
-					{/if}
-					<span class="global-ask-panel__context-summary">{summary}</span>
+					<span class="global-ask-panel__context-summary">Default release: {releaseHint}</span>
+					<span class="global-ask-panel__context-hint">
+						Include a release in your question to override (e.g. 26.4.2).
+					</span>
 				</p>
 			{/if}
 
 			<div class="global-ask-panel__body">
-				{#if resolved && !resolving}
-					{#key panelKey}
-						<CrdAskPanel
-							kind={resolved.kind}
-							group={resolved.group}
-							name={resolved.name}
-							version={resolved.version}
-							release={resolved.release ?? resolved.kvRelease ?? ''}
-							kvRelease={resolved.kvRelease}
-							hasCrdContext={resolved.hasCrdContext}
-							embedded={true}
-						/>
-					{/key}
-				{/if}
+				{#key panelKey}
+					<CrdAskPanel
+						release={defaults.release}
+						embedded={true}
+						initialQuestion={defaults.prefillQuestion ?? ''}
+					/>
+				{/key}
 			</div>
 		</div>
 	</div>

@@ -6,7 +6,7 @@ export type ActionPrompt = {
 	user: string;
 };
 
-const SCHEMA_JSON_LIMIT = 6000;
+const SCHEMA_JSON_LIMIT = 10_000;
 const COMPARE_SCHEMA_LIMIT = 3000;
 
 function schemaForPrompt(schema: AiSchemaPayload): Record<string, unknown> {
@@ -67,18 +67,24 @@ export function promptExplain(release: string, kind: string, schema: AiSchemaPay
 Use this Markdown structure:
 
 ## Overview
-(1–2 sentences: what this resource represents in the network)
+(2–4 sentences: what this resource represents, its role in EDA, and when operators use it)
 
 ## Use case
-(1 sentence: primary purpose)
+(1–2 sentences: primary operational purpose)
+
+## Required fields
+(List EVERY required top-level spec field from the schema with type and a one-line description. Do not omit any.)
 
 ## Key fields
-(bullet list, up to 5 top-level spec fields with brief descriptions)
+(Bullet list of important optional spec fields with brief descriptions — cover as many meaningful fields as the schema provides, up to 12)
 
 ## Resource type
-(Config vs State — infer from schema)
+(Config vs State — infer from schema; note status sub-resource if present)
 
-Keep under 220 words. No raw JSON dumps.`
+## Relationships
+(How this CRD typically relates to other EDA resources in the same group, when inferable from field names/descriptions)
+
+Be thorough and precise. Use exact field names from the schema. No raw JSON dumps. Aim for 350–500 words.`
 	};
 }
 
@@ -236,10 +242,12 @@ If no fields match, say: "No fields related to '${query}' found in ${kind} for r
 }
 
 export const ACTION_MAX_TOKENS: Record<string, number> = {
-	explain: 256,
-	field: 200,
+	explain: 768,
+	field: 300,
 	validate: 400,
-	example: 800,
+	example: 1200,
 	compare: 500,
-	'spec-search': 400
+	'spec-search': 400,
+	'schema-summary': 0,
+	'full-context': 0
 };

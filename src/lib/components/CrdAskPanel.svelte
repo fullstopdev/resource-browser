@@ -1,70 +1,53 @@
 <script lang="ts">
-	import { askAI } from '$lib/ai/askAI';
-	import { explainCRD, explainField, generateExample } from '$lib/ai/aiClient';
+	import { askAI, type ResolvedTargetSummary } from '$lib/ai/askAI';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
 	import { resourceBrowserUrl } from '$lib/ai/rag/resourceLinks';
 	import { parseReleaseFromQuestion } from '$lib/globalAsk';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 	import { page } from '$app/stores';
 
-	export let kind = '';
-	export let group = '';
-	export let name = '';
-	export let version = '';
-	/** Release scoped for Vectorize RAG and API defaults (e.g. 26.4.2). */
+	/** Default release when the question does not mention one (from URL ?release=). */
 	export let release = '';
-	/** Default release for KV chip actions on CRD detail pages only. */
-	export let kvRelease = '';
-	/** When true, show CRD-specific starter chips (explain, example, required fields). */
-	export let hasCrdContext = false;
 	/** Hide duplicate header when embedded in GlobalAskPanel. */
 	export let embedded = false;
+	/** Prefill the question input when the panel opens. */
+	export let initialQuestion = '';
 
-	const CACHED_STARTERS = new Set(['What is this CRD for?', 'Example YAML?']);
-
-	const crdStarterQuestions = [
-		'What is this CRD for?',
-		'Required fields?',
-		'Related resources?',
-		'Example YAML?'
-	];
-
-	const genericStarterQuestions = [
+	const starterQuestions = [
 		'What is the Policy CRD in 26.4.2?',
 		'Required fields for Interface in 26.4.2?',
 		'Explain Topology resource for release 26.4.2',
 		'Example YAML for a Fabric in 26.4.2?'
 	];
 
-	$: effectiveRelease = release || kvRelease || '';
-	$: releaseLabel = effectiveRelease ? `EDA ${effectiveRelease}` : '';
+	$: releaseLabel = release ? `EDA ${release}` : '';
 
-	$: activeStarters = hasCrdContext ? crdStarterQuestions : genericStarterQuestions;
+	let question = initialQuestion;
 
-	let question = '';
 	let answer: string | null = null;
 	let sources: RagSource[] = [];
 	let error: string | null = null;
 	let loading = false;
 	let sourcesOpen = false;
 	let hasAsked = false;
-	let answerCached = false;
 	let answerKvContext = false;
 	let answerGrounded = false;
 	let answerRelease = '';
-	let answerLlmFallback = false;
-	let answerFallbackReason: 'quota' | 'llm_error' | '' = '';
+	let answerTargetsResolved: ResolvedTargetSummary[] = [];
 
-	$: focusedCrdLabel =
-		hasCrdContext && kind && group
-			? `${kind} (${group}${version ? `/${version}` : ''})`
-			: '';
-
-	$: resourceLabel = hasCrdContext && kind
-		? `${kind} (${group}/${version || 'latest'})`
-		: hasCrdContext && name
-			? name
-			: 'EDA CRDs and documentation';
+	$: scopeChipLabel = (() => {
+		if (!answerTargetsResolved.length) return '';
+		const releasePart = answerRelease ? ` · EDA ${answerRelease}` : '';
+		if (answerTargetsResolved.length === 1) {
+			const t = answerTargetsResolved[0];
+			return `Answering about ${t.kind} (${t.group})${releasePart}`;
+		}
+		const topic =
+			answerTargetsResolved.length <= 3
+				? answerTargetsResolved.map((t) => t.kind).join(', ')
+				: `${answerTargetsResolved.length} CRDs`;
+		return `Answering about ${topic}${releasePart}`;
+	})();
 
 	async function submit(preset?: string) {
 		const trimmed = (preset ?? question).trim();
@@ -77,60 +60,18 @@
 		sources = [];
 		sourcesOpen = false;
 		hasAsked = true;
-		answerCached = false;
 		answerKvContext = false;
 		answerGrounded = false;
 		answerRelease = '';
-		answerLlmFallback = false;
-		answerFallbackReason = '';
-
-		let result: {
-			answer?: string;
-			sources?: RagSource[];
-			error?: string;
-			cached?: boolean;
-			kvCached?: boolean;
-			grounded?: boolean;
-			release?: string;
-			llmFallback?: boolean;
-			fallbackReason?: 'quota' | 'llm_error';
-		};
+		answerTargetsResolved = [];
 
 		const questionRelease = parseReleaseFromQuestion(trimmed);
-		const scopedRelease = questionRelease || effectiveRelease || undefined;
+		const scopedRelease = questionRelease || release || undefined;
 
-		if (hasCrdContext && kvRelease && kind && group && CACHED_STARTERS.has(trimmed)) {
-			const actionResult =
-				trimmed === 'What is this CRD for?'
-					? await explainCRD(kvRelease, kind, group)
-					: await generateExample(kvRelease, kind, group);
-			result = actionResult.error
-				? { error: actionResult.error }
-				: {
-						answer: actionResult.answer,
-						cached: actionResult.cached,
-						llmFallback: actionResult.llmFallback,
-						fallbackReason: actionResult.fallbackReason
-					};
-		} else if (hasCrdContext && kvRelease && kind && group && trimmed === 'Required fields?') {
-			const actionResult = await explainField(kvRelease, kind, 'spec', group);
-			result = actionResult.error
-				? { error: actionResult.error }
-				: {
-						answer: `**Required fields for ${kind}:**\n\n${actionResult.answer}`,
-						cached: actionResult.cached,
-						llmFallback: actionResult.llmFallback,
-						fallbackReason: actionResult.fallbackReason
-					};
-		} else {
-			result = await askAI({
-				question: trimmed,
-				release: scopedRelease,
-				...(hasCrdContext && kind && group
-					? { kind, group, version: version || undefined }
-					: {})
-			});
-		}
+		const result = await askAI({
+			question: trimmed,
+			release: scopedRelease
+		});
 
 		loading = false;
 
@@ -139,12 +80,10 @@
 		} else {
 			answer = result.answer ?? null;
 			sources = result.sources ?? [];
-			answerCached = !!result.cached;
 			answerKvContext = !!result.kvCached;
 			answerGrounded = !!result.grounded;
 			answerRelease = result.release ?? scopedRelease ?? '';
-			answerLlmFallback = !!result.llmFallback;
-			answerFallbackReason = result.fallbackReason ?? '';
+			answerTargetsResolved = result.targetsResolved ?? [];
 		}
 	}
 
@@ -165,18 +104,15 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	{#if focusedCrdLabel}
+	{#if scopeChipLabel && hasAsked}
 		<p
-			class="crd-ask-context-banner rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+			class="crd-ask-scope-chip rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100"
 		>
-			<span class="font-semibold">Asking about:</span>
-			{focusedCrdLabel}
-			{#if releaseLabel}
-				<span class="text-sky-800/80 dark:text-sky-200/80">· {releaseLabel}</span>
+			<span class="font-semibold">Scope:</span>
+			{scopeChipLabel}
+			{#if answerTargetsResolved.some((t) => t.kvHit)}
+				<span class="ml-1 text-xs text-violet-800/70 dark:text-violet-200/70">· KV summaries loaded</span>
 			{/if}
-			<span class="mt-1 block text-xs text-sky-800/70 dark:text-sky-200/70">
-				Answers prioritize warmed KV schema summaries, then Vectorize RAG for this exact apiGroup.
-			</span>
 		</p>
 	{/if}
 	{#if !embedded}
@@ -209,15 +145,14 @@
 						{#if releaseLabel}
 							<span
 								class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-								title="Vectorize RAG scoped to this release"
+								title="Default release when not mentioned in your question"
 							>
 								{releaseLabel}
 							</span>
 						{/if}
 					</div>
 					<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-						Get grounded answers about <span class="font-medium text-slate-800 dark:text-slate-100">{resourceLabel}</span>
-						from warmed KV summaries, CRD schemas, Nokia EDA docs, and Vectorize RAG.
+						Get grounded answers about EDA CRDs and documentation from warmed KV summaries, schemas, Nokia EDA docs, and Vectorize RAG.
 					</p>
 				</div>
 			</div>
@@ -230,7 +165,7 @@
 			Quick prompts
 		</p>
 		<div class="flex flex-wrap gap-2" role="group" aria-label="Suggested questions">
-			{#each activeStarters as starter}
+			{#each starterQuestions as starter}
 				<button
 					type="button"
 					on:click={() => submit(starter)}
@@ -238,14 +173,6 @@
 					class="inline-flex min-h-9 items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
 				>
 					{starter}
-					{#if hasCrdContext && CACHED_STARTERS.has(starter)}
-						<span
-							class="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-							title="Cached KV response when available"
-						>
-							KV
-						</span>
-					{/if}
 				</button>
 			{/each}
 		</div>
@@ -312,11 +239,7 @@
 			</svg>
 			<p class="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">Ask your first question</p>
 			<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-				{#if hasCrdContext}
-					Try a suggested prompt above or describe what you need to know about this CRD.
-				{:else}
-					Try a suggested prompt above or ask about EDA concepts, CRD fields, validation, or example manifests.
-				{/if}
+				Try a suggested prompt above or ask about EDA concepts, CRD fields, validation, or example manifests.
 			</p>
 		</div>
 	{/if}
@@ -369,14 +292,12 @@
 			<div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
 				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
 				<div class="flex flex-wrap items-center gap-1.5">
-					{#if answerLlmFallback}
-						<span
-							class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
-							title={answerFallbackReason === 'quota' ? 'Workers AI quota reached' : 'Schema/KV fallback without LLM paraphrase'}
-						>
-							{answerFallbackReason === 'quota' ? 'Quota fallback' : 'Schema fallback'}
-						</span>
-					{/if}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+						title="Answer generated by Workers AI from KV and schema context"
+					>
+						LLM
+					</span>
 					{#if answerKvContext}
 						<span
 							class="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-900 dark:bg-teal-900/40 dark:text-teal-200"
@@ -399,17 +320,6 @@
 						>
 							{answerRelease}
 						</span>
-					{/if}
-					{#if answerCached}
-					<span
-						class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-						title="Served from KV cache"
-					>
-						<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-						</svg>
-						Cached
-					</span>
 					{/if}
 				</div>
 			</div>

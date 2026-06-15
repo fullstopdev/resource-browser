@@ -4,10 +4,18 @@ import {
 	workersAIQuotaHttpResponse
 } from './workersAIQuota';
 
-export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
+/** Active replacement for deprecated `@cf/meta/llama-3.1-8b-instruct` (removed 2026-05-30). */
+export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast' as const;
 export const AI_REQUEST_TIMEOUT_MS = 90_000;
-export const AI_MAX_TOKENS = 1536;
+export const AI_MAX_TOKENS = 2048;
 export const AI_TEMPERATURE = 0.3;
+
+export class WorkersAIEmptyResponseError extends Error {
+	constructor() {
+		super('Workers AI returned an empty response');
+		this.name = 'WorkersAIEmptyResponseError';
+	}
+}
 
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	return new Promise((resolve, reject) => {
@@ -35,6 +43,70 @@ export type RunWorkersAIOptions = {
 
 export type AiMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
+function errorText(err: unknown): string {
+	if (err instanceof Error) return err.message;
+	if (typeof err === 'object' && err !== null) {
+		const o = err as Record<string, unknown>;
+		const nested =
+			typeof o.cause === 'object' && o.cause !== null
+				? errorText(o.cause)
+				: typeof o.cause === 'string'
+					? o.cause
+					: '';
+		const parts = [
+			o.message,
+			o.error,
+			o.error_message,
+			typeof o.response === 'string' ? o.response : undefined,
+			nested
+		].filter((x) => typeof x === 'string') as string[];
+		return parts.join(' ');
+	}
+	return String(err);
+}
+
+/** Parse Workers AI run() output — supports legacy `response` and chat `choices` shapes. */
+export function extractWorkersAIText(result: unknown): string {
+	if (typeof result === 'string') return result.trim();
+
+	if (typeof result === 'object' && result !== null) {
+		const o = result as Record<string, unknown>;
+
+		if (typeof o.response === 'string' && o.response.trim()) {
+			return o.response.trim();
+		}
+
+		const choices = o.choices;
+		if (Array.isArray(choices) && choices.length > 0) {
+			const first = choices[0] as Record<string, unknown> | undefined;
+			const message = first?.message as Record<string, unknown> | undefined;
+			if (typeof message?.content === 'string' && message.content.trim()) {
+				return message.content.trim();
+			}
+		}
+	}
+
+	return '';
+}
+
+export function workersAIErrorMessage(err: unknown): string {
+	const text = errorText(err).trim();
+	if (!text) {
+		return 'Failed to generate answer. Please try again.';
+	}
+	if (/deprecated/i.test(text)) {
+		return 'Workers AI model is no longer available (deprecated). Redeploy the latest app version.';
+	}
+	if (/context length|maximum context|token limit|too many tokens|prompt is too long/i.test(text)) {
+		return 'Prompt too large for Workers AI. Try a shorter question or open a specific CRD page.';
+	}
+	if (err instanceof WorkersAIEmptyResponseError) {
+		return 'Workers AI returned an empty answer. Try again or rephrase your question.';
+	}
+	if (text.length <= 280) return text;
+	return 'Failed to generate answer. Please try again.';
+}
+
 export async function runWorkersAIMessages(
 	ai: Ai,
 	messages: AiMessage[],
@@ -54,13 +126,11 @@ export async function runWorkersAIMessages(
 	}
 
 	const result = await withTimeout(ai.run(WORKERS_AI_MODEL, runOptions), timeoutMs);
-
-	const answer =
-		typeof result === 'object' && result !== null && 'response' in result
-			? String((result as { response?: string }).response ?? '')
-			: String(result);
-
-	return answer || 'No response generated.';
+	const answer = extractWorkersAIText(result);
+	if (!answer) {
+		throw new WorkersAIEmptyResponseError();
+	}
+	return answer;
 }
 
 export async function runWorkersAI(
@@ -90,5 +160,5 @@ export function workersAIErrorResponse(err: unknown): { status: number; error: s
 				'Workers AI timed out. Check network/proxy access to Cloudflare (including workers-binding.ai) and your API token Workers AI permissions.'
 		};
 	}
-	return { status: 500, error: 'Failed to generate answer. Please try again.' };
+	return { status: 500, error: workersAIErrorMessage(err) };
 }

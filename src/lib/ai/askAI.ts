@@ -3,6 +3,7 @@ import type { RagSource } from '$lib/ai/rag/chunkTypes';
 export interface AskAIParams {
 	question: string;
 	release?: string;
+	/** Pinned CRD page context only — Global Ask must omit kind/group. */
 	kind?: string;
 	group?: string;
 	version?: string;
@@ -11,6 +12,13 @@ export interface AskAIParams {
 	context?: string;
 }
 
+export type ResolvedTargetSummary = {
+	kind: string;
+	group: string;
+	name: string;
+	kvHit: boolean;
+};
+
 export interface AskAIResult {
 	answer?: string;
 	sources?: RagSource[];
@@ -18,26 +26,20 @@ export interface AskAIResult {
 	grounded?: boolean;
 	release?: string;
 	kvCached?: boolean;
-	llmFallback?: boolean;
-	fallbackReason?: 'quota' | 'llm_error';
+	targetsResolved?: ResolvedTargetSummary[];
+	formattedBy?: 'llm';
+	rag?: {
+		chunkCount: number;
+		topScore: number;
+		release: string;
+		sufficient: boolean;
+		skipped?: boolean;
+	};
 }
 
-function friendlyError(
-	status: number,
-	message?: string,
-	fallbackReason?: string
-): string {
-	if (status === 503) {
-		return (
-			message ??
-			'Workers AI is temporarily unavailable (quota or binding). Try a suggested prompt like “What is this CRD for?” which uses cached schema summaries.'
-		);
-	}
-	if (status === 504) {
-		return (
-			message ??
-			'The request timed out. Check your network or proxy access to Cloudflare Workers AI and try a shorter question.'
-		);
+function friendlyError(status: number, message?: string): string {
+	if (status === 503 || status === 500 || status === 504) {
+		return message ?? 'AI unavailable, try again later';
 	}
 	if (status === 404) {
 		return (
@@ -54,10 +56,7 @@ function friendlyError(
 	if (status === 0 || (typeof navigator !== 'undefined' && !navigator.onLine)) {
 		return 'Network error — check your connection and try again.';
 	}
-	if (fallbackReason === 'quota') {
-		return message ?? 'Workers AI daily limit reached. Cached actions and schema excerpts may still work.';
-	}
-	return message ?? `Request failed (${status}). Please try again.`;
+	return message ?? 'AI unavailable, try again later';
 }
 
 /** Call the server-side Workers AI endpoint (no API keys in the browser). */
@@ -90,8 +89,10 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		grounded?: boolean;
 		release?: string;
 		kvCached?: boolean;
-		llmFallback?: boolean;
 		fallbackReason?: 'quota' | 'llm_error';
+		targetsResolved?: ResolvedTargetSummary[];
+		formattedBy?: 'llm';
+		rag?: AskAIResult['rag'];
 	};
 	try {
 		data = await response.json();
@@ -100,7 +101,7 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 	}
 
 	if (!response.ok) {
-		return { error: friendlyError(response.status, data.error, data.fallbackReason) };
+		return { error: friendlyError(response.status, data.error) };
 	}
 
 	return {
@@ -109,7 +110,8 @@ export async function askAI(params: AskAIParams): Promise<AskAIResult> {
 		grounded: data.grounded,
 		release: data.release,
 		kvCached: data.kvCached,
-		llmFallback: data.llmFallback,
-		fallbackReason: data.fallbackReason
+		targetsResolved: data.targetsResolved,
+		formattedBy: data.formattedBy,
+		rag: data.rag
 	};
 }

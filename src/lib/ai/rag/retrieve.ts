@@ -69,6 +69,23 @@ export function isRagSufficient(mergedCount: number, topScore: number): boolean 
 	return false;
 }
 
+/** Dedupe CRD candidates from Vectorize source metadata for ask-target resolution. */
+export function extractCrdCandidatesFromSources(
+	sources: RagSource[]
+): Array<{ kind: string; group: string; score: number }> {
+	const seen = new Map<string, { kind: string; group: string; score: number }>();
+	sources.forEach((source, index) => {
+		if (source.source !== 'crd-corpus' || !source.kind || !source.group) return;
+		const key = `${source.kind}::${source.group}`;
+		const score = Math.max(0, 1 - index * 0.1);
+		const existing = seen.get(key);
+		if (!existing || score > existing.score) {
+			seen.set(key, { kind: source.kind, group: source.group, score });
+		}
+	});
+	return [...seen.values()].sort((a, b) => b.score - a.score);
+}
+
 /** Map CRD patch release (e.g. 26.4.2) to docs release (26.4). */
 export function docsReleaseForCrd(release: string): string {
 	const match = release.match(/^(\d+\.\d+)/);

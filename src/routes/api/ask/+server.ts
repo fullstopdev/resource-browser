@@ -1,19 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { buildRichContext, trimLegacyContext } from '$lib/ai/buildRichContext';
-import { formatKvContextSection, formatSchemaContextForLlm } from '$lib/ai/formatAnswer';
+import { buildAskContext } from '$lib/ai/buildAskContext';
+import { trimLegacyContext } from '$lib/ai/buildRichContext';
+import { llmFallbackReason } from '$lib/ai/fallbackAnswers';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
-import { crdChunkMatchesFilters, hasStrictCrdTarget, retrieveRagContext } from '$lib/ai/rag/retrieve';
-import {
-	buildContextFirstFallbackAnswer,
-	buildRagOnlyAnswer,
-	llmFallbackReason
-} from '$lib/ai/fallbackAnswers';
-import { getCachedAiResponseWithFallback } from '$lib/ai/kvCache';
-import { loadAiSchema } from '$lib/ai/loadAiSchema';
+import { extractCrdCandidatesFromSources, retrieveRagContext } from '$lib/ai/rag/retrieve';
+import { resolveAskTargets } from '$lib/ai/resolveAskTargets';
 import { runWorkersAI, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
-import { assembleContext, MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
+import { MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
+import { fetchManifest } from '$lib/manifest/fetch';
 import releasesYaml from '$lib/releases.yaml?raw';
 import type { ReleasesConfig } from '$lib/structure';
 import { loadStaticYaml } from '$lib/yaml/safeYaml';
@@ -46,12 +42,42 @@ function defaultReleaseName(): string {
 	);
 }
 
+function releaseFolder(releaseName: string): string | null {
+	return releasesConfig.releases.find((r) => r.name === releaseName)?.folder ?? null;
+}
+
 function str(value: unknown): string {
 	return typeof value === 'string' ? value.trim() : '';
 }
 
 function hasGroundingContext(context: string): boolean {
 	return context.trim().length > 80;
+}
+
+function buildTargetsResolved(
+	targets: Awaited<ReturnType<typeof resolveAskTargets>>,
+	kvHits: Array<{
+		target: { kind: string; group: string; name: string };
+		kvAnswer?: string;
+		kvExample?: string;
+		kvSchemaSummary?: string;
+		kvFullContext?: string;
+	}>
+) {
+	return targets.map((target) => ({
+		kind: target.kind,
+		group: target.group,
+		name: target.name,
+		kvHit: !!kvHits.find(
+			(h) =>
+				h.target.kind === target.kind &&
+				h.target.group === target.group &&
+				(h.kvAnswer?.trim() ||
+					h.kvExample?.trim() ||
+					h.kvSchemaSummary?.trim() ||
+					h.kvFullContext?.trim())
+		)
+	}));
 }
 
 export const POST: RequestHandler = async ({ request, platform, url }) => {
@@ -89,6 +115,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const group = str(body.group) || str(body.filters?.group);
 	const version = str(body.version);
 	const fieldPath = str(body.fieldPath);
+	const hasPinnedTarget = !!(release && kind && group);
 
 	const originFetch: typeof fetch = (input, init) => {
 		const href =
@@ -104,102 +131,103 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		return fetch(href, init);
 	};
 
-	let ragSources: RagSource[] = [];
-	let context = '';
-	let kvContextText = '';
-	let schemaContextText = '';
-	let richContextText = '';
-	let ragContextText = '';
-	let schemaPayload: Awaited<ReturnType<typeof loadAiSchema>> = null;
-	let kvCached = false;
-	let ragMeta: {
-		chunkCount: number;
-		topScore: number;
-		release: string;
-		sufficient: boolean;
-	} | undefined;
-	let releaseNotIndexed = false;
-
 	const kv = platform?.env?.AI_CACHE;
 	const crdIndex = platform?.env?.CRD_INDEX;
 	const docsIndex = platform?.env?.DOCS_INDEX;
 	const hasRagIndexes = !!(crdIndex || docsIndex);
-	const hasTarget = !!(release && kind && group);
-	const ragFilters = {
-		release: release || undefined,
-		kind: kind || undefined,
-		group: group || undefined
-	};
 
-	if (hasTarget) {
-		schemaPayload = await loadAiSchema(release, kind, originFetch, group, version || undefined);
-		if (schemaPayload) {
-			schemaContextText = formatSchemaContextForLlm(schemaPayload);
-		}
+	const folder = releaseFolder(release);
+	const manifest = folder ? (await fetchManifest(folder, undefined, originFetch)) ?? [] : [];
 
-		const cachedExplain = await getCachedAiResponseWithFallback(kv, {
-			release,
-			kind,
-			group,
-			action: 'explain'
+	let targets = resolveAskTargets({
+		question,
+		release,
+		pinned: hasPinnedTarget ? { kind, group } : undefined,
+		manifest
+	});
+
+	let ragSources: RagSource[] = [];
+	let ragContextText = '';
+	let releaseNotIndexed = false;
+	let ragMeta:
+		| {
+				chunkCount: number;
+				topScore: number;
+				release: string;
+				sufficient: boolean;
+				skipped: boolean;
+		  }
+		| undefined;
+
+	if (targets.length < 2 && hasRagIndexes) {
+		const probeRag = await retrieveRagContext(ai, crdIndex, docsIndex, question, {
+			release: release || undefined,
+			kind: hasPinnedTarget ? kind : undefined,
+			group: hasPinnedTarget ? group : undefined
 		});
-		if (cachedExplain?.answer?.trim()) {
-			kvContextText = formatKvContextSection(cachedExplain.answer);
-			kvCached = true;
-		}
-
-		const rich = await buildRichContext(
-			{ release, kind, group, version: version || undefined, fieldPath: fieldPath || undefined, question },
-			originFetch,
-			{ mode: 'trimmed' }
-		);
-		if (rich?.context) {
-			richContextText = rich.context;
+		const candidates = extractCrdCandidatesFromSources(probeRag.sources);
+		if (candidates.length) {
+			const enriched = resolveAskTargets({
+				question,
+				release,
+				pinned: hasPinnedTarget ? { kind, group } : undefined,
+				manifest,
+				ragCandidates: candidates
+			});
+			if (enriched.length > targets.length) {
+				targets = enriched;
+			}
 		}
 	}
 
-	if (hasRagIndexes) {
-		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, ragFilters);
+	let context = '';
+	let kvHits: Awaited<ReturnType<typeof buildAskContext>>['kvHits'] = [];
+	let kvCached = false;
+
+	if (targets.length > 0) {
+		const built = await buildAskContext({
+			question,
+			targets,
+			kv,
+			originFetch,
+			ai,
+			crdIndex,
+			docsIndex,
+			version: version || undefined,
+			fieldPath: fieldPath || undefined
+		});
+		context = built.contextText;
+		kvHits = built.kvHits;
+		ragSources = built.ragSources;
+		ragContextText = built.ragContextText;
+		releaseNotIndexed = built.releaseNotIndexed;
+		ragMeta = built.ragMeta;
+		kvCached = kvHits.some(
+			(h) =>
+				!!(
+					h.kvAnswer?.trim() ||
+					h.kvExample?.trim() ||
+					h.kvSchemaSummary?.trim() ||
+					h.kvFullContext?.trim()
+				)
+		);
+	} else if (hasRagIndexes) {
+		const rag = await retrieveRagContext(ai, crdIndex, docsIndex, question, {
+			release: release || undefined
+		});
 		ragSources = rag.sources;
-		if (hasStrictCrdTarget(ragFilters)) {
-			ragSources = ragSources.filter(
-				(s) =>
-					s.source !== 'crd-corpus' ||
-					crdChunkMatchesFilters(
-						{ kind: s.kind ?? '', group: s.group ?? '', release: s.release },
-						ragFilters
-					)
-			);
-		}
 		ragContextText = rag.contextText;
 		releaseNotIndexed = rag.releaseNotIndexed;
 		ragMeta = {
 			chunkCount: rag.mergedCount,
 			topScore: rag.topScore,
 			release,
-			sufficient: rag.sufficient
+			sufficient: rag.sufficient,
+			skipped: false
 		};
-	}
-
-	if (hasTarget) {
-		const parts: { tier: 'kv' | 'target' | 'rag'; text: string }[] = [];
-		if (kvContextText) {
-			parts.push({ tier: 'kv', text: kvContextText });
-		}
-		if (schemaContextText) {
-			parts.push({ tier: 'target', text: schemaContextText });
-		} else if (richContextText) {
-			parts.push({ tier: 'target', text: richContextText });
-		}
 		if (ragContextText) {
-			parts.push({
-				tier: 'rag',
-				text: `## Indexed excerpts (${kind} / ${group} only)\n${ragContextText}`
-			});
+			context = `## Retrieved schema excerpts\n${ragContextText}`;
 		}
-		context = parts.length ? assembleContext(parts) : '';
-	} else if (ragContextText) {
-		context = `## Retrieved schema excerpts\n${ragContextText}`;
 	} else {
 		const legacy = trimLegacyContext(body.context);
 		if (legacy) {
@@ -231,68 +259,27 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		);
 	}
 
+	const targetsResolved = buildTargetsResolved(targets, kvHits);
+	const targetScope = targets.map((t) => ({ kind: t.kind, group: t.group }));
+
 	try {
-		const answer = await runWorkersAI(ai, buildCrdUserMessage(context, question), {
-			temperature: ASK_TEMPERATURE
-		});
-		const payload: {
-			answer: string;
-			sources?: RagSource[];
-			grounded: boolean;
-			release: string;
-			kvCached?: boolean;
-			rag?: typeof ragMeta;
-		} = {
+		const answer = await runWorkersAI(
+			ai,
+			buildCrdUserMessage(context, question, targetScope),
+			{ temperature: ASK_TEMPERATURE }
+		);
+		return json({
 			answer,
 			grounded: true,
 			release,
-			kvCached
-		};
-		if (ragSources.length > 0) {
-			payload.sources = ragSources;
-		}
-		if (ragMeta) {
-			payload.rag = ragMeta;
-		}
-		return json(payload);
+			kvCached,
+			formattedBy: 'llm',
+			targetsResolved,
+			...(ragSources.length > 0 ? { sources: ragSources } : {}),
+			...(ragMeta ? { rag: ragMeta } : {})
+		});
 	} catch (err) {
 		console.error('Workers AI error:', err);
-		if (hasGroundingContext(context)) {
-			const reason = llmFallbackReason(err);
-			const cachedExplain = kvContextText
-				? kvContextText.replace(/^## Cached CRD summary \(KV — authoritative for this kind\/release\)\n/, '')
-				: undefined;
-			const answer = hasTarget
-				? buildContextFirstFallbackAnswer({
-						question,
-						release,
-						kind,
-						group,
-						version: version || undefined,
-						schema: schemaPayload ?? undefined,
-						kvAnswer: cachedExplain,
-						ragContext: ragContextText || undefined,
-						sources: ragSources.length ? ragSources : undefined,
-						reason
-					})
-				: buildRagOnlyAnswer({
-						question,
-						context,
-						release,
-						sources: ragSources.length ? ragSources : undefined,
-						reason
-					});
-			return json({
-				answer,
-				grounded: true,
-				llmFallback: true,
-				fallbackReason: reason,
-				release,
-				kvCached,
-				...(ragSources.length ? { sources: ragSources } : {}),
-				...(ragMeta ? { rag: ragMeta } : {})
-			});
-		}
 		const { status, error } = workersAIErrorResponse(err);
 		return json({ error, fallbackReason: llmFallbackReason(err) }, { status });
 	}
