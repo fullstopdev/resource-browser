@@ -375,7 +375,7 @@ describe('inferEdges multi-pass pipeline', () => {
 		if (allLinks.some((link) => link.confidenceTier === 3)) {
 			expect(allLinks.length).toBeGreaterThan(strictLinks.length);
 		}
-		expect(strictLinks.every((link) => link.confidenceTier <= 2)).toBe(true);
+		expect(strictLinks.every((link) => (link.confidenceTier ?? 0) <= 2)).toBe(true);
 	});
 
 	it('Fabric has comprehensive direct dependencies by default (strict)', () => {

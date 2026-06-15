@@ -13,9 +13,13 @@ spec:
       unknownField: value
 `;
 	return {
+		id: 'test-resource-0',
 		name: 'test',
 		kind: 'TestResource',
 		group: 'test.eda.nokia.com',
+		apiVersion: 'test.eda.nokia.com/v1',
+		version: 'v1',
+		namespace: '',
 		docIndex: 0,
 		data: {
 			apiVersion: 'test.eda.nokia.com/v1',

@@ -203,10 +203,10 @@ export function getIntentMarkmapStats(
 
 	const intentLinks = graph.links.filter(isIntentDependencyLink);
 	const dependsOn = showDependsOn
-		? buildTransitiveDepList(focusNodeId, intentLinks, 'outgoing')
+		? buildTransitiveDepList(focusNodeId, intentLinks, 'outgoing', 'extended')
 		: [];
 	const requiredBy = showRequiredBy
-		? buildTransitiveDepList(focusNodeId, intentLinks, 'incoming')
+		? buildTransitiveDepList(focusNodeId, intentLinks, 'incoming', 'extended')
 		: [];
 
 	const filteredDependsOn = dependsOn.filter((d) => matchesSearch(graph, d, depSearch));
@@ -240,10 +240,10 @@ export function buildIntentMarkmapMarkdown(
 	const focusNode = graph.nodes.find((n) => n.id === focusNodeId);
 
 	const dependsOn = showDependsOn
-		? buildTransitiveDepList(focusNodeId, intentLinks, 'outgoing')
+		? buildTransitiveDepList(focusNodeId, intentLinks, 'outgoing', 'extended')
 		: [];
 	const requiredBy = showRequiredBy
-		? buildTransitiveDepList(focusNodeId, intentLinks, 'incoming')
+		? buildTransitiveDepList(focusNodeId, intentLinks, 'incoming', 'extended')
 		: [];
 
 	const sections = [

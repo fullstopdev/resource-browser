@@ -1,6 +1,6 @@
 import { parseDocuments } from '$lib/yaml-validation/parseDocuments';
 import type { ParseError } from '$lib/yaml-validation/types';
-import type { BundleResource } from './types';
+import type { BundleIssue, BundleResource } from './types';
 
 function resourceId(name: string, namespace: string, kind: string): string {
 	return `${namespace}/${kind}/${name}`;
@@ -71,6 +71,44 @@ export function parseBundleResources(yamlInput: string): {
 	}
 
 	return { ok: true, resources, parseErrors: [] };
+}
+
+/** Live parse check for toolbar Fix — does not rely on stale validation results. */
+export function firstParseIssueForInput(yamlInput: string): BundleIssue | null {
+	const trimmed = yamlInput.trim();
+	if (!trimmed) return null;
+
+	const parsed = parseDocuments(yamlInput);
+	if (parsed.ok) return null;
+
+	const err: ParseError | undefined = parsed.parseErrors?.[0];
+	if (err) {
+		return {
+			id: `parse-${err.docIndex ?? 1}`,
+			severity: 'error',
+			category: 'schema',
+			message: err.message,
+			docIndex: err.docIndex,
+			line: err.line
+		};
+	}
+
+	if ('message' in parsed && parsed.message) {
+		return {
+			id: 'parse-1',
+			severity: 'error',
+			category: 'schema',
+			message: parsed.message,
+			line: 'line' in parsed ? parsed.line : undefined
+		};
+	}
+
+	return {
+		id: 'parse-1',
+		severity: 'error',
+		category: 'schema',
+		message: 'YAML could not be parsed'
+	};
 }
 
 export { resourceId };

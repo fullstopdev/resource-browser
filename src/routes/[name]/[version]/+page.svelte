@@ -50,7 +50,8 @@
 		allReleases,
 		releaseManifest
 	} = data);
-	$: clientDeprecatedSince = data && 'deprecatedSince' in data ? data.deprecatedSince : null;
+	$: clientDeprecatedSince =
+		(data as { deprecatedSince?: string | null } | null | undefined)?.deprecatedSince ?? null;
 
 	onMount(() => {
 		// If no SSR value for deprecatedSince, compute it lazily in the background
@@ -64,7 +65,10 @@
 						try {
 							const res = await fetch(`/${r.folder}/manifest.json`);
 							if (!res.ok) continue;
-							const manifest = await res.json();
+							const manifest = (await res.json()) as Array<{
+								name: string;
+								versions?: { name: string; deprecated?: boolean }[];
+							}>;
 							const entry = manifest.find((x: any) => x.name === name);
 							if (!entry || !entry.versions) continue;
 							const v = entry.versions.find((vv: any) => vv.name === versionOnFocus);
@@ -163,7 +167,10 @@
 			try {
 				const resp = await fetch(`/${release.folder}/manifest.json`);
 				if (resp.ok) {
-					const manifest = await resp.json();
+					const manifest = (await resp.json()) as Array<{
+						name: string;
+						versions?: { name: string }[];
+					}>;
 					const entry = manifest.find((m: any) => m.name === resourceName);
 					if (entry && entry.versions) {
 						compareReleaseVersions = entry.versions.map((v: any) => v.name);

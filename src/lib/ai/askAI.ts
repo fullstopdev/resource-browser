@@ -16,6 +16,7 @@ export type ResolvedTargetSummary = {
 	kind: string;
 	group: string;
 	name: string;
+	version?: string;
 	kvHit: boolean;
 };
 

@@ -11,6 +11,7 @@ import type {
 
 export * from './types';
 export { EXAMPLE_BUNDLE_YAML } from './exampleBundle';
+export { firstParseIssueForInput, parseBundleResources, resourceId } from './parser';
 export {
 	formatYamlBundle,
 	fixApiVersionUpgrade,
@@ -26,6 +27,43 @@ export {
 	type FormatYamlOptions
 } from './formatYaml';
 export { applySuggestedFix } from './applyIssueFix';
+export {
+	extractDocumentYaml,
+	inferManifestIdentity,
+	isParseIssue,
+	replaceDocumentInBundle,
+	splitRawDocuments,
+	validateAiFixApply
+} from './replaceDocument';
+export { fixAllBundle, isAiUnavailableResult, type AiFixFn, type AiFixResult, type FixAllBundleOptions, type FixAllResult } from './fixAllBundle';
+export { bundleDocumentStartLine } from './documentLines';
+export {
+	buildYamlCompletions,
+	buildYamlCompletionContext,
+	completionDocumentation,
+	schemaKeyForResource,
+	schemaKeysForResources,
+	yamlPropertyInsertText,
+	yamlValueInsertText,
+	type YamlCompletionContext,
+	type YamlCompletionItem
+} from './yamlCompletions';
+export {
+	resolveYamlFieldContext,
+	yamlPathBreadcrumb,
+	schemaNodeForKeyParent,
+	schemaNodeForValue,
+	type YamlFieldContext
+} from './yamlFieldContext';
+export { buildYamlHoverMarkdown, extractYamlLineKey } from './yamlHover';
+export { bundleIssuesToMarkers, type YamlMarkerData } from './yamlMarkers';
+export {
+	collectSchemaProperties,
+	schemaAtYamlPath,
+	schemaLeafMeta,
+	type SchemaLeafMeta
+} from './schemaNavigation';
+export { resolveYamlCursor, specPathFromYamlPath, type YamlCursor } from './yamlCursor';
 export {
 	buildShareUrl,
 	decodeBundleFromUrl,

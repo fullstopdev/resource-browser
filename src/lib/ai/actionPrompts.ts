@@ -143,6 +143,101 @@ SUMMARY: one sentence.`
 	};
 }
 
+export type FixIssueContext = {
+	message: string;
+	fieldPath?: string;
+	line?: number;
+	severity?: string;
+};
+
+export function promptFixYaml(
+	release: string,
+	kind: string,
+	schema: AiSchemaPayload,
+	docYaml: string,
+	issue: FixIssueContext
+): ActionPrompt {
+	const issueLines = [
+		`Message: ${issue.message}`,
+		issue.fieldPath ? `Field: ${issue.fieldPath}` : null,
+		issue.line ? `Line: ${issue.line}` : null,
+		issue.severity ? `Severity: ${issue.severity}` : null
+	]
+		.filter(Boolean)
+		.join('\n');
+
+	return {
+		system: buildBasePrompt(release, kind, schema),
+		user: `Fix the following YAML manifest to resolve ONE validation issue for "${kind}" (EDA release ${release}).
+
+VALIDATION ISSUE:
+${issueLines}
+
+CURRENT YAML:
+\`\`\`yaml
+${docYaml}
+\`\`\`
+
+Rules:
+- Change only what is needed to resolve the reported issue.
+- Preserve unrelated fields, comments, and structure where possible.
+- Use valid enum values and types from the schema.
+- Do not invent fields not in the schema.
+- If the issue cannot be fixed safely without guessing, say FIXABLE: no.
+
+Output format (use exactly this structure):
+
+FIXABLE: yes | no
+
+EXPLANATION: one short paragraph describing what you changed or why it is not fixable
+
+FIXED_YAML:
+\`\`\`yaml
+(full corrected document — required when FIXABLE: yes)
+\`\`\``
+	};
+}
+
+export function promptFixYamlSyntax(
+	release: string,
+	docYaml: string,
+	issue: FixIssueContext
+): ActionPrompt {
+	const issueLines = [
+		`Message: ${issue.message}`,
+		issue.line ? `Line: ${issue.line}` : null
+	]
+		.filter(Boolean)
+		.join('\n');
+
+	return {
+		system: `You are an expert at fixing YAML syntax for Kubernetes manifests used in Nokia EDA release ${release}.
+Fix only syntax/structure problems (indentation, quotes, colons, list markers, document structure).
+Do not invent spec fields or change semantic values unless required to make valid YAML.
+Preserve apiVersion, kind, metadata.name, and metadata.namespace when present.`,
+		user: `Fix the YAML syntax error below.
+
+ISSUE:
+${issueLines}
+
+BROKEN YAML:
+\`\`\`yaml
+${docYaml}
+\`\`\`
+
+Output format (use exactly this structure):
+
+FIXABLE: yes | no
+
+EXPLANATION: one short paragraph
+
+FIXED_YAML:
+\`\`\`yaml
+(full corrected document — required when FIXABLE: yes)
+\`\`\``
+	};
+}
+
 export function promptExample(release: string, kind: string, schema: AiSchemaPayload): ActionPrompt {
 	return {
 		system: buildBasePrompt(release, kind, schema),
@@ -245,6 +340,7 @@ export const ACTION_MAX_TOKENS: Record<string, number> = {
 	explain: 768,
 	field: 300,
 	validate: 400,
+	fix: 1200,
 	example: 1200,
 	compare: 500,
 	'spec-search': 400,

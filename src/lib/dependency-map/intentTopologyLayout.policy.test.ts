@@ -253,7 +253,7 @@ describe('Dense release-graph layouts', () => {
 		const focus = layout.nodes.find((n) => n.data.isFocus)!;
 		const prereqs = layout.nodes.filter((n) => n.data.role === 'prerequisite');
 		const deps = layout.nodes.filter((n) => n.data.role === 'dependent');
-		expect(prereqs.length).toBe(3);
+		expect(prereqs.length).toBe(4);
 		expect(deps.length).toBe(17);
 		expect(deps.every((n) => n.position.x < focus.position.x)).toBe(true);
 		expect(prereqs.every((n) => n.position.x > focus.position.x)).toBe(true);
@@ -301,5 +301,61 @@ describe('Dense release-graph layouts', () => {
 		expect(depKinds).toContain('Fabric');
 		expect(depKinds).toContain('VirtualNetwork');
 		expect(depKinds).toContain('BGPGroup');
+	});
+
+	it('CommunitySet focus shows Policy references and deployment pairing', () => {
+		const communitySetId = 'communitysets.routingpolicies.eda.nokia.com';
+		const communityGraph: DependencyGraph = {
+			...policyGraph,
+			nodes: [
+				...policyGraph.nodes,
+				{
+					id: communitySetId,
+					kind: 'CommunitySet',
+					group: 'routingpolicies.eda.nokia.com',
+					type: 'config',
+					version: 'v1',
+					shortName: 'communitysets'
+				},
+				{
+					id: 'communitysetdeployments.routingpolicies.eda.nokia.com',
+					kind: 'CommunitySetDeployment',
+					group: 'routingpolicies.eda.nokia.com',
+					type: 'config',
+					version: 'v1',
+					shortName: 'communitysetdeployments'
+				}
+			],
+			links: [
+				...policyGraph.links,
+				{
+					id: 'p-cs',
+					source: policyFocus,
+					target: communitySetId,
+					rel: 'references',
+					field: 'spec.statements[].match.bgp.communitySet',
+					edgeClass: 'hardRef',
+					edgeSource: 'explicit'
+				},
+				{
+					id: 'csd-cs',
+					source: 'communitysetdeployments.routingpolicies.eda.nokia.com',
+					target: communitySetId,
+					rel: 'deploys',
+					edgeClass: 'intentDependency',
+					edgeSource: 'catalog'
+				}
+			]
+		};
+
+		const layout = buildIntentTopologyLayout(communityGraph, communitySetId);
+		expect(layout.isEmpty).toBe(false);
+		const kinds = layout.nodes.map((n) => n.data.kind).sort();
+		expect(kinds).toEqual(['CommunitySet', 'CommunitySetDeployment', 'Policy']);
+
+		const policy = layout.nodes.find((n) => n.data.kind === 'Policy')!;
+		expect(policy.data.role).toBe('dependent');
+		const deployment = layout.nodes.find((n) => n.data.kind === 'CommunitySetDeployment')!;
+		expect(deployment.data.role).toBe('dependent');
 	});
 });

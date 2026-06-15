@@ -6,6 +6,42 @@ function escapeHtml(text: string): string {
 		.replace(/"/g, '&quot;');
 }
 
+function parseTableRow(line: string): string[] {
+	return line
+		.trim()
+		.replace(/^\|/, '')
+		.replace(/\|$/, '')
+		.split('|')
+		.map((cell) => cell.trim());
+}
+
+function isTableSeparator(line: string): boolean {
+	return /^\|?[\s:|-]+\|?$/.test(line.trim());
+}
+
+function renderMarkdownTable(block: string, stash: (html: string) => string): string {
+	const lines = block.trim().split('\n').filter(Boolean);
+	if (lines.length < 2 || !isTableSeparator(lines[1])) return block;
+
+	const headers = parseTableRow(lines[0]);
+	const rows = lines.slice(2).map(parseTableRow);
+	const headHtml = headers
+		.map((cell) => `<th class="md-th">${escapeHtml(cell)}</th>`)
+		.join('');
+	const bodyHtml = rows
+		.map(
+			(row) =>
+				`<tr class="md-tr">${row
+					.map((cell) => `<td class="md-td">${escapeHtml(cell)}</td>`)
+					.join('')}</tr>`
+		)
+		.join('');
+
+	return stash(
+		`<div class="md-table-wrap"><table class="md-table"><thead><tr class="md-tr">${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`
+	);
+}
+
 /** Lightweight markdown → HTML for Ask AI answers (headings, lists, code, links). */
 export function renderSimpleMarkdown(text: string): string {
 	if (!text.trim()) return '';
@@ -21,7 +57,13 @@ export function renderSimpleMarkdown(text: string): string {
 		return key;
 	};
 
-	let s = escapeHtml(text);
+	let raw = text.replace(/(?:^\|.+\|\s*$\n?)+/gm, (block) => {
+		if (!block.includes('\n')) return block;
+		const rendered = renderMarkdownTable(block, stash);
+		return rendered === block ? block : rendered;
+	});
+
+	let s = escapeHtml(raw);
 
 	s = s.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
 		const label = lang ? `<span class="md-code-lang">${lang}</span>` : '';
@@ -57,6 +99,7 @@ export function renderSimpleMarkdown(text: string): string {
 			if (!trimmed) return '';
 			if (/^@@MD\d+@@$/.test(trimmed)) return trimmed;
 			if (/^<h[234]/.test(trimmed)) return trimmed;
+			if (/^<div class="md-table-wrap"/.test(trimmed)) return trimmed;
 			return `<p class="md-p">${trimmed.replace(/\n/g, '<br />')}</p>`;
 		})
 		.filter(Boolean)

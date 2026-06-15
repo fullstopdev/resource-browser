@@ -24,7 +24,13 @@ describe('classifyQuestionIntent', () => {
 		);
 	});
 
-	it('defaults to overview', () => {
+	it('detects overview for explicit what-is questions', () => {
 		expect(classifyQuestionIntent('What is the Policy CRD in 26.4.2?')).toBe('overview');
+	});
+
+	it('uses general intent for listing questions without overview phrasing', () => {
+		expect(classifyQuestionIntent('What Policy CRDs exist for routing in 26.4.2?')).toBe(
+			'general'
+		);
 	});
 });

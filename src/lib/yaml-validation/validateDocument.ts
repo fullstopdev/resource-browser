@@ -7,7 +7,6 @@ import {
 	findManifestEntriesByGroup,
 	findManifestEntriesByKind,
 	findManifestEntriesByKindInsensitive,
-	normalizeKind,
 	resolveEntryKind,
 	formatCrdNotFoundMessage,
 	formatInvalidApiVersionMessage,
@@ -247,8 +246,7 @@ export function validateDocument(ctx: ValidateDocContext): {
 	if (parsedYaml.kind && group) {
 		const kindStr = String(parsedYaml.kind);
 		const apiVersionStr = String(parsedYaml.apiVersion);
-		const lookupKind = normalizeKind(kindStr, manifest, group) ?? kindStr;
-		const resourceEntry = findManifestEntry(manifest, lookupKind, group);
+		const resourceEntry = findManifestEntry(manifest, kindStr, group);
 		if (!resourceEntry) {
 			const kindCaseMismatch =
 				findManifestEntryCaseMismatch(manifest, kindStr, group) ??

@@ -55,6 +55,10 @@
 		unchanged: report.crds.filter((c) => c.status === 'unchanged').length
 	};
 
+	function statusCount(status: DiffStatus): number {
+		return (summaryCounts as Partial<Record<DiffStatus, number>>)[status] ?? 0;
+	}
+
 	$: filteredCrds = report.crds.filter((crd) => {
 		if (!statusFilter.includes(crd.status)) return false;
 		if (crd.name.includes('states')) return false;
@@ -127,7 +131,7 @@
 						? `comparison-filter-chip--active ${item.chipClass}`
 						: 'comparison-filter-chip--inactive'}"
 				>
-					<span>{summaryCounts[item.status]}</span>
+					<span>{statusCount(item.status)}</span>
 					<span>{item.label}</span>
 				</button>
 			{/each}

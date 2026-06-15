@@ -32,7 +32,7 @@ describe('resourceBrowserPathFromMetadata', () => {
 				'26.4.2',
 				'/resources/26.4.2/policies.core.eda.nokia.com/v1.yaml'
 			)
-		).toBe('/policies.core.eda.nokia.com/v1?release=26.4.2');
+		).toBe('/?release=26.4.2&crd=policies.core.eda.nokia.com&version=v1');
 	});
 });
 

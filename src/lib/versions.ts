@@ -1,4 +1,12 @@
 import type { CrdResource, CrdVersions } from '$lib/structure';
+import type { ManifestResource } from '$lib/manifest/types';
+
+export type VersionSource =
+	| Pick<CrdResource, 'versions'>
+	| ManifestResource
+	| CrdVersions[]
+	| null
+	| undefined;
 
 export function parseVersionName(versionName: string) {
 	const m = /^v(\d+)(?:(alpha|beta)(\d+)?)?$/.exec(versionName || '');
@@ -20,23 +28,27 @@ export function compareVersionDesc(a: string, b: string) {
 	return pb.raw.localeCompare(pa.raw);
 }
 
-export function getLatestVersion(
-	resourceEntry: Pick<CrdResource, 'versions'> | CrdVersions[] | null | undefined
-): string {
+export function getLatestVersion(resourceEntry: VersionSource): string {
 	return pickLatestApiVersion(
 		Array.isArray(resourceEntry)
 			? resourceEntry
 			: Array.isArray(resourceEntry?.versions)
-				? resourceEntry.versions
+				? (resourceEntry.versions as CrdVersions[])
 				: []
 	);
 }
 
-/** Pick the latest non-deprecated K8s apiVersion from manifest versions (v1 > v1beta1 > v1alpha1). */
+/** True when at least one non-deprecated apiVersion exists. */
+export function hasActiveApiVersion(versions: CrdVersions[] | null | undefined): boolean {
+	const list = Array.isArray(versions) ? versions : [];
+	return list.some((v) => v?.name && !v.deprecated);
+}
+
+/** Pick the latest non-deprecated K8s apiVersion (v1 > v1beta1 > v1alpha1). Returns '' if none. */
 export function pickLatestApiVersion(versions: CrdVersions[] | null | undefined): string {
 	const list = Array.isArray(versions) ? versions : [];
 	const nonDeprecated = list.filter((v) => v?.name && !v?.deprecated);
-	const target = nonDeprecated.length > 0 ? nonDeprecated : list.filter((v) => v?.name);
-	const sorted = target.map((v) => v.name).sort(compareVersionDesc);
+	if (!nonDeprecated.length) return '';
+	const sorted = nonDeprecated.map((v) => v.name).sort(compareVersionDesc);
 	return sorted[0] || '';
 }

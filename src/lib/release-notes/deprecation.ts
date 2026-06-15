@@ -1,15 +1,15 @@
 import type { ManifestResource } from '$lib/manifest';
-import { displayKind, displayGroup } from '$lib/resourceSearch';
+import { displayKind, displayGroup, type SearchableResource } from '$lib/resourceSearch';
 import type { DeprecatedApiVersion, DeprecatedItem } from './types';
 
 const REMOVED_IN_UNKNOWN = 'Next major release';
 
 export function resolveResourceKind(resource: ManifestResource): string {
-	return displayKind(resource);
+	return displayKind(resource as SearchableResource);
 }
 
 export function resolveResourceGroup(resource: ManifestResource): string {
-	return displayGroup(resource);
+	return displayGroup(resource as SearchableResource);
 }
 
 export function fullApiVersion(resource: ManifestResource, versionName: string): string {

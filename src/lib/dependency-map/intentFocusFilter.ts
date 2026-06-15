@@ -32,6 +32,15 @@ export function isRoutingPolicyAggregateMember(node: GraphNode | undefined): boo
 	return node.group === 'routingpolicies.eda.nokia.com' && ROUTING_POLICY_MEMBER_KINDS.has(node.kind);
 }
 
+/** Config *Set CRDs (not *SetDeployment) in routingpolicies.eda.nokia.com. */
+export function isRoutingPolicySetKind(kind: string): boolean {
+	return (
+		ROUTING_POLICY_MEMBER_KINDS.has(kind) &&
+		kind.endsWith('Set') &&
+		!kind.endsWith('Deployment')
+	);
+}
+
 /**
  * When drilling into a routing-policy child, hide sibling set/deployment CRDs that only
  * appear through multi-hop paths (e.g. extended mode via a shared Policy hub).

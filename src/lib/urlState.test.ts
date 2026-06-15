@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 import type { CrdResource, EdaRelease } from '$lib/structure';
 import {
 	buildCatalogPath,
+	buildCatalogCrdPath,
 	buildComparisonPath,
+	buildDependencyMapFocusPath,
 	buildSpecSearchPath,
 	catalogBrowseFromParams,
 	crdParamForResource,
 	normalizeSpecSearchVersion,
 	parseCatalogParams,
 	parseComparisonParams,
+	parseDependencyMapParams,
 	parseSpecSearchParams,
 	resolveCrdFromParam,
 	resolveReleaseName
@@ -80,6 +83,19 @@ describe('catalog URL helpers', () => {
 		).toBe('/?release=26.4.2&crd=NetworkInstance&version=v1');
 	});
 
+	it('builds catalog CRD modal links from kind or name', () => {
+		expect(
+			buildCatalogCrdPath({ release: '26.4.2', kind: 'Fabric', version: 'v1alpha1' })
+		).toBe('/?release=26.4.2&crd=Fabric&version=v1alpha1');
+		expect(
+			buildCatalogCrdPath({
+				release: '26.4.2',
+				name: 'fabrics.eda.nokia.com',
+				version: 'v1alpha1'
+			})
+		).toBe('/?release=26.4.2&crd=fabrics.eda.nokia.com&version=v1alpha1');
+	});
+
 	it('detects browse mode from release or crd', () => {
 		expect(catalogBrowseFromParams(new URLSearchParams('release=26.4.2'))).toBe(true);
 		expect(catalogBrowseFromParams(new URLSearchParams('crd=Topology'))).toBe(true);
@@ -89,6 +105,33 @@ describe('catalog URL helpers', () => {
 
 	it('prefers kind in crd param', () => {
 		expect(crdParamForResource(resources[0])).toBe('NetworkInstance');
+	});
+});
+
+describe('dependency map URL helpers', () => {
+	it('builds focus links with resource and group params', () => {
+		expect(
+			buildDependencyMapFocusPath({
+				release: '26.4.2',
+				name: 'policys.routingpolicies.eda.nokia.com',
+				kind: 'Policy',
+				group: 'routingpolicies.eda.nokia.com'
+			})
+		).toBe(
+			'/dependency-map?release=26.4.2&resource=policys.routingpolicies.eda.nokia.com&group=routingpolicies.eda.nokia.com'
+		);
+	});
+
+	it('parses legacy focus param as resource', () => {
+		expect(
+			parseDependencyMapParams(
+				new URLSearchParams('release=26.4.2&focus=interfaces.interfaces.eda.nokia.com')
+			)
+		).toEqual({
+			release: '26.4.2',
+			resource: 'interfaces.interfaces.eda.nokia.com',
+			group: undefined
+		});
 	});
 });
 

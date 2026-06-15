@@ -71,6 +71,13 @@ function formatKeyFields(schema: AiSchemaPayload, maxFields: number, descMaxLen 
 	const bullets: string[] = [];
 	for (const key of keys.slice(0, limit)) {
 		const prop = resolved.properties[key];
+		if (
+			prop &&
+			typeof prop === 'object' &&
+			(prop as Record<string, unknown>).deprecated === true
+		) {
+			continue;
+		}
 		const type = schemaTypeLabel(prop);
 		const desc = shortDescription(prop, descMaxLen);
 		const req = schema.specRequired.includes(key) ? ' **required**' : '';
@@ -355,6 +362,13 @@ export function formatKvExampleContextSection(cachedExample: string, kind?: stri
 		return `${label}\n${trimmed}`;
 	}
 	return `${label}\n\`\`\`yaml\n${trimmed}\n\`\`\``;
+}
+
+/** Wrap release-wide dependency map KV text for Ask AI context. */
+export function formatKvDependencyMapSection(mapText: string): string {
+	const label =
+		'## Release dependency map (KV — authoritative topology for this EDA release)';
+	return `${label}\n${mapText.trim()}`;
 }
 
 export type ExampleYamlTarget = {

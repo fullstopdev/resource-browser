@@ -2,19 +2,28 @@ export type AiAction =
 	| 'explain'
 	| 'field'
 	| 'validate'
+	| 'fix'
 	| 'example'
 	| 'compare'
 	| 'spec-search';
 
+export type FixIssuePayload = {
+	message: string;
+	fieldPath?: string;
+	line?: number;
+	severity?: string;
+};
+
 export type AskAIActionParams = {
 	release: string;
-	kind: string;
+	kind?: string;
 	action: AiAction;
 	group?: string;
 	version?: string;
 	field?: string;
 	userYaml?: string;
 	compareRelease?: string;
+	issue?: FixIssuePayload;
 };
 
 export type AiActionResult = {
@@ -25,6 +34,9 @@ export type AiActionResult = {
 	field?: string;
 	action?: string;
 	examples?: string[];
+	fixable?: boolean;
+	fixedYaml?: string;
+	explanation?: string;
 	error?: string;
 	llmFallback?: boolean;
 	fallbackReason?: 'quota' | 'llm_error';
@@ -64,7 +76,11 @@ export async function askAI(params: AskAIActionParams): Promise<AiActionResult> 
 	}
 
 	if (!response.ok) {
-		return { answer: '', error: friendlyError(response.status, data.error) };
+		return {
+			answer: '',
+			error: friendlyError(response.status, data.error),
+			fallbackReason: data.fallbackReason
+		};
 	}
 
 	return data;
@@ -78,6 +94,21 @@ export const explainField = (release: string, kind: string, field: string, group
 
 export const validateYAML = (release: string, kind: string, userYaml: string, group?: string) =>
 	askAI({ release, kind, group, action: 'validate', userYaml });
+
+export const fixYAML = (
+	release: string,
+	userYaml: string,
+	issue: FixIssuePayload,
+	opts?: { kind?: string; group?: string }
+) =>
+	askAI({
+		release,
+		kind: opts?.kind,
+		group: opts?.group,
+		action: 'fix',
+		userYaml,
+		issue
+	});
 
 export const generateExample = (release: string, kind: string, group?: string) =>
 	askAI({ release, kind, group, action: 'example' });

@@ -15,6 +15,12 @@
     import releasesYaml from '$lib/releases.yaml?raw';
     import type { EdaRelease, ReleasesConfig } from '$lib/structure';
 
+    type PrunedSchema = {
+        type?: string;
+        properties?: Record<string, unknown>;
+        required?: string[];
+    };
+
     const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
 
     let releaseName = '';
@@ -196,7 +202,7 @@
     $: if (release && release.folder && !manifestCache.has(release.folder)) {
         fetch(`/${release.folder}/manifest.json`)
             .then((r) => { if (r.ok) return r.json(); return null; })
-            .then((j) => { if (j) manifestCache.set(release.folder, j); })
+            .then((j) => { if (j && release) manifestCache.set(release.folder, j); })
             .catch(() => { /* ignore prefetch errors */ });
     }
 
@@ -248,7 +254,7 @@
         try {
             const resp = await fetch(`/${rel.folder}/manifest.json`);
             if (resp.ok) {
-                const manifest = await resp.json();
+                const manifest = (await resp.json()) as Array<{ versions?: { name: string }[] }>;
                 const versionSet = new Set<string>();
                 manifest.forEach((resource: any) => {
                     resource.versions?.forEach((v: any) => {
@@ -414,6 +420,7 @@
                             txt = await r.text();
                             yamlCache.set(path, txt);
                         }
+                        if (!txt) continue;
                         const parsed = loadStaticYaml(txt) as any;
                         const spec = parsed?.schema?.openAPIV3Schema?.properties?.spec;
                         const status = parsed?.schema?.openAPIV3Schema?.properties?.status;
@@ -427,7 +434,7 @@
 
                         if (spec) {
                             const stripped = searchInDescription ? spec : stripDescriptions(spec);
-                            const pruned = pruneSchemaShared(stripped, q, searchInDescription);
+                            const pruned = pruneSchemaShared(stripped, q, searchInDescription) as PrunedSchema | null;
                             if (pruned) {
                                 let readySchema = pruned;
                                 try {

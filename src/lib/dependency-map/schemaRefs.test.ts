@@ -18,6 +18,7 @@ import {
 	extractSchemaReferences,
 	inferRelationFromDescription,
 	isDescriptionMetaReference,
+	kindFromRoutingPolicySetField,
 	resolveGvkTarget,
 	resolveKindTarget,
 	resolveKindTargetWithContext,
@@ -175,6 +176,18 @@ describe('schemaRefs extraction', () => {
 		expect(
 			extractKindsFromDescription('Reference to an IRBInterface resource for the local address.')
 		).toContain('IrbInterface');
+	});
+
+	it('maps routing policy set fields including communitySet', () => {
+		expect(kindFromRoutingPolicySetField('communitySet')).toBe('CommunitySet');
+		expect(kindFromRoutingPolicySetField('prefixSet')).toBe('PrefixSet');
+		const edges = extractExplicitRefEdges({
+			name: 'communitySet',
+			path: 'spec.statements[].match.bgp.communitySet',
+			description: 'Match conditions for BGP communities.'
+		});
+		expect(edges.map((e) => e.kind)).toEqual(['CommunitySet']);
+		expect(edges[0]?.edgeClass).toBe('hardRef');
 	});
 
 	it('resolves meta interface-kind selectors from context', () => {

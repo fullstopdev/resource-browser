@@ -2,8 +2,6 @@
 	import '../app.css';
 
 	import { initTheme } from '$lib/theme';
-	import GlobalAskPanel from '$lib/components/GlobalAskPanel.svelte';
-	import { askAiEnabled } from '$lib/featureFlags';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
@@ -22,10 +20,6 @@
 
 	onMount(() => initTheme());
 </script>
-
-{#if askAiEnabled}
-	<GlobalAskPanel />
-{/if}
 
 {#if $isDetailPage}
 	<div class="page-shell flex min-h-[100dvh] flex-col bg-gray-50 lg:h-screen lg:overflow-hidden">

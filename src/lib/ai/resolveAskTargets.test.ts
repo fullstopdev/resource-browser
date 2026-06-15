@@ -4,7 +4,8 @@ import {
 	MAX_ASK_TARGETS,
 	questionAsksExampleYaml,
 	questionAsksRequiredFields,
-	resolveAskTargets
+	resolveAskTargets,
+	resolveAskTargetsWithMeta
 } from './resolveAskTargets';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
 
@@ -110,6 +111,49 @@ describe('resolveAskTargets', () => {
 		expect(targets[0].kind).toBe('Policy');
 		expect(targets[0].group).toBe('routingpolicies.eda.nokia.com');
 		expect(targets[0].source).toBe('pinned');
+		expect(targets[0].version).toBe('v1');
+	});
+
+	it('includes latest non-deprecated apiVersion on resolved targets', () => {
+		const targets = resolveAskTargets({
+			question: 'Required fields for Interface in 26.4.2?',
+			release: '26.4.2',
+			manifest: [
+				{
+					name: 'interfaces.eda.nokia.com',
+					kind: 'Interface',
+					group: 'interfaces.eda.nokia.com',
+					versions: [
+						{ name: 'v1alpha1', deprecated: true },
+						{ name: 'v2', deprecated: false }
+					]
+				}
+			]
+		});
+		expect(targets[0]?.kind).toBe('Interface');
+		expect(targets[0]?.version).toBe('v2');
+	});
+
+	it('excludes fully deprecated CRDs from resolution', () => {
+		const { targets } = resolveAskTargetsWithMeta({
+			question: 'What is OldKind?',
+			release: '26.4.2',
+			manifest: [
+				{
+					name: 'old.example.com',
+					kind: 'OldKind',
+					group: 'example.com',
+					versions: [{ name: 'v1alpha1', deprecated: true }]
+				},
+				{
+					name: 'policys.routingpolicies.eda.nokia.com',
+					kind: 'Policy',
+					group: 'routingpolicies.eda.nokia.com',
+					versions: [{ name: 'v1', deprecated: false }]
+				}
+			]
+		});
+		expect(targets.every((t) => t.kind !== 'OldKind')).toBe(true);
 	});
 
 	it('resolves fabric topic to fabric apiGroup CRDs excluding states', () => {

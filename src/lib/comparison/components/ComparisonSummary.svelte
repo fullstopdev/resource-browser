@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { DiffStatus } from '../types';
 
-	export let counts: {
+	export let counts: Partial<Record<DiffStatus, number>> & {
 		added: number;
 		removed: number;
 		modified: number;
@@ -33,7 +33,7 @@
 			aria-pressed={statusFilter.includes(item.status)}
 		>
 			<span class="comparison-summary-card__icon" aria-hidden="true">{item.icon}</span>
-			<span class="comparison-summary-card__count">{counts[item.status]}</span>
+			<span class="comparison-summary-card__count">{counts[item.status] ?? 0}</span>
 			<span class="comparison-summary-card__label">{item.label}</span>
 		</button>
 	{/each}

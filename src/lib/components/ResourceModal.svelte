@@ -643,7 +643,7 @@
 										<div>
 											<h4 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">{section.title}</h4>
 											<div class="grid gap-4 md:grid-cols-2">
-												{#each [{ label: versionOnFocus, side: 'left' }, { label: compareVersion, side: 'right' }] as col}
+												{#each [{ label: versionOnFocus, side: 'left' as const }, { label: compareVersion, side: 'right' as const }] as col}
 													<div class="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700">
 														<div class="border-b border-slate-200 px-3 py-2 dark:border-slate-700">
 															<span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">{col.label}</span>

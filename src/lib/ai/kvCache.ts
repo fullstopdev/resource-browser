@@ -1,7 +1,13 @@
-export const AI_CACHE_PREFIX = 'ai:v1';
+export const AI_CACHE_PREFIX = 'ai:v2';
+
+/** Sentinel kind for release-scoped KV entries (e.g. full dependency map). */
+export const RELEASE_CACHE_KIND = '__release__';
+
+export const RELEASE_DEPENDENCY_MAP_ACTION = 'dependency-map';
 
 /** Actions warmed for Ask AI grounding (see scripts/warm-cache.ts). */
 export const ASK_WARM_ACTIONS = [
+	'dependency-map',
 	'schema-summary',
 	'relationships',
 	'explain',
@@ -11,6 +17,7 @@ export const ASK_WARM_ACTIONS = [
 
 /** Deterministic cache actions — no Workers AI neurons required. */
 export const DETERMINISTIC_CACHE_ACTIONS = new Set([
+	'dependency-map',
 	'schema-summary',
 	'relationships',
 	'full-context'
@@ -20,8 +27,9 @@ export type AiCachePayload = {
 	answer: string;
 	release: string;
 	kind: string;
-	field?: string;
 	action: string;
+	apiVersion?: string;
+	field?: string;
 	examples?: string[];
 	compareRelease?: string;
 };
@@ -30,17 +38,32 @@ export function buildCacheKey(params: {
 	release: string;
 	kind: string;
 	group?: string;
+	apiVersion?: string;
 	field?: string;
 	compareRelease?: string;
 	action: string;
 }): string {
 	const groupSegment = params.group ? encodeURIComponent(params.group) : 'none';
+	const apiVersionSegment = params.apiVersion
+		? encodeURIComponent(params.apiVersion)
+		: 'none';
 	const fieldSegment = params.field ? encodeURIComponent(params.field) : 'none';
 	const compareSegment = params.compareRelease ?? 'none';
-	return `${AI_CACHE_PREFIX}:${params.release}:${params.kind}:${groupSegment}:${fieldSegment}:${compareSegment}:${params.action}`;
+	return `${AI_CACHE_PREFIX}:${params.release}:${params.kind}:${groupSegment}:${apiVersionSegment}:${fieldSegment}:${compareSegment}:${params.action}`;
 }
 
-/** Legacy cache keys (pre group segment) for warmed KV without apiGroup. */
+/** KV key for release-wide cache entries (one per release, not per CRD). */
+export function buildReleaseCacheKey(params: { release: string; action: string }): string {
+	return buildCacheKey({
+		release: params.release,
+		kind: RELEASE_CACHE_KIND,
+		group: 'none',
+		apiVersion: 'none',
+		action: params.action
+	});
+}
+
+/** Legacy v1 cache keys (pre apiVersion segment) — not read after v2 rollout. */
 export function buildLegacyCacheKey(params: {
 	release: string;
 	kind: string;
@@ -50,12 +73,12 @@ export function buildLegacyCacheKey(params: {
 }): string {
 	const fieldSegment = params.field ? encodeURIComponent(params.field) : 'none';
 	const compareSegment = params.compareRelease ?? 'none';
-	return `${AI_CACHE_PREFIX}:${params.release}:${params.kind}:${fieldSegment}:${compareSegment}:${params.action}`;
+	return `ai:v1:${params.release}:${params.kind}:${fieldSegment}:${compareSegment}:${params.action}`;
 }
 
 export async function getCachedAiResponsesForTargets(
 	kv: KVNamespace | undefined,
-	targets: Array<{ release: string; kind: string; group: string }>,
+	targets: Array<{ release: string; kind: string; group: string; apiVersion?: string }>,
 	action: string
 ): Promise<Map<string, AiCachePayload | null>> {
 	const results = new Map<string, AiCachePayload | null>();
@@ -68,6 +91,7 @@ export async function getCachedAiResponsesForTargets(
 				release: target.release,
 				kind: target.kind,
 				group: target.group,
+				apiVersion: target.apiVersion,
 				action
 			});
 			results.set(key, cached);
@@ -82,6 +106,7 @@ export async function getCachedAiResponseWithFallback(
 		release: string;
 		kind: string;
 		group?: string;
+		apiVersion?: string;
 		field?: string;
 		compareRelease?: string;
 		action: string;
@@ -90,14 +115,11 @@ export async function getCachedAiResponseWithFallback(
 	if (!kv) return null;
 	const primary = await getCachedAiResponse(kv, buildCacheKey(params));
 	if (primary) return primary;
-	if (params.group) {
-		return getCachedAiResponse(kv, buildLegacyCacheKey(params));
-	}
 	return null;
 }
 
 export function isCacheableAction(action: string): boolean {
-	return action !== 'validate';
+	return action !== 'validate' && action !== 'fix';
 }
 
 export function isDeterministicCacheAction(action: string): boolean {

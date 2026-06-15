@@ -65,7 +65,8 @@ const interfaceSchema: AiSchemaPayload = {
 			description: { type: 'string', description: 'Optional human-readable label.' }
 		},
 		required: ['members', 'enabled']
-	}
+	},
+	statusSchema: { type: 'object', description: 'InterfaceStatus defines the observed state of Interface.' }
 };
 
 describe('formatAnswer', () => {

@@ -1,10 +1,17 @@
 import { findManifestEntry } from '$lib/manifest/lookup';
-import { resolveObjectSchema } from '$lib/schema/requiredFields';
 import { getLatestVersion } from '$lib/versions';
 import { schemaPath, fetchSchemas } from '$lib/yaml-validation/schemaCache';
 import { validateYamlInput } from '$lib/yaml-validation';
 import { findLineForPointerInDoc } from '$lib/yaml-validation/parseDocuments';
 import type { EnrichedError, ManifestEntry } from '$lib/yaml-validation/types';
+import { resolveObjectSchema } from '$lib/schema/requiredFields';
+import {
+	collectSchemaProperties,
+	getChildPropertySchema,
+	getItemsSchema,
+	schemaLeafMeta,
+	truncateDetail
+} from './schemaNavigation';
 import type { BundleIssue, BundleResource } from './types';
 
 let issueCounter = 0;
@@ -39,33 +46,8 @@ function toBundleIssue(err: EnrichedError, resource?: BundleResource): BundleIss
 	};
 }
 
-function collectSchemaProperties(schema: unknown): Set<string> | null {
-	if (!schema || typeof schema !== 'object') return null;
-	const s = schema as Record<string, unknown>;
-	if (s.properties && typeof s.properties === 'object') {
-		return new Set(Object.keys(s.properties as Record<string, unknown>));
-	}
-	return null;
-}
-
 function joinFieldPath(key: string, parent: string): string {
 	return parent ? `${parent}.${key}` : key;
-}
-
-function getItemsSchema(schema: unknown): unknown {
-	if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return null;
-	const node = schema as Record<string, unknown>;
-	if (node.items) return node.items;
-	return resolveObjectSchema(schema);
-}
-
-function getChildPropertySchema(schema: unknown, key: string): unknown {
-	if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return null;
-	const node = schema as Record<string, unknown>;
-	if (node.properties && typeof node.properties === 'object') {
-		return (node.properties as Record<string, unknown>)[key] ?? null;
-	}
-	return resolveObjectSchema(schema)?.properties[key] ?? null;
 }
 
 /** Walk data against schema properties; flags keys not defined in the CRD schema. */

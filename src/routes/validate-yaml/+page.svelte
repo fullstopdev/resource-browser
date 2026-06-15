@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import AppHeader from '$lib/components/AppHeader.svelte';
-	import PageCredits from '$lib/components/PageCredits.svelte';
 	import ResourceModal from '$lib/components/ResourceModal.svelte';
 	import releasesYaml from '$lib/releases.yaml?raw';
 	import type { CrdResource, EdaRelease, ReleasesConfig } from '$lib/structure';
@@ -12,22 +11,40 @@
 	import { getLatestVersion } from '$lib/versions';
 	import {
 		validateBundle,
-		formatYamlBundle,
 		formatFixSummary,
 		type FixSummary,
 		applySuggestedFix,
+		extractDocumentYaml,
+		inferManifestIdentity,
+		replaceDocumentInBundle,
+		validateAiFixApply,
+		fixAllBundle,
+		type AiFixFn,
+		parseBundleResources,
+		buildYamlCompletionContext,
+		schemaKeysForResources,
+		type YamlCompletionContext,
 		decodeBundleFromUrl,
 		getBundleParamFromSearchParams,
 		EXAMPLE_BUNDLE_YAML,
+		firstParseIssueForInput,
 		type BundleIssue,
 		type BundleResource,
 		type BundleValidationResult
 	} from '$lib/validate-bundle';
-	import YamlBundleEditor from '$lib/validate-bundle/YamlBundleEditor.svelte';
+	import AiFixPreviewPanel from '$lib/validate-bundle/AiFixPreviewPanel.svelte';
+	import { fixYAML } from '$lib/ai/aiClient';
 	import { clampYamlInput } from '$lib/yaml/inputLimits';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 
 	const releasesConfig = loadStaticYaml(releasesYaml) as ReleasesConfig;
+
+	type MonacoEditorInstance = {
+		focusLine?: (line: number) => Promise<void>;
+	};
+
+	// Dynamic import — loose typing keeps bind:this and custom events valid.
+	let MonacoEditorCmp: any = null;
 
 	type IssueGroup = {
 		key: string;
@@ -46,7 +63,7 @@
 	let isValidating = false;
 	let clientReady = false;
 	let highlightLine: number | null = null;
-	let editorRef: YamlBundleEditor | undefined;
+	let editorRef: any = undefined;
 	let manifestResources: ManifestResource[] = [];
 	let modalOpen = false;
 	let modalResource: CrdResource | null = null;
@@ -62,6 +79,25 @@
 	let issueSearch = '';
 	let collapsedGroups = new Set<string>();
 	let yamlTruncationWarned = false;
+
+	let aiFixPanelOpen = false;
+	let aiFixIssue: BundleIssue | null = null;
+	let aiFixLoading = false;
+	let aiFixError: string | null = null;
+	let aiFixExplanation = '';
+	let aiFixOriginalYaml = '';
+	let aiFixFixedYaml: string | null = null;
+	let aiFixFixable = false;
+	let aiFixApplyBlockedReason: string | null = null;
+	let aiFixRequestId = 0;
+	let isFixingAll = false;
+	let yamlCompletionContext: YamlCompletionContext | null = null;
+	let completionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+	let completionSchemaFetchSerial = 0;
+	let loadedSchemaFingerprint = '';
+	let previousCompletionReleaseFolder = '';
+	let liveValidateTimer: ReturnType<typeof setTimeout> | null = null;
+	let activeView: 'editor' | 'diagnostics' = 'editor';
 
 	const manifestCache = getManifestCache();
 
@@ -84,12 +120,19 @@
 	}
 
 	$: displayIssues = result?.issues ?? [];
-	$: hasParseError = result?.issues.some((i) => i.id.startsWith('parse-')) ?? false;
 	$: formatDisabled = !yamlInput.trim();
-	$: formatLabel = hasParseError ? 'Fix syntax' : 'Fix manifest';
-	$: formatTooltip = hasParseError
-		? 'Cannot auto-fix until YAML syntax errors are resolved'
-		: 'Re-indent, fix DNS names, apiVersion/kind casing, enum and boolean values, and upgrade apiVersion';
+	$: formatLabel = 'Fix manifest';
+	$: formatTooltip =
+		'Fix syntax with AI when needed, then DNS names, apiVersion/kind casing, enums, booleans, and apiVersion upgrades';
+	$: fixAllDisabled =
+		formatDisabled ||
+		!release ||
+		isFixingAll ||
+		isValidating ||
+		!result ||
+		(result.summary.errorCount === 0 && result.summary.warningCount === 0);
+	$: fixAllTooltip =
+		'Apply format manifest + all one-click fixes for errors and warnings with suggested values (AI fixes still per-issue)';
 
 	$: filteredIssues = displayIssues.filter((issue) => {
 		if (issueFilter === 'errors' && issue.severity !== 'error') return false;
@@ -106,6 +149,9 @@
 	});
 
 	$: issueGroups = groupIssues(filteredIssues);
+	$: diagnosticsCount = result
+		? result.summary.errorCount + result.summary.warningCount
+		: 0;
 
 	function groupIssues(issues: BundleIssue[]): IssueGroup[] {
 		const map = new Map<string, IssueGroup>();
@@ -189,25 +235,135 @@
 		}
 	}
 
-	async function handleFormatYaml() {
-		const formatOptions =
-			release && manifestResources.length
-				? { releaseFolder: release.folder, manifest: manifestResources }
-				: release
-					? {
-							releaseFolder: release.folder,
-							manifest: (await fetchManifest(release.folder, manifestCache)) || []
-						}
-					: undefined;
+	async function getFormatOptions() {
+		if (manifestResources.length) {
+			return { releaseFolder: release!.folder, manifest: manifestResources };
+		}
+		return {
+			releaseFolder: release!.folder,
+			manifest: (await fetchManifest(release!.folder, manifestCache)) || []
+		};
+	}
 
-		const formatResult = await formatYamlBundle(yamlInput, formatOptions);
-		if (!formatResult.ok) {
-			showToast(formatResult.message);
+	function createAiFixFn(): AiFixFn {
+		return async ({ docYaml, issue, kind, group }) => {
+			if (!release) return {};
+			const result = await fixYAML(
+				release.name,
+				docYaml,
+				{
+					message: issue.message,
+					fieldPath: issue.fieldPath,
+					line: issue.line,
+					severity: issue.severity
+				},
+				kind ? { kind, group } : undefined
+			);
+			return {
+				fixedYaml: result.fixedYaml,
+				fixable: result.fixable,
+				error: result.error,
+				fallbackReason: result.fallbackReason
+			};
+		};
+	}
+
+	async function runBulkFix(options: { requireIssues?: boolean } = {}) {
+		if (!release) {
+			showToast('Select an EDA release first.');
 			return;
 		}
-		setYamlInput(formatResult.formatted);
-		showFixSummary(formatFixSummary(formatResult.fixes, formatResult.docCount));
-		void runValidation();
+
+		if (!result) {
+			await runValidation();
+		}
+
+		const issues = result?.issues ?? [];
+		const parseIssue = firstParseIssueForInput(yamlInput);
+		if (
+			options.requireIssues &&
+			!parseIssue &&
+			issues.filter((i) => i.severity === 'error' || i.severity === 'warning').length === 0
+		) {
+			showToast('No errors or warnings to fix.');
+			return;
+		}
+
+		isFixingAll = true;
+		try {
+			const formatOptions = await getFormatOptions();
+			const fixResult = await fixAllBundle(yamlInput, issues, {
+				...formatOptions,
+				aiFix: createAiFixFn(),
+				resolveDocIndex: resolveIssueDocIndex,
+				resolveIdentity: (issue, docYaml) => resolveFixIdentity(issue, docYaml)
+			});
+
+			if (!fixResult.ok) {
+				if (fixResult.parseIssue && fixResult.aiFixCount === 0 && !fixResult.aiUnavailable) {
+					void openAiFixPreview(fixResult.parseIssue);
+				}
+				showToast(fixResult.message ?? 'Could not apply bulk fix.');
+				return;
+			}
+
+			setYamlInput(fixResult.yaml);
+			if (fixResult.formatFixes.length > 0) {
+				showFixSummary(
+					formatFixSummary(fixResult.formatFixes, result?.resources.length ?? 1)
+				);
+			}
+
+			await runValidation();
+
+			const applied =
+				fixResult.formatFixes.length + fixResult.suggestedFixCount + fixResult.aiFixCount;
+			const remainingErrors = result?.summary.errorCount ?? 0;
+			const remainingWarnings = result?.summary.warningCount ?? 0;
+			if (remainingErrors > 0 || remainingWarnings > 0) {
+				collapsedGroups = new Set();
+			}
+
+			const parts: string[] = [];
+			if (fixResult.aiFixCount > 0) {
+				parts.push(`${fixResult.aiFixCount} AI`);
+			}
+			if (fixResult.suggestedFixCount > 0) {
+				parts.push(`${fixResult.suggestedFixCount} standard`);
+			}
+			if (fixResult.formatFixes.length > 0) {
+				parts.push(`${fixResult.formatFixes.length} manifest`);
+			}
+
+			const remainingParts: string[] = [];
+			if (remainingErrors > 0) {
+				remainingParts.push(`${remainingErrors} error${remainingErrors === 1 ? '' : 's'}`);
+			}
+			if (remainingWarnings > 0) {
+				remainingParts.push(
+					`${remainingWarnings} warning${remainingWarnings === 1 ? '' : 's'}`
+				);
+			}
+			const remainingMsg =
+				remainingParts.length > 0 ? `; ${remainingParts.join(' and ')} remain` : '';
+
+			let prefix = '';
+			if (fixResult.aiUnavailable) {
+				prefix = 'AI limit reached — used standard fixes. ';
+			}
+
+			showToast(
+				applied > 0
+					? `${prefix}Applied ${applied} fix${applied === 1 ? '' : 'es'}${remainingMsg}.`
+					: `${prefix}No automatic fixes were applicable. Use Fix on individual issues.`
+			);
+		} finally {
+			isFixingAll = false;
+		}
+	}
+
+	async function handleFormatYaml() {
+		await runBulkFix();
 	}
 
 	function updateURL() {
@@ -227,15 +383,195 @@
 		updateURL();
 	}
 
-	async function runValidation() {
+	function mergeCompletionContext(
+		resources: BundleResource[],
+		partial: {
+			schemas?: YamlCompletionContext['schemas'];
+			manifest?: YamlCompletionContext['manifest'];
+		}
+	): YamlCompletionContext {
+		const prior = yamlCompletionContext;
+		const schemas = partial.schemas ?? prior?.schemas ?? new Map();
+		const manifest =
+			partial.manifest && partial.manifest.length > 0
+				? partial.manifest
+				: manifestResources.length > 0
+					? manifestResources
+					: (prior?.manifest ?? []);
+
+		const next: YamlCompletionContext = {
+			resources,
+			schemas,
+			releaseFolder: release!.folder,
+			manifest
+		};
+		yamlCompletionContext = next;
+		return next;
+	}
+
+	async function refreshCompletionContext() {
+		if (!browser || !release || !yamlInput.trim()) {
+			yamlCompletionContext = null;
+			loadedSchemaFingerprint = '';
+			return;
+		}
+
+		const parsed = parseBundleResources(yamlInput);
+		if (parsed.resources.length === 0) {
+			yamlCompletionContext = null;
+			loadedSchemaFingerprint = '';
+			return;
+		}
+
+		mergeCompletionContext(parsed.resources, {});
+
+		const manifest =
+			manifestResources.length > 0
+				? manifestResources
+				: (await fetchManifest(release.folder, manifestCache)) || [];
+		manifestResources = manifest;
+
+		const schemaFingerprint = schemaKeysForResources(
+			parsed.resources,
+			release.folder,
+			manifest
+		).join('\0');
+
+		if (
+			schemaFingerprint &&
+			schemaFingerprint === loadedSchemaFingerprint &&
+			(yamlCompletionContext?.schemas.size ?? 0) > 0
+		) {
+			mergeCompletionContext(parseBundleResources(yamlInput).resources, { manifest });
+			return;
+		}
+
+		const fetchId = ++completionSchemaFetchSerial;
+
+		try {
+			const fetched = await buildYamlCompletionContext(
+				parsed.resources,
+				release.folder,
+				manifest
+			);
+
+			const latest = parseBundleResources(yamlInput);
+			if (latest.resources.length === 0) return;
+
+			const mergedSchemas = new Map([
+				...(yamlCompletionContext?.schemas ?? []),
+				...fetched.schemas
+			]);
+
+			if (fetchId === completionSchemaFetchSerial) {
+				if (mergedSchemas.size > 0) {
+					loadedSchemaFingerprint = schemaFingerprint;
+				}
+				mergeCompletionContext(latest.resources, {
+					schemas: mergedSchemas,
+					manifest
+				});
+				return;
+			}
+
+			// A newer refresh started — still apply schemas so spec completions are not lost.
+			if (fetched.schemas.size > 0) {
+				mergeCompletionContext(latest.resources, {
+					schemas: mergedSchemas,
+					manifest
+				});
+			}
+		} catch {
+			const latest = parseBundleResources(yamlInput);
+			if (latest.resources.length > 0) {
+				mergeCompletionContext(latest.resources, { manifest: manifestResources });
+			}
+		}
+	}
+
+	function scheduleCompletionRefresh(immediate = false) {
+		if (!browser || !clientReady) return;
+		if (completionRefreshTimer) clearTimeout(completionRefreshTimer);
+		if (immediate) {
+			void refreshCompletionContext();
+			return;
+		}
+		completionRefreshTimer = setTimeout(() => {
+			completionRefreshTimer = null;
+			void refreshCompletionContext();
+		}, 300);
+	}
+
+	$: if (browser && clientReady && release?.folder && release.folder !== previousCompletionReleaseFolder) {
+		previousCompletionReleaseFolder = release.folder;
+		loadedSchemaFingerprint = '';
+		void refreshCompletionContext();
+	}
+
+	// Keyed on yaml + release only — never read yamlCompletionContext here (that caused a reactive loop).
+	$: completionInputKey =
+		browser && clientReady && release && yamlInput.trim()
+			? `${release.folder}\0${yamlInput}`
+			: '';
+
+	$: if (completionInputKey) {
+		scheduleCompletionRefresh();
+	}
+
+	function scheduleEditorLayout() {
+		if (!browser || !clientReady || activeView !== 'editor') return;
+		void (async () => {
+			await tick();
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => editorRef?.layout?.());
+			});
+		})();
+	}
+
+	$: if (browser && clientReady && activeView === 'editor') {
+		scheduleEditorLayout();
+	}
+
+	$: if (browser && clientReady && release && yamlInput.trim()) {
+		scheduleLiveValidation();
+	}
+
+	$: if (browser && clientReady && release && !yamlInput.trim()) {
+		yamlCompletionContext = null;
+		loadedSchemaFingerprint = '';
+	}
+
+	$: if (!release) {
+		yamlCompletionContext = null;
+		loadedSchemaFingerprint = '';
+	}
+
+	function scheduleLiveValidation() {
+		if (!browser || !clientReady || !release) return;
+		if (liveValidateTimer) clearTimeout(liveValidateTimer);
+		liveValidateTimer = setTimeout(() => {
+			liveValidateTimer = null;
+			void runValidation();
+		}, 500);
+	}
+
+	let validationInFlight = 0;
+
+	async function runValidation(options: { requireRelease?: boolean } = {}) {
 		if (!yamlInput.trim()) {
 			result = null;
 			isValidating = false;
 			return;
 		}
-		if (!release) return;
+		if (!release) {
+			if (options.requireRelease) {
+				showToast('Select an EDA release first.');
+			}
+			return;
+		}
 
 		const generation = ++validationGeneration;
+		validationInFlight += 1;
 		isValidating = true;
 		highlightLine = null;
 
@@ -250,6 +586,7 @@
 				releaseLabel: release.label,
 				manifest
 			});
+			void refreshCompletionContext();
 		} catch (error) {
 			if (generation !== validationGeneration) return;
 			const message = error instanceof Error ? error.message : String(error);
@@ -267,36 +604,181 @@
 				resources: []
 			};
 		} finally {
-			if (generation === validationGeneration) {
+			validationInFlight = Math.max(0, validationInFlight - 1);
+			if (validationInFlight === 0) {
 				isValidating = false;
 			}
 		}
 	}
 
+	async function handleFixAll() {
+		await runBulkFix({ requireIssues: true });
+	}
+
+	function focusEditorLine(line: number) {
+		if (line < 1) return;
+		highlightLine = line;
+		void editorRef?.focusLine?.(line);
+	}
+
 	function jumpToIssue(issue: BundleIssue) {
+		activeView = 'editor';
 		if (issue.line) {
-			highlightLine = issue.line;
-			editorRef?.focusLine(issue.line);
+			focusEditorLine(issue.line);
 		}
 	}
 
-	function handleApplyFix(issue: BundleIssue, event: MouseEvent) {
-		event.stopPropagation();
-		if (!issue.suggestedFix) return;
+	function showDiagnosticsView() {
+		activeView = 'diagnostics';
+	}
 
-		const updated = applySuggestedFix(yamlInput, issue);
+	function issueFixAvailable(issue: BundleIssue): boolean {
+		if (issue.suggestedFix) return true;
+		return issue.severity === 'error' || issue.severity === 'warning';
+	}
+
+	function resolveFixIdentity(
+		issue: BundleIssue,
+		docYaml: string
+	): { kind?: string; group?: string } {
+		const bundleRes = findBundleResourceForIssue(issue);
+		const inferred = inferManifestIdentity(docYaml);
+		return {
+			kind: issue.resourceKind ?? bundleRes?.kind ?? inferred.kind,
+			group: bundleRes?.group ?? inferred.group
+		};
+	}
+
+	function closeAiFixPanel() {
+		aiFixPanelOpen = false;
+		aiFixIssue = null;
+		aiFixLoading = false;
+		aiFixError = null;
+		aiFixExplanation = '';
+		aiFixOriginalYaml = '';
+		aiFixFixedYaml = null;
+		aiFixFixable = false;
+		aiFixApplyBlockedReason = null;
+	}
+
+	function refreshAiFixApplyGuard(originalYaml: string, fixedYaml: string, issue: BundleIssue) {
+		const guard = validateAiFixApply(originalYaml, fixedYaml, issue);
+		aiFixApplyBlockedReason = guard.ok ? null : guard.reason ?? 'Cannot apply this fix.';
+	}
+
+	function resolveIssueDocIndex(issue: BundleIssue): number {
+		if (issue.docIndex !== undefined) return issue.docIndex;
+		const bundleRes = findBundleResourceForIssue(issue);
+		return bundleRes ? bundleRes.docIndex + 1 : 1;
+	}
+
+	async function openAiFixPreview(issue: BundleIssue) {
+		if (!release) return;
+
+		const docIndex = resolveIssueDocIndex(issue);
+		const docYaml = extractDocumentYaml(yamlInput, docIndex);
+		if (!docYaml) {
+			showToast('Could not extract document YAML for AI fix.');
+			return;
+		}
+
+		const { kind, group } = resolveFixIdentity(issue, docYaml);
+		const requestId = ++aiFixRequestId;
+
+		aiFixIssue = issue;
+		aiFixPanelOpen = true;
+		aiFixLoading = true;
+		aiFixError = null;
+		aiFixExplanation = '';
+		aiFixOriginalYaml = docYaml;
+		aiFixFixedYaml = null;
+		aiFixFixable = false;
+		aiFixApplyBlockedReason = null;
+
+		const result = await fixYAML(
+			release.name,
+			docYaml,
+			{
+				message: issue.message,
+				fieldPath: issue.fieldPath,
+				line: issue.line,
+				severity: issue.severity
+			},
+			kind ? { kind, group } : undefined
+		);
+
+		if (requestId !== aiFixRequestId) return;
+
+		aiFixLoading = false;
+		if (result.error) {
+			aiFixError = result.error;
+			return;
+		}
+
+		aiFixExplanation = result.explanation || result.answer;
+		aiFixFixedYaml = result.fixedYaml ?? null;
+		aiFixFixable = result.fixable === true && !!aiFixFixedYaml;
+
+		if (aiFixFixedYaml) {
+			refreshAiFixApplyGuard(docYaml, aiFixFixedYaml, issue);
+		}
+	}
+
+	function handleApplyAiFix() {
+		if (!aiFixIssue || !aiFixFixedYaml) return;
+
+		const resolvedDocIndex = resolveIssueDocIndex(aiFixIssue);
+
+		const guard = validateAiFixApply(aiFixOriginalYaml, aiFixFixedYaml, aiFixIssue);
+		if (!guard.ok) {
+			aiFixApplyBlockedReason = guard.reason ?? 'Cannot apply this fix.';
+			return;
+		}
+
+		const updated = replaceDocumentInBundle(yamlInput, resolvedDocIndex, aiFixFixedYaml);
 		if (!updated) {
-			showToast('Could not apply fix — edit the field manually.');
+			showToast('Could not apply AI fix — edit manually.');
 			return;
 		}
 
 		setYamlInput(updated);
-		if (issue.line) {
-			highlightLine = issue.line;
-			editorRef?.focusLine(issue.line);
+		if (aiFixIssue.line) {
+			highlightLine = aiFixIssue.line;
+			focusEditorLine(aiFixIssue.line);
 		}
-		showToast(`Applied fix: ${issue.suggestedFix.field} → ${issue.suggestedFix.value}`);
+		closeAiFixPanel();
+		showToast('Applied AI fix — re-validating…');
 		void runValidation();
+	}
+
+	function handleApplyFix(issue: BundleIssue, event: MouseEvent) {
+		event.stopPropagation();
+
+		if (issue.suggestedFix) {
+			const updated = applySuggestedFix(yamlInput, issue);
+			if (!updated) {
+				showToast('Could not apply fix — edit the field manually.');
+				return;
+			}
+
+			setYamlInput(updated);
+			if (issue.line) {
+				highlightLine = issue.line;
+				focusEditorLine(issue.line);
+			}
+			showToast(`Applied fix: ${issue.suggestedFix.field} → ${issue.suggestedFix.value}`);
+			void runValidation();
+			return;
+		}
+
+		if (issue.severity === 'error' || issue.severity === 'warning') {
+			if (release) {
+				void openAiFixPreview(issue);
+			}
+			return;
+		}
+
+		showToast('No automatic fix available — edit the field manually.');
 	}
 
 	function toggleGroup(key: string) {
@@ -384,7 +866,24 @@
 		return null;
 	}
 
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && aiFixPanelOpen) {
+			closeAiFixPanel();
+		}
+	}
+
 	onMount(async () => {
+		if (browser) {
+			window.addEventListener('keydown', onKeydown);
+			try {
+				const mod = await import('$lib/validate-bundle/MonacoYamlEditor.svelte');
+				MonacoEditorCmp = mod.default;
+			} catch (error) {
+				console.error('Failed to load Monaco editor', error);
+				showToast('YAML editor failed to load — try refreshing the page.');
+			}
+		}
+
 		const urlRelease = $page.url.searchParams.get('release');
 		if (urlRelease) {
 			releaseName = urlRelease;
@@ -406,12 +905,18 @@
 
 		clientReady = true;
 		void runValidation();
+		scheduleCompletionRefresh(true);
 	});
 
 	onDestroy(() => {
+		if (browser) {
+			window.removeEventListener('keydown', onKeydown);
+		}
 		if (toastTimer) clearTimeout(toastTimer);
 		if (fixSummaryTimer) clearTimeout(fixSummaryTimer);
 		if (yamlCopyTimer) clearTimeout(yamlCopyTimer);
+		if (completionRefreshTimer) clearTimeout(completionRefreshTimer);
+		if (liveValidateTimer) clearTimeout(liveValidateTimer);
 	});
 
 </script>
@@ -424,122 +929,83 @@
 	/>
 </svelte:head>
 
-<div class="validate-yaml-page spec-search-page page-shell min-h-full bg-gray-50 dark:text-gray-100">
+<div class="validate-yaml-page validate-yaml-page--pro spec-search-page page-shell overflow-hidden bg-gray-50 dark:text-gray-100">
 	<AppHeader fixed={false} />
 
-	<div class="spec-search-main validate-yaml-main">
-		<section class="spec-search-hero validate-yaml-hero" aria-labelledby="validate-yaml-heading">
-			<p class="homepage-hero-kicker">Per-resource validation</p>
-			<h1 id="validate-yaml-heading" class="homepage-title text-slate-900 dark:text-slate-100">
-				Validate YAML
-			</h1>
-			<p class="homepage-subtitle text-slate-600 dark:text-slate-400">
-				Paste multi-document manifests (<code class="text-slate-700 dark:text-slate-300">---</code>
-				separated). Each document is checked against CRD schemas, Kubernetes rules, and EDA manifest
-				constraints.
-			</p>
-		</section>
-
-		<div class="spec-search-filters validate-yaml-toolbar" role="group" aria-label="Validation options">
-			<label for="validation-release" class="sr-only">Release</label>
-			<select
-				id="validation-release"
-				bind:value={releaseName}
-				on:change={() => void runValidation()}
-				class="spec-search-select min-w-[10rem] flex-1 sm:flex-none"
-				aria-label="Select EDA release"
-			>
-				<option value="">Select release…</option>
-				{#each releasesConfig.releases as r}
-					<option value={r.name}>{r.label}{r.default ? ' (latest)' : ''}</option>
-				{/each}
-			</select>
-
-			<button
-				type="button"
-				class="validate-yaml-btn validate-yaml-btn--primary"
-				disabled={isValidating || !release}
-				on:click={() => void runValidation()}
-			>
-				{#if isValidating}
-					<svg class="validate-yaml-btn__spinner animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-						<path
-							class="opacity-75"
-							fill="currentColor"
-							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-						/>
-					</svg>
-				{/if}
-				{isValidating ? 'Validating…' : 'Validate'}
-			</button>
-
-			<button
-				type="button"
-				class="validate-yaml-btn"
-				disabled={formatDisabled}
-				title={formatTooltip}
-				on:click={handleFormatYaml}
-			>
-				{formatLabel}
-			</button>
-
-			<button
-				type="button"
-				class="validate-yaml-btn validate-yaml-btn--ghost"
-				on:click={() => {
-					setYamlInput(EXAMPLE_BUNDLE_YAML);
-					void runValidation();
-				}}
-			>
-				Load example
-			</button>
-
-		</div>
-
-		{#if fixSummary}
-			<div class="validate-yaml-fix-banner" role="status" aria-live="polite">
-				<p class="validate-yaml-fix-banner__headline">{fixSummary.headline}</p>
-				{#if fixSummary.items.length > 0}
-					<ul class="validate-yaml-fix-banner__list">
-						{#each fixSummary.items as item (item.kind)}
-							<li>{item.label}</li>
-						{/each}
-					</ul>
-				{/if}
+	<div class="validate-yaml-shell">
+		<header class="validate-yaml-topbar" aria-labelledby="validate-yaml-heading">
+			<div class="validate-yaml-topbar__brand">
+				<h1 id="validate-yaml-heading" class="validate-yaml-topbar__title">Validate YAML</h1>
+				<p class="validate-yaml-topbar__subtitle">
+					Multi-document manifests · CRD schema · Kubernetes · EDA rules
+				</p>
 			</div>
-		{/if}
 
-		{#if result}
-			<div class="validate-yaml-stats" role="status" aria-live="polite">
-				<div class="validate-yaml-stats__items">
-					<span class="validate-yaml-stat">
-						<span class="validate-yaml-stat__value">{result.summary.resourceCount}</span>
-						doc{result.summary.resourceCount !== 1 ? 's' : ''}
-					</span>
-					{#if result.summary.errorCount > 0}
-						<span class="validate-yaml-stat validate-yaml-stat--error">
-							<span class="validate-yaml-stat__value">{result.summary.errorCount}</span>
-							error{result.summary.errorCount !== 1 ? 's' : ''}
-						</span>
-					{/if}
-					{#if result.summary.warningCount > 0}
-						<span class="validate-yaml-stat validate-yaml-stat--warning">
-							<span class="validate-yaml-stat__value">{result.summary.warningCount}</span>
-							warning{result.summary.warningCount !== 1 ? 's' : ''}
-						</span>
-					{/if}
-				</div>
-				<span
-					class="validate-yaml-status-pill"
-					class:validate-yaml-status-pill--valid={result.valid}
-					class:validate-yaml-status-pill--invalid={!result.valid}
+			<div class="validate-yaml-topbar__controls" role="group" aria-label="Validation options">
+				<label for="validation-release" class="sr-only">Release</label>
+				<select
+					id="validation-release"
+					bind:value={releaseName}
+					on:change={() => void runValidation()}
+					class="spec-search-select validate-yaml-topbar__release"
+					aria-label="Select EDA release"
 				>
-					{result.valid ? 'Valid' : 'Invalid'}
-				</span>
-				{#if isValidating}
-					<span class="validate-yaml-stats__updating">Updating…</span>
-				{/if}
+					<option value="">Select release…</option>
+					{#each releasesConfig.releases as r}
+						<option value={r.name}>{r.label}{r.default ? ' (latest)' : ''}</option>
+					{/each}
+				</select>
+
+				<button
+					type="button"
+					class="validate-yaml-btn validate-yaml-btn--primary"
+					disabled={isValidating || !release}
+					on:click={() => void runValidation({ requireRelease: true })}
+				>
+					{#if isValidating}
+						<svg class="validate-yaml-btn__spinner animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+							<path
+								class="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+							/>
+						</svg>
+					{/if}
+					{isValidating ? 'Validating…' : 'Validate'}
+				</button>
+
+				<button
+					type="button"
+					class="validate-yaml-btn validate-yaml-btn--ai"
+					disabled={fixAllDisabled}
+					title={fixAllTooltip}
+					on:click={() => void handleFixAll()}
+				>
+					{isFixingAll ? 'Fixing…' : 'Fix all'}
+				</button>
+
+				<button
+					type="button"
+					class="validate-yaml-btn"
+					disabled={formatDisabled || !release}
+					title={formatTooltip}
+					on:click={handleFormatYaml}
+				>
+					{formatLabel}
+				</button>
+
+				<button
+					type="button"
+					class="validate-yaml-btn validate-yaml-btn--ghost"
+					on:click={() => {
+						setYamlInput(EXAMPLE_BUNDLE_YAML);
+						void runValidation();
+					}}
+				>
+					Example
+				</button>
+
 				<button
 					type="button"
 					class="validate-yaml-btn validate-yaml-btn--ghost"
@@ -547,116 +1013,180 @@
 					aria-label="Copy YAML to clipboard"
 					on:click={() => void handleCopyYaml()}
 				>
-					{#if yamlCopied}
-						<svg
-							class="validate-yaml-btn__spinner"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-						Copied
-					{:else}
-						<svg
-							class="validate-yaml-btn__spinner"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-							/>
-						</svg>
-						Copy YAML
-					{/if}
+					{yamlCopied ? 'Copied' : 'Copy'}
 				</button>
+			</div>
+
+			{#if result}
+				<div class="validate-yaml-topbar__stats" role="status" aria-live="polite">
+					<span class="validate-yaml-stat">
+						<span class="validate-yaml-stat__value">{result.summary.resourceCount}</span>
+						doc{result.summary.resourceCount !== 1 ? 's' : ''}
+					</span>
+					{#if result.summary.errorCount > 0}
+						<span class="validate-yaml-stat validate-yaml-stat--error">
+							<span class="validate-yaml-stat__value">{result.summary.errorCount}</span>
+							err
+						</span>
+					{/if}
+					{#if result.summary.warningCount > 0}
+						<span class="validate-yaml-stat validate-yaml-stat--warning">
+							<span class="validate-yaml-stat__value">{result.summary.warningCount}</span>
+							warn
+						</span>
+					{/if}
+					<span
+						class="validate-yaml-status-pill"
+						class:validate-yaml-status-pill--valid={result.valid}
+						class:validate-yaml-status-pill--invalid={!result.valid}
+					>
+						{result.valid ? 'Valid' : 'Invalid'}
+					</span>
+				</div>
+			{/if}
+		</header>
+
+		{#if fixSummary}
+			<div class="validate-yaml-fix-banner validate-yaml-fix-banner--compact" role="status" aria-live="polite">
+				<p class="validate-yaml-fix-banner__headline">{fixSummary.headline}</p>
 			</div>
 		{/if}
 
-		<div class="validate-yaml-workspace">
-			<div class="validate-yaml-panel validate-yaml-panel--editor">
-				<YamlBundleEditor
-					bind:this={editorRef}
-					value={yamlInput}
-					on:input={(e) => setYamlInput(e.detail)}
-					{highlightLine}
-					validating={isValidating}
-					on:validate={() => void runValidation()}
-				/>
-			</div>
+		<div class="validate-yaml-workspace validate-yaml-workspace--pro validate-yaml-workspace--tabbed">
+			<div class="validate-yaml-workspace-panel">
+				<div class="validate-yaml-workspace-toolbar" role="tablist" aria-label="Workspace views">
+					<button
+						type="button"
+						role="tab"
+						id="validate-yaml-tab-editor"
+						aria-selected={activeView === 'editor'}
+						aria-controls="validate-yaml-panel-editor"
+						class="validate-yaml-workspace-tab"
+						class:validate-yaml-workspace-tab--active={activeView === 'editor'}
+						on:click={() => (activeView = 'editor')}
+					>
+						Editor
+					</button>
+					<button
+						type="button"
+						role="tab"
+						id="validate-yaml-tab-diagnostics"
+						aria-selected={activeView === 'diagnostics'}
+						aria-controls="validate-yaml-panel-diagnostics"
+						class="validate-yaml-workspace-tab"
+						class:validate-yaml-workspace-tab--active={activeView === 'diagnostics'}
+						on:click={showDiagnosticsView}
+					>
+						Diagnostics
+						{#if diagnosticsCount > 0}
+							<span class="validate-yaml-workspace-tab__count">{diagnosticsCount}</span>
+						{/if}
+					</button>
+				</div>
 
-			<div class="validate-yaml-panel validate-yaml-panel--issues spec-search-results-panel">
-				<div class="validate-yaml-issues-header">
-					<div class="validate-yaml-issues-header__title-row">
-						<h2 class="validate-yaml-issues-title">Issues</h2>
-						{#if result && result.summary.errorCount + result.summary.warningCount > 0}
-							<span class="validate-yaml-issues-count">
-								{filteredIssues.length === displayIssues.length
-									? result.summary.errorCount + result.summary.warningCount
-									: `${filteredIssues.length}/${displayIssues.length}`}
-							</span>
+				<div class="validate-yaml-workspace-body">
+					<div
+						id="validate-yaml-panel-editor"
+						role="tabpanel"
+						aria-labelledby="validate-yaml-tab-editor"
+						class="validate-yaml-editor-column"
+						class:validate-yaml-view--hidden={activeView !== 'editor'}
+						aria-hidden={activeView !== 'editor'}
+					>
+						{#if browser}
+							{#if MonacoEditorCmp}
+								<!-- Monaco editor loaded dynamically; instance typing is runtime-only -->
+								{@const Editor = MonacoEditorCmp}
+								<Editor
+									bind:this={editorRef}
+									bind:value={yamlInput}
+									{highlightLine}
+									validating={isValidating}
+									completionContext={yamlCompletionContext}
+									validationIssues={result?.issues ?? []}
+									hideToolbarLabel
+									onValidate={() => void runValidation()}
+									onTruncate={() => {
+										if (!yamlTruncationWarned) {
+											yamlTruncationWarned = true;
+											showToast('Input exceeds 512KB — truncated to the limit.');
+										}
+									}}
+								/>
+							{:else}
+								<div class="monaco-yaml-editor monaco-yaml-editor--loading" aria-busy="true">
+									<div class="yaml-editor-toolbar">
+										<span class="yaml-editor-hint">Loading Monaco…</span>
+									</div>
+								</div>
+							{/if}
 						{/if}
 					</div>
 
-					{#if displayIssues.length > 0}
-						<div class="validate-yaml-issues-filters">
-							<div class="validate-yaml-filter-tabs" role="tablist" aria-label="Filter issues">
-								<button
-									type="button"
-									role="tab"
-									aria-selected={issueFilter === 'all'}
-									class="validate-yaml-filter-tab"
-									class:validate-yaml-filter-tab--active={issueFilter === 'all'}
-									on:click={() => (issueFilter = 'all')}
-								>
-									All
-								</button>
-								<button
-									type="button"
-									role="tab"
-									aria-selected={issueFilter === 'errors'}
-									class="validate-yaml-filter-tab"
-									class:validate-yaml-filter-tab--active={issueFilter === 'errors'}
-									on:click={() => (issueFilter = 'errors')}
-								>
-									Errors
-								</button>
-								<button
-									type="button"
-									role="tab"
-									aria-selected={issueFilter === 'warnings'}
-									class="validate-yaml-filter-tab"
-									class:validate-yaml-filter-tab--active={issueFilter === 'warnings'}
-									on:click={() => (issueFilter = 'warnings')}
-								>
-									Warnings
-								</button>
-							</div>
-							<label class="validate-yaml-search">
-								<span class="sr-only">Search issues</span>
-								<input
-									type="search"
-									bind:value={issueSearch}
-									placeholder="Search…"
-									class="validate-yaml-search__input"
-								/>
-							</label>
+					<div
+						id="validate-yaml-panel-diagnostics"
+						role="tabpanel"
+						aria-labelledby="validate-yaml-tab-diagnostics"
+						class="validate-yaml-diagnostics-panel spec-search-results-panel"
+						class:validate-yaml-view--hidden={activeView !== 'diagnostics'}
+						aria-hidden={activeView !== 'diagnostics'}
+					>
+						<div class="validate-yaml-issues-header">
+							{#if displayIssues.length > 0}
+								<div class="validate-yaml-issues-filters validate-yaml-issues-filters--diagnostics">
+									<div class="validate-yaml-filter-tabs" role="tablist" aria-label="Filter issues">
+										<button
+											type="button"
+											role="tab"
+											aria-selected={issueFilter === 'all'}
+											class="validate-yaml-filter-tab"
+											class:validate-yaml-filter-tab--active={issueFilter === 'all'}
+											on:click={() => (issueFilter = 'all')}
+										>
+											All
+										</button>
+										<button
+											type="button"
+											role="tab"
+											aria-selected={issueFilter === 'errors'}
+											class="validate-yaml-filter-tab"
+											class:validate-yaml-filter-tab--active={issueFilter === 'errors'}
+											on:click={() => (issueFilter = 'errors')}
+										>
+											Errors
+										</button>
+										<button
+											type="button"
+											role="tab"
+											aria-selected={issueFilter === 'warnings'}
+											class="validate-yaml-filter-tab"
+											class:validate-yaml-filter-tab--active={issueFilter === 'warnings'}
+											on:click={() => (issueFilter = 'warnings')}
+										>
+											Warnings
+										</button>
+									</div>
+									<label class="validate-yaml-search">
+										<span class="sr-only">Search issues</span>
+										<input
+											type="search"
+											bind:value={issueSearch}
+											placeholder="Search issues…"
+											class="validate-yaml-search__input"
+										/>
+									</label>
+									{#if result && diagnosticsCount > 0}
+										<span class="validate-yaml-issues-count validate-yaml-issues-count--inline">
+											{filteredIssues.length === displayIssues.length
+												? diagnosticsCount
+												: `${filteredIssues.length}/${displayIssues.length}`}
+										</span>
+									{/if}
+								</div>
+							{/if}
 						</div>
-					{/if}
-				</div>
 
-				<div class="validate-yaml-issues-body">
+						<div class="validate-yaml-issues-body">
 					{#if !result}
 						<div class="spec-search-empty">
 							<div class="spec-search-empty-icon" aria-hidden="true">
@@ -761,6 +1291,33 @@
 															on:click={() => jumpToIssue(issue)}
 														>
 															<div class="validate-yaml-issue__head">
+																<span
+																	class="validate-yaml-issue-severity"
+																	class:validate-yaml-issue-severity--error={issue.severity === 'error'}
+																	class:validate-yaml-issue-severity--warning={issue.severity === 'warning'}
+																	aria-hidden="true"
+																>
+																	{#if issue.severity === 'error'}
+																		<svg fill="currentColor" viewBox="0 0 16 16" class="validate-yaml-issue-severity__icon">
+																			<path
+																				d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646Z"
+																			/>
+																		</svg>
+																	{:else if issue.severity === 'warning'}
+																		<svg fill="currentColor" viewBox="0 0 16 16" class="validate-yaml-issue-severity__icon">
+																			<path
+																				d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"
+																			/>
+																		</svg>
+																	{:else}
+																		<svg fill="currentColor" viewBox="0 0 16 16" class="validate-yaml-issue-severity__icon">
+																			<path
+																				d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"
+																			/>
+																			<path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+																		</svg>
+																	{/if}
+																</span>
 																<span class="validate-yaml-issue-badge {tone.badge}">
 																	{tone.label}
 																</span>
@@ -784,11 +1341,14 @@
 															{/if}
 														</button>
 														<div class="validate-yaml-issue__actions">
-															{#if issue.suggestedFix}
+															{#if issueFixAvailable(issue)}
 																<button
 																	type="button"
 																	class="validate-yaml-issue-fix-link"
-																	title="Replace {issue.suggestedFix.field} with {issue.suggestedFix.value}"
+																	class:validate-yaml-issue-ai-link={!issue.suggestedFix}
+																	title={issue.suggestedFix
+																		? `Replace ${issue.suggestedFix.field} with ${issue.suggestedFix.value}`
+																		: 'Suggest a fix with AI'}
 																	on:click={(e) => handleApplyFix(issue, e)}
 																>
 																	Fix
@@ -813,11 +1373,11 @@
 							{/each}
 						</div>
 					{/if}
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
-
-		<PageCredits />
 	</div>
 </div>
 
@@ -835,3 +1395,17 @@
 		onClose={closeCrdSchemaModal}
 	/>
 {/if}
+
+<AiFixPreviewPanel
+	open={aiFixPanelOpen}
+	issue={aiFixIssue}
+	loading={aiFixLoading}
+	error={aiFixError}
+	explanation={aiFixExplanation}
+	originalYaml={aiFixOriginalYaml}
+	fixedYaml={aiFixFixedYaml}
+	fixable={aiFixFixable}
+	applyBlockedReason={aiFixApplyBlockedReason}
+	onClose={closeAiFixPanel}
+	onApply={handleApplyAiFix}
+/>

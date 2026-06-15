@@ -1,7 +1,7 @@
 export interface CrdVersions {
 	name: string;
-	deprecated: boolean;
-	appVersion: string;
+	deprecated?: boolean;
+	appVersion?: string;
 	edaRelease?: string; // EDA release version (e.g., "24.10", "24.11")
 }
 

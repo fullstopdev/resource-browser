@@ -49,7 +49,7 @@ describe('transitiveClosure', () => {
 		const links = [
 			{ ...link('a', 'b'), source: { id: 'a' }, target: { id: 'b' } },
 			{ ...link('b', 'c'), source: { id: 'b' }, target: { id: 'c' } }
-		] as Parameters<typeof getHighlightSets>[1];
+		] as unknown as Parameters<typeof getHighlightSets>[1];
 		const highlight = getHighlightSets('a', links, 'direct');
 
 		expect([...highlight.nodes].sort()).toEqual(['a', 'b']);

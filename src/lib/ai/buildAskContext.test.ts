@@ -17,6 +17,7 @@ const interfaceTarget: ResolvedAskTarget = {
 	kind: 'Interface',
 	group: 'interfaces.eda.nokia.com',
 	name: 'interfaces.interfaces.eda.nokia.com',
+	version: 'v1',
 	score: 100,
 	source: 'kind'
 };
@@ -46,6 +47,7 @@ const fabricTarget: ResolvedAskTarget = {
 	kind: 'Fabric',
 	group: 'fabrics.eda.nokia.com',
 	name: 'fabrics.fabrics.eda.nokia.com',
+	version: 'v1',
 	score: 100,
 	source: 'kind'
 };
@@ -70,7 +72,7 @@ describe('buildAskContext', () => {
 		const longExplain = 'E'.repeat(8_000);
 		const longSchema = 'S'.repeat(10_000);
 		const kv = mockKv({
-			'ai:v1:26.4.2:Interface:interfaces.eda.nokia.com:none:none:full-context': JSON.stringify({
+			'ai:v2:26.4.2:Interface:interfaces.eda.nokia.com:v1:none:none:full-context': JSON.stringify({
 				answer: `${longSchema}\n\n${longExplain}`,
 				release: '26.4.2',
 				kind: 'Interface',
@@ -95,13 +97,13 @@ describe('buildAskContext', () => {
 
 	it('assembles schema-summary + explain when full-context is missing', async () => {
 		const kv = mockKv({
-			'ai:v1:26.4.2:Interface:interfaces.eda.nokia.com:none:none:schema-summary': JSON.stringify({
+			'ai:v2:26.4.2:Interface:interfaces.eda.nokia.com:v1:none:none:schema-summary': JSON.stringify({
 				answer: '## Schema summary\nRequired: members, enabled',
 				release: '26.4.2',
 				kind: 'Interface',
 				action: 'schema-summary'
 			}),
-			'ai:v1:26.4.2:Interface:interfaces.eda.nokia.com:none:none:explain': JSON.stringify({
+			'ai:v2:26.4.2:Interface:interfaces.eda.nokia.com:v1:none:none:explain': JSON.stringify({
 				answer: 'Interface represents a logical or physical port.',
 				release: '26.4.2',
 				kind: 'Interface',
@@ -125,13 +127,13 @@ describe('buildAskContext', () => {
 
 	it('loads example KV action for example YAML questions', async () => {
 		const kv = mockKv({
-			'ai:v1:26.4.2:Fabric:fabrics.eda.nokia.com:none:none:explain': JSON.stringify({
+			'ai:v2:26.4.2:Fabric:fabrics.eda.nokia.com:v1:none:none:explain': JSON.stringify({
 				answer: 'Fabric connects leaf and spine nodes.',
 				release: '26.4.2',
 				kind: 'Fabric',
 				action: 'explain'
 			}),
-			'ai:v1:26.4.2:Fabric:fabrics.eda.nokia.com:none:none:example': JSON.stringify({
+			'ai:v2:26.4.2:Fabric:fabrics.eda.nokia.com:v1:none:none:example': JSON.stringify({
 				answer: '```yaml\napiVersion: fabrics.eda.nokia.com/v1\nkind: Fabric\nmetadata:\n  name: demo\nspec:\n  name: leaf-spine\n```',
 				release: '26.4.2',
 				kind: 'Fabric',
@@ -158,7 +160,7 @@ describe('buildAskContext', () => {
 		vi.mocked(loadAiSchema).mockResolvedValue(interfaceSchema);
 
 		const kv = mockKv({
-			'ai:v1:26.4.2:Interface:interfaces.eda.nokia.com:none:none:explain': JSON.stringify({
+			'ai:v2:26.4.2:Interface:interfaces.eda.nokia.com:v1:none:none:explain': JSON.stringify({
 				answer:
 					'Interface represents a logical or physical port. Required spec fields include members and enabled.',
 				release: '26.4.2',
@@ -178,7 +180,8 @@ describe('buildAskContext', () => {
 
 		expect(result.kvHits[0]?.kvAnswer).toContain('members');
 		expect(result.schemas).toHaveLength(1);
-		expect(result.contextText).toContain('Cached CRD summary');
+		expect(result.contextText).toContain('Full CRD context');
+		expect(result.contextText).toContain('Cached CRD explanation');
 		expect(result.contextText).toContain('Required spec fields');
 		expect(result.contextText).toContain('`members`');
 		expect(result.contextText).toContain('`enabled`');
@@ -187,7 +190,7 @@ describe('buildAskContext', () => {
 	it('does not truncate question-resolved single-target KV through assembleContext tier', async () => {
 		const longBody = 'X'.repeat(26_000);
 		const kv = mockKv({
-			'ai:v1:26.4.2:Interface:interfaces.eda.nokia.com:none:none:full-context': JSON.stringify({
+			'ai:v2:26.4.2:Interface:interfaces.eda.nokia.com:v1:none:none:full-context': JSON.stringify({
 				answer: longBody,
 				release: '26.4.2',
 				kind: 'Interface',
@@ -245,7 +248,7 @@ describe('buildAskContext', () => {
 		expect(targets[0].source).toBe('kind');
 
 		const kv = mockKv({
-			'ai:v1:26.4.2:Interface:interfaces.eda.nokia.com:none:none:full-context': JSON.stringify({
+			'ai:v2:26.4.2:Interface:interfaces.eda.nokia.com:v1:none:none:full-context': JSON.stringify({
 				answer: '## Schema summary\nRequired: members, enabled\n\nInterface represents a port.',
 				release: '26.4.2',
 				kind: 'Interface',

@@ -96,16 +96,7 @@ spec: {}
 		).toBe(true);
 	});
 
-	it('normalizes kind casing before CRD lookup', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn().mockResolvedValue({
-				ok: true,
-				text: async () =>
-					'schema:\n  openAPIV3Schema:\n    properties:\n      spec:\n        type: object\n        properties:\n          operatingSystem:\n            type: string'
-			})
-		);
-
+	it('rejects lowercase kind in bundle validation', async () => {
 		const yaml = `apiVersion: topologies.eda.nokia.com/v1
 kind: topology
 metadata:
@@ -122,8 +113,16 @@ spec:
 			manifest
 		});
 
-		expect(result.issues.some((i) => i.message.includes('Invalid kind:'))).toBe(false);
-		expect(result.issues.some((i) => i.message.includes('Could not find CRD'))).toBe(false);
+		expect(result.valid).toBe(false);
+		expect(
+			result.issues.some(
+				(i) =>
+					i.severity === 'error' &&
+					i.message.includes(
+						`Invalid kind: 'topology' must be 'Topology' (Kubernetes kinds are case-sensitive).`
+					)
+			)
+		).toBe(true);
 	});
 
 	it('errors when apiVersion group is invalid for a known kind', async () => {

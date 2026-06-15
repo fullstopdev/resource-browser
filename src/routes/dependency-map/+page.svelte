@@ -21,6 +21,7 @@
 	} from '$lib/dependency-map/drillDown';
 	import type { BuildProgress, DependencyGraph, GraphNode } from '$lib/dependency-map/types';
 	import { fetchManifest } from '$lib/manifest';
+	import { parseDependencyMapParams } from '$lib/urlState';
 	import { searchResources } from '$lib/resourceSearch';
 	import { getLatestVersion } from '$lib/versions';
 	import releasesYaml from '$lib/releases.yaml?raw';
@@ -207,9 +208,12 @@
 		}
 	}
 
-	function resolveAndBuildFromUrl(resourceParam: string) {
+	function resolveAndBuildFromUrl(resourceParam: string, groupParam?: string | null) {
 		if (!release || !resourceParam) return;
-		const nodeId = resolveFocusNodeId(manifestResources, { resource: resourceParam });
+		const nodeId = resolveFocusNodeId(manifestResources, {
+			resource: resourceParam,
+			group: groupParam ?? undefined
+		});
 		if (!nodeId) {
 			error = `No CRD matches "${resourceParam}" in ${release.label}.`;
 			return;
@@ -328,9 +332,11 @@
 		updateURL();
 		if (release) {
 			void loadManifestForRelease(release).then(() => {
-				const urlResource = $page.url.searchParams.get('resource');
+				const { resource: urlResource, group: urlGroup } = parseDependencyMapParams(
+					$page.url.searchParams
+				);
 				if (urlResource && !focusNodeId && !buildingGraph) {
-					resolveAndBuildFromUrl(urlResource);
+					resolveAndBuildFromUrl(urlResource, urlGroup);
 				}
 			});
 		} else {
@@ -339,7 +345,9 @@
 	}
 
 	onMount(() => {
-		const urlRelease = $page.url.searchParams.get('release');
+		const { release: urlRelease, resource: urlResource } = parseDependencyMapParams(
+			$page.url.searchParams
+		);
 		if (urlRelease) {
 			releaseName = urlRelease;
 		} else {
@@ -347,7 +355,7 @@
 				releasesConfig.releases.find((r) => r.default) || releasesConfig.releases[0];
 			if (defaultRelease) releaseName = defaultRelease.name;
 		}
-		focusResource = $page.url.searchParams.get('resource') ?? '';
+		focusResource = urlResource ?? '';
 		clientReady = true;
 	});
 

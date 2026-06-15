@@ -11,6 +11,7 @@ import {
 } from '$lib/ai/formatAnswer';
 import { formatRelationshipsForKv } from '$lib/ai/formatRelationships';
 import { getCachedAiResponsesForTargets, type AiCachePayload } from '$lib/ai/kvCache';
+import { loadReleaseDependencyMapContext } from '$lib/ai/loadReleaseDependencyMapContext';
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
 import {
@@ -155,7 +156,12 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 	const kvLimit = perTargetKvCharLimit(targetCount);
 	const schemaLimit = perTargetSchemaCharLimit(targetCount);
 
-	const targetRefs = targets.map((t) => ({ release: t.release, kind: t.kind, group: t.group }));
+	const targetRefs = targets.map((t) => ({
+		release: t.release,
+		kind: t.kind,
+		group: t.group,
+		apiVersion: t.version || undefined
+	}));
 
 	const [explainMap, schemaSummaryMap, fullContextMap, relationshipsMap, exampleMap] =
 		await Promise.all([
@@ -332,7 +338,7 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 					target.kind,
 					originFetch,
 					target.group,
-					version || undefined
+					target.version || version || undefined
 				);
 				if (!schema) return null;
 
@@ -350,7 +356,7 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 						release: target.release,
 						kind: target.kind,
 						group: target.group,
-						version: version || undefined,
+						version: target.version || version || undefined,
 						fieldPath: fieldPath || undefined,
 						question
 					});
@@ -373,13 +379,32 @@ export async function buildAskContext(input: BuildAskContextInput): Promise<Buil
 
 	const sections: { tier: ContextTier; text: string }[] = [];
 
+	const includeReleaseMap = asksRelationships || targets.length > 1;
+
+	if (includeReleaseMap && release) {
+		const mapCharLimit =
+			targets.length <= 1
+				? Math.min(32_000, SINGLE_TARGET_KV_CHAR_LIMIT + 8_000)
+				: Math.min(40_000, MULTI_TARGET_KV_CHAR_POOL + 4_000);
+		const releaseMapText = await loadReleaseDependencyMapContext({
+			release,
+			kv,
+			originFetch,
+			targets,
+			maxChars: mapCharLimit
+		});
+		if (releaseMapText) {
+			sections.push({ tier: 'kv', text: releaseMapText });
+		}
+	}
+
 	for (const hit of kvHits) {
 		const headerBase = `## CRD: ${hit.target.kind} (${hit.target.group})`;
 
 		if (hit.kvFullContextText) {
 			const header = trimToBudget(`${headerBase}\n${hit.kvFullContextText}`, kvLimit);
 			sections.push({ tier: 'kv', text: header });
-			if (hit.hasCompleteKvContext) continue;
+			continue;
 		}
 
 		if (asksExample && hit.kvExampleContextText) {

@@ -42,10 +42,12 @@ async function loadCrdSchema(
 				versions?: Array<{ schema?: { openAPIV3Schema?: unknown } }>;
 			};
 		};
-		const root =
-			parsed?.schema?.openAPIV3Schema ??
+		const root = (parsed?.schema?.openAPIV3Schema ??
 			parsed?.spec?.validation?.openAPIV3Schema ??
-			null;
+			null) as {
+			description?: string;
+			properties?: { spec?: unknown; status?: unknown; metadata?: unknown };
+		} | null;
 		return {
 			openApiRoot: root ?? undefined,
 			spec: root?.properties?.spec,

@@ -98,12 +98,14 @@ describe('reportToReleaseNotes', () => {
 			{
 				name: 'legacy.eda.nokia.com',
 				kind: 'Legacy',
-				group: 'eda.nokia.com'
+				group: 'eda.nokia.com',
+				versions: [{ name: 'v1', deprecated: false, appVersion: '' }]
 			},
 			{
 				name: 'bgppeers.protocols.eda.nokia.com',
 				kind: 'BGPPeer',
-				group: 'protocols.eda.nokia.com'
+				group: 'protocols.eda.nokia.com',
+				versions: [{ name: 'v1', deprecated: false, appVersion: '' }]
 			}
 		];
 
@@ -115,7 +117,8 @@ describe('reportToReleaseNotes', () => {
 				{
 					name: 'widgets.eda.nokia.com',
 					kind: 'Widget',
-					group: 'eda.nokia.com'
+					group: 'eda.nokia.com',
+					versions: [{ name: 'v1', deprecated: false, appVersion: '' }]
 				},
 				...sourceCrds
 			],

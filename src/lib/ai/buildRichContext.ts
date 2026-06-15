@@ -164,7 +164,7 @@ export async function buildRichContext(
 	const entry = findManifestEntry(manifest, input.kind, input.group);
 	if (!entry?.name) return null;
 
-	const version = input.version || getLatestVersion({ versions: entry.versions ?? [] });
+	const version = input.version || getLatestVersion(entry);
 	if (!version) return null;
 
 	const targetPath = schemaPath(safeFolder, entry.name, version);

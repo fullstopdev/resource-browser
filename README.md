@@ -201,8 +201,11 @@ Deterministic, schema-grounded actions (separate from free-form `/api/ask` RAG).
 | `compare` | ✅ forever | Two release schemas |
 | `spec-search` | ✅ forever | Semantic field search within one CRD |
 | `validate` | ❌ never | User YAML is unique each time |
+| `fix` | ❌ never | Per-issue AI YAML fix on Validate YAML page (preview before apply) |
 
-**Cache key:** `ai:v1:{release}:{kind}:{field\|none}:{compareRelease\|none}:{action}`
+**Cache key:** `ai:v2:{release}:{kind}:{group}:{apiVersion}:{field|none}:{compareRelease|none}:{action}`
+
+Warm-cache uses **active CRDs only** (at least one non-deprecated apiVersion) and posts the **latest non-deprecated apiVersion** per CRD. After upgrading to `ai:v2` keys, run a **full re-warm** (old `ai:v1` entries are ignored).
 
 **KV namespace setup** (one-time):
 
@@ -214,12 +217,18 @@ wrangler kv namespace create AI_CACHE --preview
 
 Redeploy after updating `wrangler.toml`. Local `npm run dev:ai` uses `preview_id`.
 
-**Warm cache after deploy** (reads kinds from `static/resources/{release}/manifest.json`):
+**Warm cache after deploy** (reads kinds from `static/resources/{release}/manifest.json`). On corporate networks set `NODE_EXTRA_CA_CERTS` (and proxy vars if needed):
 
 ```bash
-SITE_URL=https://eda-resource-browser.pages.dev RELEASE=26.4.2 npm run warm:cache
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+# Phased (deterministic first, then LLM actions):
+RELEASE=26.4.2 WARM_ACTIONS=dependency-map,schema-summary,relationships,full-context SITE_URL=https://eda-resource-browser.pages.dev npm run warm:cache
+RELEASE=26.4.2 WARM_ACTIONS=explain,example SITE_URL=https://eda-resource-browser.pages.dev npm run warm:cache
+# Or all actions: SITE_URL=https://eda-resource-browser.pages.dev RELEASE=26.4.2 npm run warm:cache
 # Local: SITE_URL=http://localhost:8788 RELEASE=26.4.2 npm run warm:cache
 ```
+
+Check coverage: `curl "https://eda-resource-browser.pages.dev/api/cache-status?release=26.4.2&summary=true"`
 
 **Debug cache coverage:**
 
@@ -243,12 +252,15 @@ curl -s -X POST http://localhost:8788/api/ai \
 | `field` | 6–10 | 2K in / 150 out |
 | `example` | 15–20 | 2K in / 500 out |
 | `validate` | 10–15 | 3K in / 300 out |
+| `fix` | 12–18 | 3K in / 800 out |
 | `compare` | 20–30 | 5K in / 400 out |
 | `spec-search` | 8–12 | 2K in / 200 out |
 
 **Warm-cache cost** (~50 kinds × explain + example): **~1,400 neurons** per new release (~14% of 10,000/day free tier). Cached hits cost **0 neurons**.
 
-Client helpers live in `src/lib/ai/aiClient.ts` (`explainCRD`, `validateYAML`, etc.). CrdAskPanel uses cached `explain` / `example` for starter chips; free-form questions still use `/api/ask` with Vectorize RAG.
+Client helpers live in `src/lib/ai/aiClient.ts` (`explainCRD`, `validateYAML`, `fixYAML`, etc.). CrdAskPanel uses cached `explain` / `example` for starter chips; free-form questions still use `/api/ask` with Vectorize RAG.
+
+**Validate YAML AI fix:** On `/validate-yaml`, click **Fix** on an error (or **Fix syntax with AI** when YAML does not parse). Deterministic fixes apply immediately; others open an AI preview before **Apply fix**. Requires Workers AI (`npm run dev:ai` locally). The global Ask AI header button is disabled; validation uses the `fix` action only.
 
 3. Build for production:
 

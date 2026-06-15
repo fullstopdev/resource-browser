@@ -2,7 +2,7 @@
 	import { askAI, type RelatedLink, type ResolvedTargetSummary } from '$lib/ai/askAI';
 	import type { RagSource } from '$lib/ai/rag/chunkTypes';
 	import { resourceBrowserUrl } from '$lib/ai/rag/resourceLinks';
-	import { parseReleaseFromQuestion } from '$lib/globalAsk';
+	import { closeGlobalAsk, parseReleaseFromQuestion } from '$lib/globalAsk';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 	import { page } from '$app/stores';
 
@@ -33,32 +33,40 @@
 	let answerKvContext = false;
 	let answerGrounded = false;
 	let answerRelease = '';
+	let answerIntent = '';
 	let answerTargetsResolved: ResolvedTargetSummary[] = [];
 	let answerRelatedLinks: RelatedLink[] = [];
 
-	function crdHref(target: ResolvedTargetSummary, rel: string): string {
-		const name = target.name || `${target.kind.toLowerCase()}s.${target.group}`;
-		return `/${name}/v1alpha1?release=${encodeURIComponent(rel)}`;
-	}
-
-	function mapHref(target: ResolvedTargetSummary, rel: string): string {
-		const name = target.name || `${target.kind.toLowerCase()}s.${target.group}`;
-		return `/dependency-map?focus=${encodeURIComponent(name)}&release=${encodeURIComponent(rel)}`;
-	}
+	const INTENT_LABELS: Record<string, string> = {
+		required_fields: 'Required fields',
+		example_yaml: 'Example YAML',
+		relationships: 'Relationships',
+		field_detail: 'Field detail',
+		compare: 'Comparison',
+		overview: 'Overview',
+		general: 'Answer'
+	};
 
 	$: scopeChipLabel = (() => {
 		if (!answerTargetsResolved.length) return '';
 		const releasePart = answerRelease ? ` · EDA ${answerRelease}` : '';
 		if (answerTargetsResolved.length === 1) {
 			const t = answerTargetsResolved[0];
-			return `Answering about ${t.kind} (${t.group})${releasePart}`;
+			return `${t.kind} (${t.group})${releasePart}`;
 		}
 		const topic =
 			answerTargetsResolved.length <= 3
 				? answerTargetsResolved.map((t) => t.kind).join(', ')
 				: `${answerTargetsResolved.length} CRDs`;
-		return `Answering about ${topic}${releasePart}`;
+		return `${topic}${releasePart}`;
 	})();
+
+	$: specLinks = answerRelatedLinks.filter((l) => l.type === 'crd');
+	$: mapLinks = answerRelatedLinks.filter((l) => l.type === 'dependency-map');
+
+	function handleResourceNavigate() {
+		closeGlobalAsk();
+	}
 
 	async function submit(preset?: string) {
 		const trimmed = (preset ?? question).trim();
@@ -74,6 +82,7 @@
 		answerKvContext = false;
 		answerGrounded = false;
 		answerRelease = '';
+		answerIntent = '';
 		answerTargetsResolved = [];
 		answerRelatedLinks = [];
 
@@ -95,6 +104,7 @@
 			answerKvContext = !!result.kvCached;
 			answerGrounded = !!result.grounded;
 			answerRelease = result.release ?? scopedRelease ?? '';
+			answerIntent = result.intent ?? '';
 			answerTargetsResolved = result.targetsResolved ?? [];
 			answerRelatedLinks = result.relatedLinks ?? [];
 		}
@@ -117,30 +127,15 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	{#if scopeChipLabel && hasAsked}
+	{#if scopeChipLabel && hasAsked && !loading}
 		<div
-			class="crd-ask-scope-chip rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100"
+			class="crd-ask-scope-chip rounded-lg border border-violet-200/80 bg-violet-50/80 px-3 py-2 text-sm text-violet-950 dark:border-violet-800/60 dark:bg-violet-950/30 dark:text-violet-100"
 		>
-			<span class="font-semibold">Scope:</span>
-			{#if answerTargetsResolved.length === 1 && answerRelease}
-				<a
-					href={crdHref(answerTargetsResolved[0], answerRelease)}
-					class="font-medium text-violet-800 underline decoration-violet-400/60 underline-offset-2 hover:text-violet-950 dark:text-violet-100"
-				>
-					{answerTargetsResolved[0].kind} ({answerTargetsResolved[0].group})
-				</a>
-				<span> · EDA {answerRelease}</span>
-				<a
-					href={mapHref(answerTargetsResolved[0], answerRelease)}
-					class="ml-2 text-xs text-violet-700 underline dark:text-violet-200"
-				>
-					intent topology
-				</a>
-			{:else}
-				{scopeChipLabel}
-			{/if}
+			<span class="font-medium text-violet-900 dark:text-violet-200">Scope</span>
+			<span class="mx-1.5 text-violet-400 dark:text-violet-600">·</span>
+			<span>{scopeChipLabel}</span>
 			{#if answerTargetsResolved.some((t) => t.kvHit)}
-				<span class="ml-1 text-xs text-violet-800/70 dark:text-violet-200/70">· KV context loaded</span>
+				<span class="ml-1.5 text-xs text-violet-700/80 dark:text-violet-300/80">(cached context)</span>
 			{/if}
 		</div>
 	{/if}
@@ -316,56 +311,85 @@
 	<!-- Answer -->
 	{#if answer && !loading}
 		<article
-			class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
+			class="crd-ask-answer-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
 		>
-			<div class="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-700">
-				<h3 class="text-sm font-semibold text-slate-900 dark:text-white">Answer</h3>
-				<div class="flex flex-wrap items-center gap-1.5">
-					<span
-						class="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
-						title="Answer generated by Workers AI from KV and schema context"
-					>
-						LLM
-					</span>
-					{#if answerKvContext}
+			<div class="border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+				<div class="flex flex-wrap items-center gap-2">
+					{#if answerIntent && INTENT_LABELS[answerIntent]}
 						<span
-							class="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-900 dark:bg-teal-900/40 dark:text-teal-200"
-							title="KV warmed summary included in context"
+							class="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-950/50 dark:text-blue-200"
 						>
-							KV context
-						</span>
-					{/if}
-					{#if answerGrounded}
-						<span
-							class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
-							title="Answer grounded in retrieved schema/docs context"
-						>
-							Grounded
+							{INTENT_LABELS[answerIntent]}
 						</span>
 					{/if}
 					{#if answerRelease}
-						<span
-							class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
-						>
-							{answerRelease}
-						</span>
+						<span class="text-xs text-slate-500 dark:text-slate-400">Release {answerRelease}</span>
 					{/if}
 				</div>
+				{#if answerGrounded || answerKvContext}
+					<div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+						{#if answerGrounded}
+							<span class="inline-flex items-center gap-1">
+								<span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+								Grounded in schema context
+							</span>
+						{/if}
+						{#if answerKvContext}
+							<span>KV cache used</span>
+						{/if}
+					</div>
+				{/if}
 			</div>
-			<div class="px-4 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+			<div class="crd-ask-answer-body px-4 py-4 text-[0.9375rem] leading-relaxed text-slate-800 dark:text-slate-100">
 				<SimpleMarkdown source={answer} className="crd-ask-answer" />
 			</div>
 
 			{#if answerRelatedLinks.length > 0}
-				<div class="flex flex-wrap gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-700">
-					{#each answerRelatedLinks as link}
-						<a
-							href={link.href}
-							class="inline-flex min-h-8 items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 hover:border-blue-400 hover:text-blue-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-						>
-							{link.label}
-						</a>
-					{/each}
+				<div class="border-t border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/25">
+					<div class="grid gap-3 sm:grid-cols-2">
+						{#if specLinks.length > 0}
+							<div>
+								<p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+									CRD spec
+								</p>
+								<div class="flex flex-col gap-2">
+									{#each specLinks as link}
+										<a
+											href={link.href}
+											on:click={handleResourceNavigate}
+											class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-blue-500 dark:hover:bg-blue-950/40"
+										>
+											<svg class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+											</svg>
+											{link.label}
+										</a>
+									{/each}
+								</div>
+							</div>
+						{/if}
+						{#if mapLinks.length > 0}
+							<div>
+								<p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+									Dependency map
+								</p>
+								<div class="flex flex-col gap-2">
+									{#each mapLinks as link}
+										<a
+											href={link.href}
+											on:click={handleResourceNavigate}
+											class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2 text-sm font-medium text-violet-950 shadow-sm transition-colors hover:border-violet-400 hover:bg-violet-100 dark:border-violet-800/60 dark:bg-violet-950/30 dark:text-violet-100 dark:hover:border-violet-500 dark:hover:bg-violet-950/50"
+										>
+											<svg class="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+											</svg>
+											{link.label}
+										</a>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					</div>
 				</div>
 			{/if}
 

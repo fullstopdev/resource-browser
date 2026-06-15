@@ -71,13 +71,14 @@ export function attachFocusEdgePorts(
 	if (!focus) return { nodes, edges };
 
 	const nodeById = new Map(nodes.map((n) => [n.id, n]));
-	const focusHeight = focus.height ?? FOCUS_NODE_HEIGHT;
+	const focusNode = focus;
+	const focusHeight = focusNode.height ?? FOCUS_NODE_HEIGHT;
 
 	function portTop(peerId: string): number {
 		const peer = nodeById.get(peerId);
 		if (!peer) return focusHeight / 2;
 		const peerHeight = peer.height ?? NODE_HEIGHT;
-		const centerY = peer.position.y + peerHeight / 2 - focus.position.y;
+		const centerY = peer.position.y + peerHeight / 2 - focusNode.position.y;
 		return Math.max(10, Math.min(focusHeight - 10, centerY));
 	}
 

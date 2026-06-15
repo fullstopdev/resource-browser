@@ -15,11 +15,13 @@ export function getScope(resource: Schema) {
 }
 
 export function isExpandableSchema(resource: Schema): boolean {
-	return (
-		resource.type === 'object' ||
-		resource.type === 'array' ||
-		hasObjectProperties(resource.type === 'array' ? resource.items : resource)
-	);
+	if (resource.type === 'object') {
+		return hasObjectProperties(resource);
+	}
+	if (resource.type === 'array') {
+		return hasObjectProperties(resource.items);
+	}
+	return false;
 }
 
 export function getDescription(resource: Schema) {

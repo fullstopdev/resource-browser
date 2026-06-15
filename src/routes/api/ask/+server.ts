@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { buildAskContext } from '$lib/ai/buildAskContext';
 import { trimLegacyContext } from '$lib/ai/buildRichContext';
 import { enrichAnswerLinks } from '$lib/ai/enrichAnswerLinks';
+import { sanitizeAskAnswer } from '$lib/ai/sanitizeAskAnswer';
 import { llmFallbackReason } from '$lib/ai/fallbackAnswers';
 import { buildCrdUserMessage } from '$lib/ai/prompts';
 import type { RagSource } from '$lib/ai/rag/chunkTypes';
@@ -17,6 +18,7 @@ import {
 } from '$lib/ai/runWorkersAI';
 import { MAX_QUESTION_CHARS } from '$lib/ai/tokenBudget';
 import { fetchManifest } from '$lib/manifest/fetch';
+import { activeApiVersion, filterActiveManifest } from '$lib/manifest/activeCrds';
 import releasesYaml from '$lib/releases.yaml?raw';
 import type { ReleasesConfig } from '$lib/structure';
 import { loadStaticYaml } from '$lib/yaml/safeYaml';
@@ -62,7 +64,7 @@ function hasGroundingContext(context: string): boolean {
 }
 
 function buildTargetsResolved(
-	targets: Awaited<ReturnType<typeof resolveAskTargets>>,
+	targets: Awaited<ReturnType<typeof resolveAskTargetsWithMeta>>['targets'],
 	kvHits: Array<{
 		target: { kind: string; group: string; name: string };
 		kvAnswer?: string;
@@ -75,6 +77,7 @@ function buildTargetsResolved(
 		kind: target.kind,
 		group: target.group,
 		name: target.name,
+		version: target.version || undefined,
 		kvHit: !!kvHits.find(
 			(h) =>
 				h.target.kind === target.kind &&
@@ -306,13 +309,13 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		const llmMs = Date.now() - llmStart;
 
 		const { answer, relatedLinks } = enrichAnswerLinks({
-			answer: rawAnswer,
+			answer: sanitizeAskAnswer(rawAnswer, askIntent),
 			release,
 			targets: targets.map((t) => ({
 				kind: t.kind,
 				group: t.group,
 				name: t.name,
-				version: version || undefined
+				version: t.version
 			})),
 			origin: url.origin
 		});

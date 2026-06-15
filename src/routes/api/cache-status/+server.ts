@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { ASK_WARM_ACTIONS, buildCacheKey, buildLegacyCacheKey } from '$lib/ai/kvCache';
+import { ASK_WARM_ACTIONS, buildCacheKey, buildReleaseCacheKey } from '$lib/ai/kvCache';
+import { activeApiVersion, filterActiveManifest } from '$lib/manifest/activeCrds';
 import { fetchManifest } from '$lib/manifest/fetch';
 import releasesYaml from '$lib/releases.yaml?raw';
 import type { ReleasesConfig } from '$lib/structure';
@@ -20,13 +21,11 @@ async function actionCached(
 	release: string,
 	kind: string,
 	group: string | undefined,
+	apiVersion: string | undefined,
 	action: string
 ): Promise<boolean> {
-	const primaryKey = buildCacheKey({ release, kind, group, action });
-	let val = await kv.get(primaryKey);
-	if (!val && group) {
-		val = await kv.get(buildLegacyCacheKey({ release, kind, action }));
-	}
+	const primaryKey = buildCacheKey({ release, kind, group, apiVersion, action });
+	const val = await kv.get(primaryKey);
 	return !!val;
 }
 
@@ -54,11 +53,17 @@ export const GET: RequestHandler = async ({ url, platform, fetch: originFetch })
 		if (!folder) {
 			return json({ error: `Unknown release: ${release}` }, { status: 404 });
 		}
-		const manifest =
-			(await fetchManifest(assertSafeFolderPath(folder), undefined, originFetch)) ?? [];
+		const manifest = filterActiveManifest(
+			(await fetchManifest(assertSafeFolderPath(folder), undefined, originFetch)) ?? []
+		);
 		const targets = manifest
 			.filter((e) => e.kind && e.group)
-			.map((e) => ({ kind: e.kind!, group: e.group! }));
+			.map((e) => ({
+				kind: e.kind!,
+				group: e.group!,
+				apiVersion: activeApiVersion(e)
+			}))
+			.filter((e) => e.apiVersion);
 
 		const coreActions = ['schema-summary', 'relationships', 'full-context'] as const;
 		let complete = 0;
@@ -71,7 +76,14 @@ export const GET: RequestHandler = async ({ url, platform, fetch: originFetch })
 		for (const target of targets) {
 			let targetComplete = true;
 			for (const action of coreActions) {
-				const hit = await actionCached(kv, release, target.kind, target.group, action);
+				const hit = await actionCached(
+					kv,
+					release,
+					target.kind,
+					target.group,
+					target.apiVersion,
+					action
+				);
 				if (hit) perAction[action] += 1;
 				else targetComplete = false;
 			}
@@ -79,6 +91,9 @@ export const GET: RequestHandler = async ({ url, platform, fetch: originFetch })
 		}
 
 		const total = targets.length;
+		const releaseDependencyMap = !!(await kv.get(
+			buildReleaseCacheKey({ release, action: 'dependency-map' })
+		));
 		return json({
 			release,
 			kvBound: true,
@@ -86,6 +101,9 @@ export const GET: RequestHandler = async ({ url, platform, fetch: originFetch })
 			totalCrds: total,
 			fullContextComplete: complete,
 			percentComplete: total ? Math.round((complete / total) * 1000) / 10 : 0,
+			releaseActions: {
+				'dependency-map': { cached: releaseDependencyMap }
+			},
 			perAction: Object.fromEntries(
 				coreActions.map((a) => [
 					a,
@@ -99,12 +117,25 @@ export const GET: RequestHandler = async ({ url, platform, fetch: originFetch })
 		return json({ error: 'kind is required unless summary=true' }, { status: 400 });
 	}
 
+	const versionParam = url.searchParams.get('version')?.trim();
+	let apiVersion = versionParam || undefined;
+	if (!apiVersion && group) {
+		const folder = releaseFolder(release);
+		if (folder) {
+			const manifest = filterActiveManifest(
+				(await fetchManifest(assertSafeFolderPath(folder), undefined, originFetch)) ?? []
+			);
+			const entry = manifest.find((e) => e.kind === kind && e.group === group);
+			apiVersion = entry ? activeApiVersion(entry) : undefined;
+		}
+	}
+
 	const status: Record<string, string> = {};
 	for (const action of CHECK_ACTIONS) {
-		status[action] = (await actionCached(kv, release, kind, group, action))
+		status[action] = (await actionCached(kv, release, kind, group, apiVersion, action))
 			? 'cached'
 			: 'missing';
 	}
 
-	return json({ release, kind, group: group ?? null, cache: status, kvBound: true });
+	return json({ release, kind, group: group ?? null, version: apiVersion ?? null, cache: status, kvBound: true });
 };

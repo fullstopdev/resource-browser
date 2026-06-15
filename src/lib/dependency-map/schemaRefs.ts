@@ -91,6 +91,19 @@ const GENERIC_KIND_WORDS = new Set([
 	'CR'
 ]);
 
+/** Field names that reference routing-policy *Set CRDs (suffix Set, not *Ref). */
+const ROUTING_POLICY_SET_FIELD_KINDS: Record<string, string> = {
+	prefixSet: 'PrefixSet',
+	tagSet: 'TagSet',
+	asPathSet: 'ASPathSet',
+	communitySet: 'CommunitySet',
+	applyTagSet: 'TagSet'
+};
+
+export function kindFromRoutingPolicySetField(propName: string): string | null {
+	return ROUTING_POLICY_SET_FIELD_KINDS[propName] ?? null;
+}
+
 /** Field names that denote cross-CRD references (*Ref stems), not BGP preference or git ref. */
 export const REFERENCE_FIELD_PATTERN = /(?:Ref|Refs|ResourceRef|Reference)$/i;
 
@@ -174,7 +187,8 @@ const DESCRIPTION_PHRASE_KINDS: Array<{ pattern: RegExp; kinds: string[] }> = [
 	{ pattern: /Reference to the OSPV[23] State/i, kinds: ['OSPFInterfaceState'] },
 	{ pattern: /Reference to (?:a\s+)?TopoNode to which this config is applied/i, kinds: ['TopoNode'] },
 	{ pattern: /Reference to (?:a\s+)?TopoNode\./i, kinds: ['TopoNode'] },
-	{ pattern: /Reference to (?:a\s+)?Interface\./i, kinds: ['Interface'] }
+	{ pattern: /Reference to (?:a\s+)?Interface\./i, kinds: ['Interface'] },
+	{ pattern: /Match conditions for BGP communities/i, kinds: ['CommunitySet'] }
 ];
 
 /** Non-EDA references (K8s secrets, external tokens) — skip in audit and inference. */
@@ -964,6 +978,22 @@ export function extractExplicitRefEdges(
 		if (kind) {
 			add(kind, edgeFromRefField(prop.name, prop.description, prop.path, kind));
 		}
+	}
+
+	const routingSetKind = kindFromRoutingPolicySetField(prop.name);
+	if (routingSetKind) {
+		add(routingSetKind, {
+			relation: 'references',
+			fieldPath: prop.path,
+			confidence: prop.description ? 94 : 90,
+			reason: prop.description
+				? `Routing policy set field: ${prop.description.trim().slice(0, 80)} (${prop.path})`
+				: `Routing policy set field ${prop.name} → ${routingSetKind} (${prop.path})`,
+			pass: 2,
+			edgeSource: 'explicit',
+			confidenceTier: 2,
+			edgeClass: 'hardRef'
+		});
 	}
 
 	// Description-based refs on spec/status fields (primary EDA pattern)

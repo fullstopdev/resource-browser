@@ -120,7 +120,7 @@
 	proOptions={{ hideAttribution: true }}
 	class="intent-topo-flow-canvas"
 >
-	<Controls position="bottom-left" showInteractive={false} />
+	<Controls position="bottom-left" />
 
 	<Panel position="top-left" class="dep-intent-flow-legend-panel">
 		<IntentTopologyLegend {edges} themeMode={themeMode} />

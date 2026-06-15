@@ -127,7 +127,7 @@ export function auditOpenApiSchema(
 				apiVersion,
 				fieldPath,
 				propertyName: field.name,
-				description: field.description,
+				description: field.description ?? '',
 				status: 'skipped',
 				extractedKinds,
 				resolvedTargets
@@ -142,7 +142,7 @@ export function auditOpenApiSchema(
 				apiVersion,
 				fieldPath,
 				propertyName: field.name,
-				description: field.description,
+				description: field.description ?? '',
 				status: 'skipped',
 				extractedKinds,
 				resolvedTargets
@@ -170,7 +170,7 @@ export function auditOpenApiSchema(
 				apiVersion,
 				fieldPath,
 				propertyName: field.name,
-				description: field.description,
+				description: field.description ?? '',
 				status:
 					uniqueResolved.length > 0
 						? 'matched'
@@ -198,7 +198,7 @@ export function auditOpenApiSchema(
 				apiVersion,
 				fieldPath,
 				propertyName: field.name,
-				description: field.description,
+				description: field.description ?? '',
 				status: uniqueResolved.length > 0 ? 'matched' : 'unresolved',
 				extractedKinds: monitorKinds,
 				resolvedTargets: uniqueResolved
@@ -213,7 +213,7 @@ export function auditOpenApiSchema(
 				apiVersion,
 				fieldPath,
 				propertyName: field.name,
-				description: field.description,
+				description: field.description ?? '',
 				status: 'unmatched',
 				extractedKinds,
 				resolvedTargets
@@ -236,7 +236,7 @@ export function auditOpenApiSchema(
 			apiVersion,
 			fieldPath,
 			propertyName: field.name,
-			description: field.description,
+			description: field.description ?? '',
 			status,
 			extractedKinds,
 			resolvedTargets: uniqueResolved
@@ -265,7 +265,7 @@ export function auditRefStemFields(
 
 		const prop = {
 			name: field.name,
-			description: field.description,
+			description: field.description ?? '',
 			path: fieldPath,
 			node: field.node
 		};
@@ -299,7 +299,7 @@ export function auditRefStemFields(
 			apiVersion,
 			fieldPath,
 			propertyName: field.name,
-			description: field.description,
+			description: field.description ?? '',
 			status,
 			stemKind: stemToKindForAudit(field.name),
 			resolvedTargets: uniqueResolved
@@ -327,7 +327,7 @@ export function auditMetaInterfaceFields(
 		const fieldPath = field.path;
 		const extractedKinds = extractMetaInterfaceKinds(
 			field.name,
-			field.description,
+			field.description ?? '',
 			fieldPath,
 			sourceKind
 		);
@@ -347,7 +347,7 @@ export function auditMetaInterfaceFields(
 			apiVersion,
 			fieldPath,
 			propertyName: field.name,
-			description: field.description,
+			description: field.description ?? '',
 			status,
 			extractedKinds,
 			resolvedTargets: uniqueResolved

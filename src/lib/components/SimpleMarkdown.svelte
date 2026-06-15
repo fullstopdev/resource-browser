@@ -128,4 +128,58 @@
 	:global(.simple-markdown.crd-ask-answer) {
 		line-height: 1.65;
 	}
+
+	:global(.simple-markdown.crd-ask-answer > .md-p:first-child) {
+		font-size: 1rem;
+		color: rgb(30 41 59);
+	}
+
+	:global(.dark .simple-markdown.crd-ask-answer > .md-p:first-child) {
+		color: rgb(241 245 249);
+	}
+
+	:global(.simple-markdown .md-table-wrap) {
+		margin: 0.75rem 0 1rem;
+		overflow-x: auto;
+		border-radius: 0.5rem;
+		border: 1px solid rgb(226 232 240);
+	}
+
+	:global(.dark .simple-markdown .md-table-wrap) {
+		border-color: rgb(51 65 85);
+	}
+
+	:global(.simple-markdown .md-table) {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.85rem;
+	}
+
+	:global(.simple-markdown .md-th),
+	:global(.simple-markdown .md-td) {
+		border-bottom: 1px solid rgb(226 232 240);
+		padding: 0.5rem 0.75rem;
+		text-align: left;
+		vertical-align: top;
+	}
+
+	:global(.dark .simple-markdown .md-th),
+	:global(.dark .simple-markdown .md-td) {
+		border-bottom-color: rgb(51 65 85);
+	}
+
+	:global(.simple-markdown .md-th) {
+		background: rgb(248 250 252);
+		font-weight: 600;
+		color: rgb(51 65 85);
+	}
+
+	:global(.dark .simple-markdown .md-th) {
+		background: rgb(15 23 42 / 0.65);
+		color: rgb(203 213 225);
+	}
+
+	:global(.simple-markdown .md-tr:last-child .md-td) {
+		border-bottom: none;
+	}
 </style>

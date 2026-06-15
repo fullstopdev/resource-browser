@@ -11,7 +11,7 @@ export const ASK_AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as const;
 export const AI_REQUEST_TIMEOUT_MS = 90_000;
 export const ASK_AI_REQUEST_TIMEOUT_MS = 120_000;
 export const AI_MAX_TOKENS = 2048;
-export const ASK_AI_MAX_TOKENS = 3584;
+export const ASK_AI_MAX_TOKENS = 2048;
 export const AI_TEMPERATURE = 0.3;
 
 export class WorkersAIEmptyResponseError extends Error {
@@ -131,7 +131,10 @@ export async function runWorkersAIMessages(
 		runOptions.seed = options.seed;
 	}
 
-	const result = await withTimeout(ai.run(model, runOptions), timeoutMs);
+	const result = await withTimeout(
+		ai.run(model as Parameters<Ai['run']>[0], runOptions),
+		timeoutMs
+	);
 	const answer = extractWorkersAIText(result);
 	if (!answer) {
 		throw new WorkersAIEmptyResponseError();

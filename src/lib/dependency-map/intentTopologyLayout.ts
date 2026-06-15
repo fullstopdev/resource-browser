@@ -1,8 +1,8 @@
-import { filterAggregateSiblingDeps } from './intentFocusFilter';
+import { filterAggregateSiblingDeps, isRoutingPolicySetKind } from './intentFocusFilter';
 import { linkConfidenceTier } from './graphFilters';
 import { getGraphPalette, REL_ORDER } from './graphColors';
 import { getRelationLabel, MAP_ROLE_LABELS } from './relationLabels';
-import { buildTransitiveDepList } from './transitiveClosure';
+import { buildTransitiveDepList, linkEndpointId } from './transitiveClosure';
 import {
 	isMapTopologyAppliesToLink,
 	isMapTopologyDependsOnLink,
@@ -100,7 +100,7 @@ export type IntentTopologyLayoutOptions = {
 	showDependsOn?: boolean;
 	showRequiredBy?: boolean;
 	themeMode?: ThemeMode;
-	/** Breadcrumb trail — inject off-screen ancestors so path edges can render. */
+	/** Breadcrumb trail — include ancestor nodes in layout columns for path highlighting. */
 	pathNodeIds?: string[];
 };
 
@@ -166,9 +166,6 @@ function sortDeps(
 		return nodeLabel(graph, a.id).localeCompare(nodeLabel(graph, b.id));
 	});
 }
-
-/** Horizontal offset for breadcrumb-only nodes parked off-screen (path edges still render). */
-export const PATH_BREADCRUMB_OFFSCREEN_X = -COLUMN_WIDTH;
 
 function roleForDep(direction: 'outgoing' | 'incoming'): IntentTopologyRole {
 	return direction === 'outgoing' ? 'prerequisite' : 'dependent';
@@ -540,19 +537,50 @@ function collapseEdgeCandidates(
 	});
 }
 
+function findLinkBetween(
+	links: GraphLink[],
+	a: string,
+	b: string
+): GraphLink | undefined {
+	return links.find((l) => {
+		const source = linkEndpoint(l, 'source');
+		const target = linkEndpoint(l, 'target');
+		return (source === a && target === b) || (source === b && target === a);
+	});
+}
+
+/** Resolve breadcrumb segment to graph edge direction (not drill navigation order). */
+function resolvePathSegmentEdge(
+	graph: DependencyGraph,
+	layoutLinks: GraphLink[],
+	from: string,
+	to: string
+): { source: string; target: string; rel?: LinkRelation; linkId?: string } | null {
+	const topologyLinks = graph.links.filter((l) => isTopologyLayoutLink(l));
+	const link =
+		findLinkBetween(layoutLinks, from, to) ?? findLinkBetween(topologyLinks, from, to);
+	if (!link) return null;
+
+	const [normalized] = canonicalLayoutLinks(graph, [link]);
+	if (!normalized) return null;
+
+	return {
+		source: linkEndpoint(normalized, 'source'),
+		target: linkEndpoint(normalized, 'target'),
+		rel: normalized.rel,
+		linkId: normalized.id
+	};
+}
+
 function relForPathPair(
 	layoutLinks: GraphLink[],
 	from: string,
 	to: string
 ): LinkRelation | undefined {
-	const link = layoutLinks.find((l) => {
-		const source = linkEndpoint(l, 'source');
-		const target = linkEndpoint(l, 'target');
-		return (source === from && target === to) || (source === to && target === from);
-	});
-	return link?.rel;
+	return findLinkBetween(layoutLinks, from, to)?.rel;
 }
 
+/** Place breadcrumb ancestors in layout columns (on-screen, not off-screen). */
 function injectPathBreadcrumbNodes(
 	graph: DependencyGraph,
 	focusNodeId: string,
@@ -560,49 +588,27 @@ function injectPathBreadcrumbNodes(
 	roleByNode: Map<string, IntentTopologyRole>,
 	columnBuckets: Map<number, ColumnItem[]>,
 	layoutLinks: GraphLink[],
-	hasDependents: boolean,
-	pathOnlyIds: Set<string>
+	hasDependents: boolean
 ): boolean {
 	const focusIdx = pathNodeIds.indexOf(focusNodeId);
 	if (focusIdx < 0) return hasDependents;
 
-	let nextHasDependents = hasDependents;
-
-	for (let i = 0; i < pathNodeIds.length; i++) {
+	for (let i = 0; i < focusIdx; i++) {
 		const pathId = pathNodeIds[i];
-		if (pathId === focusNodeId || roleByNode.has(pathId) || !nodeFor(graph, pathId)) continue;
+		if (!pathId || roleByNode.has(pathId) || !nodeFor(graph, pathId)) continue;
 
-		const neighborId =
-			i < focusIdx ? pathNodeIds[i + 1] : i > focusIdx ? pathNodeIds[i - 1] : undefined;
-		const pathLink = neighborId
-			? layoutLinks.find((l) => {
-					const source = linkEndpoint(l, 'source');
-					const target = linkEndpoint(l, 'target');
-					return (
-						(source === pathId && target === neighborId) ||
-						(source === neighborId && target === pathId)
-					);
-				})
-			: undefined;
+		const neighborId = pathNodeIds[i + 1];
+		const role: IntentTopologyRole = 'prerequisite';
 
-		let role: IntentTopologyRole;
-		if (pathLink?.rel === 'appliesTo') {
-			role = roleForAppliesToNeighbor(focusNodeId, pathLink, pathId, graph) ?? 'prerequisite';
-		} else {
-			role = i < focusIdx ? 'prerequisite' : 'dependent';
-		}
-		if (role === 'dependent') nextHasDependents = true;
-
-		pathOnlyIds.add(pathId);
 		roleByNode.set(pathId, role);
-		const col = columnFor(role, nextHasDependents);
+		const col = columnFor(role, hasDependents) + (focusIdx - i - 1);
 		const bucket = columnBuckets.get(col) ?? [];
 		if (bucket.some((item) => item.entry.id === pathId)) continue;
 
 		bucket.push({
 			entry: {
 				id: pathId,
-				depth: Math.abs(i - focusIdx),
+				depth: focusIdx - i,
 				rel: neighborId ? relForPathPair(layoutLinks, pathId, neighborId) : undefined
 			},
 			role
@@ -610,7 +616,7 @@ function injectPathBreadcrumbNodes(
 		columnBuckets.set(col, bucket);
 	}
 
-	return nextHasDependents;
+	return hasDependents;
 }
 
 export function buildIntentTopologyLayout(
@@ -635,6 +641,26 @@ export function buildIntentTopologyLayout(
 	const requiredByRaw = showRequiredBy
 		? buildTransitiveDepList(focusNodeId, requiredByLinks, 'incoming', 'direct')
 		: [];
+
+	const focusNode = graph.nodes.find((n) => n.id === focusNodeId);
+	const supplementalRequiredByLinks: GraphLink[] = [];
+	if (focusNode && isRoutingPolicySetKind(focusNode.kind)) {
+		for (const link of graph.links) {
+			if (link.rel !== 'deploys') continue;
+			const target = linkEndpointId(link.target as string);
+			const source = linkEndpointId(link.source as string);
+			if (target !== focusNodeId) continue;
+			if (requiredByRaw.some((d) => d.id === source)) continue;
+			requiredByRaw.push({
+				id: source,
+				depth: 1,
+				rel: 'deploys',
+				field: link.field,
+				reason: link.reason
+			});
+			supplementalRequiredByLinks.push(link);
+		}
+	}
 
 	const dependsOn = sortDeps(
 		graph,
@@ -664,7 +690,6 @@ export function buildIntentTopologyLayout(
 	}
 
 	const roleByNode = new Map<string, IntentTopologyRole>();
-	const pathOnlyIds = new Set<string>();
 
 	function assignDep(dep: TransitiveDepEntry, direction: 'outgoing' | 'incoming') {
 		roleByNode.set(dep.id, roleForDep(direction));
@@ -687,7 +712,7 @@ export function buildIntentTopologyLayout(
 	}
 
 	const layoutLinks = canonicalLayoutLinks(graph, [...dependsOnLinks]);
-	for (const link of requiredByLinks) {
+	for (const link of [...requiredByLinks, ...supplementalRequiredByLinks]) {
 		if (!layoutLinks.some((l) => l.id === link.id)) layoutLinks.push(link);
 	}
 
@@ -699,11 +724,11 @@ export function buildIntentTopologyLayout(
 			roleByNode,
 			columnBuckets,
 			layoutLinks,
-			hasDependents,
-			pathOnlyIds
+			hasDependents
 		);
 	}
 
+	const pathNodeSet = new Set(pathNodeIds);
 	const visibleIds = new Set<string>([focusNodeId]);
 	for (const items of columnBuckets.values()) {
 		for (const item of items) visibleIds.add(item.entry.id);
@@ -748,8 +773,8 @@ export function buildIntentTopologyLayout(
 	for (const dep of dependsOn) {
 		const collapsedEdge = pairEdge(collapsed, focusNodeId, dep.id);
 		addLayoutEdge(
-			focusNodeId,
-			dep.id,
+			collapsedEdge?.source ?? focusNodeId,
+			collapsedEdge?.target ?? dep.id,
 			collapsedEdge?.rel ?? dep.rel,
 			collapsedEdge?.linkId ?? `e-dep-${dep.id}`,
 			collapsedEdge?.count ?? 1
@@ -759,8 +784,8 @@ export function buildIntentTopologyLayout(
 	for (const dep of requiredBy) {
 		const collapsedEdge = pairEdge(collapsed, focusNodeId, dep.id);
 		addLayoutEdge(
-			dep.id,
-			focusNodeId,
+			collapsedEdge?.source ?? dep.id,
+			collapsedEdge?.target ?? focusNodeId,
 			collapsedEdge?.rel ?? dep.rel,
 			collapsedEdge?.linkId ?? `e-req-${dep.id}`,
 			collapsedEdge?.count ?? 1
@@ -771,12 +796,14 @@ export function buildIntentTopologyLayout(
 		for (let i = 0; i < pathNodeIds.length - 1; i++) {
 			const from = pathNodeIds[i];
 			const to = pathNodeIds[i + 1];
-			const collapsedEdge = pairEdge(collapsed, from, to);
+			const resolved = resolvePathSegmentEdge(graph, layoutLinks, from, to);
+			if (!resolved) continue;
+			const collapsedEdge = pairEdge(collapsed, resolved.source, resolved.target);
 			addLayoutEdge(
-				from,
-				to,
-				collapsedEdge?.rel ?? relForPathPair(layoutLinks, from, to),
-				collapsedEdge?.linkId ?? `e-path-${from}-${to}`,
+				resolved.source,
+				resolved.target,
+				collapsedEdge?.rel ?? resolved.rel,
+				collapsedEdge?.linkId ?? resolved.linkId ?? `e-path-${resolved.source}-${resolved.target}`,
 				collapsedEdge?.count ?? 1
 			);
 		}
@@ -805,12 +832,19 @@ export function buildIntentTopologyLayout(
 	const focusX = focusCol * COLUMN_WIDTH;
 	const focusY = (maxColHeight - NODE_HEIGHT) / 2;
 	const focusCenterY = focusY + NODE_HEIGHT / 2;
-	const focusPathIdx = pathNodeIds.indexOf(focusNodeId);
-
 	const nodes: LayoutNode[] = [];
-	nodes.push(
-		buildFlowNode(graph, null, focusNodeId, 'focus', { x: focusX, y: focusY }, themeMode)
+	const focusLayoutNode = buildFlowNode(
+		graph,
+		null,
+		focusNodeId,
+		'focus',
+		{ x: focusX, y: focusY },
+		themeMode
 	);
+	if (pathNodeSet.has(focusNodeId)) {
+		focusLayoutNode.data.pathInBreadcrumb = true;
+	}
+	nodes.push(focusLayoutNode);
 
 	for (const col of sortedCols) {
 		const items = columnBuckets.get(col) ?? [];
@@ -821,17 +855,18 @@ export function buildIntentTopologyLayout(
 		for (let gi = 0; gi < groups.length; gi++) {
 			const group = groups[gi]!;
 			for (const item of group.items) {
-				const pathIdx = pathNodeIds.indexOf(item.entry.id);
-				const offscreenX =
-					pathOnlyIds.has(item.entry.id) && focusPathIdx >= 0 && pathIdx >= 0 && pathIdx < focusPathIdx
-						? PATH_BREADCRUMB_OFFSCREEN_X * (focusPathIdx - pathIdx)
-						: col * COLUMN_WIDTH;
-				nodes.push(
-					buildFlowNode(graph, item.entry, focusNodeId, item.role, {
-						x: offscreenX,
-						y: yCursor
-					}, themeMode)
+				const node = buildFlowNode(
+					graph,
+					item.entry,
+					focusNodeId,
+					item.role,
+					{ x: col * COLUMN_WIDTH, y: yCursor },
+					themeMode
 				);
+				if (pathNodeSet.has(item.entry.id)) {
+					node.data.pathInBreadcrumb = true;
+				}
+				nodes.push(node);
 				yCursor += ROW_STEP;
 			}
 			if (gi < groups.length - 1) yCursor += GROUP_GAP;

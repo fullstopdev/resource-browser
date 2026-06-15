@@ -1,7 +1,16 @@
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const monacoEditorStub = path.resolve(rootDir, 'src/lib/validate-bundle/monaco-editor.ssr-stub.ts');
+const monacoYamlEditorStub = path.resolve(
+	rootDir,
+	'src/lib/validate-bundle/MonacoYamlEditor.ssr.stub.svelte'
+);
 
 // Plugin to suppress 404 logs for CRD version availability checks
 const suppressCrdCheckLogs = (): Plugin => ({
@@ -42,8 +51,34 @@ const suppressCrdCheckLogs = (): Plugin => ({
 	}
 });
 
-export default defineConfig({
-	plugins: [suppressCrdCheckLogs(), tailwindcss(), sveltekit(), devtoolsJson()],
+const monacoSsrStub = (): Plugin => ({
+	name: 'monaco-ssr-stub',
+	enforce: 'pre',
+	resolveId(source, _importer, options) {
+		if (!options?.ssr) return null;
+		if (source === 'monaco-editor' || source.startsWith('monaco-editor/')) {
+			return monacoEditorStub;
+		}
+		const normalized = source.replace(/\\/g, '/');
+		if (normalized.endsWith('/MonacoYamlEditor.svelte') || normalized.includes('MonacoYamlEditor.svelte')) {
+			return monacoYamlEditorStub;
+		}
+		return null;
+	}
+});
+
+export default defineConfig(({ isSsrBuild }) => ({
+	plugins: [monacoSsrStub(), suppressCrdCheckLogs(), tailwindcss(), sveltekit(), devtoolsJson()],
+	resolve: isSsrBuild
+		? {
+				alias: {
+					'monaco-editor': monacoEditorStub,
+					'$lib/validate-bundle/MonacoYamlEditor.svelte': monacoYamlEditorStub,
+					[path.resolve(rootDir, 'src/lib/validate-bundle/MonacoYamlEditor.svelte')]:
+						monacoYamlEditorStub
+				}
+			}
+		: undefined,
 	build: {
 		rollupOptions: {
 			// Work around Rollup 4 literal deoptimization crash (ConditionalExpression + frozen arrays)
@@ -78,4 +113,4 @@ export default defineConfig({
 			}
 		]
 	}
-});
+}));

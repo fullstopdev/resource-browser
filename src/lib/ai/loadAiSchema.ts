@@ -79,15 +79,17 @@ export async function loadAiSchema(
 	const entry = findEntryByKind(manifest, kind, group);
 	if (!entry?.name || !entry.group) return null;
 
-	const resolvedVersion = version || getLatestVersion({ versions: entry.versions ?? [] });
+	const resolvedVersion = version || getLatestVersion(entry);
 	if (!resolvedVersion) return null;
+
+	const versionMeta = entry.versions?.find((v) => v.name === resolvedVersion);
+	if (!versionMeta || versionMeta.deprecated) return null;
 
 	const targetPath = schemaPath(safeFolder, entry.name, resolvedVersion);
 	const targetSchema = await fetchSchema(targetPath, fetcher);
 	if (!targetSchema) return null;
 
-	const versionMeta = entry.versions?.find((v) => v.name === resolvedVersion);
-	const deprecated = !!versionMeta?.deprecated;
+	const deprecated = false;
 
 	return formatSchemaPayload(
 		entry.kind ?? kind,

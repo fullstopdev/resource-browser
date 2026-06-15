@@ -1,5 +1,5 @@
 import type { ErrorObject } from 'ajv';
-import { findManifestEntry, normalizeKind } from '$lib/manifest/lookup';
+import { findManifestEntry } from '$lib/manifest/lookup';
 import { getLatestVersion } from '$lib/versions';
 import { buildSummary } from './formatErrors';
 import { parseDocuments } from './parseDocuments';
@@ -105,8 +105,7 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 		const parts = apiVersion.split('/');
 		if (parts.length !== 2) continue;
 		const [group, version] = parts;
-		const lookupKind = normalizeKind(kind, manifest, group) ?? kind;
-		const resourceEntry = findManifestEntry(manifest, lookupKind, group);
+		const resourceEntry = findManifestEntry(manifest, kind, group);
 		if (!resourceEntry) continue;
 		const latestVersion = getLatestVersion(resourceEntry);
 		const schemaVersion = latestVersion;

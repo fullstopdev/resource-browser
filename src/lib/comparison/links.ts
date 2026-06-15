@@ -1,3 +1,4 @@
+import { buildCatalogCrdPath } from '$lib/urlState';
 import type { CrdDiffEntry } from './types';
 
 export type ResourceLinkContext = {
@@ -34,5 +35,10 @@ export function resourceDetailHref(
 ): string | null {
 	const ctx = resourceLinkContext(crd, sourceReleaseName, targetReleaseName);
 	if (!ctx) return null;
-	return `/${crd.name}/${ctx.version}?release=${encodeURIComponent(ctx.releaseName)}`;
+	return buildCatalogCrdPath({
+		release: ctx.releaseName,
+		kind: crd.kind,
+		name: crd.name,
+		version: ctx.version
+	});
 }

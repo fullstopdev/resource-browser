@@ -4,6 +4,8 @@ import { getOrCompileValidator } from './schemaCache';
 import { validateDocument } from './validateDocument';
 import type { ManifestEntry, ParsedDocument } from './types';
 
+const errMsg = (e: { message?: string }) => e.message ?? '';
+
 const manifest: ManifestEntry[] = [
 	{
 		name: 'configlets.config.eda.nokia.com',
@@ -76,7 +78,7 @@ describe('validateDocument error accumulation', () => {
 		});
 
 		expect(result.valid).toBe(false);
-		const messages = result.errors.map((e) => e.message).join('\n');
+		const messages = result.errors.map((e) => errMsg(e)).join('\n');
 		expect(messages).toContain("Missing required 'apiVersion'");
 		expect(messages).toContain("Missing required 'kind'");
 		expect(messages).toContain("Missing required 'metadata.name'");
@@ -123,15 +125,13 @@ spec: {}
 		expect(
 			result.errors.some(
 				(e) =>
-					e.message.includes("kind 'NotARealKind' is not supported for apiVersion") &&
-					e.message.includes("Expected kind 'Configlet'")
+					errMsg(e).includes("kind 'NotARealKind' is not supported for apiVersion") &&
+					errMsg(e).includes("Expected kind 'Configlet'")
 			)
 		).toBe(true);
 	});
 
-	it('normalizes kind casing before CRD lookup', () => {
-		const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
-		const validator = getOrCompileValidator(ajv, 'topology::spec', specSchema);
+	it('rejects lowercase kind with suggested fix', () => {
 		const doc: ParsedDocument = {
 			data: {
 				apiVersion: 'topologies.eda.nokia.com/v1',
@@ -157,16 +157,26 @@ spec:
 			releaseFolder: 'resources/26.4.2',
 			releaseLabel: 'EDA 26.4.2',
 			manifest,
-			schemas: new Map([
-				['/resources/26.4.2/topologies.topologies.eda.nokia.com/v1.yaml', { spec: specSchema, isSpecRequired: false }]
-			]),
-			getSpecValidator: () => validator,
-			getStatusValidator: () => validator
+			schemas: new Map(),
+			getSpecValidator: () => {
+				throw new Error('schema validation should not run');
+			},
+			getStatusValidator: () => {
+				throw new Error('schema validation should not run');
+			}
 		});
 
-		expect(result.errors.some((e) => e.message.includes('Invalid kind:'))).toBe(false);
-		expect(result.errors.some((e) => e.message.includes('Could not find CRD'))).toBe(false);
-		expect(result.valid).toBe(true);
+		expect(result.valid).toBe(false);
+		expect(
+			result.errors.some((e) =>
+				errMsg(e).includes(
+					`Invalid kind: 'topology' must be 'Topology' (Kubernetes kinds are case-sensitive).`
+				)
+			)
+		).toBe(true);
+		const kindError = result.errors.find((e) => errMsg(e).includes('Invalid kind:'));
+		expect(kindError?.suggestedFix?.field).toBe('kind');
+		expect(kindError?.suggestedFix?.value).toBe('Topology');
 	});
 
 	it('errors when apiVersion group case does not match the manifest CRD', () => {
@@ -206,10 +216,10 @@ spec: {}
 		expect(result.valid).toBe(false);
 		expect(
 			result.errors.some((e) =>
-				e.message.includes(`Invalid apiVersion: 'Topologies.eda.nokia.com/v1'`)
+				errMsg(e).includes(`Invalid apiVersion: 'Topologies.eda.nokia.com/v1'`)
 			)
 		).toBe(true);
-		const apiError = result.errors.find((e) => e.message.includes('Invalid apiVersion:'));
+		const apiError = result.errors.find((e) => errMsg(e).includes('Invalid apiVersion:'));
 		expect(apiError?.suggestedFix).toEqual({
 			field: 'apiVersion',
 			value: 'topologies.eda.nokia.com/v1',
@@ -254,7 +264,7 @@ spec: {}
 		expect(result.valid).toBe(false);
 		expect(
 			result.errors.some((e) =>
-				e.message.includes(`Invalid apiVersion: 'wrong.group/v1'`)
+				errMsg(e).includes(`Invalid apiVersion: 'wrong.group/v1'`)
 			)
 		).toBe(true);
 	});
@@ -296,15 +306,15 @@ spec: {}
 		expect(result.valid).toBe(false);
 		expect(
 			result.errors.some((e) =>
-				e.message.includes(`Invalid apiVersion: 'topologi.eda.nokia.com/v1'`)
+				errMsg(e).includes(`Invalid apiVersion: 'topologi.eda.nokia.com/v1'`)
 			)
 		).toBe(true);
 		expect(
 			result.errors.some((e) =>
-				e.message.includes(`Use 'topologies.eda.nokia.com/v1' for kind Topology`)
+				errMsg(e).includes(`Use 'topologies.eda.nokia.com/v1' for kind Topology`)
 			)
 		).toBe(true);
-		const apiError = result.errors.find((e) => e.message.includes('Invalid apiVersion:'));
+		const apiError = result.errors.find((e) => errMsg(e).includes('Invalid apiVersion:'));
 		expect(apiError?.suggestedFix?.value).toBe('topologies.eda.nokia.com/v1');
 	});
 
@@ -353,7 +363,7 @@ spec: {}
 			getStatusValidator: () => validator
 		});
 
-		expect(result.errors.some((e) => e.message.includes('Could not find CRD'))).toBe(false);
+		expect(result.errors.some((e) => errMsg(e).includes('Could not find CRD'))).toBe(false);
 		expect(result.valid).toBe(true);
 	});
 
@@ -444,12 +454,12 @@ spec: {}
 		expect(result.valid).toBe(false);
 		expect(
 			result.errors.some((e) =>
-				e.message.includes(
+				errMsg(e).includes(
 					`Invalid kind: 'RouterInterconnects' must be 'RouterInterconnect' (Kubernetes kinds are case-sensitive).`
 				)
 			)
 		).toBe(true);
-		const kindError = result.errors.find((e) => e.message.includes('Invalid kind:'));
+		const kindError = result.errors.find((e) => errMsg(e).includes('Invalid kind:'));
 		expect(kindError?.suggestedFix?.field).toBe('kind');
 		expect(kindError?.suggestedFix?.value).toBe('RouterInterconnect');
 	});
@@ -500,7 +510,7 @@ spec: {}
 		});
 
 		expect(result.valid).toBe(true);
-		expect(result.errors.some((e) => e.message.includes('Invalid kind:'))).toBe(false);
+		expect(result.errors.some((e) => errMsg(e).includes('Invalid kind:'))).toBe(false);
 	});
 });
 

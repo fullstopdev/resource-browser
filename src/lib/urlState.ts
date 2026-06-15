@@ -112,6 +112,56 @@ export function buildCatalogPath(state: CatalogUrlState): string {
 	return qs ? `/?${qs}` : '/';
 }
 
+/** Deep link that opens ResourceModal in catalog browse mode. */
+export function buildCatalogCrdPath(input: {
+	release: string;
+	/** Kind name (preferred shareable param). */
+	kind?: string;
+	/** Manifest FQDN when kind is unavailable. */
+	name?: string;
+	version?: string;
+}): string {
+	const crd = input.kind?.trim() || input.name?.trim();
+	if (!crd) {
+		return buildCatalogPath({ release: input.release });
+	}
+	return buildCatalogPath({
+		release: input.release,
+		crd,
+		version: input.version?.trim() || undefined
+	});
+}
+
+/** Deep link that opens the dependency map focused on a CRD. */
+export function buildDependencyMapFocusPath(input: {
+	release: string;
+	/** Manifest FQDN (preferred for disambiguation). */
+	name?: string;
+	/** Kind name when manifest name is unavailable. */
+	kind?: string;
+	group?: string;
+}): string {
+	const params = new URLSearchParams();
+	params.set('release', input.release);
+	const resource = input.name?.trim() || input.kind?.trim();
+	if (resource) params.set('resource', resource);
+	if (input.group?.trim()) params.set('group', input.group.trim());
+	return `/dependency-map?${params.toString()}`;
+}
+
+export function parseDependencyMapParams(params: URLSearchParams): {
+	release?: string;
+	resource?: string;
+	group?: string;
+} {
+	return {
+		release: params.get('release')?.trim() || undefined,
+		resource:
+			params.get('resource')?.trim() || params.get('focus')?.trim() || undefined,
+		group: params.get('group')?.trim() || undefined
+	};
+}
+
 export function catalogBrowseFromParams(params: URLSearchParams): boolean {
 	const parsed = parseCatalogParams(params);
 	return !!(parsed.browse || parsed.release || parsed.crd);

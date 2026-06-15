@@ -4,6 +4,7 @@ import {
 	findManifestEntriesByKindInsensitive,
 	resolveEntryKind
 } from '$lib/manifest/lookup';
+import { activeApiVersion, filterActiveManifest } from '$lib/manifest/activeCrds';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
 
 export const MAX_ASK_TARGETS = 10;
@@ -20,6 +21,8 @@ export type ResolvedAskTarget = {
 	kind: string;
 	group: string;
 	name: string;
+	/** Latest non-deprecated apiVersion for this CRD in the release. */
+	version: string;
 	score: number;
 	source: ResolvedAskTargetSource;
 };
@@ -147,6 +150,7 @@ function entryFromManifest(
 		kind: resolveEntryKind(entry),
 		group: entry.group ?? '',
 		name: entry.name,
+		version: activeApiVersion(entry),
 		score,
 		source
 	};
@@ -300,6 +304,7 @@ function resolvePinned(
 			kind: pinned.kind,
 			group: pinned.group,
 			name: `${pinned.kind.toLowerCase()}s.${pinned.group}`,
+			version: '',
 			score: 200,
 			source: 'pinned'
 		}
@@ -508,7 +513,10 @@ function assessResolutionConfidence(
 
 /** Resolve targets with confidence metadata for clarifying errors. */
 export function resolveAskTargetsWithMeta(input: ResolveAskTargetsInput): ResolveAskTargetsResult {
-	const targets = resolveAskTargets(input);
+	const targets = resolveAskTargets({
+		...input,
+		manifest: filterActiveManifest(input.manifest)
+	});
 	return { targets, ...assessResolutionConfidence(targets, input.question) };
 }
 

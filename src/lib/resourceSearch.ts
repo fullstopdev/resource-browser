@@ -1,7 +1,10 @@
 import { resolveEntryKind } from '$lib/manifest/lookup';
-import type { CrdResource } from '$lib/structure';
 
-export type SearchableResource = Pick<CrdResource, 'name' | 'kind' | 'group'>;
+export type SearchableResource = {
+	name: string;
+	kind?: string;
+	group?: string;
+};
 
 export function displayKind(resource: SearchableResource): string {
 	return resolveEntryKind(resource);

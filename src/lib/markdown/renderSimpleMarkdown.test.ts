@@ -13,4 +13,12 @@ describe('renderSimpleMarkdown', () => {
 		expect(html).toContain('members');
 		expect(html).toContain('enabled');
 	});
+
+	it('renders markdown tables for field summaries', () => {
+		const html = renderSimpleMarkdown(
+			['| Field | Type |', '| --- | --- |', '| `members` | array |'].join('\n')
+		);
+		expect(html).toContain('md-table');
+		expect(html).toContain('members');
+	});
 });
