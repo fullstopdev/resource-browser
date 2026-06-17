@@ -5,10 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0",
-		"dev:ai": "PUBLIC_ASK_AI_ENABLED=true npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare --ai AI --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
+		"dev:ai": "PUBLIC_ASK_AI_ENABLED=true PUBLIC_FIX_AI_ENABLED=true npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare --ai AI --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
 		"build": "vite build",
 		"build:vercel": "ADAPTER=vercel vite build",
-		"build:cloudflare": "ADAPTER=cloudflare vite build",
+		"build:cloudflare": "PUBLIC_FIX_AI_ENABLED=true ADAPTER=cloudflare vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -25,11 +25,13 @@
 		"embed:rebuild-manifest": "tsx --tsconfig tsconfig.scripts.json scripts/rebuild-vectorize-manifest.ts",
 		"embed:status": "tsx --tsconfig tsconfig.scripts.json scripts/embed-status.ts",
 		"warm:cache": "tsx --tsconfig tsconfig.scripts.json scripts/warm-cache.ts",
+		"warm:cache:deterministic": "tsx --tsconfig tsconfig.scripts.json scripts/warm-cache.ts",
+		"warm:cache:llm": "WARM_ACTIONS=explain,example tsx --tsconfig tsconfig.scripts.json scripts/warm-cache.ts",
 		"audit:dependencies": "tsx --tsconfig tsconfig.scripts.json scripts/audit-dependency-corpus.ts",
 		"build:dependency-graph": "tsx --tsconfig tsconfig.scripts.json scripts/build-dependency-graph.ts",
 		"prebuild": "npm run generate:sitemap && npm run generate:release-notes",
 		"deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
-		"deploy:cloudflare:lean": "PUBLIC_ASK_AI_ENABLED=false npm run build:cloudflare && node scripts/deploy-cloudflare-lean.mjs",
+		"deploy:cloudflare:lean": "PUBLIC_ASK_AI_ENABLED=false PUBLIC_FIX_AI_ENABLED=false npm run build:cloudflare && node scripts/deploy-cloudflare-lean.mjs",
 		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser"
 	},
 	"dependencies": {

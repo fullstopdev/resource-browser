@@ -2,11 +2,15 @@ import { findManifestEntry } from '$lib/manifest/lookup';
 import { getLatestVersion } from '$lib/versions';
 import { schemaPath, fetchSchemas } from '$lib/yaml-validation/schemaCache';
 import { validateYamlInput } from '$lib/yaml-validation';
-import { findLineForPointerInDoc } from '$lib/yaml-validation/parseDocuments';
+import { findLineForYamlFieldPath } from '$lib/yaml-validation/yamlFieldPath';
 import type { EnrichedError, ManifestEntry } from '$lib/yaml-validation/types';
 import { resolveObjectSchema } from '$lib/schema/requiredFields';
 import {
 	collectSchemaProperties,
+	findFabricProtocolKeyMatch,
+	findNestedSchemaPropertyPath,
+	findPluralSingularMatch,
+	findSimilarSchemaProperty,
 	getChildPropertySchema,
 	getItemsSchema,
 	schemaLeafMeta,
@@ -50,6 +54,20 @@ function joinFieldPath(key: string, parent: string): string {
 	return parent ? `${parent}.${key}` : key;
 }
 
+function issueAlreadyCoversField(
+	issues: BundleIssue[],
+	fieldPath: string,
+	docIndex: number
+): boolean {
+	return issues.some(
+		(i) =>
+			i.docIndex === docIndex &&
+			(i.fieldPath === fieldPath ||
+				(i.fieldPath &&
+					(fieldPath.startsWith(`${i.fieldPath}.`) || i.fieldPath.startsWith(`${fieldPath}.`))))
+	);
+}
+
 /** Walk data against schema properties; flags keys not defined in the CRD schema. */
 export function walkUnknownFields(
 	data: unknown,
@@ -58,7 +76,9 @@ export function walkUnknownFields(
 	doc: BundleResource['doc'],
 	prefix: string,
 	issues: BundleIssue[],
-	resource: BundleResource
+	resource: BundleResource,
+	parentSchema?: unknown,
+	specRootSchema?: unknown
 ): void {
 	if (data === null || data === undefined) return;
 
@@ -75,7 +95,9 @@ export function walkUnknownFields(
 					doc,
 					prefix,
 					issues,
-					resource
+					resource,
+					schema,
+					specRootSchema
 				);
 			}
 		});
@@ -89,33 +111,110 @@ export function walkUnknownFields(
 
 	const record = data as Record<string, unknown>;
 	for (const key of Object.keys(record)) {
-		if (!props.has(key)) {
-			const fieldPath = joinFieldPath(key, path);
-			const pointer = `${prefix}${fieldPath.replace(/^spec\./, '').replace(/\./g, '/')}`;
-			const rel = findLineForPointerInDoc(doc.rawText, `/spec/${pointer}`);
-			const line = rel !== undefined ? doc.startLine + rel + 1 : undefined;
+		if (props.has(key)) {
+			const value = record[key];
+			if (value && typeof value === 'object') {
+				const childSchema = getChildPropertySchema(schema, key);
+				walkUnknownFields(
+					value,
+					childSchema,
+					joinFieldPath(key, path),
+					doc,
+					prefix,
+					issues,
+					resource,
+					schema,
+					specRootSchema ?? (path === 'spec' ? schema : undefined)
+				);
+			}
+			continue;
+		}
+
+		let similar = findSimilarSchemaProperty(key, props, path.split('.').pop(), record);
+		let correctedPathPrefix = path;
+		if (!similar && parentSchema) {
+			const ancestorProps = collectSchemaProperties(parentSchema);
+			const ancestorKey = path.split('.').pop();
+			const ancestorMatch = ancestorProps
+				? findFabricProtocolKeyMatch(key, ancestorKey, ancestorProps) ??
+					findPluralSingularMatch(key, ancestorProps, ancestorKey)
+				: null;
+			if (ancestorMatch) {
+				similar = ancestorMatch;
+				const lastDot = path.lastIndexOf('.');
+				correctedPathPrefix = lastDot >= 0 ? path.slice(0, lastDot) : path;
+			}
+		}
+
+		const fieldPath = joinFieldPath(key, path);
+		if (issueAlreadyCoversField(issues, fieldPath, resource.docIndex + 1)) continue;
+
+		const rel = findLineForYamlFieldPath(doc.rawText, fieldPath);
+		const line = rel !== undefined ? doc.startLine + rel + 1 : undefined;
+
+		if (similar) {
+			const correctedPath = joinFieldPath(similar, correctedPathPrefix);
+			const sameLevelRename = correctedPathPrefix === path;
 			issues.push({
 				id: nextIssueId(),
 				severity: 'warning',
 				category: 'schema',
-				message: `Unknown field "${fieldPath}" — not defined in the CRD schema for ${resource.kind}`,
+				message: sameLevelRename
+					? `Misspelled field "${fieldPath}" — use "${correctedPath}" per the CRD schema for ${resource.kind}`
+					: `Misplaced field "${fieldPath}" — use "${correctedPath}" per the CRD schema for ${resource.kind}`,
 				resourceName: resource.name,
 				resourceKind: resource.kind,
 				docIndex: resource.docIndex + 1,
 				line,
-				fieldPath
+				fieldPath,
+				...(sameLevelRename
+					? {
+							suggestedFix: {
+								action: 'renameKey' as const,
+								field: key,
+								value: similar,
+								line
+							}
+						}
+					: {})
 			});
-		} else if (record[key] && typeof record[key] === 'object') {
-			const childSchema = getChildPropertySchema(schema, key);
-			walkUnknownFields(
-				record[key],
-				childSchema,
-				joinFieldPath(key, path),
-				doc,
-				prefix,
-				issues,
-				resource
-			);
+		} else {
+			const specSchema = specRootSchema ?? (path === 'spec' ? schema : undefined);
+			const nestedPath =
+				specSchema && path === 'spec'
+					? findNestedSchemaPropertyPath(specSchema, key)
+					: null;
+			const value = record[key];
+			const scalarValue =
+				value === null ||
+				value === undefined ||
+				typeof value === 'string' ||
+				typeof value === 'number' ||
+				typeof value === 'boolean';
+
+			issues.push({
+				id: nextIssueId(),
+				severity: 'warning',
+				category: 'schema',
+				message: nestedPath
+					? `Unknown field "${fieldPath}" — relocate to "spec.${nestedPath}" per the CRD schema for ${resource.kind}`
+					: `Unknown field "${fieldPath}" — not defined in the CRD schema for ${resource.kind}`,
+				resourceName: resource.name,
+				resourceKind: resource.kind,
+				docIndex: resource.docIndex + 1,
+				line,
+				fieldPath,
+				...(nestedPath && scalarValue
+					? {
+							suggestedFix: {
+								action: 'relocateField' as const,
+								field: fieldPath,
+								value: `spec.${nestedPath}`,
+								line
+							}
+						}
+					: {})
+			});
 		}
 	}
 }
@@ -130,22 +229,6 @@ export async function validateBundleSchema(
 	issueCounter = 0;
 	const issues: BundleIssue[] = [];
 
-	const result = await validateYamlInput({
-		yamlInput,
-		releaseFolder,
-		releaseLabel,
-		manifest
-	});
-
-	for (const err of result.errors) {
-		if (err.keyword === 'success') continue;
-		const resource =
-			err.docIndex !== undefined
-				? resources.find((r) => r.docIndex + 1 === err.docIndex)
-				: undefined;
-		issues.push(toBundleIssue(err, resource));
-	}
-
 	const schemaPaths: string[] = [];
 	for (const res of resources) {
 		if (!res.kind || !res.group) continue;
@@ -156,6 +239,23 @@ export async function validateBundleSchema(
 	}
 
 	const schemas = await fetchSchemas(schemaPaths);
+
+	const result = await validateYamlInput({
+		yamlInput,
+		releaseFolder,
+		releaseLabel,
+		manifest,
+		prefetchedSchemas: schemas
+	});
+
+	for (const err of result.errors) {
+		if (err.keyword === 'success') continue;
+		const resource =
+			err.docIndex !== undefined
+				? resources.find((r) => r.docIndex + 1 === err.docIndex)
+				: undefined;
+		issues.push(toBundleIssue(err, resource));
+	}
 
 	for (const res of resources) {
 		if (!res.kind || !res.group) continue;
@@ -173,7 +273,9 @@ export async function validateBundleSchema(
 			res.doc,
 			'/spec/',
 			issues,
-			res
+			res,
+			undefined,
+			sections.spec
 		);
 	}
 

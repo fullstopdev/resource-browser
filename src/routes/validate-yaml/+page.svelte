@@ -14,12 +14,16 @@
 		formatFixSummary,
 		type FixSummary,
 		applySuggestedFix,
+		applySchemaValueFixes,
 		extractDocumentYaml,
 		inferManifestIdentity,
 		replaceDocumentInBundle,
 		validateAiFixApply,
 		fixAllBundle,
 		type AiFixFn,
+		type FixAllChange,
+		buildFixIssueContext,
+		enrichIssuesWithSuggestedFix,
 		parseBundleResources,
 		buildYamlCompletionContext,
 		schemaKeysForResources,
@@ -33,7 +37,9 @@
 		type BundleValidationResult
 	} from '$lib/validate-bundle';
 	import AiFixPreviewPanel from '$lib/validate-bundle/AiFixPreviewPanel.svelte';
+	import FixAllReviewPanel from '$lib/validate-bundle/FixAllReviewPanel.svelte';
 	import { fixYAML } from '$lib/ai/aiClient';
+	import { fixAiEnabled } from '$lib/featureFlags';
 	import { clampYamlInput } from '$lib/yaml/inputLimits';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 
@@ -91,6 +97,10 @@
 	let aiFixApplyBlockedReason: string | null = null;
 	let aiFixRequestId = 0;
 	let isFixingAll = false;
+	let fixAllReviewOpen = false;
+	let fixAllReviewBefore = '';
+	let fixAllReviewAfter = '';
+	let fixAllReviewChanges: FixAllChange[] = [];
 	let yamlCompletionContext: YamlCompletionContext | null = null;
 	let completionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 	let completionSchemaFetchSerial = 0;
@@ -98,8 +108,14 @@
 	let previousCompletionReleaseFolder = '';
 	let liveValidateTimer: ReturnType<typeof setTimeout> | null = null;
 	let activeView: 'editor' | 'diagnostics' = 'editor';
+	let isSplitWorkspace = false;
+	let splitMediaQuery: MediaQueryList | null = null;
 
 	const manifestCache = getManifestCache();
+
+	function updateSplitWorkspace() {
+		isSplitWorkspace = splitMediaQuery?.matches ?? false;
+	}
 
 	function setYamlInput(value: string) {
 		const { text, truncated } = clampYamlInput(value);
@@ -120,19 +136,17 @@
 	}
 
 	$: displayIssues = result?.issues ?? [];
-	$: formatDisabled = !yamlInput.trim();
-	$: formatLabel = 'Fix manifest';
-	$: formatTooltip =
-		'Fix syntax with AI when needed, then DNS names, apiVersion/kind casing, enums, booleans, and apiVersion upgrades';
-	$: fixAllDisabled =
-		formatDisabled ||
+	$: aiFixButtonDisabled =
+		!yamlInput.trim() ||
 		!release ||
+		!fixAiEnabled ||
 		isFixingAll ||
 		isValidating ||
 		!result ||
 		(result.summary.errorCount === 0 && result.summary.warningCount === 0);
-	$: fixAllTooltip =
-		'Apply format manifest + all one-click fixes for errors and warnings with suggested values (AI fixes still per-issue)';
+	$: aiFixTooltip = !fixAiEnabled
+		? 'AI Fix requires PUBLIC_FIX_AI_ENABLED (enabled by default in production builds)'
+		: 'Standard fixes first (renames, enums, DNS), then Workers AI only for remaining issues';
 
 	$: filteredIssues = displayIssues.filter((issue) => {
 		if (issueFilter === 'errors' && issue.severity !== 'error') return false;
@@ -245,18 +259,51 @@
 		};
 	}
 
+	function suggestedFixLabel(issue: BundleIssue): string {
+		const fix = issue.suggestedFix;
+		if (!fix) return '';
+		if (fix.action === 'renameKey') {
+			return `Rename ${fix.field} → ${fix.value}`;
+		}
+		if (fix.action === 'addField') {
+			return `Add ${fix.field}: ${fix.value}`;
+		}
+		return `Replace ${fix.field} with ${fix.value}`;
+	}
+
 	function createAiFixFn(): AiFixFn {
-		return async ({ docYaml, issue, kind, group }) => {
+		return async ({ docYaml, issue, issues, kind, group }) => {
 			if (!release) return {};
+			const formatOptions = await getFormatOptions();
+			const contextOptions = {
+				releaseFolder: formatOptions.releaseFolder,
+				manifest: formatOptions.manifest,
+				kind,
+				group
+			};
+
+			if (issues && issues.length > 1) {
+				const payloads = await Promise.all(
+					issues.map((batchIssue) => buildFixIssueContext(batchIssue, contextOptions))
+				);
+				const result = await fixYAML(release.name, docYaml, payloads[0]!, {
+					kind,
+					group,
+					issues: payloads
+				});
+				return {
+					fixedYaml: result.fixedYaml,
+					fixable: result.fixable,
+					error: result.error,
+					fallbackReason: result.fallbackReason
+				};
+			}
+
+			const payload = await buildFixIssueContext(issue, contextOptions);
 			const result = await fixYAML(
 				release.name,
 				docYaml,
-				{
-					message: issue.message,
-					fieldPath: issue.fieldPath,
-					line: issue.line,
-					severity: issue.severity
-				},
+				payload,
 				kind ? { kind, group } : undefined
 			);
 			return {
@@ -268,7 +315,23 @@
 		};
 	}
 
-	async function runBulkFix(options: { requireIssues?: boolean } = {}) {
+	async function revalidateFixIssues(yaml: string): Promise<BundleIssue[]> {
+		if (!release) return [];
+		const manifest = (await fetchManifest(release.folder, manifestCache)) || [];
+		const validation = await validateBundle({
+			yamlInput: yaml,
+			releaseFolder: release.folder,
+			releaseLabel: release.label,
+			manifest
+		});
+		return validation.issues.filter(
+			(i) => i.severity === 'error' || i.severity === 'warning'
+		);
+	}
+
+	async function runBulkFix(
+		options: { requireIssues?: boolean; includeAi?: boolean } = {}
+	) {
 		if (!release) {
 			showToast('Select an EDA release first.');
 			return;
@@ -289,25 +352,35 @@
 			return;
 		}
 
+		const includeAi = options.includeAi === true && fixAiEnabled;
+
 		isFixingAll = true;
 		try {
 			const formatOptions = await getFormatOptions();
 			const fixResult = await fixAllBundle(yamlInput, issues, {
 				...formatOptions,
-				aiFix: createAiFixFn(),
+				includeAi,
+				...(includeAi ? { aiFix: createAiFixFn() } : {}),
+				revalidateIssues: revalidateFixIssues,
 				resolveDocIndex: resolveIssueDocIndex,
 				resolveIdentity: (issue, docYaml) => resolveFixIdentity(issue, docYaml)
 			});
 
+			const hasYamlChanges = fixResult.beforeYaml !== fixResult.afterYaml;
+
 			if (!fixResult.ok) {
-				if (fixResult.parseIssue && fixResult.aiFixCount === 0 && !fixResult.aiUnavailable) {
-					void openAiFixPreview(fixResult.parseIssue);
-				}
-				showToast(fixResult.message ?? 'Could not apply bulk fix.');
+				showToast(fixResult.message ?? 'Could not apply fixes.');
 				return;
 			}
 
-			setYamlInput(fixResult.yaml);
+			if (hasYamlChanges) {
+				setYamlInput(fixResult.yaml);
+				fixAllReviewBefore = fixResult.beforeYaml;
+				fixAllReviewAfter = fixResult.afterYaml;
+				fixAllReviewChanges = fixResult.changes;
+				fixAllReviewOpen = true;
+			}
+
 			if (fixResult.formatFixes.length > 0) {
 				showFixSummary(
 					formatFixSummary(fixResult.formatFixes, result?.resources.length ?? 1)
@@ -325,17 +398,20 @@
 			}
 
 			const parts: string[] = [];
-			if (fixResult.aiFixCount > 0) {
-				parts.push(`${fixResult.aiFixCount} AI`);
+			if (fixResult.formatFixes.length > 0) {
+				parts.push(`${fixResult.formatFixes.length} manifest`);
 			}
 			if (fixResult.suggestedFixCount > 0) {
 				parts.push(`${fixResult.suggestedFixCount} standard`);
 			}
-			if (fixResult.formatFixes.length > 0) {
-				parts.push(`${fixResult.formatFixes.length} manifest`);
+			if (fixResult.aiFixCount > 0) {
+				parts.push(`${fixResult.aiFixCount} AI`);
 			}
 
 			const remainingParts: string[] = [];
+			if (fixResult.parseIssue) {
+				remainingParts.push('syntax errors');
+			}
 			if (remainingErrors > 0) {
 				remainingParts.push(`${remainingErrors} error${remainingErrors === 1 ? '' : 's'}`);
 			}
@@ -349,21 +425,25 @@
 
 			let prefix = '';
 			if (fixResult.aiUnavailable) {
-				prefix = 'AI limit reached — used standard fixes. ';
+				prefix = 'AI limit reached — applied standard fixes only. ';
 			}
 
-			showToast(
-				applied > 0
-					? `${prefix}Applied ${applied} fix${applied === 1 ? '' : 'es'}${remainingMsg}.`
-					: `${prefix}No automatic fixes were applicable. Use Fix on individual issues.`
-			);
+			if (fixResult.parseIssue && !hasYamlChanges) {
+				showToast(fixResult.message ?? 'YAML syntax must be fixed before bulk fix can run.');
+			} else {
+				showToast(
+					applied > 0
+						? `${prefix}Applied ${applied} fix${applied === 1 ? '' : 'es'}${remainingMsg}.`
+						: `${prefix}No automatic fixes were applicable. Use Fix on individual issues.`
+				);
+			}
 		} finally {
 			isFixingAll = false;
 		}
 	}
 
-	async function handleFormatYaml() {
-		await runBulkFix();
+	async function handleAiFix() {
+		await runBulkFix({ includeAi: true, requireIssues: true });
 	}
 
 	function updateURL() {
@@ -519,7 +599,7 @@
 	}
 
 	function scheduleEditorLayout() {
-		if (!browser || !clientReady || activeView !== 'editor') return;
+		if (!browser || !clientReady || (!isSplitWorkspace && activeView !== 'editor')) return;
 		void (async () => {
 			await tick();
 			requestAnimationFrame(() => {
@@ -528,7 +608,7 @@
 		})();
 	}
 
-	$: if (browser && clientReady && activeView === 'editor') {
+	$: if (browser && clientReady && (isSplitWorkspace || activeView === 'editor')) {
 		scheduleEditorLayout();
 	}
 
@@ -611,9 +691,6 @@
 		}
 	}
 
-	async function handleFixAll() {
-		await runBulkFix({ requireIssues: true });
-	}
 
 	function focusEditorLine(line: number) {
 		if (line < 1) return;
@@ -622,7 +699,9 @@
 	}
 
 	function jumpToIssue(issue: BundleIssue) {
-		activeView = 'editor';
+		if (!isSplitWorkspace) {
+			activeView = 'editor';
+		}
 		if (issue.line) {
 			focusEditorLine(issue.line);
 		}
@@ -634,7 +713,20 @@
 
 	function issueFixAvailable(issue: BundleIssue): boolean {
 		if (issue.suggestedFix) return true;
-		return issue.severity === 'error' || issue.severity === 'warning';
+		if (issue.severity !== 'error' && issue.severity !== 'warning') return false;
+		if (issue.message.includes('Misplaced field')) return false;
+		if (issue.category === 'schema' && /must be one of|exact case/i.test(issue.message)) {
+			return true;
+		}
+		if (issue.category === 'schema' && /must be <=|must be >=/i.test(issue.message)) {
+			return true;
+		}
+		if (issue.message.includes('is required')) return true;
+		if (issue.message.includes('Misspelled field')) return true;
+		if (issue.message.includes('Unknown field')) return true;
+		if (!fixAiEnabled || !release) return false;
+		if (/yaml|parse|indent|syntax/i.test(issue.message)) return true;
+		return false;
 	}
 
 	function resolveFixIdentity(
@@ -647,6 +739,20 @@
 			kind: issue.resourceKind ?? bundleRes?.kind ?? inferred.kind,
 			group: bundleRes?.group ?? inferred.group
 		};
+	}
+
+	function closeFixAllReview() {
+		fixAllReviewOpen = false;
+		fixAllReviewBefore = '';
+		fixAllReviewAfter = '';
+		fixAllReviewChanges = [];
+	}
+
+	function handleRevertFixAll() {
+		setYamlInput(fixAllReviewBefore);
+		closeFixAllReview();
+		showToast('Reverted AI Fix changes.');
+		void runValidation();
 	}
 
 	function closeAiFixPanel() {
@@ -675,17 +781,33 @@
 	async function openAiFixPreview(issue: BundleIssue) {
 		if (!release) return;
 
-		const docIndex = resolveIssueDocIndex(issue);
+		let issueForAi = issue;
+		if (!issue.suggestedFix && release) {
+			const formatOptions = await getFormatOptions();
+			const [enriched] = await enrichIssuesWithSuggestedFix(yamlInput, [issue], {
+				releaseFolder: formatOptions.releaseFolder,
+				manifest: formatOptions.manifest,
+				resolveDocIndex: resolveIssueDocIndex,
+				resolveIdentity: (item, docYaml) => resolveFixIdentity(item, docYaml)
+			});
+			issueForAi = enriched;
+			if (issueForAi.suggestedFix) {
+				void handleApplyFix(issueForAi, new MouseEvent('click'));
+				return;
+			}
+		}
+
+		const docIndex = resolveIssueDocIndex(issueForAi);
 		const docYaml = extractDocumentYaml(yamlInput, docIndex);
 		if (!docYaml) {
 			showToast('Could not extract document YAML for AI fix.');
 			return;
 		}
 
-		const { kind, group } = resolveFixIdentity(issue, docYaml);
+		const { kind, group } = resolveFixIdentity(issueForAi, docYaml);
 		const requestId = ++aiFixRequestId;
 
-		aiFixIssue = issue;
+		aiFixIssue = issueForAi;
 		aiFixPanelOpen = true;
 		aiFixLoading = true;
 		aiFixError = null;
@@ -695,15 +817,18 @@
 		aiFixFixable = false;
 		aiFixApplyBlockedReason = null;
 
+		const formatOptions = await getFormatOptions();
+		const payload = await buildFixIssueContext(issueForAi, {
+			releaseFolder: formatOptions.releaseFolder,
+			manifest: formatOptions.manifest,
+			kind,
+			group
+		});
+
 		const result = await fixYAML(
 			release.name,
 			docYaml,
-			{
-				message: issue.message,
-				fieldPath: issue.fieldPath,
-				line: issue.line,
-				severity: issue.severity
-			},
+			payload,
 			kind ? { kind, group } : undefined
 		);
 
@@ -751,29 +876,57 @@
 		void runValidation();
 	}
 
-	function handleApplyFix(issue: BundleIssue, event: MouseEvent) {
+	async function handleApplyFix(issue: BundleIssue, event: MouseEvent) {
 		event.stopPropagation();
 
-		if (issue.suggestedFix) {
-			const updated = applySuggestedFix(yamlInput, issue);
+		let issueToFix = issue;
+		if (!issue.suggestedFix && release) {
+			const formatOptions = await getFormatOptions();
+			const [enriched] = await enrichIssuesWithSuggestedFix(yamlInput, [issue], {
+				releaseFolder: formatOptions.releaseFolder,
+				manifest: formatOptions.manifest,
+				resolveDocIndex: resolveIssueDocIndex,
+				resolveIdentity: (item, docYaml) => resolveFixIdentity(item, docYaml)
+			});
+			issueToFix = enriched;
+		}
+
+		if (issueToFix.suggestedFix) {
+			const updated = applySuggestedFix(yamlInput, issueToFix);
 			if (!updated) {
 				showToast('Could not apply fix — edit the field manually.');
 				return;
 			}
 
 			setYamlInput(updated);
-			if (issue.line) {
-				highlightLine = issue.line;
-				focusEditorLine(issue.line);
+			if (issueToFix.line) {
+				highlightLine = issueToFix.line;
+				focusEditorLine(issueToFix.line);
 			}
-			showToast(`Applied fix: ${issue.suggestedFix.field} → ${issue.suggestedFix.value}`);
+			showToast(suggestedFixLabel(issueToFix) || 'Applied fix');
 			void runValidation();
 			return;
 		}
 
+		if (release && (issue.severity === 'error' || issue.severity === 'warning')) {
+			const formatOptions = await getFormatOptions();
+			const valueFixed = await applySchemaValueFixes(yamlInput, formatOptions, {
+				docIndex: resolveIssueDocIndex(issueToFix),
+				fieldPath: issueToFix.fieldPath
+			});
+			if (valueFixed.ok && valueFixed.fixes.length > 0) {
+				setYamlInput(valueFixed.formatted);
+				showFixSummary(formatFixSummary(valueFixed.fixes, result?.resources.length ?? 1));
+				void runValidation();
+				return;
+			}
+		}
+
 		if (issue.severity === 'error' || issue.severity === 'warning') {
-			if (release) {
-				void openAiFixPreview(issue);
+			if (fixAiEnabled && release && !issueToFix.suggestedFix) {
+				void openAiFixPreview(issueToFix);
+			} else {
+				showToast('No automatic fix available — edit the field manually.');
 			}
 			return;
 		}
@@ -841,15 +994,15 @@
 	function severityTone(severity: BundleIssue['severity']) {
 		switch (severity) {
 			case 'error':
-				return { strip: 'validate-bundle-issue--error', badge: 'validate-bundle-issue-badge--error', label: 'Error' };
+				return { strip: 'validate-yaml-issue--error', badge: 'validate-yaml-issue-badge--error', label: 'Error' };
 			case 'warning':
 				return {
-					strip: 'validate-bundle-issue--warning',
-					badge: 'validate-bundle-issue-badge--warning',
+					strip: 'validate-yaml-issue--warning',
+					badge: 'validate-yaml-issue-badge--warning',
 					label: 'Warning'
 				};
 			default:
-				return { strip: 'validate-bundle-issue--info', badge: 'validate-bundle-issue-badge--info', label: 'Info' };
+				return { strip: 'validate-yaml-issue--info', badge: 'validate-yaml-issue-badge--info', label: 'Info' };
 		}
 	}
 
@@ -858,6 +1011,7 @@
 			if (issue.message.startsWith('Invalid apiVersion:')) return 'Schema · apiVersion';
 			if (issue.message.startsWith('Invalid kind:')) return 'Schema · kind';
 			if (/\bdeprecated\b/i.test(issue.message)) return 'Schema · Deprecated';
+			if (issue.message.includes('Misspelled field')) return 'Schema · Misspelled field';
 			if (issue.message.includes('Unknown field')) return 'Schema · Unknown field';
 			return 'Schema';
 		}
@@ -874,6 +1028,9 @@
 
 	onMount(async () => {
 		if (browser) {
+			splitMediaQuery = window.matchMedia('(min-width: 1024px)');
+			updateSplitWorkspace();
+			splitMediaQuery.addEventListener('change', updateSplitWorkspace);
 			window.addEventListener('keydown', onKeydown);
 			try {
 				const mod = await import('$lib/validate-bundle/MonacoYamlEditor.svelte');
@@ -910,6 +1067,7 @@
 
 	onDestroy(() => {
 		if (browser) {
+			splitMediaQuery?.removeEventListener('change', updateSplitWorkspace);
 			window.removeEventListener('keydown', onKeydown);
 		}
 		if (toastTimer) clearTimeout(toastTimer);
@@ -932,107 +1090,206 @@
 <div class="validate-yaml-page validate-yaml-page--pro spec-search-page page-shell overflow-hidden bg-gray-50 dark:text-gray-100">
 	<AppHeader fixed={false} />
 
-	<div class="validate-yaml-shell">
+	<div class="validate-yaml-shell validate-yaml-shell--wide">
 		<header class="validate-yaml-topbar" aria-labelledby="validate-yaml-heading">
 			<div class="validate-yaml-topbar__brand">
 				<h1 id="validate-yaml-heading" class="validate-yaml-topbar__title">Validate YAML</h1>
 				<p class="validate-yaml-topbar__subtitle">
-					Multi-document manifests · CRD schema · Kubernetes · EDA rules
+					<span class="validate-yaml-topbar__capabilities" aria-label="Capabilities">
+						<span class="validate-yaml-topbar__capability">Multi-document manifests</span>
+						<span class="validate-yaml-topbar__capability-sep" aria-hidden="true">·</span>
+						<span class="validate-yaml-topbar__capability">CRD schema</span>
+						<span class="validate-yaml-topbar__capability-sep" aria-hidden="true">·</span>
+						<span class="validate-yaml-topbar__capability">Kubernetes</span>
+						<span class="validate-yaml-topbar__capability-sep" aria-hidden="true">·</span>
+						<span class="validate-yaml-topbar__capability">EDA rules</span>
+					</span>
 				</p>
 			</div>
 
 			<div class="validate-yaml-topbar__controls" role="group" aria-label="Validation options">
-				<label for="validation-release" class="sr-only">Release</label>
-				<select
-					id="validation-release"
-					bind:value={releaseName}
-					on:change={() => void runValidation()}
-					class="spec-search-select validate-yaml-topbar__release"
-					aria-label="Select EDA release"
-				>
-					<option value="">Select release…</option>
-					{#each releasesConfig.releases as r}
-						<option value={r.name}>{r.label}{r.default ? ' (latest)' : ''}</option>
-					{/each}
-				</select>
+				<div class="validate-yaml-action-bar">
+					<div class="validate-yaml-release-field">
+						<label for="validation-release" class="validate-yaml-release-field__label">Release</label>
+						<select
+							id="validation-release"
+							bind:value={releaseName}
+							on:change={() => void runValidation()}
+							class="spec-search-select validate-yaml-topbar__release"
+							aria-label="Select EDA release"
+						>
+							<option value="">Select release…</option>
+							{#each releasesConfig.releases as r}
+								<option value={r.name}>{r.label}{r.default ? ' (latest)' : ''}</option>
+							{/each}
+						</select>
+					</div>
 
-				<button
-					type="button"
-					class="validate-yaml-btn validate-yaml-btn--primary"
-					disabled={isValidating || !release}
-					on:click={() => void runValidation({ requireRelease: true })}
-				>
-					{#if isValidating}
-						<svg class="validate-yaml-btn__spinner animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-							<path
-								class="opacity-75"
-								fill="currentColor"
-								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-							/>
-						</svg>
-					{/if}
-					{isValidating ? 'Validating…' : 'Validate'}
-				</button>
+					<div class="validate-yaml-action-bar__primary">
+						<button
+							type="button"
+							class="validate-yaml-btn validate-yaml-btn--primary"
+							disabled={isValidating || !release}
+							on:click={() => void runValidation({ requireRelease: true })}
+						>
+							{#if isValidating}
+								<svg class="validate-yaml-btn__spinner animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+									<path
+										class="opacity-75"
+										fill="currentColor"
+										d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+									/>
+								</svg>
+							{/if}
+							{isValidating ? 'Validating…' : 'Validate'}
+						</button>
 
-				<button
-					type="button"
-					class="validate-yaml-btn validate-yaml-btn--ai"
-					disabled={fixAllDisabled}
-					title={fixAllTooltip}
-					on:click={() => void handleFixAll()}
-				>
-					{isFixingAll ? 'Fixing…' : 'Fix all'}
-				</button>
+						<button
+							type="button"
+							class="validate-yaml-fix-ai"
+							disabled={aiFixButtonDisabled}
+							title={aiFixTooltip}
+							on:click={() => void handleAiFix()}
+						>
+							{#if isFixingAll}
+								<svg
+									class="validate-yaml-btn__spinner animate-spin"
+									fill="none"
+									viewBox="0 0 24 24"
+									aria-hidden="true"
+								>
+									<circle
+										class="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										stroke-width="4"
+									/>
+									<path
+										class="opacity-75"
+										fill="currentColor"
+										d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+									/>
+								</svg>
+							{:else}
+								<svg
+									class="validate-yaml-fix-ai__icon"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.75"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path
+										d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.964 0z"
+									/>
+									<path d="M20 3v4" />
+									<path d="M22 5h-4" />
+								</svg>
+							{/if}
+							<span class="validate-yaml-fix-ai__label">
+								{isFixingAll ? 'Fixing…' : 'AI Fix'}
+							</span>
+						</button>
+					</div>
 
-				<button
-					type="button"
-					class="validate-yaml-btn"
-					disabled={formatDisabled || !release}
-					title={formatTooltip}
-					on:click={handleFormatYaml}
-				>
-					{formatLabel}
-				</button>
+					<div class="validate-yaml-action-bar__utils">
+						<button
+							type="button"
+							class="validate-yaml-btn validate-yaml-btn--ghost validate-yaml-btn--icon"
+							aria-label="Load example YAML"
+							title="Load example YAML"
+							on:click={() => {
+								setYamlInput(EXAMPLE_BUNDLE_YAML);
+								void runValidation();
+							}}
+						>
+							<svg
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								class="validate-yaml-btn__icon"
+								aria-hidden="true"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.75"
+									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+						</button>
 
-				<button
-					type="button"
-					class="validate-yaml-btn validate-yaml-btn--ghost"
-					on:click={() => {
-						setYamlInput(EXAMPLE_BUNDLE_YAML);
-						void runValidation();
-					}}
-				>
-					Example
-				</button>
-
-				<button
-					type="button"
-					class="validate-yaml-btn validate-yaml-btn--ghost"
-					disabled={!yamlInput.trim()}
-					aria-label="Copy YAML to clipboard"
-					on:click={() => void handleCopyYaml()}
-				>
-					{yamlCopied ? 'Copied' : 'Copy'}
-				</button>
+						<button
+							type="button"
+							class="validate-yaml-btn validate-yaml-btn--ghost validate-yaml-btn--icon"
+							disabled={!yamlInput.trim()}
+							aria-label={yamlCopied ? 'YAML copied' : 'Copy YAML to clipboard'}
+							title={yamlCopied ? 'Copied' : 'Copy YAML to clipboard'}
+							on:click={() => void handleCopyYaml()}
+						>
+							{#if yamlCopied}
+								<svg
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									class="validate-yaml-btn__icon"
+									aria-hidden="true"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="1.75"
+										d="M5 13l4 4L19 7"
+									/>
+								</svg>
+							{:else}
+								<svg
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									class="validate-yaml-btn__icon"
+									aria-hidden="true"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="1.75"
+										d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+									/>
+								</svg>
+							{/if}
+						</button>
+					</div>
+				</div>
 			</div>
 
 			{#if result}
 				<div class="validate-yaml-topbar__stats" role="status" aria-live="polite">
 					<span class="validate-yaml-stat">
 						<span class="validate-yaml-stat__value">{result.summary.resourceCount}</span>
-						doc{result.summary.resourceCount !== 1 ? 's' : ''}
+						<span class="validate-yaml-stat__label">doc{result.summary.resourceCount !== 1 ? 's' : ''}</span>
 					</span>
 					{#if result.summary.errorCount > 0}
 						<span class="validate-yaml-stat validate-yaml-stat--error">
 							<span class="validate-yaml-stat__value">{result.summary.errorCount}</span>
-							err
+							<span class="validate-yaml-stat__label">
+								<span class="validate-yaml-stat__label--abbr">err</span>
+								<span class="validate-yaml-stat__label--full">errors</span>
+							</span>
 						</span>
 					{/if}
 					{#if result.summary.warningCount > 0}
 						<span class="validate-yaml-stat validate-yaml-stat--warning">
 							<span class="validate-yaml-stat__value">{result.summary.warningCount}</span>
-							warn
+							<span class="validate-yaml-stat__label">
+								<span class="validate-yaml-stat__label--abbr">warn</span>
+								<span class="validate-yaml-stat__label--full">warnings</span>
+							</span>
 						</span>
 					{/if}
 					<span
@@ -1046,15 +1303,27 @@
 			{/if}
 		</header>
 
+		{#if isValidating}
+			<div
+				class="validate-yaml-progress-strip"
+				role="progressbar"
+				aria-label="Validating YAML"
+			></div>
+		{/if}
+
 		{#if fixSummary}
 			<div class="validate-yaml-fix-banner validate-yaml-fix-banner--compact" role="status" aria-live="polite">
 				<p class="validate-yaml-fix-banner__headline">{fixSummary.headline}</p>
 			</div>
 		{/if}
 
-		<div class="validate-yaml-workspace validate-yaml-workspace--pro validate-yaml-workspace--tabbed">
+		<div class="validate-yaml-workspace validate-yaml-workspace--pro validate-yaml-workspace--tabbed validate-yaml-workspace--split">
 			<div class="validate-yaml-workspace-panel">
-				<div class="validate-yaml-workspace-toolbar" role="tablist" aria-label="Workspace views">
+				<div
+					class="validate-yaml-workspace-toolbar validate-yaml-workspace-toolbar--mobile-only"
+					role="tablist"
+					aria-label="Workspace views"
+				>
 					<button
 						type="button"
 						role="tab"
@@ -1090,8 +1359,8 @@
 						role="tabpanel"
 						aria-labelledby="validate-yaml-tab-editor"
 						class="validate-yaml-editor-column"
-						class:validate-yaml-view--hidden={activeView !== 'editor'}
-						aria-hidden={activeView !== 'editor'}
+						class:validate-yaml-view--hidden={!isSplitWorkspace && activeView !== 'editor'}
+						aria-hidden={!isSplitWorkspace && activeView !== 'editor'}
 					>
 						{#if browser}
 							{#if MonacoEditorCmp}
@@ -1128,8 +1397,8 @@
 						role="tabpanel"
 						aria-labelledby="validate-yaml-tab-diagnostics"
 						class="validate-yaml-diagnostics-panel spec-search-results-panel"
-						class:validate-yaml-view--hidden={activeView !== 'diagnostics'}
-						aria-hidden={activeView !== 'diagnostics'}
+						class:validate-yaml-view--hidden={!isSplitWorkspace && activeView !== 'diagnostics'}
+						aria-hidden={!isSplitWorkspace && activeView !== 'diagnostics'}
 					>
 						<div class="validate-yaml-issues-header">
 							{#if displayIssues.length > 0}
@@ -1347,7 +1616,7 @@
 																	class="validate-yaml-issue-fix-link"
 																	class:validate-yaml-issue-ai-link={!issue.suggestedFix}
 																	title={issue.suggestedFix
-																		? `Replace ${issue.suggestedFix.field} with ${issue.suggestedFix.value}`
+																		? suggestedFixLabel(issue)
 																		: 'Suggest a fix with AI'}
 																	on:click={(e) => handleApplyFix(issue, e)}
 																>
@@ -1408,4 +1677,13 @@
 	applyBlockedReason={aiFixApplyBlockedReason}
 	onClose={closeAiFixPanel}
 	onApply={handleApplyAiFix}
+/>
+
+<FixAllReviewPanel
+	open={fixAllReviewOpen}
+	beforeYaml={fixAllReviewBefore}
+	afterYaml={fixAllReviewAfter}
+	changes={fixAllReviewChanges}
+	onClose={closeFixAllReview}
+	onRevert={handleRevertFixAll}
 />

@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
-	ASK_AI_MODEL,
 	extractWorkersAIText,
+	FIX_AI_MODEL,
+	runWorkersAIMessages,
+	selectFixModel,
+	selectFixMaxTokens,
 	WORKERS_AI_MODEL,
 	workersAIErrorMessage,
 	WorkersAIEmptyResponseError,
@@ -9,12 +12,50 @@ import {
 } from './runWorkersAI';
 
 describe('runWorkersAI helpers', () => {
-	it('uses the active fast llama model for cache warming', () => {
+	it('uses llama 3.1 fast for scoped fixes and 3.3 only for complex issues', () => {
 		expect(WORKERS_AI_MODEL).toBe('@cf/meta/llama-3.1-8b-instruct-fast');
+		expect(FIX_AI_MODEL).toBe('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+		expect(selectFixModel('syntax')).toBe(WORKERS_AI_MODEL);
+		expect(selectFixModel('enum')).toBe(WORKERS_AI_MODEL);
+		expect(selectFixModel('misspelledField')).toBe(WORKERS_AI_MODEL);
+		expect(selectFixModel('unknownField', { relocationHint: { from: 'a', to: 'b' } })).toBe(
+			WORKERS_AI_MODEL
+		);
+		expect(selectFixModel('unknownField')).toBe(FIX_AI_MODEL);
+		expect(selectFixModel('other')).toBe(FIX_AI_MODEL);
+		expect(selectFixModel('unknownField', { batched: true })).toBe(FIX_AI_MODEL);
 	});
 
-	it('uses llama 3.3 70B for Ask AI', () => {
-		expect(ASK_AI_MODEL).toBe('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
+	it('selectFixMaxTokens scales by issue complexity', () => {
+		expect(selectFixMaxTokens('enum')).toBe(768);
+		expect(selectFixMaxTokens('unknownField')).toBe(1536);
+		expect(selectFixMaxTokens('unknownField', { batched: true })).toBe(2048);
+	});
+
+	it('blocks Workers AI in CI unless WORKERS_AI_ALLOW is set', async () => {
+		const prevCi = process.env.CI;
+		const prevAllow = process.env.WORKERS_AI_ALLOW;
+		process.env.CI = 'true';
+		delete process.env.WORKERS_AI_ALLOW;
+
+		const ai = {
+			run: vi.fn()
+		} as unknown as Ai;
+
+		await expect(
+			runWorkersAIMessages(ai, [{ role: 'user', content: 'test' }])
+		).rejects.toThrow(/disabled during tests and CI/);
+
+		process.env.WORKERS_AI_ALLOW = '1';
+		(ai.run as ReturnType<typeof vi.fn>).mockResolvedValue({ response: 'ok' });
+		await expect(
+			runWorkersAIMessages(ai, [{ role: 'user', content: 'test' }])
+		).resolves.toBe('ok');
+
+		if (prevCi === undefined) delete process.env.CI;
+		else process.env.CI = prevCi;
+		if (prevAllow === undefined) delete process.env.WORKERS_AI_ALLOW;
+		else process.env.WORKERS_AI_ALLOW = prevAllow;
 	});
 
 	it('extractWorkersAIText reads legacy response field', () => {

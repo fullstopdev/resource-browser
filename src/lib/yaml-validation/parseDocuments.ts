@@ -61,9 +61,18 @@ function extractDocRawTexts(input: string, docCount: number): string[] {
 	return parts.slice(0, docCount);
 }
 
+import { findLineForYamlFieldPath } from './yamlFieldPath';
+
 export function findLineForPointerInDoc(docText: string, pointer: string): number | undefined {
 	const parts = pointer.split('/').filter(Boolean);
 	if (parts.length === 0) return undefined;
+
+	if (parts.length > 1) {
+		const fieldPath = parts.join('.');
+		const exact = findLineForYamlFieldPath(docText, fieldPath);
+		if (exact !== undefined) return exact;
+		return undefined;
+	}
 
 	let key = parts[parts.length - 1];
 	if (/^\d+$/.test(key) && parts.length > 1) {
@@ -77,6 +86,13 @@ export function findLineForPointerInDoc(docText: string, pointer: string): numbe
 		if (keyRegex.test(lines[i])) return i;
 	}
 	return undefined;
+}
+
+/** Lines removed from the start of `text` when using trimStart (for mapping rawText lines to bundle input). */
+export function countLeadingTrimmedLines(text: string): number {
+	const trimmedStart = text.trimStart();
+	if (trimmedStart.length === text.length) return 0;
+	return text.slice(0, text.length - trimmedStart.length).split('\n').length - 1;
 }
 
 function splitYamlDocumentSections(input: string): { text: string; startLine: number }[] {
@@ -121,6 +137,7 @@ function parseFailureResult(
 }
 
 export function parseDocuments(yamlInput: string): ParseDocumentsResult {
+	const globalLeadingOffset = countLeadingTrimmedLines(yamlInput);
 	const trimmed = yamlInput.trim();
 	if (!trimmed) {
 		return { ok: true, docs: [] };
@@ -135,6 +152,9 @@ export function parseDocuments(yamlInput: string): ParseDocumentsResult {
 		const sectionTrimmed = section.text.trim();
 		if (!sectionTrimmed) continue;
 
+		const sectionLeadingOffset = countLeadingTrimmedLines(section.text);
+		const docStartLine = globalLeadingOffset + section.startLine + sectionLeadingOffset;
+
 		docOrdinal += 1;
 		try {
 			const data = loadUserYaml(sectionTrimmed);
@@ -142,7 +162,7 @@ export function parseDocuments(yamlInput: string): ParseDocumentsResult {
 				parseErrors.push({
 					message: 'Empty YAML document',
 					docIndex: docOrdinal,
-					line: section.startLine + 1
+					line: docStartLine + 1
 				});
 				continue;
 			}
@@ -150,7 +170,7 @@ export function parseDocuments(yamlInput: string): ParseDocumentsResult {
 			docs.push({
 				data: data as Record<string, unknown>,
 				rawText: sectionTrimmed,
-				startLine: section.startLine,
+				startLine: docStartLine,
 				index: docs.length
 			});
 		} catch (e) {
@@ -158,7 +178,7 @@ export function parseDocuments(yamlInput: string): ParseDocumentsResult {
 			parseErrors.push({
 				message: `YAML parsing error: ${message}`,
 				docIndex: docOrdinal,
-				line: line !== undefined ? section.startLine + line : section.startLine + 1,
+				line: line !== undefined ? docStartLine + line : docStartLine + 1,
 				column
 			});
 		}

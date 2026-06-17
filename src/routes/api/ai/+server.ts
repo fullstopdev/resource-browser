@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/public';
 import {
 	ACTION_MAX_TOKENS,
 	promptCompare,
@@ -7,6 +8,7 @@ import {
 	promptExplain,
 	promptField,
 	promptFixYaml,
+	promptFixYamlMigration,
 	promptFixYamlSyntax,
 	promptSpecSearch,
 	promptValidate,
@@ -16,9 +18,14 @@ import { parseFixResponse } from '$lib/ai/parseFixResponse';
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import {
 	buildCacheKey,
+	buildFixCacheKey,
+	buildMigrationFixCacheKey,
 	buildReleaseCacheKey,
 	getCachedAiResponse,
 	getCachedAiResponseWithFallback,
+	hashDocYamlDigest,
+	hashFixCacheDigest,
+	hashMigrationFixDigest,
 	isCacheableAction,
 	isDeterministicCacheAction,
 	parseExamples,
@@ -41,7 +48,14 @@ import {
 	buildSchemaFieldFallback,
 	llmFallbackReason
 } from '$lib/ai/fallbackAnswers';
-import { runWorkersAIMessages, workersAIErrorResponse } from '$lib/ai/runWorkersAI';
+import {
+	runWorkersAIMessages,
+	workersAIErrorResponse,
+	FIX_AI_REQUEST_TIMEOUT_MS,
+	selectFixMaxTokens,
+	selectFixModel
+} from '$lib/ai/runWorkersAI';
+import { extractYamlIssueExcerpt } from '$lib/validate-bundle/yamlIssueExcerpt';
 
 const VALID_ACTIONS = [
 	'explain',
@@ -71,7 +85,30 @@ type AiBody = {
 	userYaml?: unknown;
 	compareRelease?: unknown;
 	issue?: unknown;
+	issues?: unknown;
 };
+
+function parseStringArray(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const items = value.map((item) => str(item)).filter(Boolean);
+	return items.length > 0 ? items : undefined;
+}
+
+function parseIssueKind(value: unknown): FixIssueContext['issueKind'] | undefined {
+	const kind = str(value);
+	const allowed: FixIssueContext['issueKind'][] = [
+		'unknownField',
+		'misspelledField',
+		'enum',
+		'type',
+		'required',
+		'syntax',
+		'other'
+	];
+	return allowed.includes(kind as FixIssueContext['issueKind'])
+		? (kind as FixIssueContext['issueKind'])
+		: undefined;
+}
 
 function parseFixIssue(value: unknown): FixIssueContext | null {
 	if (!value || typeof value !== 'object') return null;
@@ -83,7 +120,56 @@ function parseFixIssue(value: unknown): FixIssueContext | null {
 	const line =
 		typeof lineRaw === 'number' && Number.isFinite(lineRaw) ? Math.trunc(lineRaw) : undefined;
 	const severity = str(issue.severity) || undefined;
-	return { message, fieldPath, line, severity };
+	const issueKind = parseIssueKind(issue.issueKind);
+	const allowedSiblingKeys = parseStringArray(issue.allowedSiblingKeys);
+	const allowedValues = parseStringArray(issue.allowedValues);
+	const expectedTypes = parseStringArray(issue.expectedTypes);
+	const renameHintRaw = issue.renameHint;
+	let renameHint: FixIssueContext['renameHint'];
+	if (renameHintRaw && typeof renameHintRaw === 'object') {
+		const from = str((renameHintRaw as Record<string, unknown>).from);
+		const to = str((renameHintRaw as Record<string, unknown>).to);
+		if (from && to) renameHint = { from, to };
+	}
+	const relocationHintRaw = issue.relocationHint;
+	let relocationHint: FixIssueContext['relocationHint'];
+	if (relocationHintRaw && typeof relocationHintRaw === 'object') {
+		const from = str((relocationHintRaw as Record<string, unknown>).from);
+		const to = str((relocationHintRaw as Record<string, unknown>).to);
+		if (from && to) relocationHint = { from, to };
+	}
+	const migrationContext = str(issue.migrationContext) || undefined;
+	const relatedIssues = parseStringArray(issue.relatedIssues);
+	const suggestedFixRaw = issue.suggestedFix;
+	let suggestedFix: FixIssueContext['suggestedFix'];
+	if (suggestedFixRaw && typeof suggestedFixRaw === 'object') {
+		const field = str((suggestedFixRaw as Record<string, unknown>).field);
+		const value = str((suggestedFixRaw as Record<string, unknown>).value);
+		const action = str((suggestedFixRaw as Record<string, unknown>).action) || undefined;
+		if (field && value) suggestedFix = { field, value, action };
+	}
+	const deterministicFixAvailable = issue.deterministicFixAvailable === true;
+	return {
+		message,
+		fieldPath,
+		line,
+		severity,
+		renameHint,
+		relocationHint,
+		migrationContext,
+		relatedIssues,
+		issueKind,
+		allowedSiblingKeys,
+		allowedValues,
+		expectedTypes,
+		deterministicFixAvailable,
+		suggestedFix
+	};
+}
+
+function parseFixIssues(value: unknown): FixIssueContext[] {
+	if (!Array.isArray(value)) return [];
+	return value.map(parseFixIssue).filter((issue): issue is FixIssueContext => issue !== null);
 }
 
 function str(value: unknown): string {
@@ -109,6 +195,9 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const userYaml = str(body.userYaml);
 	const compareRelease = str(body.compareRelease) || undefined;
 	const fixIssue = parseFixIssue(body.issue);
+	const fixIssues = parseFixIssues(body.issues);
+	const migrationIssues = fixIssues.length > 0 ? fixIssues : fixIssue ? [fixIssue] : [];
+	const isMigrationBatch = fixIssues.length > 1;
 
 	if (!release || !action) {
 		return json({ error: 'Missing required fields: release, action' }, { status: 400 });
@@ -144,8 +233,8 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		if (!userYaml) {
 			return json({ error: 'userYaml is required for action=fix' }, { status: 400 });
 		}
-		if (!fixIssue) {
-			return json({ error: 'issue.message is required for action=fix' }, { status: 400 });
+		if (migrationIssues.length === 0) {
+			return json({ error: 'issue.message or issues[] is required for action=fix' }, { status: 400 });
 		}
 	}
 	if (action === 'compare' && !compareRelease) {
@@ -214,12 +303,97 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 	}
 
 	if (action === 'fix') {
+		if (env.PUBLIC_FIX_AI_ENABLED === 'false') {
+			return json(
+				{
+					error:
+						'YAML fix AI is disabled. Set PUBLIC_FIX_AI_ENABLED=true (or unset) at build time to enable.'
+				},
+				{ status: 403 }
+			);
+		}
+
+		const primaryIssue = migrationIssues[0]!;
+
+		if (
+			!isMigrationBatch &&
+			(primaryIssue.renameHint ||
+				primaryIssue.issueKind === 'misspelledField' ||
+				primaryIssue.deterministicFixAvailable)
+		) {
+			return json(
+				{
+					error:
+						'This issue has a deterministic schema fix (rename, relocate, clamp, or add field). Apply the one-click Fix instead of AI.',
+					fixable: false
+				},
+				{ status: 422 }
+			);
+		}
+
+		const fixKind = kind || RELEASE_CACHE_KIND;
+		const docDigest = hashDocYamlDigest(userYaml);
+		const issueIdsDigest = hashMigrationFixDigest(
+			migrationIssues.map(
+				(issue) =>
+					`${issue.issueKind ?? ''}|${issue.fieldPath ?? ''}|${hashFixCacheDigest(issue.message, issue.fieldPath, issue.issueKind)}`
+			)
+		);
+
+		const fixCacheKey = isMigrationBatch
+			? buildMigrationFixCacheKey({
+					release,
+					kind: fixKind,
+					group,
+					docDigest,
+					issueIdsDigest
+				})
+			: fixKind && fixKind !== RELEASE_CACHE_KIND
+				? buildFixCacheKey({
+						release,
+						kind: fixKind,
+						group,
+						fieldPath: primaryIssue.fieldPath,
+						issueKind: primaryIssue.issueKind,
+						messageDigest: hashFixCacheDigest(
+							primaryIssue.message,
+							primaryIssue.fieldPath,
+							primaryIssue.issueKind
+						)
+					})
+				: null;
+
+		if (fixCacheKey && kv) {
+			const cached = await getCachedAiResponse(kv, fixCacheKey);
+			if (cached?.fixedYaml) {
+				return json({
+					answer: cached.answer,
+					release,
+					kind: kind || undefined,
+					action: 'fix',
+					explanation: cached.explanation,
+					fixedYaml: cached.fixedYaml,
+					fixable: cached.fixable,
+					cached: true
+				});
+			}
+		}
+
 		const schema = kind
 			? await loadAiSchema(release, kind, originFetch, group, version)
 			: null;
+
+		const excerpt = !isMigrationBatch
+			? extractYamlIssueExcerpt(userYaml, primaryIssue.fieldPath)
+			: null;
+
 		const prompt = schema
-			? promptFixYaml(release, kind, schema, userYaml, fixIssue!)
-			: promptFixYamlSyntax(release, userYaml, fixIssue!);
+			? isMigrationBatch
+				? promptFixYamlMigration(release, kind, schema, userYaml, migrationIssues)
+				: promptFixYaml(release, kind, schema, userYaml, primaryIssue, {
+						excerptYaml: excerpt?.isFullDocument ? undefined : excerpt?.excerpt
+					})
+			: promptFixYamlSyntax(release, userYaml, primaryIssue);
 
 		try {
 			const answer = await runWorkersAIMessages(
@@ -229,22 +403,41 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 					{ role: 'user', content: prompt.user }
 				],
 				{
-					maxTokens: ACTION_MAX_TOKENS.fix ?? 1200,
+					model: selectFixModel(primaryIssue.issueKind, {
+						batched: isMigrationBatch,
+						relocationHint: primaryIssue.relocationHint
+					}),
+					maxTokens: selectFixMaxTokens(primaryIssue.issueKind, {
+						batched: isMigrationBatch
+					}),
 					temperature: DETERMINISTIC_TEMPERATURE,
-					seed: DETERMINISTIC_SEED
+					seed: DETERMINISTIC_SEED,
+					timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS
 				}
 			);
 			const parsed = parseFixResponse(answer);
-			return json({
+			const responsePayload = {
 				answer,
 				release,
 				kind: kind || undefined,
-				action: 'fix',
+				action: 'fix' as const,
 				explanation: parsed.explanation,
 				fixedYaml: parsed.fixedYaml,
 				fixable: parsed.fixable,
 				cached: false
-			});
+			};
+			if (fixCacheKey && kv && parsed.fixable && parsed.fixedYaml) {
+				await putCachedAiResponse(kv, fixCacheKey, {
+					answer,
+					release,
+					kind: fixKind,
+					action: 'fix',
+					explanation: parsed.explanation,
+					fixedYaml: parsed.fixedYaml,
+					fixable: parsed.fixable
+				});
+			}
+			return json(responsePayload);
 		} catch (err) {
 			console.error('Workers AI fix error:', err);
 			const reason = llmFallbackReason(err);

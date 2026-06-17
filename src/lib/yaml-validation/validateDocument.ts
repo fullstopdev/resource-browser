@@ -20,6 +20,7 @@ import {
 import { formatValueConstraintError } from './formatSchemaError';
 import { formatVersionLabel } from './formatErrors';
 import { formatLocationInfo, getFieldLocationInfo } from './parseDocuments';
+import { suggestFixFromAjvError } from '$lib/validate-bundle/schemaSuggestedFix';
 import type { EnrichedError, ManifestEntry, ParsedDocument, SuggestedFix } from './types';
 import type { SchemaSections } from './schemaCache';
 
@@ -54,6 +55,8 @@ function enrichRequiredFieldErrors(
 		resourceLink?: { name: string; version: string };
 		ajvErrors?: ErrorObject[] | null;
 		keyword?: string;
+		specData?: unknown;
+		specSchema?: unknown;
 	}
 ): EnrichedError[] {
 	const enriched: EnrichedError[] = [];
@@ -65,6 +68,18 @@ function enrichRequiredFieldErrors(
 			`/${ctx.section}${item.instancePath}`
 		);
 		const lineMatch = fieldLocationInfo.match(/Line\s+(\d+)/i);
+		const line = lineMatch ? Number(lineMatch[1]) : undefined;
+		const suggestedFix =
+			ctx.specSchema && ctx.specData
+				? suggestFixFromAjvError(
+						'required',
+						item.instancePath,
+						ctx.specData,
+						ctx.specSchema,
+						line,
+						{ missingProperty: item.field }
+					)
+				: undefined;
 		const message = `${ctx.prefix}${ctx.section}.${item.path} is required${fieldLocationInfo}`;
 		enriched.push(
 			enrichError(
@@ -80,7 +95,8 @@ function enrichRequiredFieldErrors(
 					docPrefix: ctx.prefix,
 					locationInfo: fieldLocationInfo,
 					resourceLink: ctx.resourceLink,
-					line: lineMatch ? Number(lineMatch[1]) : undefined
+					line,
+					suggestedFix
 				}
 			)
 		);
@@ -494,6 +510,27 @@ export function validateDocument(ctx: ValidateDocContext): {
 				}
 				const fieldLocationInfo = getFieldLoc(`/spec${err.instancePath}`);
 				const lineMatch = fieldLocationInfo.match(/Line\s+(\d+)/i);
+				const line = lineMatch ? Number(lineMatch[1]) : undefined;
+				const suggestedFix =
+					err.keyword === 'enum' ||
+					err.keyword === 'const' ||
+					err.keyword === 'type' ||
+					err.keyword === 'maximum' ||
+					err.keyword === 'minimum' ||
+					err.keyword === 'required'
+						? suggestFixFromAjvError(
+								err.keyword,
+								err.keyword === 'required'
+									? err.instancePath
+									: err.instancePath,
+								parsedYaml.spec,
+								spec,
+								line,
+								err.keyword === 'required'
+									? { missingProperty: String(err.params?.missingProperty || '') }
+									: undefined
+							)
+						: undefined;
 				return enrichError(
 					{
 						...err,
@@ -506,7 +543,8 @@ export function validateDocument(ctx: ValidateDocContext): {
 						docPrefix: prefix,
 						locationInfo: fieldLocationInfo,
 						resourceLink,
-						line: lineMatch ? Number(lineMatch[1]) : undefined
+						line,
+						suggestedFix
 					}
 				);
 			});
@@ -520,7 +558,9 @@ export function validateDocument(ctx: ValidateDocContext): {
 			doc,
 			docIndex: doc.index,
 			resourceLink,
-			ajvErrors: ajvSpecErrors
+			ajvErrors: ajvSpecErrors,
+			specData: parsedYaml.spec,
+			specSchema: spec
 		});
 		if (supplementalRequired.length > 0) {
 			valid = false;

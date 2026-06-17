@@ -12,6 +12,15 @@ export type FixIssuePayload = {
 	fieldPath?: string;
 	line?: number;
 	severity?: string;
+	renameHint?: { from: string; to: string };
+	relocationHint?: { from: string; to: string };
+	migrationContext?: string;
+	issueKind?: 'unknownField' | 'misspelledField' | 'enum' | 'type' | 'required' | 'syntax' | 'other';
+	allowedSiblingKeys?: string[];
+	allowedValues?: string[];
+	expectedTypes?: string[];
+	deterministicFixAvailable?: boolean;
+	suggestedFix?: { action?: string; field: string; value: string };
 };
 
 export type AskAIActionParams = {
@@ -24,6 +33,7 @@ export type AskAIActionParams = {
 	userYaml?: string;
 	compareRelease?: string;
 	issue?: FixIssuePayload;
+	issues?: FixIssuePayload[];
 };
 
 export type AiActionResult = {
@@ -99,7 +109,7 @@ export const fixYAML = (
 	release: string,
 	userYaml: string,
 	issue: FixIssuePayload,
-	opts?: { kind?: string; group?: string }
+	opts?: { kind?: string; group?: string; issues?: FixIssuePayload[] }
 ) =>
 	askAI({
 		release,
@@ -107,7 +117,8 @@ export const fixYAML = (
 		group: opts?.group,
 		action: 'fix',
 		userYaml,
-		issue
+		issue,
+		...(opts?.issues && opts.issues.length > 1 ? { issues: opts.issues } : {})
 	});
 
 export const generateExample = (release: string, kind: string, group?: string) =>

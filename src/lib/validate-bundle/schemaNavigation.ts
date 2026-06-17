@@ -47,18 +47,84 @@ export function schemaAtYamlPath(specSchema: unknown, path: string[]): unknown {
 	return current;
 }
 
-/** Known YAML key variants → canonical schema property names, scoped by parent path segment. */
-const SCHEMA_FIELD_ALIASES: Record<string, Record<string, string>> = {
-	underlayProtocol: { protocol: 'protocols' }
-};
-
 export type ResolvedSchemaPath = {
 	schema: unknown;
 	/** Schema path actually resolved (may differ from the YAML path when aliased). */
 	path: string[];
 };
 
-/** Resolve schema at a YAML path, falling back to known field aliases when the exact key is missing. */
+function levenshtein(a: string, b: string): number {
+	if (a === b) return 0;
+	if (a.length === 0) return b.length;
+	if (b.length === 0) return a.length;
+	const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+	for (let i = 1; i <= a.length; i++) {
+		let prev = i;
+		for (let j = 1; j <= b.length; j++) {
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			const next = Math.min(row[j]! + 1, prev + 1, row[j - 1]! + cost);
+			row[j - 1] = prev;
+			prev = next;
+		}
+		row[b.length] = prev;
+	}
+	return row[b.length]!;
+}
+
+export function findPluralSingularMatch(
+	key: string,
+	props: Set<string>,
+	parentKey?: string
+): string | null {
+	const candidates: string[] = [];
+	if (props.has(`${key}s`)) candidates.push(`${key}s`);
+	if (key.endsWith('s') && props.has(key.slice(0, -1))) candidates.push(key.slice(0, -1));
+	if (candidates.length !== 1) return null;
+
+	const match = candidates[0]!;
+	const fabricRule = parentKey ? FABRIC_PROTOCOL_PARENT_KEYS[parentKey] : undefined;
+	if (fabricRule && match === fabricRule.wrong) {
+		return null;
+	}
+	return match;
+}
+
+/** Fabric CRD: underlayProtocol uses plural `protocols`; overlayProtocol uses singular `protocol`. */
+const FABRIC_PROTOCOL_PARENT_KEYS: Record<string, { wrong: string; correct: string }> = {
+	underlayProtocol: { wrong: 'protocol', correct: 'protocols' },
+	overlayProtocol: { wrong: 'protocols', correct: 'protocol' }
+};
+
+function violatesFabricProtocolRule(suggestedKey: string, parentKey?: string): boolean {
+	const rule = parentKey ? FABRIC_PROTOCOL_PARENT_KEYS[parentKey] : undefined;
+	return !!rule && suggestedKey === rule.wrong;
+}
+
+/**
+ * Returns the schema key when `unknownKey` is the wrong pluralization for that parent.
+ */
+export function findFabricProtocolKeyMatch(
+	unknownKey: string,
+	parentKey: string | undefined,
+	props: Set<string>
+): string | null {
+	if (!parentKey) return null;
+	const rule = FABRIC_PROTOCOL_PARENT_KEYS[parentKey];
+	if (!rule || unknownKey !== rule.wrong || !props.has(rule.correct)) return null;
+	return rule.correct;
+}
+
+export function fabricProtocolParentHint(parentKey: string | undefined): string | undefined {
+	if (parentKey === 'underlayProtocol') {
+		return 'spec.underlayProtocol requires the plural key "protocols" (array). Do not use singular "protocol" here.';
+	}
+	if (parentKey === 'overlayProtocol') {
+		return 'spec.overlayProtocol requires the singular key "protocol" (string enum). Do not use plural "protocols" here.';
+	}
+	return undefined;
+}
+
+/** Resolve schema at a YAML path, falling back to similar schema property names when the exact key is missing. */
 export function resolveSchemaAtPath(
 	specSchema: unknown,
 	path: string[]
@@ -70,13 +136,19 @@ export function resolveSchemaAtPath(
 
 	const parentPath = path.slice(0, -1);
 	const segment = path[path.length - 1]!;
-	const parentSegment = parentPath[parentPath.length - 1];
-
-	const alias = parentSegment ? SCHEMA_FIELD_ALIASES[parentSegment]?.[segment] : undefined;
-	if (alias) {
-		const aliasPath = [...parentPath, alias];
-		const schema = schemaAtYamlPath(specSchema, aliasPath);
-		if (schema) return { schema, path: aliasPath };
+	const parentSchema = schemaAtYamlPath(specSchema, parentPath);
+	const props = parentSchema ? collectSchemaProperties(parentSchema) : null;
+	if (props) {
+		const similar = findSimilarSchemaProperty(
+			segment,
+			props,
+			parentPath[parentPath.length - 1]
+		);
+		if (similar) {
+			const aliasPath = [...parentPath, similar];
+			const schema = schemaAtYamlPath(specSchema, aliasPath);
+			if (schema) return { schema, path: aliasPath };
+		}
 	}
 
 	return null;
@@ -193,4 +265,150 @@ export function truncateDetail(text: string | undefined, max = 72): string | und
 	if (!text) return undefined;
 	const oneLine = text.replace(/\s+/g, ' ').trim();
 	return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 1)}…`;
+}
+
+/** Normalize common IPv4/IPv6 property casing variants for comparison. */
+export function normalizeSchemaPropertyName(name: string): string {
+	return name.replace(/IPV(\d)/gi, 'IPv$1');
+}
+
+/**
+ * Normalize a property name for fuzzy matching (BFD IntMs/Interval suffixes, required/desired prefixes).
+ */
+export function normalizePropertyStem(name: string): string {
+	let s = normalizeSchemaPropertyName(name);
+	s = s.replace(/^(required|desired)(?=[A-Z])/, '');
+	s = s.replace(/(IntMs|Interval|Ms)$/i, '');
+	return s.toLowerCase();
+}
+
+function levenshteinThreshold(a: string, b: string): number {
+	return Math.max(2, Math.floor(Math.min(a.length, b.length) * 0.2));
+}
+
+/**
+ * Resolve a YAML key to the canonical schema property name for completions and navigation.
+ * Accepts case-insensitive and IPv4/IPv6 normalization — not used for validation strictness.
+ */
+export function resolveSchemaPropertyKey(key: string, props: Set<string>): string | null {
+	if (props.has(key)) return key;
+
+	const lower = key.toLowerCase();
+	const normalizedLower = normalizeSchemaPropertyName(key).toLowerCase();
+
+	for (const prop of props) {
+		if (prop.toLowerCase() === lower) return prop;
+		if (normalizeSchemaPropertyName(prop).toLowerCase() === normalizedLower) return prop;
+	}
+
+	return null;
+}
+
+/**
+ * Find a schema property that matches a misspelled YAML key (case, IPv4/IPv6 casing, pluralization, or typo).
+ * Returns the canonical property name from the schema, or null when the key is exact or has no close match.
+ */
+export function findSimilarSchemaProperty(
+	unknownKey: string,
+	props: Set<string>,
+	parentKey?: string,
+	parentData?: Record<string, unknown>
+): string | null {
+	if (props.has(unknownKey)) return null;
+
+	const lower = unknownKey.toLowerCase();
+	const normalizedLower = normalizeSchemaPropertyName(unknownKey).toLowerCase();
+	let normalizedMatch: string | null = null;
+
+	for (const prop of props) {
+		if (prop.toLowerCase() === lower) {
+			return prop;
+		}
+		const propNormalized = normalizeSchemaPropertyName(prop).toLowerCase();
+		if (propNormalized === normalizedLower) {
+			normalizedMatch = prop;
+		}
+	}
+
+	if (normalizedMatch) return normalizedMatch;
+
+	const fabricProtocol = findFabricProtocolKeyMatch(
+		unknownKey,
+		parentKey ?? undefined,
+		props
+	);
+	if (fabricProtocol) return fabricProtocol;
+
+	const plural = findPluralSingularMatch(unknownKey, props, parentKey);
+	if (plural) return plural;
+
+	const unknownStem = normalizePropertyStem(unknownKey);
+	if (unknownStem.length >= 8) {
+		let stemMatch: string | null = null;
+		for (const prop of props) {
+			if (normalizePropertyStem(prop) !== unknownStem) continue;
+			if (stemMatch && stemMatch !== prop) {
+				stemMatch = null;
+				break;
+			}
+			stemMatch = prop;
+		}
+		if (stemMatch && !violatesFabricProtocolRule(stemMatch, parentKey)) {
+			return stemMatch;
+		}
+	}
+
+	let best: { prop: string; dist: number } | null = null;
+	for (const prop of props) {
+		if (violatesFabricProtocolRule(prop, parentKey)) continue;
+		if (Math.min(unknownKey.length, prop.length) < 4) continue;
+		const dist = levenshtein(unknownKey.toLowerCase(), prop.toLowerCase());
+		const threshold = levenshteinThreshold(unknownKey, prop);
+		if (dist > 0 && dist <= threshold) {
+			if (!best || dist < best.dist) {
+				best = { prop, dist };
+			} else if (dist === best.dist) {
+				best = null;
+			}
+		}
+	}
+	if (best) {
+		if (
+			parentData &&
+			parentData[best.prop] !== undefined &&
+			parentData[best.prop] !== null
+		) {
+			return null;
+		}
+		return best.prop;
+	}
+
+	return null;
+}
+
+/**
+ * Find a unique nested schema path for a property name relocated from spec root.
+ * Returns dot path under spec (e.g. "encapOptions.vxlan.tunnelIndexPool") or null.
+ */
+export function findNestedSchemaPropertyPath(
+	specSchema: unknown,
+	keyName: string
+): string | null {
+	const matches: string[] = [];
+
+	const walk = (node: unknown, prefix: string[]) => {
+		const props = collectSchemaProperties(node);
+		if (!props) return;
+		for (const key of props) {
+			const child = getChildPropertySchema(node, key);
+			if (key === keyName && prefix.length > 0) {
+				matches.push([...prefix, key].join('.'));
+			}
+			if (child) walk(child, [...prefix, key]);
+		}
+	};
+
+	walk(specSchema, []);
+	if (matches.length === 1) return matches[0]!;
+	return null;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+	applySchemaValueFixes,
 	fixApiVersionUpgrade,
 	fixDocumentData,
 	fixK8sMetadata,
@@ -203,6 +204,35 @@ describe('fixDocumentData', () => {
 
 		expect((fixed.spec as Record<string, unknown>).operatingSystem).toBe('ios');
 		expect(fixes).toHaveLength(0);
+	});
+
+	it('fixes Interface_ai to Interface via fuzzy enum match', () => {
+		const interfaceSections: SchemaSections = {
+			spec: {
+				properties: {
+					type: { type: 'string', enum: ['LAG', 'Interface', 'Loopback'] },
+					enabled: { type: 'boolean' }
+				}
+			},
+			isSpecRequired: true
+		};
+		const data = {
+			apiVersion: 'interfaces.eda.nokia.com/v1',
+			kind: 'Interface',
+			metadata: { name: 'eth', namespace: 'eda' },
+			spec: { type: 'Interface_ai', enabled: true }
+		};
+
+		const { data: fixed, fixes } = fixDocumentData(data, interfaceSections, 1);
+
+		expect((fixed.spec as Record<string, unknown>).type).toBe('Interface');
+		expect(fixes).toHaveLength(1);
+		expect(fixes[0]).toMatchObject({
+			kind: 'enumCase',
+			path: 'spec.type',
+			from: 'Interface_ai',
+			to: 'Interface'
+		});
 	});
 
 	it('coerces wrongly-cased boolean strings', () => {
@@ -503,5 +533,50 @@ describe('formatFixSummary', () => {
 		expect(summary.layoutOnly).toBe(true);
 		expect(summary.headline).toBe('Formatted 3 documents (layout only)');
 		expect(summary.items).toHaveLength(0);
+	});
+});
+
+describe('applySchemaValueFixes scope', () => {
+	const manifest: ManifestEntry[] = [
+		{
+			name: 'configlets.config.eda.nokia.com',
+			kind: 'Configlet',
+			group: 'config.eda.nokia.com',
+			versions: [{ name: 'v1' }]
+		}
+	];
+
+	it('fixes only the targeted field path in the targeted document', async () => {
+		const yaml = `apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: test
+  namespace: eda
+spec:
+  operatingSystem: SRL
+  enabled: False
+---
+apiVersion: config.eda.nokia.com/v1
+kind: Configlet
+metadata:
+  name: other
+  namespace: eda
+spec:
+  operatingSystem: SROS
+`;
+
+		const result = await applySchemaValueFixes(
+			yaml,
+			{ releaseFolder: 'resources/26.4.2', manifest },
+			{ docIndex: 1, fieldPath: 'spec.operatingSystem' }
+		);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.fixes).toHaveLength(1);
+		expect(result.fixes[0]?.path).toBe('spec.operatingSystem');
+		expect(result.formatted).toContain('operatingSystem: srl');
+		expect(result.fixes.some((fix) => fix.path === 'spec.enabled')).toBe(false);
+		expect(result.formatted).toContain('operatingSystem: SROS');
 	});
 });

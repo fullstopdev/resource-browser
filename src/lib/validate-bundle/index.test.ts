@@ -125,6 +125,73 @@ spec:
 		).toBe(true);
 	});
 
+	it('reports nested unknown spec fields in documents after the first', async () => {
+		const topologySchema = `schema:
+  openAPIV3Schema:
+    properties:
+      spec:
+        type: object
+        properties:
+          operatingSystem:
+            type: string
+          spines:
+            type: object
+            properties:
+              systemPoolIPv4:
+                type: string
+    required:
+      - spec`;
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				const url = typeof input === 'string' ? input : input.toString();
+				if (url.includes('/topologies.topologies.eda.nokia.com/v1.yaml')) {
+					return new Response(topologySchema, { status: 200 });
+				}
+				return new Response(null, { status: 404 });
+			})
+		);
+
+		const yaml = `apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: topo-one
+  namespace: eda
+spec:
+  operatingSystem: srl
+  spines:
+    systemPoolIPv4: pool-a
+    unknownInDocOne: x
+---
+apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: topo-two
+  namespace: eda
+spec:
+  operatingSystem: srl
+  spines:
+    systemPoolIPv4: pool-b
+    unknownInDocTwo: y
+`;
+
+		const result = await validateBundle({
+			yamlInput: yaml,
+			releaseFolder: 'resources/26.4.2',
+			releaseLabel: 'EDA 26.4.2',
+			manifest
+		});
+
+		const doc2Nested = result.issues.filter(
+			(i) =>
+				i.docIndex === 2 &&
+				i.category === 'schema' &&
+				i.fieldPath === 'spec.spines.unknownInDocTwo'
+		);
+		expect(doc2Nested).toHaveLength(1);
+	});
+
 	it('errors when apiVersion group is invalid for a known kind', async () => {
 		const yaml = `apiVersion: topologi.eda.nokia.com/v1
 kind: Topology

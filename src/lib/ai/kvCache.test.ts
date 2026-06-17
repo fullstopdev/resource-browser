@@ -2,22 +2,27 @@ import { describe, expect, it } from 'vitest';
 import {
 	ASK_WARM_ACTIONS,
 	buildCacheKey,
+	buildFixCacheKey,
 	buildReleaseCacheKey,
 	DETERMINISTIC_CACHE_ACTIONS,
+	DETERMINISTIC_WARM_ACTIONS,
+	hashFixCacheDigest,
+	isCacheableAction,
 	isDeterministicCacheAction,
+	LLM_WARM_ACTIONS,
 	RELEASE_CACHE_KIND
 } from './kvCache';
 
 describe('kvCache warm actions', () => {
-	it('defines Ask AI warm actions in dependency order', () => {
-		expect(ASK_WARM_ACTIONS).toEqual([
+	it('defaults warm actions to deterministic-only (0 neurons)', () => {
+		expect(DETERMINISTIC_WARM_ACTIONS).toEqual([
 			'dependency-map',
 			'schema-summary',
 			'relationships',
-			'explain',
-			'example',
 			'full-context'
 		]);
+		expect(LLM_WARM_ACTIONS).toEqual(['explain', 'example']);
+		expect(ASK_WARM_ACTIONS).toEqual([...DETERMINISTIC_WARM_ACTIONS, ...LLM_WARM_ACTIONS]);
 	});
 
 	it('marks deterministic actions including release dependency map', () => {
@@ -51,5 +56,20 @@ describe('kvCache warm actions', () => {
 		expect(explainKey).toContain(':explain');
 		expect(summaryKey).toContain(':schema-summary');
 		expect(fullKey).toContain(':full-context');
+	});
+
+	it('caches fix action responses', () => {
+		expect(isCacheableAction('fix')).toBe(true);
+		const digest = hashFixCacheDigest('Misspelled field', 'spec.spines.foo', 'misspelledField');
+		const key = buildFixCacheKey({
+			release: '26.4.2',
+			kind: 'Fabric',
+			group: 'fabrics.eda.nokia.com',
+			fieldPath: 'spec.spines.foo',
+			issueKind: 'misspelledField',
+			messageDigest: digest
+		});
+		expect(key).toContain(':fix:');
+		expect(key).toContain(digest);
 	});
 });

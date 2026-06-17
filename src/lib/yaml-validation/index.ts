@@ -4,6 +4,7 @@ import { getLatestVersion } from '$lib/versions';
 import { buildSummary } from './formatErrors';
 import { parseDocuments } from './parseDocuments';
 import { scanInvalidBooleanLiterals } from './scanSource';
+import { getSharedAjv } from './ajvInstance';
 import { fetchSchemas, getOrCompileValidator, schemaPath } from './schemaCache';
 import { validateDocument } from './validateDocument';
 import type { EnrichedError, ValidateYamlOptions, ValidateYamlResult } from './types';
@@ -27,7 +28,14 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 	const { yamlInput, releaseFolder, releaseLabel, manifest } = options;
 
 	if (!yamlInput.trim()) {
-		return { valid: false, errors: [], warnings: [], summary: null, parsedDocs: [] };
+		return {
+			valid: false,
+			errors: [],
+			warnings: [],
+			summary: null,
+			parsedDocs: [],
+			schemas: new Map()
+		};
 	}
 
 	const parsed = parseDocuments(yamlInput);
@@ -65,7 +73,8 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 			errors,
 			warnings: [],
 			summary: null,
-			parsedDocs: []
+			parsedDocs: [],
+			schemas: new Map()
 		};
 	}
 
@@ -93,7 +102,8 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 			errors: [err],
 			warnings: [],
 			summary: null,
-			parsedDocs: []
+			parsedDocs: [],
+			schemas: new Map()
 		};
 	}
 
@@ -114,15 +124,9 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 		}
 	}
 
-	const schemas = await fetchSchemas(schemaPaths);
-	const [{ default: Ajv }] = await Promise.all([import('ajv')]);
-	const ajv = new Ajv({
-		allErrors: true,
-		verbose: true,
-		strict: false,
-		validateFormats: false,
-		coerceTypes: false
-	});
+	const schemas =
+		options.prefetchedSchemas ?? (await fetchSchemas(schemaPaths));
+	const ajv = await getSharedAjv();
 
 	const getSpecValidator = (key: string, schema: unknown) => getOrCompileValidator(ajv, key, schema);
 	const getStatusValidator = (key: string, schema: unknown) => getOrCompileValidator(ajv, key, schema);
@@ -168,7 +172,8 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 			errors: [successEntry, ...warnings],
 			warnings,
 			summary,
-			parsedDocs: docs
+			parsedDocs: docs,
+			schemas
 		};
 	}
 
@@ -177,7 +182,8 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 		errors: [...allErrors, ...warnings],
 		warnings,
 		summary,
-		parsedDocs: docs
+		parsedDocs: docs,
+		schemas
 	};
 }
 

@@ -7,7 +7,8 @@
  *
  * Actions warmed:
  *   dependency-map — full release topology from dependency-graph.json (once per release)
- *   Per CRD: schema-summary, relationships, explain, example, full-context
+ *   Per CRD: schema-summary, relationships, full-context (deterministic, 0 neurons)
+ *   Optional LLM: explain, example via WARM_ACTIONS=explain,example or npm run warm:cache:llm
  *
  * Optional env:
  *   WARM_ACTIONS=schema-summary,explain   — subset of actions (default: all five)
@@ -23,7 +24,7 @@ import fsPromises from 'fs/promises';
 import path from 'path';
 import yaml from 'js-yaml';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
-import { ASK_WARM_ACTIONS, RELEASE_CACHE_KIND } from '../src/lib/ai/kvCache';
+import { DETERMINISTIC_WARM_ACTIONS, LLM_WARM_ACTIONS, RELEASE_CACHE_KIND } from '../src/lib/ai/kvCache';
 import { activeApiVersion, filterActiveManifest } from '../src/lib/manifest/activeCrds';
 import { assertSafeFolderPath } from '../src/lib/yaml-validation/schemaCache';
 import type { ReleasesConfig } from '../src/lib/structure';
@@ -64,13 +65,13 @@ const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS) || 120_000;
 
 function parseWarmActions(): string[] {
 	const raw = process.env.WARM_ACTIONS?.trim();
-	if (!raw) return [...ASK_WARM_ACTIONS];
+	const valid = new Set<string>([...DETERMINISTIC_WARM_ACTIONS, ...LLM_WARM_ACTIONS]);
+	if (!raw) return [...DETERMINISTIC_WARM_ACTIONS];
 	const requested = raw.split(',').map((s) => s.trim()).filter(Boolean);
-	const valid = new Set<string>(ASK_WARM_ACTIONS);
 	const actions = requested.filter((a) => valid.has(a));
 	if (!actions.length) {
 		throw new Error(
-			`WARM_ACTIONS must include at least one of: ${ASK_WARM_ACTIONS.join(', ')}`
+			`WARM_ACTIONS must include at least one of: ${[...DETERMINISTIC_WARM_ACTIONS, ...LLM_WARM_ACTIONS].join(', ')}`
 		);
 	}
 	return actions;

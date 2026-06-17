@@ -10,6 +10,8 @@ import { parseDocuments } from '$lib/yaml-validation/parseDocuments';
 import { fixInvalidBooleanLiterals } from '$lib/yaml-validation/scanSource';
 import { fetchSchemas, schemaPath } from '$lib/yaml-validation/schemaCache';
 import { tryFixDnsLabel, tryFixDnsSubdomain } from './k8sRules';
+import { findUniqueFuzzyEnumMatch } from './schemaSuggestedFix';
+import { applySchemaStructuralFixes } from './schemaStructuralFixes';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
 import type { SchemaSections } from '$lib/yaml-validation/schemaCache';
 
@@ -81,7 +83,8 @@ export type FixKind =
 	| 'dnsName'
 	| 'apiVersionCase'
 	| 'kindCase'
-	| 'apiVersionUpgrade';
+	| 'apiVersionUpgrade'
+	| 'structuralFix';
 
 export type FixReport = {
 	kind: FixKind;
@@ -94,6 +97,12 @@ export type FixReport = {
 export type FormatYamlOptions = {
 	releaseFolder: string;
 	manifest: ManifestEntry[];
+};
+
+/** When set, only apply schema value fixes for this document and optional field path. */
+export type SchemaValueFixScope = {
+	docIndex: number;
+	fieldPath?: string;
 };
 
 export type FormatYamlResult =
@@ -133,14 +142,6 @@ function collectConstraints(schema: unknown): { types: string[]; enumValues: unk
 	return { types: [...types], enumValues, constValue };
 }
 
-function findUniqueCaseInsensitiveMatch(value: string, candidates: unknown[]): unknown | null {
-	const matches = candidates.filter(
-		(c) => typeof c === 'string' && c.toLowerCase() === value.toLowerCase()
-	);
-	if (matches.length !== 1) return null;
-	return matches[0];
-}
-
 function tryFixLeaf(
 	value: unknown,
 	schema: unknown,
@@ -155,13 +156,13 @@ function tryFixLeaf(
 
 	if (typeof result === 'string') {
 		if (enumValues.length > 0) {
-			const match = findUniqueCaseInsensitiveMatch(result, enumValues);
+			const match = findUniqueFuzzyEnumMatch(result, enumValues);
 			if (match !== null && match !== result) {
 				fixes.push({ kind: 'enumCase', path, from: result, to: match, docIndex });
 				result = match;
 			}
 		} else if (constValue !== undefined && typeof constValue === 'string') {
-			const match = findUniqueCaseInsensitiveMatch(result, [constValue]);
+			const match = findUniqueFuzzyEnumMatch(result, [constValue]);
 			if (match !== null && match !== result) {
 				fixes.push({ kind: 'enumCase', path, from: result, to: match, docIndex });
 				result = match;
@@ -200,14 +201,22 @@ function walkAndFix(
 	schema: unknown,
 	path: string,
 	docIndex: number,
-	fixes: FixReport[]
+	fixes: FixReport[],
+	scopePath?: string
 ): unknown {
 	if (data === null || data === undefined) return data;
 
 	if (Array.isArray(data)) {
 		const itemsSchema = getItemsSchema(schema);
 		return data.map((item, i) =>
-			walkAndFix(item, itemsSchema, path ? `${path}[${i}]` : `[${i}]`, docIndex, fixes)
+			walkAndFix(
+				item,
+				itemsSchema,
+				path ? `${path}[${i}]` : `[${i}]`,
+				docIndex,
+				fixes,
+				scopePath
+			)
 		);
 	}
 
@@ -220,11 +229,12 @@ function walkAndFix(
 			if (value === undefined) continue;
 			const propSchema = resolved.properties[key] ?? null;
 			const childPath = path ? `${path}.${key}` : key;
-			out[key] = walkAndFix(value, propSchema, childPath, docIndex, fixes);
+			out[key] = walkAndFix(value, propSchema, childPath, docIndex, fixes, scopePath);
 		}
 		return out;
 	}
 
+	if (scopePath && path !== scopePath) return data;
 	return tryFixLeaf(data, schema, path, docIndex, fixes);
 }
 
@@ -232,20 +242,21 @@ function walkAndFix(
 export function fixDocumentData(
 	data: Record<string, unknown>,
 	sections: SchemaSections,
-	docIndex: number
+	docIndex: number,
+	scopePath?: string
 ): { data: Record<string, unknown>; fixes: FixReport[] } {
 	const fixes: FixReport[] = [];
 	const out = { ...data };
 
 	if (sections.spec && out.spec !== undefined) {
-		out.spec = walkAndFix(out.spec, sections.spec, 'spec', docIndex, fixes);
+		out.spec = walkAndFix(out.spec, sections.spec, 'spec', docIndex, fixes, scopePath);
 	}
-	if (sections.status && out.status !== undefined) {
+	if (!scopePath && sections.status && out.status !== undefined) {
 		out.status = walkAndFix(out.status, sections.status, 'status', docIndex, fixes);
 	}
 
 	const metadataSchema = resolveObjectSchema(sections.topLevel)?.properties?.metadata;
-	if (metadataSchema && out.metadata !== undefined) {
+	if (!scopePath && metadataSchema && out.metadata !== undefined) {
 		out.metadata = walkAndFix(out.metadata, metadataSchema, 'metadata', docIndex, fixes);
 	}
 
@@ -400,12 +411,14 @@ type FixableDoc = { data: Record<string, unknown>; index: number };
 /** Parse documents and apply schema-driven fixes where CRD schemas are available. */
 export async function fixYamlDocuments(
 	docs: FixableDoc[],
-	options: FormatYamlOptions
+	options: FormatYamlOptions,
+	scope?: SchemaValueFixScope
 ): Promise<FixReport[]> {
 	const { releaseFolder, manifest } = options;
 	const schemaPaths: string[] = [];
 
 	for (const doc of docs) {
+		if (scope && doc.index + 1 !== scope.docIndex) continue;
 		const apiVersion = String(doc.data.apiVersion || '');
 		const kind = String(doc.data.kind || '');
 		if (!apiVersion || !kind) continue;
@@ -424,11 +437,32 @@ export async function fixYamlDocuments(
 	const allFixes: FixReport[] = [];
 
 	for (const doc of docs) {
+		if (scope && doc.index + 1 !== scope.docIndex) continue;
 		const sections = resolveSchemaForDoc(doc.data, manifest, releaseFolder, schemas);
 		if (!sections) continue;
-		const { data, fixes } = fixDocumentData(doc.data, sections, doc.index + 1);
+		const { data, fixes } = fixDocumentData(
+			doc.data,
+			sections,
+			doc.index + 1,
+			scope?.fieldPath
+		);
 		doc.data = data;
 		allFixes.push(...fixes);
+
+		const { data: structData, fixes: structFixes } = applySchemaStructuralFixes(
+			doc.data,
+			sections
+		);
+		doc.data = structData;
+		for (const fix of structFixes) {
+			allFixes.push({
+				kind: 'structuralFix',
+				path: fix.path,
+				from: fix.from ?? fix.kind,
+				to: fix.to ?? fix.path,
+				docIndex: doc.index + 1
+			});
+		}
 	}
 
 	return allFixes;
@@ -545,11 +579,29 @@ function dumpFormattedDocs(docs: Record<string, unknown>[]): string {
 		: formattedDocs.map((doc) => doc.trimEnd()).join('\n---\n') + '\n';
 }
 
-/** Parse, optionally auto-fix against CRD schemas, sort keys, and re-dump a YAML bundle. */
-export async function formatYamlBundle(
+function dumpDocsPreservingLayout(docs: Record<string, unknown>[]): string {
+	const formattedDocs = docs.map((doc) =>
+		yaml.dump(doc, {
+			indent: 2,
+			lineWidth: -1,
+			noRefs: true,
+			sortKeys: false
+		})
+	);
+
+	return formattedDocs.length === 1
+		? formattedDocs[0].trimEnd() + '\n'
+		: formattedDocs.map((doc) => doc.trimEnd()).join('\n---\n') + '\n';
+}
+
+async function fixYamlBundleCore(
 	yamlInput: string,
-	options?: FormatYamlOptions
-): Promise<FormatYamlResult> {
+	options?: FormatYamlOptions,
+	scope?: SchemaValueFixScope
+): Promise<
+	| { ok: true; docData: Array<{ data: Record<string, unknown>; index: number }>; fixes: FixReport[]; docCount: number }
+	| { ok: false; message: string }
+> {
 	const trimmed = yamlInput.trim();
 	if (!trimmed) {
 		return { ok: false, message: 'Nothing to format' };
@@ -565,15 +617,17 @@ export async function formatYamlBundle(
 	}
 
 	let fixes: FixReport[] = [];
-	const docData = parsed.docs.map((doc) => ({ ...doc }));
+	const docData = parsed.docs.map((doc) => ({ data: { ...doc.data } as Record<string, unknown>, index: doc.index }));
 
-	for (const doc of docData) {
-		const { data, fixes: k8sFixes } = fixK8sMetadata(doc.data, doc.index + 1);
-		doc.data = data;
-		fixes.push(...k8sFixes);
+	if (!scope) {
+		for (const doc of docData) {
+			const { data, fixes: k8sFixes } = fixK8sMetadata(doc.data, doc.index + 1);
+			doc.data = data;
+			fixes.push(...k8sFixes);
+		}
 	}
 
-	if (options?.manifest?.length) {
+	if (options?.manifest?.length && !scope) {
 		for (const doc of docData) {
 			const { data, fixes: identityFixes } = fixManifestIdentity(
 				doc.data,
@@ -596,10 +650,53 @@ export async function formatYamlBundle(
 	}
 
 	if (options?.manifest?.length && options.releaseFolder) {
-		fixes.push(...(await fixYamlDocuments(docData, options)));
+		fixes.push(...(await fixYamlDocuments(docData, options, scope)));
 	}
 
-	let formatted = dumpFormattedDocs(docData.map((doc) => doc.data));
+	return { ok: true, docData, fixes, docCount: parsed.docs.length };
+}
+
+/** Schema-driven value fixes without reordering YAML keys (no layout churn). */
+export async function applySchemaValueFixes(
+	yamlInput: string,
+	options?: FormatYamlOptions,
+	scope?: SchemaValueFixScope
+): Promise<FormatYamlResult> {
+	const core = await fixYamlBundleCore(yamlInput, options, scope);
+	if (!core.ok) return { ok: false, message: core.message };
+
+	let formatted = dumpDocsPreservingLayout(core.docData.map((doc) => doc.data));
+	let fixes = core.fixes;
+
+	if (!scope) {
+		const booleanSourceFix = fixInvalidBooleanLiterals(formatted);
+		if (booleanSourceFix.fixes.length > 0) {
+			formatted = booleanSourceFix.yaml;
+			for (const fix of booleanSourceFix.fixes) {
+				fixes.push({
+					kind: 'booleanCoercion',
+					path: `line:${fix.line}`,
+					from: fix.from,
+					to: fix.to,
+					docIndex: 1
+				});
+			}
+		}
+	}
+
+	return { ok: true, formatted, docCount: core.docCount, fixes };
+}
+
+/** Parse, optionally auto-fix against CRD schemas, sort keys, and re-dump a YAML bundle. */
+export async function formatYamlBundle(
+	yamlInput: string,
+	options?: FormatYamlOptions
+): Promise<FormatYamlResult> {
+	const core = await fixYamlBundleCore(yamlInput, options);
+	if (!core.ok) return { ok: false, message: core.message };
+
+	let formatted = dumpFormattedDocs(core.docData.map((doc) => doc.data));
+	let fixes = core.fixes;
 
 	const booleanSourceFix = fixInvalidBooleanLiterals(formatted);
 	if (booleanSourceFix.fixes.length > 0) {
@@ -615,5 +712,5 @@ export async function formatYamlBundle(
 		}
 	}
 
-	return { ok: true, formatted, docCount: parsed.docs.length, fixes };
+	return { ok: true, formatted, docCount: core.docCount, fixes };
 }

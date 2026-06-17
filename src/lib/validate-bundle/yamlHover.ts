@@ -1,7 +1,46 @@
 import type { SchemaLeafMeta } from './schemaNavigation';
-import { getChildPropertySchema, schemaLeafMeta } from './schemaNavigation';
+import {
+	collectSchemaProperties,
+	fabricProtocolParentHint,
+	findSimilarSchemaProperty,
+	getChildPropertySchema,
+	schemaLeafMeta
+} from './schemaNavigation';
 import type { YamlFieldContext } from './yamlFieldContext';
 import { completionDocumentation } from './yamlCompletions';
+
+function fabricProtocolParentFromPath(specPath: string[], yamlKey?: string): string | undefined {
+	const path = yamlKey ? [...specPath, yamlKey] : specPath;
+	for (let i = path.length - 1; i >= 0; i--) {
+		const segment = path[i];
+		if (segment === 'underlayProtocol' || segment === 'overlayProtocol') {
+			return segment;
+		}
+	}
+	return undefined;
+}
+
+function misspelledKeyHoverMessage(
+	yamlKey: string,
+	parentSchema: unknown,
+	specPath: string[]
+): string | null {
+	const props = collectSchemaProperties(parentSchema);
+	if (!props || props.has(yamlKey)) return null;
+
+	const fabricParent = fabricProtocolParentFromPath(specPath, yamlKey);
+	const similar = findSimilarSchemaProperty(
+		yamlKey,
+		props,
+		fabricParent ?? specPath[specPath.length - 1]
+	);
+	if (!similar) return null;
+
+	const hint = fabricProtocolParentHint(fabricParent);
+	const lines = [`⚠️ **Misspelled field** — use \`${similar}\` instead of \`${yamlKey}\`.`];
+	if (hint) lines.push('', hint);
+	return lines.join('\n');
+}
 
 const MANIFEST_HINTS: Record<string, string> = {
 	apiVersion: 'Kubernetes API version in `group/version` form.',
@@ -98,6 +137,15 @@ export function buildYamlHoverMarkdown(
 	if (!inSpec) return null;
 
 	if (lineKey && fieldCtx.parentSchema) {
+		const misspelled = misspelledKeyHoverMessage(
+			lineKey,
+			fieldCtx.parentSchema,
+			fieldCtx.specPath
+		);
+		if (misspelled) {
+			return `**${lineKey}**\n\n${misspelled}`;
+		}
+
 		const childSchema = getChildPropertySchema(fieldCtx.parentSchema, lineKey);
 		const keyMeta = schemaLeafMeta(childSchema, lineKey, fieldCtx.parentSchema);
 		return completionDocumentation(keyMeta, lineKey)
@@ -106,6 +154,21 @@ export function buildYamlHoverMarkdown(
 	}
 
 	if (meta) {
+		const yamlKey = fieldCtx.specPath[fieldCtx.specPath.length - 1];
+		const parentPath = fieldCtx.specPath.slice(0, -1);
+		if (yamlKey && fieldCtx.parentSchema) {
+			const misspelled = misspelledKeyHoverMessage(
+				yamlKey,
+				fieldCtx.parentSchema,
+				parentPath
+			);
+			if (misspelled) {
+				const value = extractValueAtPosition(lineContent);
+				const lines = value ? [`Current value: \`${value}\``, '', misspelled] : [misspelled];
+				return lines.join('\n');
+			}
+		}
+
 		const value = extractValueAtPosition(lineContent);
 		const lines = formatMetaSection(meta, resolvedFieldName);
 		if (value) {

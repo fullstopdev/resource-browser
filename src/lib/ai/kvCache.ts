@@ -6,13 +6,19 @@ export const RELEASE_CACHE_KIND = '__release__';
 export const RELEASE_DEPENDENCY_MAP_ACTION = 'dependency-map';
 
 /** Actions warmed for Ask AI grounding (see scripts/warm-cache.ts). */
-export const ASK_WARM_ACTIONS = [
+export const DETERMINISTIC_WARM_ACTIONS = [
 	'dependency-map',
 	'schema-summary',
 	'relationships',
-	'explain',
-	'example',
 	'full-context'
+] as const;
+
+/** LLM-backed warm actions — consume Workers AI neurons (opt-in). */
+export const LLM_WARM_ACTIONS = ['explain', 'example'] as const;
+
+export const ASK_WARM_ACTIONS = [
+	...DETERMINISTIC_WARM_ACTIONS,
+	...LLM_WARM_ACTIONS
 ] as const;
 
 /** Deterministic cache actions — no Workers AI neurons required. */
@@ -32,6 +38,9 @@ export type AiCachePayload = {
 	field?: string;
 	examples?: string[];
 	compareRelease?: string;
+	fixedYaml?: string;
+	explanation?: string;
+	fixable?: boolean;
 };
 
 export function buildCacheKey(params: {
@@ -61,6 +70,54 @@ export function buildReleaseCacheKey(params: { release: string; action: string }
 		apiVersion: 'none',
 		action: params.action
 	});
+}
+
+/** KV key for cached YAML fix responses (issue fingerprint). */
+export function buildFixCacheKey(params: {
+	release: string;
+	kind: string;
+	group?: string;
+	fieldPath?: string;
+	issueKind?: string;
+	messageDigest: string;
+}): string {
+	const groupSegment = params.group ? encodeURIComponent(params.group) : 'none';
+	const fieldSegment = params.fieldPath ? encodeURIComponent(params.fieldPath) : 'none';
+	const issueKindSegment = params.issueKind ? encodeURIComponent(params.issueKind) : 'none';
+	return `${AI_CACHE_PREFIX}:fix:${params.release}:${params.kind}:${groupSegment}:${fieldSegment}:${issueKindSegment}:${params.messageDigest}`;
+}
+
+export function hashFixCacheDigest(message: string, fieldPath?: string, issueKind?: string): string {
+	let hash = 5381;
+	const text = `${issueKind ?? ''}|${fieldPath ?? ''}|${message}`;
+	for (let i = 0; i < text.length; i++) {
+		hash = (hash * 33) ^ text.charCodeAt(i);
+	}
+	return (hash >>> 0).toString(36);
+}
+
+export function hashMigrationFixDigest(issueIds: string[]): string {
+	return hashFixCacheDigest(issueIds.slice().sort().join('|'));
+}
+
+/** KV key for batched migration fix responses. */
+export function buildMigrationFixCacheKey(params: {
+	release: string;
+	kind: string;
+	group?: string;
+	docDigest: string;
+	issueIdsDigest: string;
+}): string {
+	const groupSegment = params.group ? encodeURIComponent(params.group) : 'none';
+	return `${AI_CACHE_PREFIX}:fix-migration:${params.release}:${params.kind}:${groupSegment}:${params.docDigest}:${params.issueIdsDigest}`;
+}
+
+export function hashDocYamlDigest(yaml: string): string {
+	let hash = 5381;
+	for (let i = 0; i < yaml.length; i++) {
+		hash = (hash * 33) ^ yaml.charCodeAt(i);
+	}
+	return (hash >>> 0).toString(36);
 }
 
 /** Legacy v1 cache keys (pre apiVersion segment) — not read after v2 rollout. */
@@ -119,7 +176,7 @@ export async function getCachedAiResponseWithFallback(
 }
 
 export function isCacheableAction(action: string): boolean {
-	return action !== 'validate' && action !== 'fix';
+	return action !== 'validate';
 }
 
 export function isDeterministicCacheAction(action: string): boolean {

@@ -4,14 +4,14 @@ import {
 	workersAIQuotaHttpResponse
 } from './workersAIQuota';
 
-/** Active replacement for deprecated `@cf/meta/llama-3.1-8b-instruct` (removed 2026-05-30). */
+/** Default Workers AI model for lightweight `/api/ai` actions (explain, field, etc.). */
 export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast' as const;
-/** Higher-quality model for Global Ask AI (`/api/ask` only). 24k context window. */
-export const ASK_AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as const;
+/** Higher-quality model for YAML fix (`/api/ai` action `fix`). 24k context window. */
+export const FIX_AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as const;
 export const AI_REQUEST_TIMEOUT_MS = 90_000;
-export const ASK_AI_REQUEST_TIMEOUT_MS = 120_000;
+export const FIX_AI_REQUEST_TIMEOUT_MS = 120_000;
 export const AI_MAX_TOKENS = 2048;
-export const ASK_AI_MAX_TOKENS = 2048;
+export const FIX_AI_MAX_TOKENS = 2048;
 export const AI_TEMPERATURE = 0.3;
 
 export class WorkersAIEmptyResponseError extends Error {
@@ -117,6 +117,12 @@ export async function runWorkersAIMessages(
 	messages: AiMessage[],
 	options: Omit<RunWorkersAIOptions, 'systemPrompt'> = {}
 ): Promise<string> {
+	if ((process.env.VITEST || process.env.CI) && process.env.WORKERS_AI_ALLOW !== '1') {
+		throw new Error(
+			'Workers AI is disabled during tests and CI. Set WORKERS_AI_ALLOW=1 to override.'
+		);
+	}
+
 	const model = options.model ?? WORKERS_AI_MODEL;
 	const maxTokens = options.maxTokens ?? AI_MAX_TOKENS;
 	const temperature = options.temperature ?? AI_TEMPERATURE;
@@ -170,4 +176,35 @@ export function workersAIErrorResponse(err: unknown): { status: number; error: s
 		};
 	}
 	return { status: 500, error: workersAIErrorMessage(err) };
+}
+
+/** Pick a Workers AI model for YAML fix — 8B for scoped/syntax fixes, 70B only when needed. */
+export function selectFixModel(
+	issueKind?: string,
+	options?: { batched?: boolean; relocationHint?: { from: string; to: string } }
+): string {
+	if (options?.batched) return FIX_AI_MODEL;
+	if (
+		issueKind === 'syntax' ||
+		issueKind === 'misspelledField' ||
+		issueKind === 'enum' ||
+		issueKind === 'type'
+	) {
+		return WORKERS_AI_MODEL;
+	}
+	if (issueKind === 'unknownField' && options?.relocationHint) {
+		return WORKERS_AI_MODEL;
+	}
+	return FIX_AI_MODEL;
+}
+
+/** Dynamic max output tokens by fix complexity. */
+export function selectFixMaxTokens(
+	issueKind?: string,
+	options?: { batched?: boolean }
+): number {
+	if (options?.batched) return 2048;
+	if (issueKind === 'enum' || issueKind === 'type' || issueKind === 'syntax') return 768;
+	if (issueKind === 'unknownField') return 1536;
+	return FIX_AI_MAX_TOKENS;
 }

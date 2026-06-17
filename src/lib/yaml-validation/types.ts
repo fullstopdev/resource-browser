@@ -17,9 +17,10 @@ export type ResourceLink = {
 export type SuggestedFixField = 'apiVersion' | 'kind' | 'metadata.name' | 'metadata.namespace';
 
 export type SuggestedFix = {
-	field: SuggestedFixField;
+	field: SuggestedFixField | string;
 	value: string;
 	line?: number;
+	action?: 'setValue' | 'renameKey';
 };
 
 export type EnrichedError = ErrorObject & {
@@ -61,6 +62,8 @@ export type ValidateYamlOptions = {
 	releaseFolder: string;
 	releaseLabel: string;
 	manifest: ManifestEntry[];
+	/** When provided, skips a redundant schema fetch (caller may reuse returned schemas). */
+	prefetchedSchemas?: Map<string, import('./schemaCache').SchemaSections>;
 };
 
 export type ManifestEntry = {
@@ -76,4 +79,5 @@ export type ValidateYamlResult = {
 	warnings: EnrichedError[];
 	summary: ValidationSummary | null;
 	parsedDocs: ParsedDocument[];
+	schemas: Map<string, import('./schemaCache').SchemaSections>;
 };

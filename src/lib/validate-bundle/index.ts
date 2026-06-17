@@ -14,6 +14,7 @@ export { EXAMPLE_BUNDLE_YAML } from './exampleBundle';
 export { firstParseIssueForInput, parseBundleResources, resourceId } from './parser';
 export {
 	formatYamlBundle,
+	applySchemaValueFixes,
 	fixApiVersionUpgrade,
 	fixDocumentData,
 	fixK8sMetadata,
@@ -24,7 +25,8 @@ export {
 	type FixReport,
 	type FixSummary,
 	type FixSummaryItem,
-	type FormatYamlOptions
+	type FormatYamlOptions,
+	type SchemaValueFixScope
 } from './formatYaml';
 export { applySuggestedFix } from './applyIssueFix';
 export {
@@ -35,7 +37,9 @@ export {
 	splitRawDocuments,
 	validateAiFixApply
 } from './replaceDocument';
-export { fixAllBundle, isAiUnavailableResult, type AiFixFn, type AiFixResult, type FixAllBundleOptions, type FixAllResult } from './fixAllBundle';
+export { fixAllBundle, isAiUnavailableResult, type AiFixFn, type AiFixResult, type FixAllBundleOptions, type FixAllChange, type FixAllResult } from './fixAllBundle';
+export { deriveSuggestedFixForIssue, enrichIssuesWithSuggestedFix } from './schemaSuggestedFix';
+export { buildFixIssueContext } from './fixIssueContext';
 export { bundleDocumentStartLine } from './documentLines';
 export {
 	buildYamlCompletions,
@@ -59,6 +63,7 @@ export { buildYamlHoverMarkdown, extractYamlLineKey } from './yamlHover';
 export { bundleIssuesToMarkers, type YamlMarkerData } from './yamlMarkers';
 export {
 	collectSchemaProperties,
+	resolveSchemaPropertyKey,
 	schemaAtYamlPath,
 	schemaLeafMeta,
 	type SchemaLeafMeta

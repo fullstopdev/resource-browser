@@ -542,5 +542,11 @@ describe('validateDocument enum handling', () => {
 		expect(enumError?.message).toContain('exact case');
 		expect(enumError?.message).toContain("'SRL'");
 		expect(enumError?.message).toContain('srl');
+		expect(enumError?.suggestedFix).toEqual({
+			field: 'operatingSystem',
+			value: 'srl',
+			action: 'setValue',
+			line: expect.any(Number)
+		});
 	});
 });

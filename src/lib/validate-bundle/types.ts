@@ -26,9 +26,11 @@ export type K8sIssueRule =
 export type SuggestedFixField = 'apiVersion' | 'kind' | 'metadata.name' | 'metadata.namespace';
 
 export type SuggestedFix = {
-	field: SuggestedFixField;
+	field: SuggestedFixField | string;
 	value: string;
 	line?: number;
+	/** Rename a YAML key, replace a scalar, add a missing field, or relocate to a nested path. */
+	action?: 'setValue' | 'renameKey' | 'addField' | 'relocateField';
 };
 
 export type BundleIssue = {
