@@ -213,4 +213,58 @@ describe('walkUnknownFields', () => {
 			value: 'protocols'
 		});
 	});
+
+	it('merges relocateField into an existing AJV issue at the same field path', () => {
+		const resource = makeResource({
+			tunnelIndexPool: 'tunnel-index-pool',
+			evi: 102
+		});
+		const schema = {
+			type: 'object',
+			properties: {
+				evi: { type: 'integer' },
+				encapOptions: {
+					type: 'object',
+					properties: {
+						vxlan: {
+							type: 'object',
+							properties: {
+								tunnelIndexPool: { type: 'string' }
+							}
+						}
+					}
+				}
+			}
+		};
+		const issues: BundleIssue[] = [
+			{
+				id: 'ajv-tunnel',
+				severity: 'error',
+				category: 'schema',
+				message: 'spec.tunnelIndexPool is an additional property',
+				docIndex: 1,
+				fieldPath: 'spec.tunnelIndexPool'
+			}
+		];
+
+		walkUnknownFields(
+			resource.data.spec,
+			schema,
+			'spec',
+			resource.doc,
+			'/spec/',
+			issues,
+			resource,
+			undefined,
+			schema
+		);
+
+		expect(issues).toHaveLength(1);
+		expect(issues[0].suggestedFix).toMatchObject({
+			action: 'relocateField',
+			field: 'spec.tunnelIndexPool',
+			value: 'spec.encapOptions.vxlan.tunnelIndexPool'
+		});
+		expect(issues[0].message).toContain('relocate to');
+	});
 });

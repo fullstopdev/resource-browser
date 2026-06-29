@@ -6,6 +6,7 @@ import type { ManifestEntry } from '$lib/yaml-validation/types';
 import { extractDocumentYaml, inferManifestIdentity } from './replaceDocument';
 import {
 	collectSchemaProperties,
+	findNestedSchemaPropertyPath,
 	findSimilarSchemaProperty,
 	getChildPropertySchema,
 	schemaAtYamlPath,
@@ -311,8 +312,53 @@ function isFieldRenameCandidate(issue: BundleIssue): boolean {
 	return (
 		issue.message.includes('Misspelled field') ||
 		issue.message.includes('Unknown field') ||
-		/additional properties/i.test(issue.message)
+		/additional propert(y|ies)/i.test(issue.message)
 	);
+}
+
+function isScalarRelocatable(value: unknown): boolean {
+	return (
+		value === null ||
+		value === undefined ||
+		typeof value === 'string' ||
+		typeof value === 'number' ||
+		typeof value === 'boolean'
+	);
+}
+
+/**
+ * Derive relocateField when an unknown spec-root key has a unique nested schema path.
+ */
+export function deriveRelocateFixFromSchema(
+	issue: BundleIssue,
+	specSchema: unknown,
+	specData: unknown
+): SuggestedFix | undefined {
+	if (issue.suggestedFix || !issue.fieldPath?.startsWith('spec.')) return undefined;
+	if (!isFieldRenameCandidate(issue)) return undefined;
+
+	const pathSegments = issue.fieldPath.replace(/^spec\./, '').split('.').filter(Boolean);
+	if (pathSegments.length !== 1) return undefined;
+
+	const leafKey = pathSegments[0]!;
+	const specProps = collectSchemaProperties(specSchema);
+	if (specProps?.has(leafKey)) return undefined;
+
+	const value = getValueByYamlPath(specData, issue.fieldPath);
+	if (!isScalarRelocatable(value)) return undefined;
+
+	const nestedPath = findNestedSchemaPropertyPath(specSchema, leafKey);
+	if (!nestedPath) return undefined;
+
+	const targetPath = `spec.${nestedPath}`;
+	if (getValueByYamlPath(specData, targetPath) !== undefined) return undefined;
+
+	return {
+		action: 'relocateField',
+		field: issue.fieldPath,
+		value: targetPath,
+		line: issue.line
+	};
 }
 
 function isRequiredFieldIssue(issue: BundleIssue): boolean {
@@ -451,6 +497,11 @@ export function deriveSuggestedFixForIssue(
 		if (enumFix) return enumFix;
 	}
 
+	if (options?.specSchema && options.specData && isFieldRenameCandidate(issue)) {
+		const relocateFix = deriveRelocateFixFromSchema(issue, options.specSchema, options.specData);
+		if (relocateFix) return relocateFix;
+	}
+
 	if (!parentProps || !issue.fieldPath || !isFieldRenameCandidate(issue)) return undefined;
 
 	const leafKey = fieldPathLeafKey(issue.fieldPath);
@@ -461,7 +512,12 @@ export function deriveSuggestedFixForIssue(
 	const pathSegments = issue.fieldPath.replace(/^spec\./, '').split('.').filter(Boolean);
 	const parentSegment =
 		pathSegments.length >= 2 ? pathSegments[pathSegments.length - 2] : undefined;
-	const similar = findSimilarSchemaProperty(leafKey, parentProps, parentSegment);
+	const parentRecord = asObjectRecord(
+		pathSegments.length >= 2
+			? getValueBySegments(options?.specData, pathSegments.slice(0, -1))
+			: options?.specData
+	);
+	const similar = findSimilarSchemaProperty(leafKey, parentProps, parentSegment, parentRecord ?? undefined);
 	if (!similar) return undefined;
 
 	return {

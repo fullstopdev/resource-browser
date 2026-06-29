@@ -68,6 +68,10 @@ export type FixAllResult = {
 	remainingWarnings: number;
 };
 
+const MAX_DETERMINISTIC_PASSES = 3;
+const MAX_AI_PASSES = 5;
+const MAX_AI_FIXES_PER_DOC = 12;
+
 /** True when Workers AI cannot run (quota, token limit, or service unavailable). */
 export function isAiUnavailableResult(result: AiFixResult): boolean {
 	if (result.fallbackReason === 'quota') return true;
@@ -211,46 +215,75 @@ async function applyAiFixes(
 		if (!docYaml) continue;
 
 		const { kind, group } = resolveIdentity(docIssues[0]!, docYaml);
+		let remaining = [...docIssues];
+		let fixesThisDoc = 0;
 
-		if (needsMigrationBatch(docIssues)) {
+		while (
+			remaining.length > 0 &&
+			!aiUnavailable &&
+			fixesThisDoc < MAX_AI_FIXES_PER_DOC
+		) {
+			const currentDocYaml = extractDocumentYaml(currentYaml, docIndex) ?? docYaml;
+
+			if (needsMigrationBatch(remaining)) {
+				const result = await options.aiFix({
+					docYaml: currentDocYaml,
+					issue: remaining[0]!,
+					issues: remaining,
+					kind,
+					group
+				});
+
+				if (isAiUnavailableResult(result)) {
+					aiUnavailable = true;
+					aiUnavailableReason = result.error ?? 'Workers AI unavailable';
+					break;
+				}
+
+				if (!result.fixable || !result.fixedYaml) {
+					remaining = remaining.slice(1);
+					continue;
+				}
+
+				const guard = validateAiMigrationApply(currentDocYaml, result.fixedYaml, remaining);
+				if (!guard.ok) {
+					remaining = remaining.slice(1);
+					continue;
+				}
+
+				const updated = replaceDocumentInBundle(currentYaml, docIndex, result.fixedYaml);
+				if (!updated) {
+					remaining = remaining.slice(1);
+					continue;
+				}
+
+				currentYaml = updated;
+				aiFixCount += 1;
+				fixesThisDoc += 1;
+				changes.push({
+					source: 'ai',
+					label: `AI migration: ${remaining.length} issue(s)`,
+					docIndex
+				});
+
+				if (options?.revalidateIssues) {
+					const fresh = await options.revalidateIssues(currentYaml);
+					remaining = issuesNeedingAi(fresh).filter(
+						(i) => (i.docIndex ?? 1) === docIndex
+					);
+				} else {
+					remaining = [];
+				}
+				continue;
+			}
+
+			const issue = remaining[0]!;
 			const result = await options.aiFix({
-				docYaml,
-				issue: docIssues[0]!,
-				issues: docIssues,
+				docYaml: currentDocYaml,
+				issue,
 				kind,
 				group
 			});
-
-			if (isAiUnavailableResult(result)) {
-				aiUnavailable = true;
-				aiUnavailableReason = result.error ?? 'Workers AI unavailable';
-				break;
-			}
-
-			if (!result.fixable || !result.fixedYaml) continue;
-
-			const guard = validateAiMigrationApply(docYaml, result.fixedYaml, docIssues);
-			if (!guard.ok) continue;
-
-			const updated = replaceDocumentInBundle(currentYaml, docIndex, result.fixedYaml);
-			if (!updated) continue;
-
-			currentYaml = updated;
-			aiFixCount += 1;
-			changes.push({
-				source: 'ai',
-				label: `AI migration: ${docIssues.length} issue(s)`,
-				docIndex
-			});
-			continue;
-		}
-
-		let remaining = [...docIssues];
-		while (remaining.length > 0) {
-			if (aiUnavailable) break;
-
-			const issue = remaining[0]!;
-			const result = await options.aiFix({ docYaml: extractDocumentYaml(currentYaml, docIndex) ?? docYaml, issue, kind, group });
 
 			if (isAiUnavailableResult(result)) {
 				aiUnavailable = true;
@@ -263,7 +296,6 @@ async function applyAiFixes(
 				continue;
 			}
 
-			const currentDocYaml = extractDocumentYaml(currentYaml, docIndex) ?? docYaml;
 			const guard = validateAiFixApply(currentDocYaml, result.fixedYaml, issue);
 			if (!guard.ok) {
 				remaining = remaining.slice(1);
@@ -278,6 +310,7 @@ async function applyAiFixes(
 
 			currentYaml = updated;
 			aiFixCount += 1;
+			fixesThisDoc += 1;
 			changes.push({
 				issueId: issue.id,
 				source: 'ai',
@@ -480,7 +513,7 @@ export async function fixAllBundle(
 	// Phase 1: deterministic fixes only (format + suggestedFix), optionally revalidate between passes.
 	let workingIssues = allIssues.filter((i) => i.severity === 'error' || i.severity === 'warning');
 	workingIssues = await maybeEnrichIssues(yaml, workingIssues, options);
-	const maxPasses = options?.revalidateIssues ? 3 : 1;
+	const maxPasses = options?.revalidateIssues ? MAX_DETERMINISTIC_PASSES : 1;
 
 	for (let pass = 0; pass < maxPasses; pass++) {
 		const includeFormat = options?.includeLayoutFormat === true && pass === 0;
@@ -582,7 +615,7 @@ export async function fixAllBundle(
 		};
 	}
 
-	// Phase 3: revalidate, one last deterministic pass, then AI only for issues without suggestedFix.
+	// Phase 3: revalidate, deterministic pass, then iterative AI until clean or max passes.
 	if (includeAi && options?.revalidateIssues) {
 		workingIssues = await options.revalidateIssues(yaml);
 		workingIssues = await maybeEnrichIssues(yaml, workingIssues, options);
@@ -600,16 +633,39 @@ export async function fixAllBundle(
 		}
 	}
 
-	const aiTargets = issuesNeedingAi(workingIssues);
-	const aiResult = includeAi
-		? await applyAiFixes(yaml, aiTargets, options)
-		: { yaml, aiFixCount: 0, changes: [], aiUnavailable: false as const };
-	yaml = aiResult.yaml;
-	aiFixCount += aiResult.aiFixCount;
-	changes.push(...aiResult.changes);
-	if (aiResult.aiUnavailable) {
-		aiUnavailable = true;
-		aiUnavailableReason = aiResult.aiUnavailableReason;
+	if (includeAi) {
+		for (let aiPass = 0; aiPass < MAX_AI_PASSES; aiPass++) {
+			const aiTargets = issuesNeedingAi(workingIssues);
+			if (aiTargets.length === 0) break;
+
+			const aiResult = await applyAiFixes(yaml, aiTargets, options);
+			yaml = aiResult.yaml;
+			aiFixCount += aiResult.aiFixCount;
+			changes.push(...aiResult.changes);
+			if (aiResult.aiUnavailable) {
+				aiUnavailable = true;
+				aiUnavailableReason = aiResult.aiUnavailableReason;
+				break;
+			}
+			if (aiResult.aiFixCount === 0) break;
+
+			if (!options?.revalidateIssues) break;
+
+			workingIssues = await options.revalidateIssues(yaml);
+			workingIssues = await maybeEnrichIssues(yaml, workingIssues, options);
+			const det = await applyDeterministicPass(yaml, workingIssues, options, false);
+			if (det.suggestedFixCount > 0 || det.formatFixes.length > 0) {
+				yaml = det.yaml;
+				formatFixes = [...formatFixes, ...det.formatFixes];
+				suggestedFixCount += det.suggestedFixCount;
+				fixedErrors += det.fixedErrors;
+				fixedWarnings += det.fixedWarnings;
+				for (const id of det.fixedIssueIds) deterministicFixedIds.add(id);
+				changes.push(...det.changes);
+				workingIssues = await options.revalidateIssues(yaml);
+				workingIssues = await maybeEnrichIssues(yaml, workingIssues, options);
+			}
+		}
 	}
 
 	const remainingAfterAi = options?.revalidateIssues

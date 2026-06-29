@@ -23,6 +23,7 @@
 		type AiFixFn,
 		type FixAllChange,
 		buildFixIssueContext,
+		inferIssueKind,
 		enrichIssuesWithSuggestedFix,
 		parseBundleResources,
 		buildYamlCompletionContext,
@@ -265,6 +266,9 @@
 		if (fix.action === 'renameKey') {
 			return `Rename ${fix.field} → ${fix.value}`;
 		}
+		if (fix.action === 'relocateField') {
+			return `Relocate ${fix.field} → ${fix.value}`;
+		}
 		if (fix.action === 'addField') {
 			return `Add ${fix.field}: ${fix.value}`;
 		}
@@ -279,12 +283,22 @@
 				releaseFolder: formatOptions.releaseFolder,
 				manifest: formatOptions.manifest,
 				kind,
-				group
+				group,
+				docYaml
 			};
 
 			if (issues && issues.length > 1) {
+				const relatedSummaries = issues.map(
+					(batchIssue) =>
+						`${batchIssue.fieldPath ?? 'document'}: ${batchIssue.message.slice(0, 120)}`
+				);
 				const payloads = await Promise.all(
-					issues.map((batchIssue) => buildFixIssueContext(batchIssue, contextOptions))
+					issues.map((batchIssue, index) =>
+						buildFixIssueContext(batchIssue, {
+							...contextOptions,
+							relatedIssues: relatedSummaries.filter((_, i) => i !== index)
+						})
+					)
 				);
 				const result = await fixYAML(release.name, docYaml, payloads[0]!, {
 					kind,
@@ -822,7 +836,8 @@
 			releaseFolder: formatOptions.releaseFolder,
 			manifest: formatOptions.manifest,
 			kind,
-			group
+			group,
+			docYaml
 		});
 
 		const result = await fixYAML(
@@ -910,9 +925,13 @@
 
 		if (release && (issue.severity === 'error' || issue.severity === 'warning')) {
 			const formatOptions = await getFormatOptions();
+			const issueKind = inferIssueKind(issueToFix);
+			const structuralSpecIssue =
+				issueToFix.fieldPath?.startsWith('spec.') &&
+				(issueKind === 'unknownField' || issueKind === 'type');
 			const valueFixed = await applySchemaValueFixes(yamlInput, formatOptions, {
 				docIndex: resolveIssueDocIndex(issueToFix),
-				fieldPath: issueToFix.fieldPath
+				...(structuralSpecIssue ? {} : { fieldPath: issueToFix.fieldPath })
 			});
 			if (valueFixed.ok && valueFixed.fixes.length > 0) {
 				setYamlInput(valueFixed.formatted);

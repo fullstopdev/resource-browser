@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	deriveClampFixFromSchema,
 	deriveEnumFixFromSchema,
+	deriveRelocateFixFromSchema,
 	deriveRequiredFieldFix,
 	deriveSuggestedFixForIssue,
 	findSiblingRenameForRequiredField,
@@ -38,6 +39,63 @@ const BFD_SCHEMA = {
 		enabled: { type: 'boolean' }
 	}
 };
+
+describe('deriveRelocateFixFromSchema', () => {
+	const specSchema = {
+		type: 'object',
+		properties: {
+			encapOptions: {
+				type: 'object',
+				properties: {
+					vxlan: {
+						type: 'object',
+						properties: {
+							tunnelIndexPool: { type: 'string' },
+							vni: { type: 'integer' }
+						}
+					}
+				}
+			},
+			evi: { type: 'integer' }
+		}
+	};
+
+	it('suggests relocateField for additionalProperties-style unknown spec-root keys', () => {
+		const issue: BundleIssue = {
+			id: '1',
+			severity: 'error',
+			category: 'schema',
+			message: 'spec.tunnelIndexPool is an additional property',
+			docIndex: 1,
+			fieldPath: 'spec.tunnelIndexPool'
+		};
+		const specData = { tunnelIndexPool: 'pool-a', evi: 102 };
+
+		expect(deriveRelocateFixFromSchema(issue, specSchema, specData)).toEqual({
+			action: 'relocateField',
+			field: 'spec.tunnelIndexPool',
+			value: 'spec.encapOptions.vxlan.tunnelIndexPool',
+			line: undefined
+		});
+	});
+
+	it('returns undefined when target nested path already has a value', () => {
+		const issue: BundleIssue = {
+			id: '2',
+			severity: 'error',
+			category: 'schema',
+			message: 'spec.vni is an additional property',
+			docIndex: 1,
+			fieldPath: 'spec.vni'
+		};
+		const specData = {
+			vni: 10,
+			encapOptions: { vxlan: { vni: 99 } }
+		};
+
+		expect(deriveRelocateFixFromSchema(issue, specSchema, specData)).toBeUndefined();
+	});
+});
 
 describe('deriveSuggestedFixForIssue', () => {
 	it('suggests renameKey when parent has a similar property', () => {

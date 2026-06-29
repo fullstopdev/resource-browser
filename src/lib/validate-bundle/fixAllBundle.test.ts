@@ -875,6 +875,81 @@ spec:
 		expect(result.yaml).toContain('tunnelIndexPool: tunnel-index-pool');
 		expect(result.yaml).not.toMatch(/^  tunnelIndexPool:/m);
 	});
+
+	it('iterates AI fix passes until revalidation reports no remaining errors', async () => {
+		const yaml = `apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: lab
+spec:
+  operatingSystem: bad-os
+  systemPoolIPv4: pool-a`;
+
+		const osIssue: BundleIssue = {
+			id: 'enum-os',
+			severity: 'error',
+			category: 'schema',
+			message: "spec.operatingSystem: value 'bad-os' is invalid",
+			docIndex: 1,
+			fieldPath: 'spec.operatingSystem'
+		};
+		const poolIssue: BundleIssue = {
+			id: 'enum-pool',
+			severity: 'error',
+			category: 'schema',
+			message: "spec.systemPoolIPv4: value 'pool-a' is invalid",
+			docIndex: 1,
+			fieldPath: 'spec.systemPoolIPv4'
+		};
+
+		let aiCalls = 0;
+		const aiFix = vi.fn(async ({ issue }) => {
+			aiCalls += 1;
+			if (issue.fieldPath === 'spec.operatingSystem') {
+				return {
+					fixable: true,
+					fixedYaml: `apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: lab
+spec:
+  operatingSystem: srl
+  systemPoolIPv4: pool-a`
+				};
+			}
+			return {
+				fixable: true,
+				fixedYaml: `apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: lab
+spec:
+  operatingSystem: srl
+  systemPoolIPv4: systemipv4-pool`
+			};
+		});
+
+		const revalidateIssues = vi.fn(async (currentYaml: string) => {
+			const remaining: BundleIssue[] = [];
+			if (currentYaml.includes('operatingSystem: bad-os')) remaining.push(osIssue);
+			if (currentYaml.includes('systemPoolIPv4: pool-a')) remaining.push(poolIssue);
+			return remaining;
+		});
+
+		const result = await fixAllBundle(yaml, [osIssue, poolIssue], {
+			releaseFolder: '26.4.2',
+			manifest: [],
+			includeAi: true,
+			aiFix,
+			revalidateIssues
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.aiFixCount).toBe(2);
+		expect(aiCalls).toBe(2);
+		expect(result.yaml).toContain('operatingSystem: srl');
+		expect(result.yaml).toContain('systemPoolIPv4: systemipv4-pool');
+	});
 });
 
 describe('isAiUnavailableResult', () => {

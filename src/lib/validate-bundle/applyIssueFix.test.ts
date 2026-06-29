@@ -353,4 +353,54 @@ spec:
 		};
 		expect(applySuggestedFix(yaml, issue)).toBeNull();
 	});
+
+	it('relocateField moves VXLAN keys under encapOptions.vxlan', () => {
+		const yaml = `apiVersion: services.eda.nokia.com/v1
+kind: BridgeDomain
+metadata:
+  name: bd
+spec:
+  evi: 102
+  tunnelIndexPool: tunnel-index-pool
+  vni: 102
+  vniPool: vni-pool
+`;
+
+		const relocateTunnel: BundleIssue = {
+			id: 'rel-tunnel',
+			severity: 'warning',
+			category: 'schema',
+			message: 'relocate tunnelIndexPool',
+			docIndex: 1,
+			fieldPath: 'spec.tunnelIndexPool',
+			suggestedFix: {
+				action: 'relocateField',
+				field: 'spec.tunnelIndexPool',
+				value: 'spec.encapOptions.vxlan.tunnelIndexPool'
+			}
+		};
+
+		let updated = applySuggestedFix(yaml, relocateTunnel);
+		expect(updated).toBeTruthy();
+		expect(updated).toContain('encapOptions:');
+		expect(updated).toContain('tunnelIndexPool: tunnel-index-pool');
+		expect(updated).not.toMatch(/^  tunnelIndexPool:/m);
+
+		const relocateVni: BundleIssue = {
+			id: 'rel-vni',
+			severity: 'warning',
+			category: 'schema',
+			message: 'relocate vni',
+			docIndex: 1,
+			fieldPath: 'spec.vni',
+			suggestedFix: {
+				action: 'relocateField',
+				field: 'spec.vni',
+				value: 'spec.encapOptions.vxlan.vni'
+			}
+		};
+		updated = applySuggestedFix(updated!, relocateVni);
+		expect(updated).toContain('vni: 102');
+		expect(updated).not.toMatch(/^  vni:/m);
+	});
 });

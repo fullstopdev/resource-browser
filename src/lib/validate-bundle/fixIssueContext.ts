@@ -1,5 +1,6 @@
 import { findManifestEntry } from '$lib/manifest/lookup';
 import { getLatestVersion } from '$lib/versions';
+import { loadUserYaml } from '$lib/yaml/safeYaml';
 import type { FixIssueContext } from '$lib/ai/actionPrompts';
 import { fetchSchemas, schemaPath } from '$lib/yaml-validation/schemaCache';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
@@ -47,6 +48,30 @@ function fieldPathToSpecSegments(fieldPath?: string): string[] {
 		.filter(Boolean);
 }
 
+function asSpecRecord(value: unknown): Record<string, unknown> | null {
+	if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
+		return null;
+	}
+	return value as Record<string, unknown>;
+}
+
+function specParentData(docYaml: string | undefined, fieldPath?: string): Record<string, unknown> | null {
+	if (!docYaml || !fieldPath?.startsWith('spec.')) return null;
+	const parsed = loadUserYaml(docYaml) as Record<string, unknown> | null;
+	const spec = asSpecRecord(parsed?.spec);
+	if (!spec) return null;
+	const segments = fieldPath.replace(/^spec\./, '').split('.').filter(Boolean);
+	if (segments.length <= 1) return spec;
+	let current: unknown = spec;
+	for (const segment of segments.slice(0, -1)) {
+		if (current === null || current === undefined || typeof current !== 'object' || Array.isArray(current)) {
+			return null;
+		}
+		current = (current as Record<string, unknown>)[segment];
+	}
+	return asSpecRecord(current);
+}
+
 export async function buildFixIssueContext(
 	issue: BundleIssue,
 	options: {
@@ -54,6 +79,8 @@ export async function buildFixIssueContext(
 		manifest: ManifestEntry[];
 		kind?: string;
 		group?: string;
+		docYaml?: string;
+		relatedIssues?: string[];
 	}
 ): Promise<FixIssueContext> {
 	const context: FixIssueContext = {
@@ -61,7 +88,8 @@ export async function buildFixIssueContext(
 		fieldPath: issue.fieldPath,
 		line: issue.line,
 		severity: issue.severity,
-		issueKind: inferIssueKind(issue)
+		issueKind: inferIssueKind(issue),
+		relatedIssues: options.relatedIssues
 	};
 
 	if (issue.suggestedFix?.action === 'renameKey') {
@@ -117,7 +145,13 @@ export async function buildFixIssueContext(
 		if (leafKey) {
 			const parentSegment =
 				specSegments.length >= 2 ? specSegments[specSegments.length - 2] : undefined;
-			const similar = findSimilarSchemaProperty(leafKey, parentProps, parentSegment);
+			const parentData = specParentData(options.docYaml, issue.fieldPath);
+			const similar = findSimilarSchemaProperty(
+				leafKey,
+				parentProps,
+				parentSegment,
+				parentData ?? undefined
+			);
 			if (similar) {
 				context.issueKind = 'misspelledField';
 				context.deterministicFixAvailable = true;

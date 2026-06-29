@@ -179,21 +179,33 @@ export function workersAIErrorResponse(err: unknown): { status: number; error: s
 }
 
 /** Pick a Workers AI model for YAML fix — 8B for scoped/syntax fixes, 70B only when needed. */
+function specFieldDepth(fieldPath?: string): number {
+	if (!fieldPath) return 0;
+	return fieldPath.replace(/^spec\./, '').split('.').filter(Boolean).length;
+}
+
 export function selectFixModel(
 	issueKind?: string,
-	options?: { batched?: boolean; relocationHint?: { from: string; to: string } }
+	options?: {
+		batched?: boolean;
+		relocationHint?: { from: string; to: string };
+		fieldPath?: string;
+	}
 ): string {
 	if (options?.batched) return FIX_AI_MODEL;
+	const depth = specFieldDepth(options?.fieldPath);
 	if (
 		issueKind === 'syntax' ||
 		issueKind === 'misspelledField' ||
-		issueKind === 'enum' ||
-		issueKind === 'type'
+		issueKind === 'enum'
 	) {
 		return WORKERS_AI_MODEL;
 	}
+	if (issueKind === 'type') {
+		return depth >= 2 ? FIX_AI_MODEL : WORKERS_AI_MODEL;
+	}
 	if (issueKind === 'unknownField' && options?.relocationHint) {
-		return WORKERS_AI_MODEL;
+		return depth >= 3 ? FIX_AI_MODEL : WORKERS_AI_MODEL;
 	}
 	return FIX_AI_MODEL;
 }

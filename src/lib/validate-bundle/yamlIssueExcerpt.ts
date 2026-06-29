@@ -1,7 +1,13 @@
 import { findLineForYamlFieldPath } from '$lib/yaml-validation/yamlFieldPath';
 
 const DEFAULT_CONTEXT_LINES = 8;
-const MAX_EXCERPT_LINES = 28;
+const NESTED_CONTEXT_LINES = 14;
+const MAX_EXCERPT_LINES = 36;
+
+function contextLinesForFieldPath(fieldPath: string, base = DEFAULT_CONTEXT_LINES): number {
+	const depth = fieldPath.replace(/^spec\./, '').split('.').filter(Boolean).length;
+	return depth >= 3 ? NESTED_CONTEXT_LINES : base;
+}
 
 /**
  * Extract a YAML excerpt around an issue field for compact AI prompts.
@@ -23,8 +29,9 @@ export function extractYamlIssueExcerpt(
 	}
 
 	const lines = trimmed.split('\n');
-	const start = Math.max(0, relLine - contextLines);
-	const end = Math.min(lines.length, relLine + contextLines + 1);
+	const radius = contextLinesForFieldPath(fieldPath, contextLines);
+	const start = Math.max(0, relLine - radius);
+	const end = Math.min(lines.length, relLine + radius + 1);
 	const excerptLines = lines.slice(start, end);
 
 	if (excerptLines.length >= lines.length) {

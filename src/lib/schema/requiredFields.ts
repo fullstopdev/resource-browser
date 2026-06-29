@@ -160,6 +160,28 @@ export function collectMissingRequiredFields(
 	return errors;
 }
 
+function schemaAllowsNull(schema: JsonSchema): boolean {
+	if (schema.nullable === true) return true;
+	const type = schema.type;
+	if (type === 'null') return true;
+	return Array.isArray(type) && type.includes('null');
+}
+
+/** Optional CRD fields accept explicit YAML null in EDA; extend scalar types for AJV. */
+function allowNullForOptionalProperty(schema: JsonSchema): JsonSchema {
+	if (schemaAllowsNull(schema)) return schema;
+
+	const type = schema.type;
+	if (typeof type === 'string') {
+		return { ...schema, type: [type, 'null'] };
+	}
+	if (Array.isArray(type)) {
+		return type.includes('null') ? schema : { ...schema, type: [...type, 'null'] };
+	}
+
+	return { ...schema, nullable: true };
+}
+
 /** Add `type: object` where properties exist so AJV enforces `required`. */
 export function normalizeSchemaForAjv(schema: unknown): unknown {
 	if (!schema || typeof schema !== 'object') return schema;
@@ -172,9 +194,18 @@ export function normalizeSchemaForAjv(schema: unknown): unknown {
 	}
 
 	if (s.properties && typeof s.properties === 'object') {
+		const required = new Set(
+			Array.isArray(s.required)
+				? s.required.filter((field): field is string => typeof field === 'string')
+				: []
+		);
 		const props: Record<string, unknown> = {};
 		for (const [key, value] of Object.entries(s.properties)) {
-			props[key] = normalizeSchemaForAjv(value);
+			let prop = normalizeSchemaForAjv(value) as JsonSchema;
+			if (!required.has(key)) {
+				prop = allowNullForOptionalProperty(prop);
+			}
+			props[key] = prop;
 		}
 		s.properties = props;
 	}

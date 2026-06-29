@@ -296,6 +296,9 @@ function issueKindRules(issue: FixIssueContext): string[] {
 				rules.push(
 					'Structural edits within spec are allowed when removing obsolete fields and placing values under nested schema paths (e.g. encapOptions.vxlan).'
 				);
+				rules.push(
+					'Example: spec.tunnelIndexPool: pool → spec.encapOptions.vxlan.tunnelIndexPool: pool (delete the old key).'
+				);
 			}
 			break;
 		case 'enum':
@@ -316,6 +319,9 @@ function issueKindRules(issue: FixIssueContext): string[] {
 			rules.push('Coerce or correct the value to match the schema type with minimal changes.');
 			rules.push(
 				'Structural wrapping is allowed at the reported field path (e.g. convert a boolean scalar to an object with schema-required child keys).'
+			);
+			rules.push(
+				'Example: macLearning: true → macLearning:\\n  enabled: true (merge macAging into agingTimeSeconds when present).'
 			);
 			break;
 		case 'required':
@@ -387,6 +393,7 @@ export function promptFixYaml(
 			? `Relocation hint: move "${issue.relocationHint.from}" to "${issue.relocationHint.to}" (preserve value)`
 			: null,
 		issue.migrationContext ? `Migration: ${issue.migrationContext}` : null,
+		issue.relatedIssues?.length ? `Related issues: ${issue.relatedIssues.join('; ')}` : null,
 		issue.parentPathContext ? `Parent path context: ${issue.parentPathContext}` : null,
 		issue.allowedValues?.length
 			? `Schema allowed values: ${issue.allowedValues.join(', ')}`

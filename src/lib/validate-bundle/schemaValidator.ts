@@ -16,6 +16,7 @@ import {
 	schemaLeafMeta,
 	truncateDetail
 } from './schemaNavigation';
+import { deriveRelocateFixFromSchema } from './schemaSuggestedFix';
 import type { BundleIssue, BundleResource } from './types';
 
 let issueCounter = 0;
@@ -147,7 +148,40 @@ export function walkUnknownFields(
 		}
 
 		const fieldPath = joinFieldPath(key, path);
-		if (issueAlreadyCoversField(issues, fieldPath, resource.docIndex + 1)) continue;
+		if (issueAlreadyCoversField(issues, fieldPath, resource.docIndex + 1)) {
+			const specSchema = specRootSchema ?? (path === 'spec' ? schema : undefined);
+			const nestedPath =
+				specSchema && path === 'spec'
+					? findNestedSchemaPropertyPath(specSchema, key)
+					: null;
+			const value = record[key];
+			const scalarValue =
+				value === null ||
+				value === undefined ||
+				typeof value === 'string' ||
+				typeof value === 'number' ||
+				typeof value === 'boolean';
+			if (nestedPath && scalarValue) {
+				const existing = issues.find(
+					(i) =>
+						i.docIndex === resource.docIndex + 1 &&
+						i.fieldPath === fieldPath &&
+						!i.suggestedFix
+				);
+				if (existing) {
+					existing.suggestedFix = {
+						action: 'relocateField',
+						field: fieldPath,
+						value: `spec.${nestedPath}`,
+						line: existing.line
+					};
+					if (!existing.message.includes('relocate to')) {
+						existing.message = `Unknown field "${fieldPath}" — relocate to "spec.${nestedPath}" per the CRD schema for ${resource.kind}`;
+					}
+				}
+			}
+			continue;
+		}
 
 		const rel = findLineForYamlFieldPath(doc.rawText, fieldPath);
 		const line = rel !== undefined ? doc.startLine + rel + 1 : undefined;
@@ -277,6 +311,21 @@ export async function validateBundleSchema(
 			undefined,
 			sections.spec
 		);
+
+		for (const issue of issues) {
+			if (issue.docIndex !== res.docIndex + 1 || issue.suggestedFix) continue;
+			const relocateFix = deriveRelocateFixFromSchema(issue, sections.spec, res.data.spec);
+			if (relocateFix) {
+				issue.suggestedFix = relocateFix;
+				if (
+					issue.fieldPath &&
+					!issue.message.includes('relocate to') &&
+					relocateFix.value.startsWith('spec.')
+				) {
+					issue.message = `Unknown field "${issue.fieldPath}" — relocate to "${relocateFix.value}" per the CRD schema for ${res.kind}`;
+				}
+			}
+		}
 	}
 
 	return issues;

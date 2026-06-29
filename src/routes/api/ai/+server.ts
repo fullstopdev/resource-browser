@@ -405,7 +405,8 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				{
 					model: selectFixModel(primaryIssue.issueKind, {
 						batched: isMigrationBatch,
-						relocationHint: primaryIssue.relocationHint
+						relocationHint: primaryIssue.relocationHint,
+						fieldPath: primaryIssue.fieldPath
 					}),
 					maxTokens: selectFixMaxTokens(primaryIssue.issueKind, {
 						batched: isMigrationBatch

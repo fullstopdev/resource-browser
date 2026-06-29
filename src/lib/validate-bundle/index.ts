@@ -38,8 +38,8 @@ export {
 	validateAiFixApply
 } from './replaceDocument';
 export { fixAllBundle, isAiUnavailableResult, type AiFixFn, type AiFixResult, type FixAllBundleOptions, type FixAllChange, type FixAllResult } from './fixAllBundle';
-export { deriveSuggestedFixForIssue, enrichIssuesWithSuggestedFix } from './schemaSuggestedFix';
-export { buildFixIssueContext } from './fixIssueContext';
+export { deriveSuggestedFixForIssue, deriveRelocateFixFromSchema, enrichIssuesWithSuggestedFix } from './schemaSuggestedFix';
+export { buildFixIssueContext, inferIssueKind } from './fixIssueContext';
 export { bundleDocumentStartLine } from './documentLines';
 export {
 	buildYamlCompletions,
