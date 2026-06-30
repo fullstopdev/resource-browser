@@ -43,6 +43,10 @@
 	export let displayStatus: unknown = null;
 	/** Open modal on this tab (schema or compare). */
 	export let initialViewMode: ResourceViewMode = 'schema';
+	/** When set with initialViewMode='compare', pre-selects the compare-side release. */
+	export let initialCompareRelease: string | null = null;
+	/** When set with initialViewMode='compare', pre-selects the compare-side version. */
+	export let initialCompareVersion: string | null = null;
 	export let onClose: () => void = () => {};
 	/** Fired when the user changes the active API version in the modal. */
 	export let onActiveVersionChange: ((version: string) => void) | undefined = undefined;
@@ -79,7 +83,7 @@
 
 	$: if (open && resourceDef) {
 		const versionsKey = (resourceDef.versions ?? []).map((v) => v.name).join(',');
-		const key = `${resourceDef.name}@${selectedRelease.name}@${initialVersion ?? ''}@${versionsKey}`;
+		const key = `${resourceDef.name}@${selectedRelease.name}@${initialVersion ?? ''}@${versionsKey}@${initialViewMode}@${initialCompareRelease ?? ''}@${initialCompareVersion ?? ''}`;
 		if (key !== loadedKey) {
 			loadedKey = key;
 			loadResource(resourceDef, selectedRelease);
@@ -239,7 +243,8 @@
 		versionOnFocus = version;
 		deprecated = !!versionDeprecated[version];
 		compareVersion = null;
-		compareRelease = null;
+		compareRelease =
+			initialViewMode === 'compare' && initialCompareRelease ? initialCompareRelease : null;
 		comparisonResult = null;
 		viewMode = initialViewMode;
 		expandAll.set(false);
@@ -247,6 +252,19 @@
 		ulExpanded.set([]);
 
 		await loadVersionYaml(version, release);
+
+		if (initialViewMode === 'compare' && initialCompareRelease) {
+			if (initialCompareRelease === selectedRelease.name) {
+				compareReleaseVersions = validVersions;
+				compareVersionDeprecated = versionDeprecated;
+			} else {
+				await loadVersionsForCompareRelease(initialCompareRelease, name);
+			}
+			compareVersion =
+				initialCompareVersion && compareReleaseVersions.includes(initialCompareVersion)
+					? initialCompareVersion
+					: (compareReleaseVersions.includes(version) ? version : compareReleaseVersions[0] ?? null);
+		}
 	}
 
 	async function handleModalVersionChange() {
@@ -643,10 +661,13 @@
 										<div>
 											<h4 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">{section.title}</h4>
 											<div class="grid gap-4 md:grid-cols-2">
-												{#each [{ label: versionOnFocus, side: 'left' as const }, { label: compareVersion, side: 'right' as const }] as col}
+												{#each [{ label: versionOnFocus, release: comparisonResult.baseRelease, side: 'left' as const }, { label: compareVersion, release: comparisonResult.compareRelease, side: 'right' as const }] as col}
 													<div class="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700">
 														<div class="border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-															<span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">{col.label}</span>
+															<div class="flex items-baseline gap-2">
+																<span class="text-xs font-semibold text-blue-700 dark:text-blue-300">{col.release}</span>
+																<span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">{col.label}</span>
+															</div>
 														</div>
 														<div class="overflow-x-auto p-3 text-sm">
 															{#if DiffRender}

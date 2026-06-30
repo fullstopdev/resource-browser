@@ -6,10 +6,11 @@
 		STATUS_FILTERS,
 		STATUS_SECTIONS,
 		statusChipClass,
-		matchesSearch
+		matchesSearch,
+		crdEntryKey,
+		crdHashId
 	} from '../comparisonUtils';
 	import type { BulkDiffReport, CrdDiffEntry, DiffStatus } from '../types';
-	import ComparisonSummary from './ComparisonSummary.svelte';
 	import SchemaDiffPanel from './SchemaDiffPanel.svelte';
 	import { downloadBulkDiffReport } from '../exportReport';
 
@@ -21,6 +22,10 @@
 	export let searchQuery = '';
 	export let searchRegex = true;
 	export let effectiveSearch = '';
+	/** CRD name (crdHashId) currently highlighted via a `#crd=` deep link. */
+	export let highlightedCrdName: string | null = null;
+	/** 1-based diff line number to highlight within the highlighted CRD. */
+	export let highlightedLine: number | null = null;
 	export let onToggleStatusFilter: (status: DiffStatus) => void = () => {};
 	export let onToggleCrdExpand: (name: string, version: string, targetVersion?: string) => void =
 		() => {};
@@ -30,10 +35,8 @@
 	export let onClearSearch: () => void = () => {};
 	export let onToggleSearchRegex: () => void = () => {};
 	export let onViewCrd: (crd: CrdDiffEntry) => void = () => {};
-
-	function crdEntryKey(crd: CrdDiffEntry): string {
-		return `${crd.name}:${crd.version}:${crd.targetVersion ?? crd.version}`;
-	}
+	/** Called when the user copies a deep link to a specific CRD (and optionally a line). */
+	export let onCopyLink: (crd: CrdDiffEntry, line?: number) => void = () => {};
 
 	function versionLabel(crd: CrdDiffEntry): string {
 		return crd.targetVersion && crd.targetVersion !== crd.version
@@ -94,13 +97,13 @@
 			<h2 class="comparison-results__title">Comparison results</h2>
 			<div class="comparison-results__release-pills">
 				<span class="comparison-release-pill comparison-release-pill--source">
-					{report.sourceRelease} · {report.sourceVersion}
+					{report.sourceRelease} · {report.sourceVersion === 'all' ? 'latest' : report.sourceVersion}
 				</span>
 				<svg class="comparison-results__arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
 				</svg>
 				<span class="comparison-release-pill comparison-release-pill--target">
-					{report.targetRelease} · {report.targetVersion}
+					{report.targetRelease} · {report.targetVersion === 'all' ? 'latest' : report.targetVersion}
 				</span>
 			</div>
 		</div>
@@ -111,14 +114,6 @@
 			<button type="button" class="comparison-export-btn" on:click={() => downloadBulkDiffReport(report, 'markdown')}>MD</button>
 			<button type="button" class="comparison-export-btn" on:click={() => downloadBulkDiffReport(report, 'csv')}>CSV</button>
 		</div>
-	</div>
-
-	<div class="comparison-results__summary-wrap">
-		<ComparisonSummary
-			counts={summaryCounts}
-			{statusFilter}
-			onToggleFilter={onToggleStatusFilter}
-		/>
 	</div>
 
 	<div class="comparison-results__sticky-toolbar">
@@ -221,7 +216,13 @@
 								targetReleaseName
 							)}
 							{@const expanded = expandedCrdNames.includes(crdEntryKey(crd))}
-							<article class="comparison-crd-card" class:comparison-crd-card--expanded={expanded}>
+							{@const isHighlighted = highlightedCrdName === crdHashId(crd)}
+							<article
+								id="crd-{crdHashId(crd)}"
+								class="comparison-crd-card"
+								class:comparison-crd-card--expanded={expanded}
+								class:comparison-crd-card--highlighted={isHighlighted}
+							>
 								<div
 									role="button"
 									tabindex="0"
@@ -274,6 +275,17 @@
 											{crd.details.length} change{crd.details.length === 1 ? '' : 's'}
 										</span>
 									{/if}
+									<button
+										type="button"
+										class="comparison-crd-card__copy-link"
+										title="Copy a shareable link to this CRD"
+										aria-label="Copy a shareable link to this CRD"
+										on:click|stopPropagation={() => onCopyLink(crd)}
+									>
+										<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
+										</svg>
+									</button>
 									{#if linkCtx}
 										<button
 											type="button"
@@ -294,6 +306,8 @@
 												targetLabel="{report.targetRelease} ({crd.targetVersion ?? crd.version})"
 												searchQuery={effectiveSearch}
 												{searchRegex}
+												highlightedLine={isHighlighted ? highlightedLine : null}
+												onCopyLineLink={(line) => onCopyLink(crd, line)}
 											/>
 										{:else if crd.details.length > 0}
 											<ul class="comparison-crd-card__simple-list">

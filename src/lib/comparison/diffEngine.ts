@@ -6,6 +6,7 @@ import {
 } from '$lib/manifest';
 import type { CrdResource, EdaRelease } from '$lib/structure';
 import { compareSchemas } from './schemaDiff';
+import { compareVersionDesc } from '$lib/versions';
 import type { BulkDiffReport, CrdDiffEntry } from './types';
 
 const BATCH_SIZE = 20;
@@ -60,20 +61,57 @@ function versionIndexFromManifest(manifest: ManifestResource[] | null): Map<stri
 	return index;
 }
 
+/** Like {@link versionIndexFromManifest} but only includes non-deprecated versions. */
+function activeVersionIndexFromManifest(
+	manifest: ManifestResource[] | null
+): Map<string, string[]> {
+	const index = new Map<string, string[]>();
+	if (!manifest) return index;
+	for (const resource of manifest) {
+		const names = (resource.versions ?? [])
+			.filter((v) => v?.name && !v.deprecated)
+			.map((v) => v.name);
+		if (names.length > 0) index.set(resource.name, names);
+	}
+	return index;
+}
+
 type VersionPair = { sourceVersion: string; targetVersion: string };
 
 function isAllVersions(version?: string): boolean {
 	return !version || version === ALL_VERSIONS;
 }
 
+function latestOf(versions: string[]): string | null {
+	if (!versions.length) return null;
+	return [...versions].sort(compareVersionDesc)[0];
+}
+
 function buildVersionPairs(
 	sourceVersions: string[],
 	targetVersions: string[],
 	sourceApiVersion?: string,
-	targetApiVersion?: string
+	targetApiVersion?: string,
+	latestOnly?: boolean,
+	sourceActiveVersions?: string[],
+	targetActiveVersions?: string[]
 ): VersionPair[] {
 	if (!isAllVersions(sourceApiVersion) && !isAllVersions(targetApiVersion)) {
 		return [{ sourceVersion: sourceApiVersion!, targetVersion: targetApiVersion! }];
+	}
+
+	if (latestOnly) {
+		const sourceLatest =
+			latestOf(sourceActiveVersions ?? []) ?? latestOf(sourceVersions);
+		const targetLatest =
+			latestOf(targetActiveVersions ?? []) ?? latestOf(targetVersions);
+		if (!sourceLatest && !targetLatest) return [];
+		return [
+			{
+				sourceVersion: sourceLatest ?? targetLatest!,
+				targetVersion: targetLatest ?? sourceLatest!
+			}
+		];
 	}
 
 	const merged = new Set([...sourceVersions, ...targetVersions]);
@@ -214,6 +252,11 @@ export type GenerateDiffOptions = {
 	sourceApiVersion?: string;
 	/** Target API version to compare; omit or `all` to include every version. */
 	targetApiVersion?: string;
+	/**
+	 * When comparing all versions, pair only each release's latest (non-deprecated)
+	 * version per CRD instead of pairing every matching version name.
+	 */
+	latestOnly?: boolean;
 	manifestCache: Map<string, ManifestResource[]>;
 	yamlCache: Map<string, string>;
 	onProgress?: (percent: number, current: number, total: number) => void;
@@ -225,6 +268,7 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 		targetRelease,
 		sourceApiVersion,
 		targetApiVersion,
+		latestOnly,
 		manifestCache,
 		yamlCache,
 		onProgress
@@ -242,6 +286,8 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 	const crdMeta = mergeCrdCatalogs(sourceCrds, targetCrds);
 	const sourceVersionIndex = versionIndexFromManifest(sourceManifest);
 	const targetVersionIndex = versionIndexFromManifest(targetManifest);
+	const sourceActiveVersionIndex = activeVersionIndexFromManifest(sourceManifest);
+	const targetActiveVersionIndex = activeVersionIndexFromManifest(targetManifest);
 
 	const availabilityCache = new Map<string, boolean>();
 	const compareAll =
@@ -264,7 +310,10 @@ export async function generateBulkDiffReport(options: GenerateDiffOptions): Prom
 			sourceVersionIndex.get(crd.name) ?? [],
 			targetVersionIndex.get(crd.name) ?? [],
 			sourceApiVersion,
-			targetApiVersion
+			targetApiVersion,
+			latestOnly,
+			sourceActiveVersionIndex.get(crd.name) ?? [],
+			targetActiveVersionIndex.get(crd.name) ?? []
 		);
 		for (const pair of pairs) {
 			workItems.push({ crd, ...pair });

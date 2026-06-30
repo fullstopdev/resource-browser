@@ -46,6 +46,16 @@ export function statusChipClass(status: DiffStatus): string {
 	return 'comparison-status-chip comparison-status-chip--unchanged';
 }
 
+/** Stable identity key for a CRD diff entry, used for expand/collapse tracking. */
+export function crdEntryKey(crd: CrdDiffEntry): string {
+	return `${crd.name}:${crd.version}:${crd.targetVersion ?? crd.version}`;
+}
+
+/** Sluggified CRD name safe for use as a DOM id and `#crd=` deep-link value. */
+export function crdHashId(crd: CrdDiffEntry): string {
+	return crd.name;
+}
+
 export function matchesSearch(
 	crd: CrdDiffEntry,
 	effectiveSearch: string,
@@ -94,7 +104,7 @@ export function compareHint(
 			sourceVersion === 'all' ||
 			targetVersion === 'all';
 		if (compareAll) {
-			return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (all API versions paired by name). Press Enter to run.`;
+			return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (latest version of each CRD). Press Enter to run.`;
 		}
 		if (sourceVersion === targetVersion) {
 			return `Ready — compare ${sourceReleaseLabel} → ${targetReleaseLabel} (${sourceVersion} only). Press Enter to run.`;

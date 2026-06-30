@@ -2989,6 +2989,30 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		color: #475569;
 	}
 
+	.dark .comparison-filter-chip--active.comparison-filter-chip--added {
+		background: rgba(22, 163, 74, 0.25);
+		border-color: rgba(74, 222, 128, 0.4);
+		color: #86efac;
+	}
+
+	.dark .comparison-filter-chip--active.comparison-filter-chip--removed {
+		background: rgba(220, 38, 38, 0.25);
+		border-color: rgba(248, 113, 113, 0.4);
+		color: #fca5a5;
+	}
+
+	.dark .comparison-filter-chip--active.comparison-filter-chip--modified {
+		background: rgba(234, 179, 8, 0.25);
+		border-color: rgba(253, 224, 71, 0.4);
+		color: #fde047;
+	}
+
+	.dark .comparison-filter-chip--active.comparison-filter-chip--unchanged {
+		background: rgba(51, 65, 85, 0.5);
+		border-color: rgba(148, 163, 184, 0.4);
+		color: #cbd5e1;
+	}
+
 	.comparison-filter-chip--inactive {
 		background: transparent;
 		border-color: #e2e8f0;
@@ -3907,6 +3931,26 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 	.comparison-results__section-icon--unchanged {
 		background: #f1f5f9;
 		color: #475569;
+	}
+
+	.dark .comparison-results__section-icon--added {
+		background: rgba(22, 163, 74, 0.25);
+		color: #86efac;
+	}
+
+	.dark .comparison-results__section-icon--removed {
+		background: rgba(220, 38, 38, 0.25);
+		color: #fca5a5;
+	}
+
+	.dark .comparison-results__section-icon--modified {
+		background: rgba(234, 179, 8, 0.25);
+		color: #fde047;
+	}
+
+	.dark .comparison-results__section-icon--unchanged {
+		background: rgba(51, 65, 85, 0.5);
+		color: #cbd5e1;
 	}
 
 	.comparison-results__section-title {

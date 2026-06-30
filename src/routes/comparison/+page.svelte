@@ -55,6 +55,8 @@
 	let modalResource: CrdResource | null = null;
 	let modalRelease: EdaRelease | null = null;
 	let modalVersion: string | null = null;
+	let modalCompareRelease: string | null = null;
+	let modalCompareVersion: string | null = null;
 
 	const manifestCache = getManifestCache();
 	const yamlCache: Map<string, string> = new Map();
@@ -100,8 +102,8 @@
 	}
 
 	function pickDefaultVersion(versions: string[], preferred?: string): string {
-		if (preferred && versions.includes(preferred)) return preferred;
-		return versions.length > 0 ? versions[versions.length - 1] : '';
+		if (preferred && (preferred === 'all' || versions.includes(preferred))) return preferred;
+		return versions.length > 0 ? 'all' : '';
 	}
 
 	function resolveRelease(name: string): EdaRelease | null {
@@ -238,6 +240,7 @@
 				targetRelease,
 				sourceApiVersion: sourceVersion || undefined,
 				targetApiVersion: targetVersion || undefined,
+				latestOnly: (sourceVersion === 'all' || !sourceVersion) && (targetVersion === 'all' || !targetVersion),
 				manifestCache,
 				yamlCache,
 				onProgress: (pct, current, total) => {
@@ -268,6 +271,19 @@
 		modalResource = resource;
 		modalRelease = release;
 		modalVersion = ctx.version;
+
+		// For modified/unchanged CRDs (present on both sides), pre-select the other
+		// release/version so the modal opens directly in side-by-side compare view.
+		if (crd.status === 'modified' || crd.status === 'unchanged') {
+			const otherReleaseName =
+				ctx.releaseName === sourceReleaseName ? targetReleaseName : sourceReleaseName;
+			modalCompareRelease = otherReleaseName;
+			modalCompareVersion = crd.targetVersion ?? crd.version;
+		} else {
+			modalCompareRelease = null;
+			modalCompareVersion = null;
+		}
+
 		modalOpen = true;
 	}
 
@@ -276,6 +292,8 @@
 		modalResource = null;
 		modalRelease = null;
 		modalVersion = null;
+		modalCompareRelease = null;
+		modalCompareVersion = null;
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -414,6 +432,11 @@
 						{:else}
 							<p class="comparison-action-bar__hint">{hintText}</p>
 						{/if}
+						{#if sourceVersion === 'all' && targetVersion === 'all'}
+							<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+								Comparing each CRD's latest version in {sourceRelease?.label ?? 'source'} against its latest version in {targetRelease?.label ?? 'target'}.
+							</p>
+						{/if}
 					</div>
 
 					<button
@@ -525,6 +548,9 @@
 		selectedRelease={modalRelease}
 		allReleases={releasesConfig.releases}
 		initialVersion={modalVersion}
+		initialViewMode={modalCompareRelease ? 'compare' : 'schema'}
+		initialCompareRelease={modalCompareRelease}
+		initialCompareVersion={modalCompareVersion}
 		onClose={closeCrdModal}
 	/>
 {/if}
