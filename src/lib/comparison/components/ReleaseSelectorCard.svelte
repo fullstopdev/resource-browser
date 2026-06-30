@@ -84,7 +84,7 @@
 						{versions.length === 0 ? 'No versions available' : 'Select version…'}
 					</option>
 					{#if versions.length > 0}
-						<option value="all">All CRDs (latest version each)</option>
+						<option value="all">All CRDs (latest version)</option>
 					{/if}
 					{#each versions as v}
 						<option value={v}>{v}</option>
