@@ -462,19 +462,4 @@
 			</aside>
 		</div>
 	</main>
-<footer class="mt-auto border-t border-slate-200 bg-slate-50 px-6 py-3.5 dark:border-slate-700/60 dark:bg-slate-900">
-	<div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-		<div class="flex items-center gap-3">
-			<span class="inline-flex items-center gap-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-amber-700 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-400">
-				<svg class="h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
-				Not an official Nokia tool
-			</span>
-			<span class="hidden text-xs text-slate-400 sm:block dark:text-slate-500">Community-maintained · not affiliated with or endorsed by Nokia</span>
-		</div>
-		<div class="flex items-center gap-2">
-			<a href="https://github.com/fullstopdev/resource-browser/pulls" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"><svg class="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0-8a5 5 0 1 1 0 10A5 5 0 0 1 18 13zM6 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 1a5 5 0 1 1 0 10A5 5 0 0 1 6 1zm1 9.5a1 1 0 1 1-2 0v-.543A7.018 7.018 0 0 0 1 17v1a1 1 0 1 1-2 0v-1a9.018 9.018 0 0 1 6-8.472V9.5zm9.879-4.621a1 1 0 1 1 1.414 1.414l-2.829 2.829a1 1 0 0 1-1.414 0l-1.414-1.415a1 1 0 0 1 1.414-1.414l.707.707 2.122-2.121z"/></svg>Open a PR</a>
-			<a href="https://github.com/fullstopdev/resource-browser" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"><svg class="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>fullstopdev/resource-browser</a>
-		</div>
-	</div>
-</footer>
 </div>

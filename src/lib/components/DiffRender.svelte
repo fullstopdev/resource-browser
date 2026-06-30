@@ -132,7 +132,7 @@
 		{desc}
 	</li>
 	{#if 'properties' in scope || (compareScope && 'properties' in compareScope)}
-		{#each getCombinedKeys() as key}
+		{#each getCombinedKeys() as key (key)}
 			{@const requiredList = 'required' in scope ? scope.required : []}
 			{@const existsHere = 'properties' in scope && key in scope.properties}
 			{@const folder = existsHere ? (scope as any).properties[key] : null}
@@ -150,7 +150,7 @@
 					? compareScope.properties[key]
 					: null}
 			{@const localField = 'properties' in scope ? ((scope as any).properties[key] ?? null) : null}
-			<li class="relative {bgClass} {bgClass ? 'my-1 rounded-md' : ''}">
+			<div class="relative {bgClass} {bgClass ? 'my-1 rounded-md' : ''}">
 				{#if existsHere}
 					{#if diffStatus !== 'unchanged' && !isObjectSchema(folder)}
 						<!-- spacer for added/removed/modified primitive field to match object spacing -->
@@ -400,7 +400,7 @@
 						ghost={true}
 					/>
 				{/if}
-			</li>
+			</div>
 		{/each}
 	{/if}
 </ul>

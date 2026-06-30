@@ -42,7 +42,7 @@
 		{/if}
 		{#if 'properties' in scope}
 			<div class="font-fira text-sm leading-relaxed">
-				{#each Object.entries(scope.properties) as [key, folder]}
+				{#each Object.entries(scope.properties) as [key, folder] (key)}
 					{@const requiredList = getRequiredFields(scope)}
 					<Tree
 						{hash}

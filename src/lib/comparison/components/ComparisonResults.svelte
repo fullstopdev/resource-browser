@@ -89,6 +89,24 @@
 		}
 		return 'M5 13l4 4L19 7';
 	}
+
+	let shareCopied = false;
+	let shareCopiedTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	async function handleShareLink() {
+		try {
+			await navigator.clipboard.writeText(window.location.href);
+		} catch {
+			// Clipboard API unavailable (e.g. insecure context) — fall back to a manual prompt.
+			window.prompt('Copy this link:', window.location.href);
+			return;
+		}
+		shareCopied = true;
+		if (shareCopiedTimeout) clearTimeout(shareCopiedTimeout);
+		shareCopiedTimeout = setTimeout(() => {
+			shareCopied = false;
+		}, 2000);
+	}
 </script>
 
 <div class="spec-search-results-panel comparison-results">
@@ -107,7 +125,19 @@
 				</span>
 			</div>
 		</div>
-		<div class="comparison-export-toolbar" role="toolbar" aria-label="Export report">
+		<div class="comparison-export-toolbar" role="toolbar" aria-label="Export and share report">
+			<button
+				type="button"
+				class="comparison-export-btn comparison-export-btn--share"
+				on:click={handleShareLink}
+				title="Copy a shareable link to this comparison"
+			>
+				<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
+				</svg>
+				{shareCopied ? 'Copied!' : 'Share link'}
+			</button>
+			<span class="comparison-export-toolbar__divider" aria-hidden="true"></span>
 			<span class="comparison-export-toolbar__label">Export</span>
 			<button type="button" class="comparison-export-btn" on:click={() => downloadBulkDiffReport(report, 'json')}>JSON</button>
 			<button type="button" class="comparison-export-btn" on:click={() => downloadBulkDiffReport(report, 'text')}>TXT</button>
@@ -275,17 +305,6 @@
 											{crd.details.length} change{crd.details.length === 1 ? '' : 's'}
 										</span>
 									{/if}
-									<button
-										type="button"
-										class="comparison-crd-card__copy-link"
-										title="Copy a shareable link to this CRD"
-										aria-label="Copy a shareable link to this CRD"
-										on:click|stopPropagation={() => onCopyLink(crd)}
-									>
-										<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
-										</svg>
-									</button>
 									{#if linkCtx}
 										<button
 											type="button"

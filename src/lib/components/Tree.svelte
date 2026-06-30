@@ -159,40 +159,6 @@
 		return { pathParts, resName, resVersion, releaseParam };
 	}
 
-	function scrollToField(fieldId: string, fullUrl: string) {
-		const { pathParts } = resolveResourceContext();
-		if (pathParts.length >= 2) {
-			const newUrl = `${window.location.pathname}${window.location.search}#${fieldId}`;
-			history.pushState(null, '', newUrl);
-		}
-		const el = document.getElementById(fieldId);
-		if (!el || typeof el.scrollIntoView !== 'function') return;
-		el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		try {
-			(el as HTMLElement).focus();
-		} catch {
-			/* ignore */
-		}
-		try {
-			el.classList.add('bg-amber-100', 'dark:bg-amber-900/10');
-			copiedPath = fieldId;
-			if (timeout) clearTimeout(timeout);
-			timeout = setTimeout(() => {
-				if (copiedPath === fieldId) copiedPath = null;
-			}, 500);
-			try {
-				navigator.clipboard.writeText(fullUrl);
-			} catch {
-				/* ignore */
-			}
-			setTimeout(() => {
-				el.classList.remove('bg-amber-100', 'dark:bg-amber-900/10');
-			}, 1800);
-		} catch {
-			/* ignore */
-		}
-	}
-
 	// Diff mode props
 	export let diffMode: boolean = false;
 	export let diffCompareData: Schema | null = null;
@@ -210,7 +176,6 @@
 
 	let currentId = `${parent}.${key}`;
 	let timeout: ReturnType<typeof setTimeout>;
-	let copiedPath: string | null = null;
 	let defaultVal: string = '';
 	let formatVal: string = '';
 	let minVal: number | undefined = undefined;
@@ -469,30 +434,18 @@
 				class="cursor-pointer text-cyan-600 dark:text-cyan-400 {expanded
 					? 'block'
 					: 'hidden'} hover:text-cyan-700 md:hidden md:group-hover:block md:group-active:block dark:hover:text-cyan-300"
-				on:click|capture={(e) => {
-					const { resName, resVersion, releaseParam } = resolveResourceContext();
-					const fullUrl = `${window.location.origin}/${resName}/${resVersion}${releaseParam ? `?release=${encodeURIComponent(releaseParam)}` : ''}#${currentId}`;
-					if (onResourcePage) {
-						scrollToField(currentId, fullUrl);
-					} else {
-						// Prefetch the resource YAML to warm the HTTP cache and reduce the two-step blank loading,
-						// but don't block the UI for too long — try fetch and open immediately.
-						try {
-							fetch(fullUrl, { mode: 'same-origin', cache: 'reload' });
-						} catch (e) {
-							/* ignore */
-						}
-						window.open(fullUrl, '_blank');
-					}
-					e.preventDefault();
-				}}
+				title="Copy a shareable link to this field"
+				aria-label="Copy a shareable link to this field"
+				on:click|preventDefault|stopPropagation={() => {}}
 				use:copy={{
 					text: (() => {
 						const { resName, resVersion, releaseParam } = resolveResourceContext();
-						return (
-							window.location.origin +
-							`/${resName}/${resVersion}${releaseParam ? `?release=${encodeURIComponent(releaseParam)}` : ''}#${currentId}`
-						);
+						const params = new URLSearchParams();
+						if (releaseParam) params.set('release', releaseParam);
+						if (resName) params.set('crd', resName);
+						if (resVersion) params.set('version', resVersion);
+						const qs = params.toString();
+						return `${window.location.origin}/${qs ? `?${qs}` : ''}#${currentId}`;
 					})(),
 					onCopy({ event }: any) {
 						const target = event?.target as HTMLElement | null;
@@ -500,7 +453,7 @@
 							target.innerHTML = '&check;';
 							timeout = setTimeout(() => {
 								target.innerHTML = '#';
-							}, 500);
+							}, 800);
 						}
 					}
 				}}>#</button
@@ -633,7 +586,7 @@
 						for (const k of otherKeys) if (!arr.includes(k)) arr.push(k);
 						return arr;
 					})()}
-					{#each combinedKeys as subkey}
+					{#each combinedKeys as subkey (subkey)}
 						{@const requiredList = getRequiredFields(thisScope)}
 						{@const existsHere =
 							'properties' in thisScope && subkey in (thisScope.properties || {})}

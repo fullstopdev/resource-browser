@@ -33,6 +33,19 @@
 	let modalResource: CrdResource | null = null;
 	let modalInitialViewMode: ResourceViewMode = 'schema';
 	let openedInitialResource: string | null = null;
+	/** Field path(s) to auto-expand/highlight in the modal, parsed from a `#field.path` deep link. */
+	let modalHighlightPaths: string[] = [];
+
+	/** Parse a `#spec.foo.bar` (or `#spec.foo|spec.baz`) URL fragment into highlight paths. */
+	function parseHighlightHash(): string[] {
+		if (typeof window === 'undefined') return [];
+		const raw = window.location.hash.replace(/^#/, '').trim();
+		if (!raw) return [];
+		return raw
+			.split('|')
+			.map((p) => decodeURIComponent(p.trim()))
+			.filter(Boolean);
+	}
 
 	// Keep modal resource in sync when release/manifest reloads
 	$: if (modalOpen && modalResource) {
@@ -95,6 +108,7 @@
 		event?.stopPropagation();
 		modalResource = res;
 		modalInitialViewMode = viewMode;
+		modalHighlightPaths = [];
 		modalOpen = true;
 		onResourceModalOpen?.(crdParamForResource(res));
 	}
@@ -103,6 +117,7 @@
 		modalOpen = false;
 		modalResource = null;
 		modalInitialViewMode = 'schema';
+		modalHighlightPaths = [];
 		onResourceModalClose?.();
 	}
 
@@ -114,6 +129,7 @@
 		openedInitialResource = initialCrd;
 		if (res) {
 			modalResource = res;
+			modalHighlightPaths = parseHighlightHash();
 			modalOpen = true;
 		}
 	}
@@ -403,6 +419,7 @@
 	{allReleases}
 	initialVersion={initialVersion}
 	initialViewMode={modalInitialViewMode}
+	highlightPaths={modalHighlightPaths}
 	onActiveVersionChange={onResourceVersionChange}
 	onClose={closeResourceModal}
 />

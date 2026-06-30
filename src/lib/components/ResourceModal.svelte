@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { browser } from '$app/environment';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 
@@ -202,6 +202,34 @@
 		}
 	}
 
+	/** Scroll to and briefly flash-highlight a deep-linked field once its tree node renders.
+	 * Retries for a short window since Tree.svelte auto-expands asynchronously via reactive
+	 * statements, so the target element may not exist in the DOM on the very next tick. */
+	function scrollToHighlightedField(fieldId: string, attemptsLeft = 20) {
+		if (!browser || !fieldId) return;
+		tick().then(() => {
+			requestAnimationFrame(() => {
+				const el = document.getElementById(fieldId);
+				if (!el) {
+					if (attemptsLeft > 0) {
+						setTimeout(() => scrollToHighlightedField(fieldId, attemptsLeft - 1), 50);
+					}
+					return;
+				}
+				el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				try {
+					(el as HTMLElement).focus({ preventScroll: true });
+				} catch {
+					/* ignore */
+				}
+				el.classList.add('bg-amber-100', 'dark:bg-amber-900/20');
+				setTimeout(() => {
+					el.classList.remove('bg-amber-100', 'dark:bg-amber-900/20');
+				}, 2000);
+			});
+		});
+	}
+
 	async function loadVersionYaml(version: string, release: EdaRelease) {
 		loading = true;
 		error = null;
@@ -252,6 +280,10 @@
 		ulExpanded.set([]);
 
 		await loadVersionYaml(version, release);
+
+		if (initialViewMode === 'schema' && highlightPaths.length > 0) {
+			scrollToHighlightedField(highlightPaths[0]);
+		}
 
 		if (initialViewMode === 'compare' && initialCompareRelease) {
 			if (initialCompareRelease === selectedRelease.name) {
