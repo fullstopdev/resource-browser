@@ -3,7 +3,8 @@ import { detailsToFieldChanges, isSchemaMetadataPath } from '$lib/comparison/fie
 import type { BulkDiffReport, CrdDiffEntry } from '$lib/comparison/types';
 import { fetchManifest, type ManifestResource } from '$lib/manifest';
 import type { CrdResource, EdaRelease } from '$lib/structure';
-import { groupDeprecatedByResource, type RawDeprecatedVersion } from './deprecation';
+import { countDeprecatedApiVersions, detectNewlyPromotedApiVersion, groupDeprecatedByResource, type RawDeprecatedVersion } from './deprecation';
+import { countOperationalChanges } from './presentation';
 import { generateMockNotes } from './mockNotes';
 import type {
 	DeprecatedItem,
@@ -12,6 +13,7 @@ import type {
 	NewResource,
 	ReleaseNotes,
 	ReleaseNotesEntry,
+	ReleaseNotesSummary,
 	RemovedResource
 } from './types';
 
@@ -71,6 +73,7 @@ async function findNewlyDeprecated(
 	]);
 	if (!sourceManifest || !targetManifest) return [];
 
+	const sourceByName = new Map(sourceManifest.map((resource) => [resource.name, resource]));
 	const sourceDeprecated = new Set<string>();
 	for (const resource of sourceManifest) {
 		for (const v of resource.versions ?? []) {
@@ -103,7 +106,14 @@ async function findNewlyDeprecated(
 				newInRelease: !sourceDeprecated.has(`${resource.name}:${v.name}`)
 			}));
 
-		grouped.set(resource.name, { resource, versions: allDeprecated });
+		grouped.set(resource.name, {
+			resource,
+			versions: allDeprecated,
+			newlyPromotedApiVersion: detectNewlyPromotedApiVersion(
+				sourceByName.get(resource.name),
+				resource
+			)
+		});
 	}
 
 	return groupDeprecatedByResource(Array.from(grouped.values()));
@@ -172,6 +182,24 @@ export function reportToReleaseNotes(
 	};
 }
 
+export function computeReleaseNotesSummary(
+	report: BulkDiffReport,
+	notes: ReleaseNotes
+): ReleaseNotesSummary {
+	const unchanged = report.crds.filter(
+		(c) => c.status === 'unchanged' && !c.name.includes('states')
+	).length;
+
+	return {
+		added: notes.newResources.length,
+		removed: notes.removedResources.length,
+		modified: notes.modifiedResources.length,
+		deprecated: countDeprecatedApiVersions(notes.deprecated),
+		unchanged,
+		specChanges: countOperationalChanges(notes)
+	};
+}
+
 export type GenerateNotesOptions = {
 	sourceRelease: EdaRelease;
 	targetRelease: EdaRelease;
@@ -203,6 +231,7 @@ export async function generateReleaseNotesForPair(
 				targetRelease,
 				manifestCache,
 				yamlCache,
+				latestOnly: true,
 				onProgress: (pct) => onProgress?.(pct)
 			}),
 			findNewlyDeprecated(sourceRelease, targetRelease, manifestCache)
@@ -220,18 +249,32 @@ export async function generateReleaseNotesForPair(
 			(crd, index, all) => all.findIndex((c) => c.name === crd.name) === index
 		);
 
+		const notes = reportToReleaseNotes(report, fromVer, toVer, crdMeta, deprecated, sourceCrds);
+
 		return {
 			toVer,
 			fromVer,
-			notes: reportToReleaseNotes(report, fromVer, toVer, crdMeta, deprecated, sourceCrds),
+			notes,
+			summary: computeReleaseNotesSummary(report, notes),
 			timestamp: Date.now(),
 			source: 'comparison'
 		};
 	} catch {
+		const notes = generateMockNotes(fromVer, toVer);
+		const emptyReport: BulkDiffReport = {
+			sourceRelease: sourceRelease.label,
+			sourceVersion: 'latest',
+			targetRelease: targetRelease.label,
+			targetVersion: 'latest',
+			generatedAt: new Date().toISOString(),
+			crds: []
+		};
+
 		return {
 			toVer,
 			fromVer,
-			notes: generateMockNotes(fromVer, toVer),
+			notes,
+			summary: computeReleaseNotesSummary(emptyReport, notes),
 			timestamp: Date.now(),
 			source: 'mock'
 		};

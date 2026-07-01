@@ -5,6 +5,9 @@
     "kind": "AggregateRoute",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -21,6 +24,9 @@
     "kind": "Alarm",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -30,6 +36,9 @@
     "group": "appstore.eda.nokia.com",
     "kind": "AppInstaller",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -41,6 +50,9 @@
     "kind": "Artifact",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -50,6 +62,9 @@
     "group": "routingpolicies.eda.nokia.com",
     "kind": "ASPathSetDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -62,6 +77,9 @@
     "kind": "ASPathSet",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -72,6 +90,9 @@
     "group": "routing.eda.nokia.com",
     "kind": "AttachmentLookup",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -84,6 +105,9 @@
     "kind": "Backend",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -95,6 +119,9 @@
     "kind": "BackendState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -104,6 +131,9 @@
     "group": "siteinfo.eda.nokia.com",
     "kind": "Banner",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -116,6 +146,9 @@
     "kind": "BannerState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -125,6 +158,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "BGPGroupDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -142,6 +178,9 @@
     "kind": "BGPGroup",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -158,6 +197,9 @@
     "kind": "BGPGroupState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -171,6 +213,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "BGPPeer",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -188,6 +233,9 @@
     "kind": "BGPPeerState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -202,6 +250,9 @@
     "kind": "Breakout",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -212,6 +263,9 @@
     "group": "services.eda.nokia.com",
     "kind": "BridgeDomainDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -229,6 +283,9 @@
     "kind": "BridgeDomain",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -245,6 +302,9 @@
     "kind": "BridgeDomainState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -258,6 +318,9 @@
     "group": "services.eda.nokia.com",
     "kind": "BridgeInterface",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -275,6 +338,9 @@
     "kind": "BridgeInterfaceState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -289,6 +355,9 @@
     "kind": "Catalog",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -298,6 +367,9 @@
     "group": "certcheck.eda.nokia.com",
     "kind": "CertificateCheck",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1"
       }
@@ -309,6 +381,9 @@
     "kind": "Chassis",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       }
@@ -319,6 +394,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "CheckDefaultBgpPeers",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -335,6 +413,9 @@
     "kind": "CheckInterfaces",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -345,6 +426,9 @@
     "group": "environment.eda.nokia.com",
     "kind": "CliPlugin",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -357,6 +441,9 @@
     "kind": "ClusterDiscovery",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       }
@@ -368,6 +455,9 @@
     "kind": "ClusterRole",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -377,6 +467,9 @@
     "group": "routingpolicies.eda.nokia.com",
     "kind": "CommunitySetDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -389,6 +482,9 @@
     "kind": "CommunitySet",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -399,6 +495,9 @@
     "group": "components.eda.nokia.com",
     "kind": "Component",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -414,6 +513,9 @@
     "kind": "Configlet",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -425,6 +527,9 @@
     "kind": "ConfigletState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -434,6 +539,9 @@
     "group": "components.eda.nokia.com",
     "kind": "ControlModule",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -446,6 +554,9 @@
     "kind": "ControlPlaneFilter",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -456,6 +567,9 @@
     "group": "components.eda.nokia.com",
     "kind": "CPUOverlay",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -468,6 +582,9 @@
     "kind": "CxCluster",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -477,6 +594,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "DefaultAggregateRoute",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -494,6 +614,9 @@
     "kind": "DefaultBGPGroupDeployment",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -509,6 +632,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "DefaultBGPGroup",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -526,6 +652,9 @@
     "kind": "DefaultBGPPeer",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -542,6 +671,9 @@
     "kind": "DefaultInterface",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -553,6 +685,9 @@
     "kind": "DefaultInterfaceState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -562,6 +697,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "DefaultRouteReflectorClient",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -579,6 +717,9 @@
     "kind": "DefaultRouteReflector",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -595,6 +736,9 @@
     "kind": "DefaultRouter",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -606,6 +750,9 @@
     "kind": "DefaultRouterState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -615,6 +762,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "DefaultStaticRoute",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -632,6 +782,9 @@
     "kind": "DeployImage",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -643,6 +796,9 @@
     "kind": "Designer",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -653,6 +809,9 @@
     "kind": "DeviationAction",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -662,6 +821,9 @@
     "group": "topologies.eda.nokia.com",
     "kind": "DeviationOverlay",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -674,6 +836,9 @@
     "kind": "Deviation",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -683,6 +848,9 @@
     "group": "services.eda.nokia.com",
     "kind": "DHCPRelay",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -700,6 +868,9 @@
     "kind": "Discovery",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -714,6 +885,9 @@
     "kind": "DiscoveryAggregateState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -726,6 +900,9 @@
     "group": "components.eda.nokia.com",
     "kind": "DiscoveryState",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       },
@@ -740,6 +917,9 @@
     "kind": "Drain",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -751,6 +931,9 @@
     "kind": "DrainState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -761,6 +944,9 @@
     "kind": "EdgeInterface",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -770,6 +956,9 @@
     "group": "services.eda.nokia.com",
     "kind": "EdgePing",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -785,6 +974,9 @@
     "group": "qos.eda.nokia.com",
     "kind": "EgressPolicy",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -802,6 +994,9 @@
     "kind": "EngineConfig",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -811,6 +1006,9 @@
     "group": "components.eda.nokia.com",
     "kind": "FabricModule",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -823,6 +1021,9 @@
     "kind": "Fabric",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -834,6 +1035,9 @@
     "kind": "FabricState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -843,6 +1047,9 @@
     "group": "components.eda.nokia.com",
     "kind": "Fan",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -855,6 +1062,9 @@
     "kind": "FilterDeployment",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -866,6 +1076,9 @@
     "kind": "Filter",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -876,6 +1089,9 @@
     "group": "qos.eda.nokia.com",
     "kind": "ForwardingClass",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -893,6 +1109,9 @@
     "kind": "GlobalConfig",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -902,6 +1121,9 @@
     "group": "core.eda.nokia.com",
     "kind": "HttpProxy",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -913,6 +1135,9 @@
     "kind": "IndexAllocationPool",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -922,6 +1147,9 @@
     "group": "qos.eda.nokia.com",
     "kind": "IngressPolicy",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -939,6 +1167,9 @@
     "kind": "Init",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -949,6 +1180,9 @@
     "group": "components.eda.nokia.com",
     "kind": "InterfaceModule",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -961,6 +1195,9 @@
     "kind": "Interface",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -972,6 +1209,9 @@
     "kind": "InterfaceState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -981,6 +1221,9 @@
     "group": "core.eda.nokia.com",
     "kind": "IPAllocationPool",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -992,6 +1235,9 @@
     "kind": "IPInSubnetAllocationPool",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1001,6 +1247,9 @@
     "group": "services.eda.nokia.com",
     "kind": "IRBInterface",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1018,6 +1267,9 @@
     "kind": "IRBInterfaceState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1032,6 +1284,9 @@
     "kind": "IslPing",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1042,6 +1297,9 @@
     "group": "fabrics.eda.nokia.com",
     "kind": "ISL",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1054,6 +1312,9 @@
     "kind": "ISLState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -1063,6 +1324,9 @@
     "group": "security.eda.nokia.com",
     "kind": "KeychainDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1075,6 +1339,9 @@
     "kind": "Keychain",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1086,6 +1353,9 @@
     "kind": "License",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1095,6 +1365,9 @@
     "group": "topologies.eda.nokia.com",
     "kind": "LldpOverlay",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1107,6 +1380,9 @@
     "kind": "ManagementRouter",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1118,6 +1394,9 @@
     "kind": "ManagementRouterState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -1128,6 +1407,9 @@
     "kind": "Manifest",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1137,6 +1419,9 @@
     "group": "components.eda.nokia.com",
     "kind": "MemoryOverlay",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1149,6 +1434,9 @@
     "kind": "MirrorFilterDeployment",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1159,6 +1447,9 @@
     "group": "filters.eda.nokia.com",
     "kind": "MirrorFilter",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1171,6 +1462,9 @@
     "kind": "Mirror",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1182,6 +1476,9 @@
     "kind": "MirrorState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -1191,6 +1488,9 @@
     "group": "components.eda.nokia.com",
     "kind": "MonitorAggregateState",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -1202,6 +1502,9 @@
     "kind": "MonitorAggregateState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -1211,6 +1514,9 @@
     "group": "components.eda.nokia.com",
     "kind": "Monitor",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1223,6 +1529,9 @@
     "kind": "Monitor",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1234,6 +1543,9 @@
     "kind": "MonitorState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1243,6 +1555,9 @@
     "group": "system.eda.nokia.com",
     "kind": "MonitorState",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1"
       }
@@ -1254,7 +1569,20 @@
     "kind": "Namespace",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
+      }
+    ]
+  },
+  {
+    "name": "newpings.oam.eda.nokia.com",
+    "group": "oam.eda.nokia.com",
+    "kind": "Newping",
+    "versions": [
+      {
+        "name": "resource"
       }
     ]
   },
@@ -1263,6 +1591,9 @@
     "group": "core.eda.nokia.com",
     "kind": "NodeConfig",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -1273,6 +1604,9 @@
     "group": "aaa.eda.nokia.com",
     "kind": "NodeGroupDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1285,6 +1619,9 @@
     "kind": "NodeGroup",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1296,6 +1633,9 @@
     "kind": "NodeProfile",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1305,6 +1645,9 @@
     "group": "core.eda.nokia.com",
     "kind": "NodeSecurityProfile",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -1316,6 +1659,9 @@
     "kind": "NodeUser",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1325,6 +1671,9 @@
     "group": "aaa.eda.nokia.com",
     "kind": "NodeUserState",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1"
       }
@@ -1336,6 +1685,9 @@
     "kind": "NTPClient",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1346,6 +1698,9 @@
     "group": "timing.eda.nokia.com",
     "kind": "NTPClientState",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1"
       }
@@ -1368,6 +1723,9 @@
     "kind": "PolicyAttachment",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -1383,6 +1741,9 @@
     "group": "qos.eda.nokia.com",
     "kind": "PolicyDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1400,6 +1761,9 @@
     "kind": "PolicyDeployment",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1410,6 +1774,9 @@
     "group": "routingpolicies.eda.nokia.com",
     "kind": "Policy",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1422,6 +1789,9 @@
     "kind": "PowerSupply",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       }
@@ -1432,6 +1802,9 @@
     "group": "routingpolicies.eda.nokia.com",
     "kind": "PrefixSetDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1444,6 +1817,9 @@
     "kind": "PrefixSet",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1454,6 +1830,9 @@
     "group": "qos.eda.nokia.com",
     "kind": "Queue",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1471,15 +1850,27 @@
     "kind": "Registry",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
+  },
+  {
+    "name": "resources",
+    "group": "",
+    "kind": "Resource",
+    "versions": []
   },
   {
     "name": "roles.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
     "kind": "Role",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -1490,6 +1881,9 @@
     "group": "services.eda.nokia.com",
     "kind": "RoutedInterface",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1507,6 +1901,9 @@
     "kind": "RoutedInterfaceState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1521,6 +1918,9 @@
     "kind": "RouteLookup",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1531,6 +1931,9 @@
     "group": "services.eda.nokia.com",
     "kind": "RouterDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1548,6 +1951,9 @@
     "kind": "RouteReflectorClient",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -1564,6 +1970,9 @@
     "kind": "RouteReflectorClientState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1577,6 +1986,9 @@
     "group": "protocols.eda.nokia.com",
     "kind": "RouteReflector",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1594,6 +2006,9 @@
     "kind": "RouteReflectorState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1607,6 +2022,9 @@
     "group": "services.eda.nokia.com",
     "kind": "Router",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1624,6 +2042,9 @@
     "kind": "RouterState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1638,6 +2059,9 @@
     "kind": "SetupEnv",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1649,6 +2073,9 @@
     "kind": "SimLink",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1659,6 +2086,9 @@
     "kind": "SimNode",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1668,6 +2098,9 @@
     "group": "services.eda.nokia.com",
     "kind": "StateConfig",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1685,6 +2118,9 @@
     "kind": "StaticRoute",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       },
@@ -1701,6 +2137,9 @@
     "kind": "SubnetAllocationPool",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1710,6 +2149,9 @@
     "group": "routing.eda.nokia.com",
     "kind": "SystemInterface",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1722,6 +2164,9 @@
     "kind": "SystemInterfaceState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -1732,6 +2177,9 @@
     "kind": "TargetNode",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1741,6 +2189,9 @@
     "group": "oam.eda.nokia.com",
     "kind": "TechSupport",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1753,6 +2204,9 @@
     "kind": "Threshold",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1764,6 +2218,9 @@
     "kind": "Threshold",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1774,6 +2231,9 @@
     "kind": "TopoBreakout",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1783,6 +2243,9 @@
     "group": "topologies.eda.nokia.com",
     "kind": "TopoLinkMonitor",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1795,6 +2258,9 @@
     "kind": "TopoLink",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1805,6 +2271,9 @@
     "kind": "TopoLinkState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1"
       }
     ]
@@ -1814,6 +2283,9 @@
     "group": "topologies.eda.nokia.com",
     "kind": "Topology",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1826,6 +2298,9 @@
     "kind": "TopologyGrouping",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
@@ -1837,6 +2312,9 @@
     "kind": "TopoNode",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1846,6 +2324,9 @@
     "group": "topologies.eda.nokia.com",
     "kind": "TrafficRateOverlay",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1858,6 +2339,9 @@
     "kind": "TransactionResult",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1867,6 +2351,9 @@
     "group": "core.eda.nokia.com",
     "kind": "Transaction",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }
@@ -1878,6 +2365,9 @@
     "kind": "UdpProxy",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1887,6 +2377,9 @@
     "group": "aaa.eda.nokia.com",
     "kind": "UserDeployment",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
@@ -1898,6 +2391,9 @@
     "group": "services.eda.nokia.com",
     "kind": "VirtualNetwork",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1915,6 +2411,9 @@
     "kind": "VirtualNetworkState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1928,6 +2427,9 @@
     "group": "services.eda.nokia.com",
     "kind": "VLAN",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1",
         "appVersion": "v4.0.1"
@@ -1945,6 +2447,9 @@
     "kind": "VLANState",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       },
       {
@@ -1959,6 +2464,9 @@
     "kind": "VolumeOverlay",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1",
         "appVersion": "v4.0.1"
       }
@@ -1970,6 +2478,9 @@
     "kind": "WaitForInput",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1980,6 +2491,9 @@
     "kind": "WorkflowDefinition",
     "versions": [
       {
+        "name": "resource"
+      },
+      {
         "name": "v1"
       }
     ]
@@ -1989,6 +2503,9 @@
     "group": "core.eda.nokia.com",
     "kind": "Workflow",
     "versions": [
+      {
+        "name": "resource"
+      },
       {
         "name": "v1"
       }

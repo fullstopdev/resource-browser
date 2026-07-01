@@ -15,6 +15,7 @@ export const CHANGE_COLORS: Record<string, string> = {
 	type_change: '#ef9f27',
 	removed: '#e24b4a',
 	enum_removed: '#e24b4a',
+	enum_changed: '#ef9f27',
 	default_changed: '#ef9f27',
 	added: '#639922',
 	optional_added: '#639922',
@@ -25,5 +26,6 @@ export const HIGH_RISK_CHANGE_TYPES = new Set([
 	'required_added',
 	'removed',
 	'enum_removed',
+	'enum_changed',
 	'type_change'
 ]);

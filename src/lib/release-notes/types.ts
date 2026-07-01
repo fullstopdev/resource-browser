@@ -4,6 +4,7 @@ export type FieldChangeType =
 	| 'removed'
 	| 'enum_added'
 	| 'enum_removed'
+	| 'enum_changed'
 	| 'default_changed'
 	| 'required_added'
 	| 'optional_added';
@@ -49,6 +50,8 @@ export type DeprecatedItem = {
 	crdName: string;
 	deprecatedVersions: DeprecatedApiVersion[];
 	recommendedApiVersion?: string;
+	/** Stable apiVersion introduced in the target release (e.g. v1 replacing v1alpha1). */
+	newlyPromotedApiVersion?: string;
 	migrationPath: string;
 };
 
@@ -59,10 +62,20 @@ export type ReleaseNotes = {
 	deprecated: DeprecatedItem[];
 };
 
+export type ReleaseNotesSummary = {
+	added: number;
+	removed: number;
+	modified: number;
+	deprecated: number;
+	unchanged: number;
+	specChanges: number;
+};
+
 export type ReleaseNotesEntry = {
 	toVer: string;
 	fromVer: string;
 	notes: ReleaseNotes;
+	summary?: ReleaseNotesSummary;
 	timestamp: number;
 	source: 'comparison' | 'mock';
 };

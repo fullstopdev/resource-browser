@@ -1,4 +1,5 @@
-import { isSchemaMetadataPath } from '$lib/comparison/fieldChangeClassifier';
+import { enumValueDelta, isSchemaMetadataPath } from '$lib/comparison/fieldChangeClassifier';
+import { HIGH_RISK_CHANGE_TYPES } from './constants';
 import type { ReleaseTone } from './constants';
 import type {
 	DeprecatedItem,
@@ -6,7 +7,8 @@ import type {
 	FieldChangeType,
 	ModifiedResource,
 	NewResource,
-	ReleaseNotes
+	ReleaseNotes,
+	ReleaseNotesEntry
 } from './types';
 
 export type OperationalArea =
@@ -64,11 +66,12 @@ const CHANGE_TYPE_ORDER: Record<FieldChangeType, number> = {
 	required_added: 0,
 	removed: 1,
 	enum_removed: 2,
-	type_change: 3,
-	default_changed: 4,
-	enum_added: 5,
-	added: 6,
-	optional_added: 7
+	enum_changed: 3,
+	type_change: 4,
+	default_changed: 5,
+	enum_added: 6,
+	added: 7,
+	optional_added: 8
 };
 
 function camelToWords(value: string): string {
@@ -163,6 +166,9 @@ export function groupModifiedByOperationalArea(
 
 export function displayNetworkBehavior(change: FieldChange, kind: string): string {
 	const label = humanizeFieldPath(change.field);
+	const delta = change.changeType.startsWith('enum')
+		? enumValueDelta(change.before, change.after)
+		: null;
 
 	switch (change.changeType) {
 		case 'required_added':
@@ -171,17 +177,47 @@ export function displayNetworkBehavior(change: FieldChange, kind: string): strin
 			return `Remove ${label} from ${kind} manifests before upgrade; stale values block controller sync.`;
 		case 'type_change':
 			return `${label} on ${kind} changed structure — validate configured values against the target release schema.`;
-		case 'enum_removed':
-			return `${label} on ${kind} dropped allowed value(s) — confirm running config still matches the enum.`;
+		case 'enum_removed': {
+			const removed = delta?.removed.join(', ') ?? 'value(s)';
+			return `${label} on ${kind} dropped allowed value(s): ${removed} — confirm running config still matches the enum.`;
+		}
+		case 'enum_added': {
+			const added = delta?.added.join(', ') ?? 'value(s)';
+			return `${label} on ${kind} gained allowed value(s): ${added}; existing manifests stay valid until you adopt the new option(s).`;
+		}
+		case 'enum_changed': {
+			const added = delta?.added.join(', ') ?? 'none';
+			const removed = delta?.removed.join(', ') ?? 'none';
+			return `${label} on ${kind} allowed values changed — added: ${added}; removed: ${removed}. Review manifests using removed values.`;
+		}
 		case 'default_changed':
 			return `Default for ${label} on ${kind} shifted; objects omitting this field may behave differently post-upgrade.`;
 		case 'optional_added':
 		case 'added':
-		case 'enum_added':
 			return `New optional ${label} on ${kind}; existing manifests stay valid until you adopt the field.`;
 		default:
 			return change.networkBehavior || `Review ${label} on ${kind} before rolling this release to production.`;
 	}
+}
+
+const WARNING_CHANGE_TYPES = new Set<FieldChangeType>([
+	'type_change',
+	'enum_changed',
+	'default_changed'
+]);
+
+export function changeTypeLabel(changeType: FieldChangeType): string {
+	return changeType.replace(/_/g, ' ');
+}
+
+export function changeTypeBadgeClass(changeType: FieldChangeType): string {
+	if (WARNING_CHANGE_TYPES.has(changeType)) {
+		return 'release-notes-change-badge release-notes-change-badge--warning';
+	}
+	if (HIGH_RISK_CHANGE_TYPES.has(changeType)) {
+		return 'release-notes-change-badge release-notes-change-badge--breaking';
+	}
+	return 'release-notes-change-badge release-notes-change-badge--safe';
 }
 
 export function inferReleaseTone(fromVer: string, toVer: string): ReleaseTone {
@@ -197,10 +233,6 @@ export function countOperationalChanges(notes: ReleaseNotes): number {
 		const { operational } = partitionFieldChanges(resource.changes);
 		return total + operational.length;
 	}, 0);
-}
-
-export function comparisonPageHref(fromVer: string, toVer: string): string {
-	return `/comparison?sr=${encodeURIComponent(fromVer)}&tr=${encodeURIComponent(toVer)}`;
 }
 
 export function highlightSegments(text: string, query: string): TextSegment[] {
@@ -366,6 +398,45 @@ export function catalogBrowseHref(release: string, crdName?: string): string {
 	const params = new URLSearchParams({ browse: 'true', release });
 	if (crdName) params.set('resource', crdName);
 	return `/?${params.toString()}`;
+}
+
+export function comparisonPageHref(fromVer: string, toVer: string): string {
+	return `/comparison?sr=${encodeURIComponent(fromVer)}&tr=${encodeURIComponent(toVer)}`;
+}
+
+export function validateYamlHref(release: string): string {
+	return `/validate-yaml?release=${encodeURIComponent(release)}`;
+}
+
+export function specSearchHref(release: string): string {
+	return `/spec-search?release=${encodeURIComponent(release)}`;
+}
+
+export function dependencyMapHref(release: string): string {
+	return `/dependency-map?release=${encodeURIComponent(release)}`;
+}
+
+export type ReleaseQuickAction = {
+	id: string;
+	label: string;
+	href: string;
+};
+
+export function releaseQuickActions(entry: ReleaseNotesEntry): ReleaseQuickAction[] {
+	const { fromVer, toVer } = entry;
+	return [
+		{ id: 'browse', label: 'Browse catalog', href: catalogBrowseHref(toVer) },
+		{ id: 'compare', label: 'Compare releases', href: comparisonPageHref(fromVer, toVer) },
+		{ id: 'validate', label: 'Validate YAML', href: validateYamlHref(toVer) },
+		{ id: 'spec', label: 'Spec search', href: specSearchHref(toVer) },
+		{ id: 'dep-map', label: 'Dependency map', href: dependencyMapHref(toVer) }
+	];
+}
+
+export function toneDotClass(tone: 'low' | 'medium' | 'high'): string {
+	if (tone === 'high') return 'bg-red-500';
+	if (tone === 'medium') return 'bg-amber-500';
+	return 'bg-emerald-500';
 }
 
 export function sortNewResources(items: NewResource[], sort: ListSortMode): NewResource[] {

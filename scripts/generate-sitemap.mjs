@@ -13,7 +13,7 @@ const staticRoutes = [
 	{ loc: '/comparison', priority: '0.7' },
 	{ loc: '/validate-yaml', priority: '0.7' },
 	{ loc: '/dependency-map', priority: '0.7' },
-	{ loc: '/release-notes', priority: '0.7' }
+	{ loc: '/release-changes', priority: '0.7' }
 ];
 
 const escapeXml = (value) =>

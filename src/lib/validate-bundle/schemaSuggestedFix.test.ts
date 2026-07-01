@@ -5,6 +5,7 @@ import {
 	deriveRelocateFixFromSchema,
 	deriveRequiredFieldFix,
 	deriveSuggestedFixForIssue,
+	deriveTypeFixFromSchema,
 	findSiblingRenameForRequiredField,
 	findUniqueFuzzyEnumMatch,
 	isEnumConstraintIssue,
@@ -94,6 +95,47 @@ describe('deriveRelocateFixFromSchema', () => {
 		};
 
 		expect(deriveRelocateFixFromSchema(issue, specSchema, specData)).toBeUndefined();
+	});
+
+	it('uses explicit relocate target from issue message', () => {
+		const issue: BundleIssue = {
+			id: '3',
+			severity: 'error',
+			category: 'schema',
+			message: 'Unknown field — relocate to "spec.encapOptions.vxlan.tunnelIndexPool"',
+			docIndex: 1,
+			fieldPath: 'spec.tunnelIndexPool'
+		};
+		const specData = { tunnelIndexPool: 'pool-a' };
+
+		expect(deriveRelocateFixFromSchema(issue, specSchema, specData)).toEqual({
+			action: 'relocateField',
+			field: 'spec.tunnelIndexPool',
+			value: 'spec.encapOptions.vxlan.tunnelIndexPool',
+			line: undefined
+		});
+	});
+});
+
+describe('deriveTypeFixFromSchema', () => {
+	it('coerces numeric value to string when schema expects string', () => {
+		const issue: BundleIssue = {
+			id: '1',
+			severity: 'error',
+			category: 'schema',
+			message: 'spec.port must be string',
+			fieldPath: 'spec.port',
+			docIndex: 1
+		};
+		const leafSchema = { type: 'string' };
+		const specData = { port: 8080 };
+
+		expect(deriveTypeFixFromSchema(issue, leafSchema, specData)).toEqual({
+			action: 'setValue',
+			field: 'port',
+			value: '8080',
+			line: undefined
+		});
 	});
 });
 

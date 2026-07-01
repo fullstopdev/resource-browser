@@ -76,8 +76,27 @@ export function buildFixScopedSchemaPrompt(
 		specRequired: schema.specRequired
 	};
 	if (issue.fieldPath) scoped.fieldPath = issue.fieldPath;
-	if (parentSchema) scoped.parentObjectSchema = parentSchema;
-	if (leafSchema) scoped.fieldSchema = leafSchema;
+
+	// Slice schema by issue kind to keep prompts small.
+	switch (issue.issueKind) {
+		case 'syntax':
+			break;
+		case 'enum':
+			if (leafSchema) scoped.fieldSchema = leafSchema;
+			break;
+		case 'required':
+			if (parentSchema) scoped.parentObjectSchema = parentSchema;
+			break;
+		case 'misspelledField':
+			if (parentSchema) scoped.parentObjectSchema = parentSchema;
+			if (issue.allowedSiblingKeys?.length) {
+				scoped.allowedSiblingKeys = issue.allowedSiblingKeys;
+			}
+			break;
+		default:
+			if (parentSchema) scoped.parentObjectSchema = parentSchema;
+			if (leafSchema) scoped.fieldSchema = leafSchema;
+	}
 
 	const scopedJson = truncateJson(scoped, FIX_SCOPED_SCHEMA_LIMIT);
 
@@ -232,6 +251,9 @@ export type FixIssueContext = {
 	relocationHint?: { from: string; to: string };
 	migrationContext?: string;
 	relatedIssues?: string[];
+	/** Client-provided YAML excerpt; server prefers over server-side extraction. */
+	excerptYaml?: string;
+	excerptIsFullDocument?: boolean;
 };
 
 function issueKindRules(issue: FixIssueContext): string[] {

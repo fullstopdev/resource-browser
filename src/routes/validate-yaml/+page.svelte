@@ -25,6 +25,8 @@
 		buildFixIssueContext,
 		inferIssueKind,
 		enrichIssuesWithSuggestedFix,
+		isDeterministicFixContext,
+		suggestedFixFromFixContext,
 		parseBundleResources,
 		buildYamlCompletionContext,
 		schemaKeysForResources,
@@ -40,6 +42,7 @@
 	import AiFixPreviewPanel from '$lib/validate-bundle/AiFixPreviewPanel.svelte';
 	import FixAllReviewPanel from '$lib/validate-bundle/FixAllReviewPanel.svelte';
 	import { fixYAML } from '$lib/ai/aiClient';
+	import { extractYamlIssueExcerpt } from '$lib/validate-bundle/yamlIssueExcerpt';
 	import { fixAiEnabled } from '$lib/featureFlags';
 	import { clampYamlInput } from '$lib/yaml/inputLimits';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
@@ -314,10 +317,25 @@
 			}
 
 			const payload = await buildFixIssueContext(issue, contextOptions);
+			if (isDeterministicFixContext(payload)) {
+				const fix = suggestedFixFromFixContext(payload, issue);
+				if (fix) {
+					const fixedYaml = applySuggestedFix(docYaml, { ...issue, suggestedFix: fix });
+					if (fixedYaml) {
+						return { fixedYaml, fixable: true };
+					}
+				}
+			}
+
+			const excerpt = extractYamlIssueExcerpt(docYaml, payload.fieldPath);
 			const result = await fixYAML(
 				release.name,
 				docYaml,
-				payload,
+				{
+					...payload,
+					excerptYaml: excerpt.isFullDocument ? undefined : excerpt.excerpt,
+					excerptIsFullDocument: excerpt.isFullDocument
+				},
 				kind ? { kind, group } : undefined
 			);
 			return {
@@ -840,10 +858,25 @@
 			docYaml
 		});
 
+		if (isDeterministicFixContext(payload)) {
+			const fix = suggestedFixFromFixContext(payload, issueForAi);
+			if (fix) {
+				aiFixLoading = false;
+				aiFixPanelOpen = false;
+				void handleApplyFix({ ...issueForAi, suggestedFix: fix }, new MouseEvent('click'));
+				return;
+			}
+		}
+
+		const excerpt = extractYamlIssueExcerpt(docYaml, payload.fieldPath);
 		const result = await fixYAML(
 			release.name,
 			docYaml,
-			payload,
+			{
+				...payload,
+				excerptYaml: excerpt.isFullDocument ? undefined : excerpt.excerpt,
+				excerptIsFullDocument: excerpt.isFullDocument
+			},
 			kind ? { kind, group } : undefined
 		);
 

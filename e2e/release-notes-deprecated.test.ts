@@ -1,16 +1,17 @@
 import { expect, test } from '@playwright/test';
 
-async function openDeprecatedTab(page: import('@playwright/test').Page) {
-	await page.goto('/release-notes');
-	await page.locator('.rn-timeline-item').filter({ hasText: '26.4.2' }).first().click();
-	await page.locator('.rn-tab').nth(1).click();
-	await expect(page.locator('.rn-deprec-card').first()).toBeVisible();
+async function openDeprecatedSection(page: import('@playwright/test').Page) {
+	await page.goto('/release-changes?v=26.4.1');
+	await expect(page.locator('.comparison-release-pill--target')).toContainText('26.4.1');
+	const deprecated = page.locator('#section-deprecated');
+	await deprecated.locator('summary').click();
+	await expect(deprecated.locator('tbody tr').first()).toBeVisible();
 }
 
-test('deprecated tab lists 18 kinds with readable contrast in light and dark', async ({ page }) => {
-	await openDeprecatedTab(page);
-	const cards = page.locator('.rn-deprec-card');
-	await expect(cards).toHaveCount(18);
+test('deprecated section lists kinds with readable contrast in light and dark', async ({ page }) => {
+	await openDeprecatedSection(page);
+	const rows = page.locator('#section-deprecated tbody tr');
+	await expect(rows.first()).toBeVisible();
 
 	for (const mode of ['light', 'dark'] as const) {
 		if (mode === 'dark') {
@@ -19,7 +20,7 @@ test('deprecated tab lists 18 kinds with readable contrast in light and dark', a
 			await page.evaluate(() => document.documentElement.classList.remove('dark'));
 		}
 
-		const failures = await cards.evaluateAll((elements, modeLabel) => {
+		const failures = await rows.evaluateAll((elements, modeLabel) => {
 			const toRgb = (color: string): [number, number, number] | null => {
 				const canvas = document.createElement('canvas');
 				canvas.width = canvas.height = 1;
@@ -66,10 +67,10 @@ test('deprecated tab lists 18 kinds with readable contrast in light and dark', a
 			for (const el of elements) {
 				const bg = opaqueBg(el);
 				const nodes = [
-					el.querySelector('.rn-deprec-kind-btn span'),
-					el.querySelector('.font-mono'),
-					el.querySelector('.rn-deprec-migration-oneline'),
-					el.querySelector('.rn-deprec-version-pill span.font-mono')
+					el.querySelector('button'),
+					el.querySelector('td:nth-child(2)'),
+					el.querySelector('td:nth-child(3)'),
+					el.querySelector('.release-notes-version-badge')
 				];
 
 				for (const node of nodes) {
@@ -95,4 +96,17 @@ test('deprecated tab lists 18 kinds with readable contrast in light and dark', a
 
 		expect(failures, failures.join('\n')).toEqual([]);
 	}
+});
+
+test('redirects legacy /release-notes to /release-changes', async ({ page }) => {
+	const response = await page.goto('/release-notes?v=26.4.3');
+	expect(response?.status()).toBeLessThan(400);
+	await expect(page).toHaveURL(/\/release-changes\?v=26\.4\.3/);
+});
+
+test('release changes page loads timeline and summary', async ({ page }) => {
+	await page.goto('/release-changes');
+	await expect(page.locator('.release-notes-timeline-btn').first()).toBeVisible();
+	await expect(page.locator('.comparison-summary-card').first()).toBeVisible();
+	await expect(page.locator('.comparison-release-pill--target')).toContainText('26.4.3');
 });

@@ -1259,6 +1259,16 @@
     ]
   },
   {
+    "name": "newpings.oam.eda.nokia.com",
+    "group": "oam.eda.nokia.com",
+    "kind": "Newping",
+    "versions": [
+      {
+        "name": "resource"
+      }
+    ]
+  },
+  {
     "name": "nodeconfigs.core.eda.nokia.com",
     "group": "core.eda.nokia.com",
     "kind": "NodeConfig",

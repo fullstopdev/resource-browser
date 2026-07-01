@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { buildCatalogPath } from '$lib/urlState';
 	import Theme from '$lib/components/Theme.svelte';
@@ -14,6 +15,11 @@
 
 	const toolsNav = [
 		{ href: '/', label: 'Catalog', match: (path: string) => path === '/' },
+		{
+			href: '/release-changes',
+			label: 'Release Changes',
+			match: (path: string) => path.startsWith('/release-changes')
+		},
 		{ href: '/spec-search', label: 'Spec Search', match: (path: string) => path.startsWith('/spec-search') },
 		{ href: '/validate-yaml', label: 'Validate YAML', match: (path: string) => path.startsWith('/validate-yaml') },
 		{ href: '/comparison', label: 'Comparison', match: (path: string) => path.startsWith('/comparison') },
@@ -29,7 +35,8 @@
 	}
 
 	function catalogHref(): string {
-		const release = $page.url.searchParams.get('release');
+		if (!browser) return '/';
+		const release = new URLSearchParams(window.location.search).get('release');
 		return release ? buildCatalogPath({ release }) : '/';
 	}
 

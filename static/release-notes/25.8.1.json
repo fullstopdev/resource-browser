@@ -4,223 +4,6 @@
   "notes": {
     "newResources": [
       {
-        "kind": "AggregateRoute",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "aggregateroutes.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for AggregateRoute in EDA 25.8.1."
-      },
-      {
-        "kind": "BGPGroupDeployment",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "bgpgroupdeployments.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for BGPGroupDeployment in EDA 25.8.1."
-      },
-      {
-        "kind": "BGPGroup",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "bgpgroups.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for BGPGroup in EDA 25.8.1."
-      },
-      {
-        "kind": "BGPPeer",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "bgppeers.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for BGPPeer in EDA 25.8.1."
-      },
-      {
-        "kind": "BridgeDomainDeployment",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "bridgedomaindeployments.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for BridgeDomainDeployment in EDA 25.8.1."
-      },
-      {
-        "kind": "BridgeDomain",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "bridgedomains.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for BridgeDomain in EDA 25.8.1."
-      },
-      {
-        "kind": "BridgeInterface",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "bridgeinterfaces.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for BridgeInterface in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultAggregateRoute",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultaggregateroutes.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultAggregateRoute in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultBGPGroupDeployment",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultbgpgroupdeployments.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultBGPGroupDeployment in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultBGPGroup",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultbgpgroups.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultBGPGroup in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultBGPPeer",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultbgppeers.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultBGPPeer in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultRouteReflectorClient",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultroutereflectorclients.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultRouteReflectorClient in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultRouteReflector",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultroutereflectors.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultRouteReflector in EDA 25.8.1."
-      },
-      {
-        "kind": "DefaultStaticRoute",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "defaultstaticroutes.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for DefaultStaticRoute in EDA 25.8.1."
-      },
-      {
-        "kind": "DHCPRelay",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "dhcprelays.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for DHCPRelay in EDA 25.8.1."
-      },
-      {
-        "kind": "EgressPolicy",
-        "apiVersion": "qos.eda.nokia.com/v1",
-        "group": "qos.eda.nokia.com",
-        "crdName": "egresspolicys.qos.eda.nokia.com",
-        "description": "New qos.eda.nokia.com/v1 apiVersion for EgressPolicy in EDA 25.8.1."
-      },
-      {
-        "kind": "ForwardingClass",
-        "apiVersion": "qos.eda.nokia.com/v1",
-        "group": "qos.eda.nokia.com",
-        "crdName": "forwardingclasss.qos.eda.nokia.com",
-        "description": "New qos.eda.nokia.com/v1 apiVersion for ForwardingClass in EDA 25.8.1."
-      },
-      {
-        "kind": "IngressPolicy",
-        "apiVersion": "qos.eda.nokia.com/v1",
-        "group": "qos.eda.nokia.com",
-        "crdName": "ingresspolicys.qos.eda.nokia.com",
-        "description": "New qos.eda.nokia.com/v1 apiVersion for IngressPolicy in EDA 25.8.1."
-      },
-      {
-        "kind": "IRBInterface",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "irbinterfaces.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for IRBInterface in EDA 25.8.1."
-      },
-      {
-        "kind": "PolicyAttachment",
-        "apiVersion": "qos.eda.nokia.com/v1",
-        "group": "qos.eda.nokia.com",
-        "crdName": "policyattachments.qos.eda.nokia.com",
-        "description": "New qos.eda.nokia.com/v1 apiVersion for PolicyAttachment in EDA 25.8.1."
-      },
-      {
-        "kind": "PolicyDeployment",
-        "apiVersion": "qos.eda.nokia.com/v1",
-        "group": "qos.eda.nokia.com",
-        "crdName": "policydeployments.qos.eda.nokia.com",
-        "description": "New qos.eda.nokia.com/v1 apiVersion for PolicyDeployment in EDA 25.8.1."
-      },
-      {
-        "kind": "Queue",
-        "apiVersion": "qos.eda.nokia.com/v1",
-        "group": "qos.eda.nokia.com",
-        "crdName": "queues.qos.eda.nokia.com",
-        "description": "New qos.eda.nokia.com/v1 apiVersion for Queue in EDA 25.8.1."
-      },
-      {
-        "kind": "RoutedInterface",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "routedinterfaces.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for RoutedInterface in EDA 25.8.1."
-      },
-      {
-        "kind": "RouterDeployment",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "routerdeployments.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for RouterDeployment in EDA 25.8.1."
-      },
-      {
-        "kind": "RouteReflectorClient",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "routereflectorclients.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for RouteReflectorClient in EDA 25.8.1."
-      },
-      {
-        "kind": "RouteReflector",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "routereflectors.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for RouteReflector in EDA 25.8.1."
-      },
-      {
-        "kind": "Router",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "routers.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for Router in EDA 25.8.1."
-      },
-      {
-        "kind": "StateConfig",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "stateconfigs.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for StateConfig in EDA 25.8.1."
-      },
-      {
-        "kind": "StaticRoute",
-        "apiVersion": "protocols.eda.nokia.com/v1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "staticroutes.protocols.eda.nokia.com",
-        "description": "New protocols.eda.nokia.com/v1 apiVersion for StaticRoute in EDA 25.8.1."
-      },
-      {
-        "kind": "VirtualNetwork",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "virtualnetworks.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for VirtualNetwork in EDA 25.8.1."
-      },
-      {
-        "kind": "VLAN",
-        "apiVersion": "services.eda.nokia.com/v1",
-        "group": "services.eda.nokia.com",
-        "crdName": "vlans.services.eda.nokia.com",
-        "description": "New services.eda.nokia.com/v1 apiVersion for VLAN in EDA 25.8.1."
-      },
-      {
         "kind": "AppInstaller",
         "apiVersion": "appstore.eda.nokia.com/v1",
         "group": "appstore.eda.nokia.com",
@@ -256,13 +39,6 @@
         "description": "New CheckDefaultBgpPeers CRD introduced in EDA 25.8.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "CheckDefaultBgpPeers",
-        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
-        "group": "protocols.eda.nokia.com",
-        "crdName": "checkdefaultbgppeerss.protocols.eda.nokia.com",
-        "description": "New CheckDefaultBgpPeers CRD introduced in EDA 25.8.1 (protocols.eda.nokia.com/v1alpha1)."
-      },
-      {
         "kind": "CheckInterfaces",
         "apiVersion": "interfaces.eda.nokia.com/v1alpha1",
         "group": "interfaces.eda.nokia.com",
@@ -284,18 +60,18 @@
         "description": "New EdgePing CRD introduced in EDA 25.8.1 (services.eda.nokia.com/v1)."
       },
       {
-        "kind": "EdgePing",
-        "apiVersion": "services.eda.nokia.com/v1alpha1",
-        "group": "services.eda.nokia.com",
-        "crdName": "edgepings.services.eda.nokia.com",
-        "description": "New EdgePing CRD introduced in EDA 25.8.1 (services.eda.nokia.com/v1alpha1)."
-      },
-      {
         "kind": "IslPing",
         "apiVersion": "fabrics.eda.nokia.com/v1alpha1",
         "group": "fabrics.eda.nokia.com",
         "crdName": "islpings.fabrics.eda.nokia.com",
         "description": "New IslPing CRD introduced in EDA 25.8.1 (fabrics.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "Newping",
+        "apiVersion": "oam.eda.nokia.com/resource",
+        "group": "oam.eda.nokia.com",
+        "crdName": "newpings.oam.eda.nokia.com",
+        "description": "New Newping CRD introduced in EDA 25.8.1 (oam.eda.nokia.com/resource)."
       },
       {
         "kind": "RouteLookup",
@@ -360,22 +136,110 @@
         "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing SimNode resources using test.eda.nokia.com/v1."
       },
       {
-        "kind": "simtopologies.core.eda.nokia.com",
+        "kind": "SimTopology",
         "apiVersion": "core.eda.nokia.com/v1",
-        "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing simtopologies.core.eda.nokia.com resources using core.eda.nokia.com/v1."
+        "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing SimTopology resources using core.eda.nokia.com/v1."
       },
       {
-        "kind": "simtoponodes.core.eda.nokia.com",
+        "kind": "SimTopoNode",
         "apiVersion": "core.eda.nokia.com/v1",
-        "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing simtoponodes.core.eda.nokia.com resources using core.eda.nokia.com/v1."
+        "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing SimTopoNode resources using core.eda.nokia.com/v1."
       },
       {
-        "kind": "topologies.core.eda.nokia.com",
+        "kind": "Topology",
         "apiVersion": "core.eda.nokia.com/v1",
-        "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing topologies.core.eda.nokia.com resources using core.eda.nokia.com/v1."
+        "reason": "API version v1 removed from the EDA 25.8.1 catalog — migrate or decommission existing Topology resources using core.eda.nokia.com/v1."
       }
     ],
     "modifiedResources": [
+      {
+        "kind": "BGPGroup",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on BGPGroup; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "BGPGroup manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on BGPGroup; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "BGPGroup manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
+        "kind": "BGPPeer",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on BGPPeer; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "BGPPeer manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on BGPPeer; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "BGPPeer manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
+        "kind": "BridgeDomain",
+        "apiVersion": "services.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.macLearning",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.macLearning available on BridgeDomain; existing manifests remain valid."
+          },
+          {
+            "field": "spec.macLimit.minimum",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.macLimit.minimum available on BridgeDomain; existing manifests remain valid."
+          }
+        ]
+      },
       {
         "kind": "CertificateCheck",
         "apiVersion": "certcheck.eda.nokia.com/v1alpha1",
@@ -492,6 +356,102 @@
         ]
       },
       {
+        "kind": "DefaultBGPGroup",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on DefaultBGPGroup; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultBGPGroup manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on DefaultBGPGroup; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultBGPGroup manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.l2VPNEVPN.properties.prefixLimit available on DefaultBGPGroup; existing manifests remain valid."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultBGPGroup manifests referencing spec.l2VPNEVPN.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
+        "kind": "DefaultBGPPeer",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on DefaultBGPPeer; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultBGPPeer manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on DefaultBGPPeer; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultBGPPeer manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.l2VPNEVPN.properties.prefixLimit available on DefaultBGPPeer; existing manifests remain valid."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultBGPPeer manifests referencing spec.l2VPNEVPN.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
         "kind": "DefaultInterface",
         "apiVersion": "routing.eda.nokia.com/v1alpha1",
         "changes": [
@@ -512,6 +472,102 @@
         ]
       },
       {
+        "kind": "DefaultRouteReflectorClient",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on DefaultRouteReflectorClient; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultRouteReflectorClient manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on DefaultRouteReflectorClient; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultRouteReflectorClient manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.l2VPNEVPN.properties.prefixLimit available on DefaultRouteReflectorClient; existing manifests remain valid."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultRouteReflectorClient manifests referencing spec.l2VPNEVPN.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
+        "kind": "DefaultRouteReflector",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on DefaultRouteReflector; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultRouteReflector manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on DefaultRouteReflector; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultRouteReflector manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.l2VPNEVPN.properties.prefixLimit available on DefaultRouteReflector; existing manifests remain valid."
+          },
+          {
+            "field": "spec.l2VPNEVPN.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultRouteReflector manifests referencing spec.l2VPNEVPN.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
         "kind": "DefaultStaticRoute",
         "apiVersion": "protocols.eda.nokia.com/v1alpha1",
         "changes": [
@@ -521,6 +577,20 @@
             "before": "",
             "after": "",
             "networkBehavior": "New optional field spec.nexthopGroup.properties.blackholeSendICMP available on DefaultStaticRoute; existing manifests remain valid."
+          },
+          {
+            "field": "spec.nexthopGroup.properties.bfd.properties.localDiscriminator",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultStaticRoute manifests referencing spec.nexthopGroup.properties.bfd.properties.localDiscriminator must remove this field before apply."
+          },
+          {
+            "field": "spec.nexthopGroup.properties.bfd.properties.remoteDiscriminator",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "DefaultStaticRoute manifests referencing spec.nexthopGroup.properties.bfd.properties.remoteDiscriminator must remove this field before apply."
           }
         ]
       },
@@ -726,10 +796,10 @@
           },
           {
             "field": "status.result.enum",
-            "changeType": "optional_added",
+            "changeType": "enum_added",
             "before": "",
             "after": "",
-            "networkBehavior": "New optional field status.result.enum available on DeployImage; existing manifests remain valid."
+            "networkBehavior": "Enum on DeployImage gained allowed value(s): value(s); existing manifests remain valid."
           },
           {
             "field": "status.result.description",
@@ -1064,10 +1134,10 @@
           },
           {
             "field": "spec.operatingSystem.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[\"srl\",\"sros\",\"nxos\"]",
             "after": "[7 items]",
-            "networkBehavior": "Enum on NodeProfile removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on NodeProfile allowed values changed — added: value(s); removed: value(s)."
           }
         ]
       },
@@ -1175,10 +1245,44 @@
           },
           {
             "field": "status.result.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[7 items]",
             "after": "[\"Success\",\"Failed\",\"PartialSuccess\"]",
-            "networkBehavior": "Enum on Ping removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on Ping allowed values changed — added: value(s); removed: value(s)."
+          }
+        ]
+      },
+      {
+        "kind": "PolicyDeployment",
+        "apiVersion": "qos.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.interfaceSelector.items",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.interfaceSelector.items available on PolicyDeployment; existing manifests remain valid."
+          },
+          {
+            "field": "spec.interfaceSelector.type",
+            "changeType": "type_change",
+            "before": "\"string\"",
+            "after": "\"array\"",
+            "networkBehavior": "Type on PolicyDeployment changed type or structure; validate existing values against the new schema."
+          },
+          {
+            "field": "spec.nodeSelector.items",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.nodeSelector.items available on PolicyDeployment; existing manifests remain valid."
+          },
+          {
+            "field": "spec.nodeSelector.type",
+            "changeType": "type_change",
+            "before": "\"string\"",
+            "after": "\"array\"",
+            "networkBehavior": "Type on PolicyDeployment changed type or structure; validate existing values against the new schema."
           }
         ]
       },
@@ -1202,10 +1306,10 @@
           },
           {
             "field": "spec.defaultAction.properties.policyResult.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_added",
             "before": "[\"accept\",\"reject\"]",
             "after": "[\"accept\",\"reject\",\"NextPolicy\",\"NextStatement\"]",
-            "networkBehavior": "Enum on Policy removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on Policy gained allowed value(s): NextPolicy, NextStatement; existing manifests remain valid."
           },
           {
             "field": "spec.statement.items.properties.action.properties.bgp.properties.communitySet",
@@ -1223,10 +1327,10 @@
           },
           {
             "field": "spec.statement.items.properties.action.properties.policyResult.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_added",
             "before": "[\"accept\",\"reject\"]",
             "after": "[\"accept\",\"reject\",\"NextPolicy\",\"NextStatement\"]",
-            "networkBehavior": "Enum on Policy removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on Policy gained allowed value(s): NextPolicy, NextStatement; existing manifests remain valid."
           },
           {
             "field": "spec.statement.items.properties.match.properties.bgp.properties.asPathMatch",
@@ -1272,6 +1376,74 @@
         ]
       },
       {
+        "kind": "RouteReflectorClient",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on RouteReflectorClient; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "RouteReflectorClient manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on RouteReflectorClient; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "RouteReflectorClient manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
+        "kind": "RouteReflector",
+        "apiVersion": "protocols.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv4Unicast.properties.prefixLimit available on RouteReflector; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "RouteReflector manifests referencing spec.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.ipv6Unicast.properties.prefixLimit available on RouteReflector; existing manifests remain valid."
+          },
+          {
+            "field": "spec.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "RouteReflector manifests referencing spec.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          }
+        ]
+      },
+      {
         "kind": "StaticRoute",
         "apiVersion": "protocols.eda.nokia.com/v1alpha1",
         "changes": [
@@ -1281,6 +1453,20 @@
             "before": "",
             "after": "",
             "networkBehavior": "New optional field spec.nexthopGroup.properties.blackholeSendICMP available on StaticRoute; existing manifests remain valid."
+          },
+          {
+            "field": "spec.nexthopGroup.properties.bfd.properties.localDiscriminator",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "StaticRoute manifests referencing spec.nexthopGroup.properties.bfd.properties.localDiscriminator must remove this field before apply."
+          },
+          {
+            "field": "spec.nexthopGroup.properties.bfd.properties.remoteDiscriminator",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "StaticRoute manifests referencing spec.nexthopGroup.properties.bfd.properties.remoteDiscriminator must remove this field before apply."
           }
         ]
       },
@@ -1310,17 +1496,17 @@
         "changes": [
           {
             "field": "spec.component.items.properties.kind.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[7 items]",
             "after": "[8 items]",
-            "networkBehavior": "Enum on TopoNode removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on TopoNode allowed values changed — added: value(s); removed: value(s)."
           },
           {
             "field": "spec.operatingSystem.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[\"srl\",\"sros\",\"nxos\"]",
             "after": "[7 items]",
-            "networkBehavior": "Enum on TopoNode removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on TopoNode allowed values changed — added: value(s); removed: value(s)."
           },
           {
             "field": "spec.systemInterface.description",
@@ -1335,6 +1521,20 @@
         "kind": "VirtualNetwork",
         "apiVersion": "services.eda.nokia.com/v1alpha1",
         "changes": [
+          {
+            "field": "spec.bridgeDomains.items.properties.spec.properties.macLearning",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.bridgeDomains.items.properties.spec.properties.macLearning available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.bridgeDomains.items.properties.spec.properties.macLimit.minimum",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.bridgeDomains.items.properties.spec.properties.macLimit.minimum available on VirtualNetwork; existing manifests remain valid."
+          },
           {
             "field": "spec.irbInterfaces.items.properties.spec.properties.ipv4Parameters",
             "changeType": "optional_added",
@@ -1364,6 +1564,62 @@
             "networkBehavior": "Minimum on VirtualNetwork changed type or structure; validate existing values against the new schema."
           },
           {
+            "field": "spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv4Unicast.properties.prefixLimit available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv6Unicast.properties.prefixLimit available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.bgp.properties.bgpGroups.items.properties.spec.properties.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv4Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv4Unicast.properties.prefixLimit available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv4Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv4Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv6Unicast.properties.prefixLimit",
+            "changeType": "optional_added",
+            "before": "",
+            "after": "",
+            "networkBehavior": "New optional field spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv6Unicast.properties.prefixLimit available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv6Unicast.properties.maxReceivedRoutes",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.bgp.properties.bgpPeers.items.properties.spec.properties.ipv6Unicast.properties.maxReceivedRoutes must remove this field before apply."
+          },
+          {
             "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.bgp.properties.communitySet",
             "changeType": "optional_added",
             "before": "",
@@ -1379,10 +1635,10 @@
           },
           {
             "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.policyResult.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_added",
             "before": "[\"accept\",\"reject\"]",
             "after": "[\"accept\",\"reject\",\"NextPolicy\",\"NextStatement\"]",
-            "networkBehavior": "Enum on VirtualNetwork removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on VirtualNetwork gained allowed value(s): NextPolicy, NextStatement; existing manifests remain valid."
           },
           {
             "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.action.properties.bgp.properties.communitySet",
@@ -1400,10 +1656,10 @@
           },
           {
             "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.action.properties.policyResult.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_added",
             "before": "[\"accept\",\"reject\"]",
             "after": "[\"accept\",\"reject\",\"NextPolicy\",\"NextStatement\"]",
-            "networkBehavior": "Enum on VirtualNetwork removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on VirtualNetwork gained allowed value(s): NextPolicy, NextStatement; existing manifests remain valid."
           },
           {
             "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.match.properties.bgp.properties.asPathMatch",
@@ -1418,6 +1674,20 @@
             "before": "",
             "after": "",
             "networkBehavior": "New optional field spec.protocols.properties.staticRoutes.items.properties.spec.properties.nexthopGroup.properties.blackholeSendICMP available on VirtualNetwork; existing manifests remain valid."
+          },
+          {
+            "field": "spec.protocols.properties.staticRoutes.items.properties.spec.properties.nexthopGroup.properties.bfd.properties.localDiscriminator",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.staticRoutes.items.properties.spec.properties.nexthopGroup.properties.bfd.properties.localDiscriminator must remove this field before apply."
+          },
+          {
+            "field": "spec.protocols.properties.staticRoutes.items.properties.spec.properties.nexthopGroup.properties.bfd.properties.remoteDiscriminator",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "VirtualNetwork manifests referencing spec.protocols.properties.staticRoutes.items.properties.spec.properties.nexthopGroup.properties.bfd.properties.remoteDiscriminator must remove this field before apply."
           },
           {
             "field": "spec.routedInterfaces.items.properties.spec.properties.ipv4Parameters",
@@ -1469,7 +1739,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "aggregateroutes.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate AggregateRoute manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1484,7 +1755,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "bgpgroups.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate BGPGroup manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1499,7 +1771,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "bgpgroupdeployments.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate BGPGroupDeployment manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1510,11 +1783,12 @@
         ]
       },
       {
-        "kind": "bgpgroupstates",
+        "kind": "BGPGroupState",
         "group": "protocols.eda.nokia.com",
         "crdName": "bgpgroupstates.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate BGPGroupState manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1529,7 +1803,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "bgppeers.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate BGPPeer manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1540,11 +1815,12 @@
         ]
       },
       {
-        "kind": "bgppeerstates",
+        "kind": "BGPPeerState",
         "group": "protocols.eda.nokia.com",
         "crdName": "bgppeerstates.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate BGPPeerState manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1559,7 +1835,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "bridgedomains.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate BridgeDomain manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1574,7 +1851,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "bridgedomaindeployments.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate BridgeDomainDeployment manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1585,11 +1863,12 @@
         ]
       },
       {
-        "kind": "bridgedomainstates",
+        "kind": "BridgeDomainState",
         "group": "services.eda.nokia.com",
         "crdName": "bridgedomainstates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate BridgeDomainState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1604,7 +1883,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "bridgeinterfaces.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate BridgeInterface manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1615,11 +1895,12 @@
         ]
       },
       {
-        "kind": "bridgeinterfacestates",
+        "kind": "BridgeInterfaceState",
         "group": "services.eda.nokia.com",
         "crdName": "bridgeinterfacestates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate BridgeInterfaceState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1634,7 +1915,7 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "checkdefaultbgppeerss.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "migrationPath": "Migrate CheckDefaultBgpPeers manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1649,7 +1930,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultaggregateroutes.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultAggregateRoute manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1664,7 +1946,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultbgpgroups.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultBGPGroup manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1679,7 +1962,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultbgpgroupdeployments.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultBGPGroupDeployment manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1694,7 +1978,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultbgppeers.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultBGPPeer manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1709,7 +1994,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultroutereflectors.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultRouteReflector manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1724,7 +2010,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultroutereflectorclients.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultRouteReflectorClient manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1739,7 +2026,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultstaticroutes.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate DefaultStaticRoute manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1754,7 +2042,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "dhcprelays.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate DHCPRelay manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1769,7 +2058,7 @@
         "group": "services.eda.nokia.com",
         "crdName": "edgepings.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "migrationPath": "Migrate EdgePing manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1784,7 +2073,8 @@
         "group": "qos.eda.nokia.com",
         "crdName": "egresspolicys.qos.eda.nokia.com",
         "recommendedApiVersion": "qos.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "qos.eda.nokia.com/v1",
+        "migrationPath": "Migrate EgressPolicy manifests from qos.eda.nokia.com/v1alpha1 → qos.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1799,7 +2089,8 @@
         "group": "qos.eda.nokia.com",
         "crdName": "forwardingclasss.qos.eda.nokia.com",
         "recommendedApiVersion": "qos.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "qos.eda.nokia.com/v1",
+        "migrationPath": "Migrate ForwardingClass manifests from qos.eda.nokia.com/v1alpha1 → qos.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1814,7 +2105,8 @@
         "group": "qos.eda.nokia.com",
         "crdName": "ingresspolicys.qos.eda.nokia.com",
         "recommendedApiVersion": "qos.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "qos.eda.nokia.com/v1",
+        "migrationPath": "Migrate IngressPolicy manifests from qos.eda.nokia.com/v1alpha1 → qos.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1829,7 +2121,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "irbinterfaces.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate IRBInterface manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1840,11 +2133,12 @@
         ]
       },
       {
-        "kind": "irbinterfacestates",
+        "kind": "IRBInterfaceState",
         "group": "services.eda.nokia.com",
         "crdName": "irbinterfacestates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate IRBInterfaceState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1859,7 +2153,8 @@
         "group": "qos.eda.nokia.com",
         "crdName": "policyattachments.qos.eda.nokia.com",
         "recommendedApiVersion": "qos.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "qos.eda.nokia.com/v1",
+        "migrationPath": "Migrate PolicyAttachment manifests from qos.eda.nokia.com/v1alpha1 → qos.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1874,7 +2169,8 @@
         "group": "qos.eda.nokia.com",
         "crdName": "policydeployments.qos.eda.nokia.com",
         "recommendedApiVersion": "qos.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "qos.eda.nokia.com/v1",
+        "migrationPath": "Migrate PolicyDeployment manifests from qos.eda.nokia.com/v1alpha1 → qos.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1889,7 +2185,8 @@
         "group": "qos.eda.nokia.com",
         "crdName": "queues.qos.eda.nokia.com",
         "recommendedApiVersion": "qos.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion qos.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "qos.eda.nokia.com/v1",
+        "migrationPath": "Migrate Queue manifests from qos.eda.nokia.com/v1alpha1 → qos.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1904,7 +2201,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "routedinterfaces.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate RoutedInterface manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1915,11 +2213,12 @@
         ]
       },
       {
-        "kind": "routedinterfacestates",
+        "kind": "RoutedInterfaceState",
         "group": "services.eda.nokia.com",
         "crdName": "routedinterfacestates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate RoutedInterfaceState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1934,7 +2233,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "routers.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate Router manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1949,7 +2249,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "routerdeployments.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate RouterDeployment manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1964,7 +2265,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "routereflectors.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate RouteReflector manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1979,7 +2281,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "routereflectorclients.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate RouteReflectorClient manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -1990,11 +2293,12 @@
         ]
       },
       {
-        "kind": "routereflectorclientstates",
+        "kind": "RouteReflectorClientState",
         "group": "protocols.eda.nokia.com",
         "crdName": "routereflectorclientstates.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate RouteReflectorClientState manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2005,11 +2309,12 @@
         ]
       },
       {
-        "kind": "routereflectorstates",
+        "kind": "RouteReflectorState",
         "group": "protocols.eda.nokia.com",
         "crdName": "routereflectorstates.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate RouteReflectorState manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2020,11 +2325,12 @@
         ]
       },
       {
-        "kind": "routerstates",
+        "kind": "RouterState",
         "group": "services.eda.nokia.com",
         "crdName": "routerstates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate RouterState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2039,7 +2345,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "stateconfigs.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate StateConfig manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2054,7 +2361,8 @@
         "group": "protocols.eda.nokia.com",
         "crdName": "staticroutes.protocols.eda.nokia.com",
         "recommendedApiVersion": "protocols.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion protocols.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "protocols.eda.nokia.com/v1",
+        "migrationPath": "Migrate StaticRoute manifests from protocols.eda.nokia.com/v1alpha1 → protocols.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2069,7 +2377,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "virtualnetworks.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate VirtualNetwork manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2080,11 +2389,12 @@
         ]
       },
       {
-        "kind": "virtualnetworkstates",
+        "kind": "VirtualNetworkState",
         "group": "services.eda.nokia.com",
         "crdName": "virtualnetworkstates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate VirtualNetworkState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2099,7 +2409,8 @@
         "group": "services.eda.nokia.com",
         "crdName": "vlans.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate VLAN manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2110,11 +2421,12 @@
         ]
       },
       {
-        "kind": "vlanstates",
+        "kind": "VLANState",
         "group": "services.eda.nokia.com",
         "crdName": "vlanstates.services.eda.nokia.com",
         "recommendedApiVersion": "services.eda.nokia.com/v1",
-        "migrationPath": "Update manifests to apiVersion services.eda.nokia.com/v1 (available in the catalog)",
+        "newlyPromotedApiVersion": "services.eda.nokia.com/v1",
+        "migrationPath": "Migrate VLANState manifests from services.eda.nokia.com/v1alpha1 → services.eda.nokia.com/v1",
         "deprecatedVersions": [
           {
             "version": "v1alpha1",
@@ -2126,6 +2438,14 @@
       }
     ]
   },
-  "timestamp": 1780852181963,
+  "summary": {
+    "added": 15,
+    "removed": 8,
+    "modified": 37,
+    "deprecated": 44,
+    "unchanged": 84,
+    "specChanges": 152
+  },
+  "timestamp": 1782910164327,
   "source": "comparison"
 }

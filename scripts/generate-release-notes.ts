@@ -1,10 +1,13 @@
 /**
  * Pre-compute release notes JSON for each consecutive release pair.
  *
- * Re-run when releases.yaml changes or a new release folder is added:
+ * Default (full regenerate):
  *   npm run generate:release-notes
  *
- * Output: static/release-notes/{version}.json + static/release-notes/index.json
+ * Skip pairs that already have matching precomputed output (faster CI/prebuild):
+ *   npm run generate:release-notes -- --skip-unchanged
+ *
+ * Output: static/release-notes/{version}.json, index.json, and bundle.json
  */
 import fs from 'fs/promises';
 import path from 'path';
@@ -15,7 +18,7 @@ import {
 	generateReleaseNotesForPair,
 	sortReleasesByVersion
 } from '../src/lib/release-notes/generateNotes';
-import type { ReleaseNotesEntry } from '../src/lib/release-notes/types';
+import type { ReleaseNotesEntry, ReleaseNotesSummary } from '../src/lib/release-notes/types';
 import type { ReleasesConfig } from '../src/lib/structure';
 
 const ROOT = process.cwd();
@@ -68,6 +71,7 @@ type IndexEntry = {
 	fromVer: string;
 	source: ReleaseNotesEntry['source'];
 	timestamp: number;
+	summary: ReleaseNotesSummary;
 };
 
 async function loadExistingEntry(toVer: string): Promise<ReleaseNotesEntry | null> {
@@ -82,7 +86,8 @@ async function loadExistingEntry(toVer: string): Promise<ReleaseNotesEntry | nul
 async function main(): Promise<void> {
 	setupStaticFetch();
 
-	const force = process.argv.includes('--force');
+	const skipUnchanged =
+		process.argv.includes('--skip-unchanged') || process.argv.includes('--skip');
 
 	const raw = await fs.readFile(RELEASES_PATH, 'utf8');
 	const config = yaml.load(raw, { schema: yaml.CORE_SCHEMA }) as ReleasesConfig;
@@ -98,21 +103,25 @@ async function main(): Promise<void> {
 	const manifestCache = new Map();
 	const yamlCache = new Map<string, string>();
 	const indexEntries: IndexEntry[] = [];
+	const releaseEntries: ReleaseNotesEntry[] = [];
 
 	for (const { from, to } of pairs) {
 		const existing = await loadExistingEntry(to.name);
 		if (
-			!force &&
+			skipUnchanged &&
 			existing &&
 			existing.fromVer === from.name &&
-			existing.toVer === to.name
+			existing.toVer === to.name &&
+			existing.summary
 		) {
 			console.log(`Skipping ${to.name} (precomputed, pair unchanged)`);
+			releaseEntries.push(existing);
 			indexEntries.push({
 				toVer: existing.toVer,
 				fromVer: existing.fromVer,
 				source: existing.source,
-				timestamp: existing.timestamp
+				timestamp: existing.timestamp,
+				summary: existing.summary
 			});
 			continue;
 		}
@@ -129,25 +138,41 @@ async function main(): Promise<void> {
 		await fs.writeFile(outPath, JSON.stringify(entry, null, 2) + '\n', 'utf8');
 		console.log(`  Wrote ${outPath} (source: ${entry.source})`);
 
+		releaseEntries.push(entry);
 		indexEntries.push({
 			toVer: entry.toVer,
 			fromVer: entry.fromVer,
 			source: entry.source,
-			timestamp: entry.timestamp
+			timestamp: entry.timestamp,
+			summary: entry.summary
 		});
 	}
 
 	indexEntries.sort((a, b) => b.toVer.localeCompare(a.toVer, undefined, { numeric: true }));
+	releaseEntries.sort((a, b) => b.toVer.localeCompare(a.toVer, undefined, { numeric: true }));
 
+	const generatedAt = new Date().toISOString();
 	const index = {
-		generatedAt: new Date().toISOString(),
+		generatedAt,
 		latest,
 		entries: indexEntries
+	};
+
+	const bundle = {
+		generatedAt,
+		latest,
+		entries: releaseEntries
 	};
 
 	await fs.writeFile(
 		path.join(OUTPUT_DIR, 'index.json'),
 		JSON.stringify(index, null, 2) + '\n',
+		'utf8'
+	);
+
+	await fs.writeFile(
+		path.join(OUTPUT_DIR, 'bundle.json'),
+		JSON.stringify(bundle, null, 2) + '\n',
 		'utf8'
 	);
 

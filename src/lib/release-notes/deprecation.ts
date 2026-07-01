@@ -1,5 +1,6 @@
 import type { ManifestResource } from '$lib/manifest';
 import { displayKind, displayGroup, type SearchableResource } from '$lib/resourceSearch';
+import { compareVersionDesc } from '$lib/versions';
 import type { DeprecatedApiVersion, DeprecatedItem } from './types';
 
 const REMOVED_IN_UNKNOWN = 'Next major release';
@@ -18,18 +19,44 @@ export function fullApiVersion(resource: ManifestResource, versionName: string):
 }
 
 export function recommendedApiVersion(resource: ManifestResource): string | undefined {
-	const stable = resource.versions?.filter((v) => !v.deprecated) ?? [];
+	const stable = (resource.versions ?? []).filter((v) => v?.name && !v.deprecated);
 	if (stable.length === 0) return undefined;
-	return fullApiVersion(resource, stable[stable.length - 1].name);
+	const latest = [...stable].sort((a, b) => compareVersionDesc(a.name, b.name))[0];
+	return fullApiVersion(resource, latest.name);
+}
+
+export function detectNewlyPromotedApiVersion(
+	sourceResource: ManifestResource | undefined,
+	targetResource: ManifestResource
+): string | undefined {
+	if (!sourceResource) return undefined;
+
+	const sourceNames = new Set((sourceResource.versions ?? []).map((v) => v.name).filter(Boolean));
+	const promoted = (targetResource.versions ?? []).filter(
+		(v) => v?.name && !v.deprecated && !sourceNames.has(v.name)
+	);
+	if (promoted.length === 0) return undefined;
+
+	const latest = [...promoted].sort((a, b) => compareVersionDesc(a.name, b.name))[0];
+	return fullApiVersion(targetResource, latest.name);
 }
 
 export function buildDeprecationMigrationPath(
 	resource: ManifestResource,
-	recommended?: string
+	recommended?: string,
+	deprecatedVersions: DeprecatedApiVersion[] = []
 ): string {
 	const kind = resolveResourceKind(resource);
+	const newlyDeprecated = deprecatedVersions
+		.filter((v) => v.newInRelease)
+		.map((v) => v.apiVersion);
+
+	if (recommended && newlyDeprecated.length > 0) {
+		const from = newlyDeprecated.join(', ');
+		return `Migrate ${kind} manifests from ${from} → ${recommended}`;
+	}
 	if (recommended) {
-		return `Update manifests to apiVersion ${recommended} (available in the catalog)`;
+		return `Adopt apiVersion ${recommended} for ${kind}`;
 	}
 	return `Adopt a non-deprecated apiVersion for ${kind} from the catalog`;
 }
@@ -65,29 +92,32 @@ export function groupDeprecatedByResource(
 	resources: Array<{
 		resource: ManifestResource;
 		versions: RawDeprecatedVersion[];
+		newlyPromotedApiVersion?: string;
 	}>
 ): DeprecatedItem[] {
 	const items: DeprecatedItem[] = [];
 
-	for (const { resource, versions } of resources) {
+	for (const { resource, versions, newlyPromotedApiVersion } of resources) {
 		if (versions.length === 0) continue;
 
 		const kind = resolveResourceKind(resource);
 		const group = resolveResourceGroup(resource);
 		const recommended = recommendedApiVersion(resource);
+		const deprecatedVersions = versions.map(({ versionName, newInRelease }) => ({
+			version: versionName,
+			apiVersion: fullApiVersion(resource, versionName),
+			removedInVersion: REMOVED_IN_UNKNOWN,
+			newInRelease
+		}));
 
 		items.push({
 			kind,
 			group,
 			crdName: resource.name,
 			recommendedApiVersion: recommended,
-			migrationPath: buildDeprecationMigrationPath(resource, recommended),
-			deprecatedVersions: versions.map(({ versionName, newInRelease }) => ({
-				version: versionName,
-				apiVersion: fullApiVersion(resource, versionName),
-				removedInVersion: REMOVED_IN_UNKNOWN,
-				newInRelease
-			}))
+			newlyPromotedApiVersion,
+			migrationPath: buildDeprecationMigrationPath(resource, recommended, deprecatedVersions),
+			deprecatedVersions
 		});
 	}
 

@@ -7,6 +7,14 @@
     "modifiedResources": [],
     "deprecated": []
   },
-  "timestamp": 1780852181638,
+  "summary": {
+    "added": 0,
+    "removed": 0,
+    "modified": 0,
+    "deprecated": 0,
+    "unchanged": 131,
+    "specChanges": 0
+  },
+  "timestamp": 1782910164062,
   "source": "comparison"
 }

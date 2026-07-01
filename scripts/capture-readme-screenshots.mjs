@@ -50,7 +50,7 @@ const CAPTURES = [
 	},
 	{
 		file: 'release-notes.png',
-		url: `${BASE}/release-notes`,
+		url: `${BASE}/release-changes`,
 		waitFor: 'text=Release Intelligence',
 		timeout: 45_000,
 		extraWait: 1500

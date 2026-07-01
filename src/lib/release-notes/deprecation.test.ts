@@ -4,6 +4,7 @@ import {
 	buildDeprecationMigrationPath,
 	countDeprecatedApiVersions,
 	countNewlyDeprecatedApiVersions,
+	detectNewlyPromotedApiVersion,
 	fullApiVersion,
 	groupDeprecatedByResource,
 	recommendedApiVersion,
@@ -38,8 +39,35 @@ describe('deprecation helpers', () => {
 	it('builds full apiVersion and migration path', () => {
 		expect(fullApiVersion(aggregateRoute, 'v1')).toBe('protocols.eda.nokia.com/v1');
 		expect(recommendedApiVersion(aggregateRoute)).toBe('protocols.eda.nokia.com/v2');
-		expect(buildDeprecationMigrationPath(aggregateRoute, 'protocols.eda.nokia.com/v2')).toBe(
-			'Update manifests to apiVersion protocols.eda.nokia.com/v2 (available in the catalog)'
+		expect(
+			buildDeprecationMigrationPath(aggregateRoute, 'protocols.eda.nokia.com/v2', [
+				{
+					version: 'v1',
+					apiVersion: 'protocols.eda.nokia.com/v1',
+					newInRelease: true
+				}
+			])
+		).toBe(
+			'Migrate AggregateRoute manifests from protocols.eda.nokia.com/v1 → protocols.eda.nokia.com/v2'
+		);
+	});
+
+	it('detects newly promoted stable apiVersions', () => {
+		const source: ManifestResource = {
+			name: 'aspathsets.routingpolicies.eda.nokia.com',
+			group: 'routingpolicies.eda.nokia.com',
+			kind: 'ASPathSet',
+			versions: [{ name: 'v1alpha1' }]
+		};
+		const target: ManifestResource = {
+			name: 'aspathsets.routingpolicies.eda.nokia.com',
+			group: 'routingpolicies.eda.nokia.com',
+			kind: 'ASPathSet',
+			versions: [{ name: 'v1' }, { name: 'v1alpha1', deprecated: true }]
+		};
+
+		expect(detectNewlyPromotedApiVersion(source, target)).toBe(
+			'routingpolicies.eda.nokia.com/v1'
 		);
 	});
 
@@ -59,7 +87,8 @@ describe('deprecation helpers', () => {
 		expect(items[0].deprecatedVersions.map((v) => v.version)).toEqual(['v1', 'v1alpha1']);
 		expect(items[0].deprecatedVersions[0].newInRelease).toBe(true);
 		expect(items[0].deprecatedVersions[1].newInRelease).toBe(false);
-		expect(items[0].migrationPath).toContain('apiVersion protocols.eda.nokia.com/v2');
+		expect(items[0].migrationPath).toContain('protocols.eda.nokia.com/v2');
+		expect(items[0].migrationPath).toContain('protocols.eda.nokia.com/v1');
 		expect(items[0].migrationPath).not.toContain('appVersion');
 	});
 

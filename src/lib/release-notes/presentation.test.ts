@@ -107,6 +107,19 @@ describe('presentation', () => {
 		expect(displayNetworkBehavior(change, 'BGPPeer')).toMatch(/fail reconciliation/i);
 	});
 
+	it('describes enum growth with added values', () => {
+		const change: FieldChange = {
+			field: 'spec.dhcp.properties.dhcp6Options.items.properties.option.enum',
+			changeType: 'enum_added',
+			before: '["59-BootfileUrl"]',
+			after: '["59-BootfileUrl","56-NTPServers"]',
+			networkBehavior: ''
+		};
+		const behavior = displayNetworkBehavior(change, 'NodeProfile');
+		expect(behavior).toContain('gained allowed value(s)');
+		expect(behavior).toContain('56-NTPServers');
+	});
+
 	it('highlights search matches', () => {
 		const segments = highlightSegments('BGPPeer session hold', 'hold');
 		expect(segments.some((s) => s.match && s.text === 'hold')).toBe(true);

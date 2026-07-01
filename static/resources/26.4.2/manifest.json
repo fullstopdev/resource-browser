@@ -3926,6 +3926,66 @@
     ]
   },
   {
+    "name": "tpiexports.tpi.eda.nokia.com",
+    "group": "tpi.eda.nokia.com",
+    "kind": "TPIExport",
+    "versions": [
+      {
+        "name": "v1"
+      }
+    ]
+  },
+  {
+    "name": "tpifilters.tpi.eda.nokia.com",
+    "group": "tpi.eda.nokia.com",
+    "kind": "TPIFilter",
+    "versions": [
+      {
+        "name": "v1"
+      }
+    ]
+  },
+  {
+    "name": "tpiimportdryruns.tpi.eda.nokia.com",
+    "group": "tpi.eda.nokia.com",
+    "kind": "TPIImportDryRun",
+    "versions": [
+      {
+        "name": "v1"
+      }
+    ]
+  },
+  {
+    "name": "tpiimports.tpi.eda.nokia.com",
+    "group": "tpi.eda.nokia.com",
+    "kind": "TPIImport",
+    "versions": [
+      {
+        "name": "v1"
+      }
+    ]
+  },
+  {
+    "name": "tpis.tpi.eda.nokia.com",
+    "group": "tpi.eda.nokia.com",
+    "kind": "TPI",
+    "versions": [
+      {
+        "name": "v1"
+      }
+    ]
+  },
+  {
+    "name": "tpistorages.tpi.eda.nokia.com",
+    "group": "tpi.eda.nokia.com",
+    "kind": "TPIStorage",
+    "versions": [
+      {
+        "name": "v1"
+      }
+    ]
+  },
+  {
     "name": "trafficrateoverlays.topologies.eda.nokia.com",
     "group": "topologies.eda.nokia.com",
     "kind": "TrafficRateOverlay",

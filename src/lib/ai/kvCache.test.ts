@@ -61,15 +61,18 @@ describe('kvCache warm actions', () => {
 	it('caches fix action responses', () => {
 		expect(isCacheableAction('fix')).toBe(true);
 		const digest = hashFixCacheDigest('Misspelled field', 'spec.spines.foo', 'misspelledField');
+		const docDigest = 'abc123';
 		const key = buildFixCacheKey({
 			release: '26.4.2',
 			kind: 'Fabric',
 			group: 'fabrics.eda.nokia.com',
 			fieldPath: 'spec.spines.foo',
 			issueKind: 'misspelledField',
-			messageDigest: digest
+			messageDigest: digest,
+			docDigest
 		});
 		expect(key).toContain(':fix:');
+		expect(key).toContain(docDigest);
 		expect(key).toContain(digest);
 	});
 });

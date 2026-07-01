@@ -14,7 +14,59 @@ import {
 import {
 	collectSchemaConstraints
 } from './schemaSuggestedFix';
-import type { BundleIssue } from './types';
+import type { BundleIssue, SuggestedFix } from './types';
+
+/** True when buildFixIssueContext signals a schema-grounded fix without needing LLM. */
+export function isDeterministicFixContext(context: {
+	deterministicFixAvailable?: boolean;
+	renameHint?: { from: string; to: string };
+	relocationHint?: { from: string; to: string };
+	suggestedFix?: { action?: string; field: string; value: string };
+}): boolean {
+	return !!(
+		context.suggestedFix ||
+		context.renameHint ||
+		context.relocationHint ||
+		context.deterministicFixAvailable
+	);
+}
+
+/** Convert fix context hints into a structured suggestedFix for one-click apply. */
+export function suggestedFixFromFixContext(
+	context: {
+		suggestedFix?: { action?: string; field: string; value: string };
+		renameHint?: { from: string; to: string };
+		relocationHint?: { from: string; to: string };
+	},
+	issue?: Pick<BundleIssue, 'line' | 'fieldPath'>
+): SuggestedFix | undefined {
+	if (context.suggestedFix) {
+		const action = context.suggestedFix.action as SuggestedFix['action'];
+		return {
+			action: action ?? 'setValue',
+			field: context.suggestedFix.field,
+			value: context.suggestedFix.value,
+			line: issue?.line
+		};
+	}
+	if (context.renameHint) {
+		return {
+			action: 'renameKey',
+			field: context.renameHint.from,
+			value: context.renameHint.to,
+			line: issue?.line
+		};
+	}
+	if (context.relocationHint) {
+		return {
+			action: 'relocateField',
+			field: context.relocationHint.from,
+			value: context.relocationHint.to,
+			line: issue?.line
+		};
+	}
+	return undefined;
+}
 
 export function inferIssueKind(issue: BundleIssue): FixIssueContext['issueKind'] {
 	if (issue.message.toLowerCase().includes('syntax') || issue.category === 'schema' && !issue.fieldPath && issue.line) {

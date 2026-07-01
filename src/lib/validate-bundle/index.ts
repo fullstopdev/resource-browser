@@ -39,7 +39,7 @@ export {
 } from './replaceDocument';
 export { fixAllBundle, isAiUnavailableResult, type AiFixFn, type AiFixResult, type FixAllBundleOptions, type FixAllChange, type FixAllResult } from './fixAllBundle';
 export { deriveSuggestedFixForIssue, deriveRelocateFixFromSchema, enrichIssuesWithSuggestedFix } from './schemaSuggestedFix';
-export { buildFixIssueContext, inferIssueKind } from './fixIssueContext';
+export { buildFixIssueContext, inferIssueKind, isDeterministicFixContext, suggestedFixFromFixContext } from './fixIssueContext';
 export { bundleDocumentStartLine } from './documentLines';
 export {
 	buildYamlCompletions,

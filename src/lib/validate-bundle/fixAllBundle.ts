@@ -1,6 +1,11 @@
 import { applySuggestedFix, addFieldParentPath } from './applyIssueFix';
 import { firstParseIssueForInput } from './parser';
-import { inferIssueKind } from './fixIssueContext';
+import {
+	buildFixIssueContext,
+	inferIssueKind,
+	isDeterministicFixContext,
+	suggestedFixFromFixContext
+} from './fixIssueContext';
 import {
 	extractDocumentYaml,
 	inferManifestIdentity,
@@ -182,6 +187,33 @@ async function tryParseAiFix(
 	return { yaml: updated, fixed: true, aiUnavailable: false };
 }
 
+async function tryDeterministicFixBeforeAi(
+	docYaml: string,
+	issue: BundleIssue,
+	options: FixAllBundleOptions,
+	kind?: string,
+	group?: string
+): Promise<{ fixedYaml: string; fix: NonNullable<ReturnType<typeof suggestedFixFromFixContext>> } | null> {
+	if (!options.releaseFolder || !options.manifest?.length) return null;
+
+	const context = await buildFixIssueContext(issue, {
+		releaseFolder: options.releaseFolder,
+		manifest: options.manifest,
+		kind,
+		group,
+		docYaml
+	});
+	if (!isDeterministicFixContext(context)) return null;
+
+	const fix = suggestedFixFromFixContext(context, issue);
+	if (!fix) return null;
+
+	const fixedYaml = applySuggestedFix(docYaml, { ...issue, suggestedFix: fix });
+	if (!fixedYaml) return null;
+
+	return { fixedYaml, fix };
+}
+
 async function applyAiFixes(
 	yaml: string,
 	issues: BundleIssue[],
@@ -189,18 +221,20 @@ async function applyAiFixes(
 ): Promise<{
 	yaml: string;
 	aiFixCount: number;
+	suggestedFixCount: number;
 	changes: FixAllChange[];
 	aiUnavailable: boolean;
 	aiUnavailableReason?: string;
 }> {
 	if (!options?.aiFix || issues.length === 0) {
-		return { yaml, aiFixCount: 0, changes: [], aiUnavailable: false };
+		return { yaml, aiFixCount: 0, suggestedFixCount: 0, changes: [], aiUnavailable: false };
 	}
 
 	const resolveDocIndex = options.resolveDocIndex ?? defaultDocIndex;
 	const resolveIdentity = options.resolveIdentity ?? defaultIdentity;
 
 	let aiFixCount = 0;
+	let suggestedFixCount = 0;
 	const changes: FixAllChange[] = [];
 	let aiUnavailable = false;
 	let aiUnavailableReason: string | undefined;
@@ -278,6 +312,44 @@ async function applyAiFixes(
 			}
 
 			const issue = remaining[0]!;
+
+			const deterministic = await tryDeterministicFixBeforeAi(
+				currentDocYaml,
+				issue,
+				options,
+				kind,
+				group
+			);
+			if (deterministic) {
+				const guard = validateAiFixApply(currentDocYaml, deterministic.fixedYaml, issue);
+				if (guard.ok) {
+					const updated = replaceDocumentInBundle(currentYaml, docIndex, deterministic.fixedYaml);
+					if (updated) {
+						currentYaml = updated;
+						suggestedFixCount += 1;
+						changes.push({
+							issueId: issue.id,
+							source: 'suggested',
+							label: suggestedFixChangeLabel({
+								...issue,
+								suggestedFix: deterministic.fix
+							}),
+							docIndex
+						});
+						fixesThisDoc += 1;
+						if (options?.revalidateIssues) {
+							const fresh = await options.revalidateIssues(currentYaml);
+							remaining = issuesNeedingAi(fresh).filter(
+								(i) => (i.docIndex ?? 1) === docIndex
+							);
+						} else {
+							remaining = remaining.slice(1);
+						}
+						continue;
+					}
+				}
+			}
+
 			const result = await options.aiFix({
 				docYaml: currentDocYaml,
 				issue,
@@ -329,7 +401,7 @@ async function applyAiFixes(
 		}
 	}
 
-	return { yaml: currentYaml, aiFixCount, changes, aiUnavailable, aiUnavailableReason };
+	return { yaml: currentYaml, aiFixCount, suggestedFixCount, changes, aiUnavailable, aiUnavailableReason };
 }
 
 function suggestedFixPriority(issue: BundleIssue): number {
@@ -641,13 +713,14 @@ export async function fixAllBundle(
 			const aiResult = await applyAiFixes(yaml, aiTargets, options);
 			yaml = aiResult.yaml;
 			aiFixCount += aiResult.aiFixCount;
+			suggestedFixCount += aiResult.suggestedFixCount;
 			changes.push(...aiResult.changes);
 			if (aiResult.aiUnavailable) {
 				aiUnavailable = true;
 				aiUnavailableReason = aiResult.aiUnavailableReason;
 				break;
 			}
-			if (aiResult.aiFixCount === 0) break;
+			if (aiResult.aiFixCount === 0 && aiResult.suggestedFixCount === 0) break;
 
 			if (!options?.revalidateIssues) break;
 

@@ -1,54 +1,132 @@
 {
-  "generatedAt": "2026-07-01T09:09:39.866Z",
-  "latest": "26.4.2",
+  "generatedAt": "2026-07-01T13:26:08.053Z",
+  "latest": "26.4.3",
   "entries": [
+    {
+      "toVer": "26.4.3",
+      "fromVer": "26.4.2",
+      "source": "comparison",
+      "timestamp": 1782910162927,
+      "summary": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "deprecated": 0,
+        "unchanged": 268,
+        "specChanges": 0
+      }
+    },
     {
       "toVer": "26.4.2",
       "fromVer": "26.4.1",
       "source": "comparison",
-      "timestamp": 1780852180604
+      "timestamp": 1782910163159,
+      "summary": {
+        "added": 0,
+        "removed": 0,
+        "modified": 3,
+        "deprecated": 0,
+        "unchanged": 265,
+        "specChanges": 3
+      }
     },
     {
       "toVer": "26.4.1",
       "fromVer": "25.12.3",
       "source": "comparison",
-      "timestamp": 1780852180821
+      "timestamp": 1782910163386,
+      "summary": {
+        "added": 53,
+        "removed": 0,
+        "modified": 97,
+        "deprecated": 213,
+        "unchanged": 96,
+        "specChanges": 1426
+      }
     },
     {
       "toVer": "25.12.3",
       "fromVer": "25.12.2",
       "source": "comparison",
-      "timestamp": 1780852181080
+      "timestamp": 1782910163608,
+      "summary": {
+        "added": 0,
+        "removed": 0,
+        "modified": 2,
+        "deprecated": 0,
+        "unchanged": 213,
+        "specChanges": 2
+      }
     },
     {
       "toVer": "25.12.2",
       "fromVer": "25.12.1",
       "source": "comparison",
-      "timestamp": 1780852181275
+      "timestamp": 1782910163771,
+      "summary": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "deprecated": 0,
+        "unchanged": 213,
+        "specChanges": 0
+      }
     },
     {
       "toVer": "25.12.1",
       "fromVer": "25.8.3",
       "source": "comparison",
-      "timestamp": 1780852181448
+      "timestamp": 1782910163910,
+      "summary": {
+        "added": 81,
+        "removed": 3,
+        "modified": 39,
+        "deprecated": 0,
+        "unchanged": 87,
+        "specChanges": 77
+      }
     },
     {
       "toVer": "25.8.3",
       "fromVer": "25.8.2",
       "source": "comparison",
-      "timestamp": 1780852181638
+      "timestamp": 1782910164062,
+      "summary": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "deprecated": 0,
+        "unchanged": 131,
+        "specChanges": 0
+      }
     },
     {
       "toVer": "25.8.2",
       "fromVer": "25.8.1",
       "source": "comparison",
-      "timestamp": 1780852181815
+      "timestamp": 1782910164199,
+      "summary": {
+        "added": 0,
+        "removed": 0,
+        "modified": 0,
+        "deprecated": 0,
+        "unchanged": 137,
+        "specChanges": 0
+      }
     },
     {
       "toVer": "25.8.1",
       "fromVer": "25.4.2",
       "source": "comparison",
-      "timestamp": 1780852181963
+      "timestamp": 1782910164327,
+      "summary": {
+        "added": 15,
+        "removed": 8,
+        "modified": 37,
+        "deprecated": 44,
+        "unchanged": 84,
+        "specChanges": 152
+      }
     }
   ]
 }

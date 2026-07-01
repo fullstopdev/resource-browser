@@ -72,7 +72,7 @@ export function buildReleaseCacheKey(params: { release: string; action: string }
 	});
 }
 
-/** KV key for cached YAML fix responses (issue fingerprint). */
+/** KV key for cached YAML fix responses (issue fingerprint + document digest). */
 export function buildFixCacheKey(params: {
 	release: string;
 	kind: string;
@@ -80,11 +80,12 @@ export function buildFixCacheKey(params: {
 	fieldPath?: string;
 	issueKind?: string;
 	messageDigest: string;
+	docDigest: string;
 }): string {
 	const groupSegment = params.group ? encodeURIComponent(params.group) : 'none';
 	const fieldSegment = params.fieldPath ? encodeURIComponent(params.fieldPath) : 'none';
 	const issueKindSegment = params.issueKind ? encodeURIComponent(params.issueKind) : 'none';
-	return `${AI_CACHE_PREFIX}:fix:${params.release}:${params.kind}:${groupSegment}:${fieldSegment}:${issueKindSegment}:${params.messageDigest}`;
+	return `${AI_CACHE_PREFIX}:fix:${params.release}:${params.kind}:${groupSegment}:${fieldSegment}:${issueKindSegment}:${params.docDigest}:${params.messageDigest}`;
 }
 
 export function hashFixCacheDigest(message: string, fieldPath?: string, issueKind?: string): string {

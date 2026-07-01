@@ -87,6 +87,7 @@ static/merge-crds.py
 # Local Vectorize embed progress (gitignored; tracks upserted vector IDs per index)
 .vectorize-manifest.json
 
-# Python virtualenv (do not bundle in static/)
+# Python virtualenv (do not bundle in static/ or deploy output)
 .venv
 static/.venv
+tools/crd-fetcher/.venv

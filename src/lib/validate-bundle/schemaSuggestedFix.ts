@@ -326,8 +326,46 @@ function isScalarRelocatable(value: unknown): boolean {
 	);
 }
 
+function isTypeConstraintIssue(issue: BundleIssue): boolean {
+	return /must be (object|array|string|boolean|integer|number)/i.test(issue.message);
+}
+
 /**
- * Derive relocateField when an unknown spec-root key has a unique nested schema path.
+ * Derive setValue fix for type mismatches from schema constraints and current value.
+ */
+export function deriveTypeFixFromSchema(
+	issue: BundleIssue,
+	leafSchema: unknown,
+	specData: unknown
+): SuggestedFix | undefined {
+	if (!issue.fieldPath || !isTypeConstraintIssue(issue)) return undefined;
+
+	const value = getValueByYamlPath(specData, issue.fieldPath);
+	const leafKey = fieldPathLeafKey(issue.fieldPath);
+	if (!leafKey) return undefined;
+
+	const { types } = collectSchemaConstraints(leafSchema);
+
+	if (types.includes('string') && typeof value === 'number' && Number.isFinite(value)) {
+		return { field: leafKey, value: String(value), line: issue.line, action: 'setValue' };
+	}
+	if (types.includes('boolean') && typeof value === 'string') {
+		const lower = value.toLowerCase();
+		if (lower === 'true' || lower === 'false') {
+			return { field: leafKey, value: lower, line: issue.line, action: 'setValue' };
+		}
+	}
+
+	return undefined;
+}
+
+function relocateTargetFromMessage(message: string): string | undefined {
+	const match = message.match(/relocate to "(.*?)"/i);
+	return match?.[1];
+}
+
+/**
+ * Derive relocateField when an unknown key has a unique nested schema path.
  */
 export function deriveRelocateFixFromSchema(
 	issue: BundleIssue,
@@ -338,14 +376,28 @@ export function deriveRelocateFixFromSchema(
 	if (!isFieldRenameCandidate(issue)) return undefined;
 
 	const pathSegments = issue.fieldPath.replace(/^spec\./, '').split('.').filter(Boolean);
-	if (pathSegments.length !== 1) return undefined;
+	if (pathSegments.length === 0) return undefined;
 
-	const leafKey = pathSegments[0]!;
-	const specProps = collectSchemaProperties(specSchema);
-	if (specProps?.has(leafKey)) return undefined;
+	const leafKey = pathSegments[pathSegments.length - 1]!;
+	const parentSegments = pathSegments.slice(0, -1);
+	const parentSchema =
+		parentSegments.length > 0 ? schemaAtYamlPath(specSchema, parentSegments) : specSchema;
+	const parentProps = collectSchemaProperties(parentSchema);
+	if (parentProps?.has(leafKey)) return undefined;
 
 	const value = getValueByYamlPath(specData, issue.fieldPath);
 	if (!isScalarRelocatable(value)) return undefined;
+
+	const messageTarget = relocateTargetFromMessage(issue.message);
+	if (messageTarget) {
+		if (getValueByYamlPath(specData, messageTarget) !== undefined) return undefined;
+		return {
+			action: 'relocateField',
+			field: issue.fieldPath,
+			value: messageTarget,
+			line: issue.line
+		};
+	}
 
 	const nestedPath = findNestedSchemaPropertyPath(specSchema, leafKey);
 	if (!nestedPath) return undefined;
@@ -495,6 +547,11 @@ export function deriveSuggestedFixForIssue(
 	if (options?.leafSchema && options.specData && isEnumConstraintIssue(issue)) {
 		const enumFix = deriveEnumFixFromSchema(issue, options.leafSchema, options.specData);
 		if (enumFix) return enumFix;
+	}
+
+	if (options?.leafSchema && options.specData && isTypeConstraintIssue(issue)) {
+		const typeFix = deriveTypeFixFromSchema(issue, options.leafSchema, options.specData);
+		if (typeFix) return typeFix;
 	}
 
 	if (options?.specSchema && options.specData && isFieldRenameCandidate(issue)) {

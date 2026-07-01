@@ -19,21 +19,30 @@ describe('runWorkersAI helpers', () => {
 		expect(selectFixModel('enum')).toBe(WORKERS_AI_MODEL);
 		expect(selectFixModel('misspelledField')).toBe(WORKERS_AI_MODEL);
 		expect(selectFixModel('type', { fieldPath: 'spec.os' })).toBe(WORKERS_AI_MODEL);
-		expect(selectFixModel('type', { fieldPath: 'spec.macLearning.enabled' })).toBe(FIX_AI_MODEL);
+		expect(selectFixModel('type', { fieldPath: 'spec.macLearning.enabled' })).toBe(
+			WORKERS_AI_MODEL
+		);
+		expect(selectFixModel('type', { fieldPath: 'spec.encapOptions.vxlan.tunnelIndexPool' })).toBe(
+			FIX_AI_MODEL
+		);
 		expect(
 			selectFixModel('unknownField', {
 				relocationHint: { from: 'a', to: 'b' },
 				fieldPath: 'spec.tunnelIndexPool'
 			})
-		).toBe(WORKERS_AI_MODEL);
+		).toBe(FIX_AI_MODEL);
 		expect(
 			selectFixModel('unknownField', {
 				relocationHint: { from: 'a', to: 'b' },
 				fieldPath: 'spec.encapOptions.vxlan.tunnelIndexPool'
 			})
 		).toBe(FIX_AI_MODEL);
-		expect(selectFixModel('unknownField')).toBe(FIX_AI_MODEL);
-		expect(selectFixModel('other')).toBe(FIX_AI_MODEL);
+		expect(selectFixModel('unknownField')).toBe(WORKERS_AI_MODEL);
+		expect(selectFixModel('required')).toBe(WORKERS_AI_MODEL);
+		expect(selectFixModel('required', { migrationContext: 'upgrade apiVersion' })).toBe(
+			FIX_AI_MODEL
+		);
+		expect(selectFixModel('other')).toBe(WORKERS_AI_MODEL);
 		expect(selectFixModel('unknownField', { batched: true })).toBe(FIX_AI_MODEL);
 	});
 

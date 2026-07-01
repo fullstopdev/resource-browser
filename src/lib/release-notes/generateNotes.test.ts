@@ -141,3 +141,16 @@ describe('reportToReleaseNotes', () => {
 		expect(notes.modifiedResources).toHaveLength(1);
 	});
 });
+
+describe('computeReleaseNotesSummary', () => {
+	it('aggregates counts from report and notes', async () => {
+		const { computeReleaseNotesSummary } = await import('./generateNotes');
+		const notes = reportToReleaseNotes(fixtureReport, '25.12.3', '26.4.1', [], [], []);
+		const summary = computeReleaseNotesSummary(fixtureReport, notes);
+
+		expect(summary.added).toBe(1);
+		expect(summary.removed).toBe(1);
+		expect(summary.modified).toBe(1);
+		expect(summary.unchanged).toBe(1);
+	});
+});

@@ -189,11 +189,14 @@ export function selectFixModel(
 	options?: {
 		batched?: boolean;
 		relocationHint?: { from: string; to: string };
+		migrationContext?: string;
 		fieldPath?: string;
 	}
 ): string {
 	if (options?.batched) return FIX_AI_MODEL;
 	const depth = specFieldDepth(options?.fieldPath);
+	const needsLargeModel =
+		!!options?.relocationHint || !!options?.migrationContext || depth >= 3;
 	if (
 		issueKind === 'syntax' ||
 		issueKind === 'misspelledField' ||
@@ -202,12 +205,12 @@ export function selectFixModel(
 		return WORKERS_AI_MODEL;
 	}
 	if (issueKind === 'type') {
-		return depth >= 2 ? FIX_AI_MODEL : WORKERS_AI_MODEL;
-	}
-	if (issueKind === 'unknownField' && options?.relocationHint) {
 		return depth >= 3 ? FIX_AI_MODEL : WORKERS_AI_MODEL;
 	}
-	return FIX_AI_MODEL;
+	if (issueKind === 'unknownField' || issueKind === 'required' || issueKind === 'other') {
+		return needsLargeModel ? FIX_AI_MODEL : WORKERS_AI_MODEL;
+	}
+	return WORKERS_AI_MODEL;
 }
 
 /** Dynamic max output tokens by fix complexity. */

@@ -4,11 +4,11 @@
   "notes": {
     "newResources": [
       {
-        "kind": "alarmdefinitions.core.eda.nokia.com",
+        "kind": "AlarmDefinition",
         "apiVersion": "core.eda.nokia.com/v1",
         "group": "core.eda.nokia.com",
         "crdName": "alarmdefinitions.core.eda.nokia.com",
-        "description": "New alarmdefinitions.core.eda.nokia.com CRD introduced in EDA 25.12.1 (core.eda.nokia.com/v1)."
+        "description": "New AlarmDefinition CRD introduced in EDA 25.12.1 (core.eda.nokia.com/v1)."
       },
       {
         "kind": "Allocation",
@@ -18,11 +18,53 @@
         "description": "New Allocation CRD introduced in EDA 25.12.1 (netbox.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "applyallocations.netbox.eda.nokia.com",
+        "kind": "ApplyAllocation",
         "apiVersion": "netbox.eda.nokia.com/v1alpha1",
         "group": "netbox.eda.nokia.com",
         "crdName": "applyallocations.netbox.eda.nokia.com",
-        "description": "New applyallocations.netbox.eda.nokia.com CRD introduced in EDA 25.12.1 (netbox.eda.nokia.com/v1alpha1)."
+        "description": "New ApplyAllocation CRD introduced in EDA 25.12.1 (netbox.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterConsumer",
+        "apiVersion": "kafkaimporter.eda.nokia.com/v1alpha1",
+        "group": "kafkaimporter.eda.nokia.com",
+        "crdName": "clusterconsumers.kafkaimporter.eda.nokia.com",
+        "description": "New ClusterConsumer CRD introduced in EDA 25.12.1 (kafkaimporter.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterDestination",
+        "apiVersion": "remotewrite.eda.nokia.com/v1alpha1",
+        "group": "remotewrite.eda.nokia.com",
+        "crdName": "clusterdestinations.remotewrite.eda.nokia.com",
+        "description": "New ClusterDestination CRD introduced in EDA 25.12.1 (remotewrite.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterDestination",
+        "apiVersion": "snmp.eda.nokia.com/v1alpha1",
+        "group": "snmp.eda.nokia.com",
+        "crdName": "clusterdestinations.snmp.eda.nokia.com",
+        "description": "New ClusterDestination CRD introduced in EDA 25.12.1 (snmp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterExport",
+        "apiVersion": "influxdb.eda.nokia.com/v1alpha1",
+        "group": "influxdb.eda.nokia.com",
+        "crdName": "clusterexports.influxdb.eda.nokia.com",
+        "description": "New ClusterExport CRD introduced in EDA 25.12.1 (influxdb.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterExport",
+        "apiVersion": "nats.eda.nokia.com/v1alpha1",
+        "group": "nats.eda.nokia.com",
+        "crdName": "clusterexports.nats.eda.nokia.com",
+        "description": "New ClusterExport CRD introduced in EDA 25.12.1 (nats.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterExport",
+        "apiVersion": "remotewrite.eda.nokia.com/v1alpha1",
+        "group": "remotewrite.eda.nokia.com",
+        "crdName": "clusterexports.remotewrite.eda.nokia.com",
+        "description": "New ClusterExport CRD introduced in EDA 25.12.1 (remotewrite.eda.nokia.com/v1alpha1)."
       },
       {
         "kind": "ClusterIncident",
@@ -39,6 +81,27 @@
         "description": "New ClusterInstance CRD introduced in EDA 25.12.1 (snow.eda.nokia.com/v1alpha1)."
       },
       {
+        "kind": "ClusterMetricExport",
+        "apiVersion": "otlp.eda.nokia.com/v1alpha1",
+        "group": "otlp.eda.nokia.com",
+        "crdName": "clustermetricexports.otlp.eda.nokia.com",
+        "description": "New ClusterMetricExport CRD introduced in EDA 25.12.1 (otlp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterNotifier",
+        "apiVersion": "notifiers.eda.nokia.com/v1",
+        "group": "notifiers.eda.nokia.com",
+        "crdName": "clusternotifiers.notifiers.eda.nokia.com",
+        "description": "New ClusterNotifier CRD introduced in EDA 25.12.1 (notifiers.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "ClusterPager",
+        "apiVersion": "pagers.eda.nokia.com/v1alpha1",
+        "group": "pagers.eda.nokia.com",
+        "crdName": "clusterpagers.pagers.eda.nokia.com",
+        "description": "New ClusterPager CRD introduced in EDA 25.12.1 (pagers.eda.nokia.com/v1alpha1)."
+      },
+      {
         "kind": "ClusterProducer",
         "apiVersion": "kafka.eda.nokia.com/v1alpha1",
         "group": "kafka.eda.nokia.com",
@@ -46,60 +109,172 @@
         "description": "New ClusterProducer CRD introduced in EDA 25.12.1 (kafka.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "creategithubissues.github.eda.nokia.com",
+        "kind": "ClusterProvider",
+        "apiVersion": "notifiers.eda.nokia.com/v1",
+        "group": "notifiers.eda.nokia.com",
+        "crdName": "clusterproviders.notifiers.eda.nokia.com",
+        "description": "New ClusterProvider CRD introduced in EDA 25.12.1 (notifiers.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "ClusterPublisher",
+        "apiVersion": "nats.eda.nokia.com/v1alpha1",
+        "group": "nats.eda.nokia.com",
+        "crdName": "clusterpublishers.nats.eda.nokia.com",
+        "description": "New ClusterPublisher CRD introduced in EDA 25.12.1 (nats.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterReceiver",
+        "apiVersion": "otlp.eda.nokia.com/v1alpha1",
+        "group": "otlp.eda.nokia.com",
+        "crdName": "clusterreceivers.otlp.eda.nokia.com",
+        "description": "New ClusterReceiver CRD introduced in EDA 25.12.1 (otlp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterServer",
+        "apiVersion": "influxdb.eda.nokia.com/v1alpha1",
+        "group": "influxdb.eda.nokia.com",
+        "crdName": "clusterservers.influxdb.eda.nokia.com",
+        "description": "New ClusterServer CRD introduced in EDA 25.12.1 (influxdb.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterStandardOut",
+        "apiVersion": "stdout.eda.nokia.com/v1alpha1",
+        "group": "stdout.eda.nokia.com",
+        "crdName": "clusterstandardouts.stdout.eda.nokia.com",
+        "description": "New ClusterStandardOut CRD introduced in EDA 25.12.1 (stdout.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ClusterTrapGroup",
+        "apiVersion": "snmp.eda.nokia.com/v1alpha1",
+        "group": "snmp.eda.nokia.com",
+        "crdName": "clustertrapgroups.snmp.eda.nokia.com",
+        "description": "New ClusterTrapGroup CRD introduced in EDA 25.12.1 (snmp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "ConnectAudit",
+        "apiVersion": "connect.eda.nokia.com/v1",
+        "group": "connect.eda.nokia.com",
+        "crdName": "connectaudits.connect.eda.nokia.com",
+        "description": "New ConnectAudit CRD introduced in EDA 25.12.1 (connect.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "ConnectInterface",
+        "apiVersion": "connect.eda.nokia.com/v1",
+        "group": "connect.eda.nokia.com",
+        "crdName": "connectinterfaces.connect.eda.nokia.com",
+        "description": "New ConnectInterface CRD introduced in EDA 25.12.1 (connect.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "ConnectPluginActionable",
+        "apiVersion": "connect.eda.nokia.com/v1",
+        "group": "connect.eda.nokia.com",
+        "crdName": "connectpluginactionables.connect.eda.nokia.com",
+        "description": "New ConnectPluginActionable CRD introduced in EDA 25.12.1 (connect.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "ConnectPluginHeartbeat",
+        "apiVersion": "connect.eda.nokia.com/v1",
+        "group": "connect.eda.nokia.com",
+        "crdName": "connectpluginheartbeats.connect.eda.nokia.com",
+        "description": "New ConnectPluginHeartbeat CRD introduced in EDA 25.12.1 (connect.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "ConnectPlugin",
+        "apiVersion": "connect.eda.nokia.com/v1",
+        "group": "connect.eda.nokia.com",
+        "crdName": "connectplugins.connect.eda.nokia.com",
+        "description": "New ConnectPlugin CRD introduced in EDA 25.12.1 (connect.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "Consumer",
+        "apiVersion": "kafkaimporter.eda.nokia.com/v1alpha1",
+        "group": "kafkaimporter.eda.nokia.com",
+        "crdName": "consumers.kafkaimporter.eda.nokia.com",
+        "description": "New Consumer CRD introduced in EDA 25.12.1 (kafkaimporter.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "CreateGithubIssue",
         "apiVersion": "github.eda.nokia.com/v1alpha1",
         "group": "github.eda.nokia.com",
         "crdName": "creategithubissues.github.eda.nokia.com",
-        "description": "New creategithubissues.github.eda.nokia.com CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
+        "description": "New CreateGithubIssue CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "creategitlabissues.gitlab.eda.nokia.com",
+        "kind": "CreateGitlabIssue",
         "apiVersion": "gitlab.eda.nokia.com/v1alpha1",
         "group": "gitlab.eda.nokia.com",
         "crdName": "creategitlabissues.gitlab.eda.nokia.com",
-        "description": "New creategitlabissues.gitlab.eda.nokia.com CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
+        "description": "New CreateGitlabIssue CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "defaultmtus.siteinfo.eda.nokia.com",
+        "kind": "DefaultMTU",
         "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
         "group": "siteinfo.eda.nokia.com",
         "crdName": "defaultmtus.siteinfo.eda.nokia.com",
-        "description": "New defaultmtus.siteinfo.eda.nokia.com CRD introduced in EDA 25.12.1 (siteinfo.eda.nokia.com/v1alpha1)."
+        "description": "New DefaultMTU CRD introduced in EDA 25.12.1 (siteinfo.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "defaultospfareadeployments.protocols.eda.nokia.com",
+        "kind": "DefaultOSPFAreaDeployment",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultospfareadeployments.protocols.eda.nokia.com",
-        "description": "New defaultospfareadeployments.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New DefaultOSPFAreaDeployment CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "defaultospfareas.protocols.eda.nokia.com",
+        "kind": "DefaultOSPFArea",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultospfareas.protocols.eda.nokia.com",
-        "description": "New defaultospfareas.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New DefaultOSPFArea CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "defaultospfinstancedeployments.protocols.eda.nokia.com",
+        "kind": "DefaultOSPFInstanceDeployment",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultospfinstancedeployments.protocols.eda.nokia.com",
-        "description": "New defaultospfinstancedeployments.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New DefaultOSPFInstanceDeployment CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "defaultospfinstances.protocols.eda.nokia.com",
+        "kind": "DefaultOSPFInstance",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultospfinstances.protocols.eda.nokia.com",
-        "description": "New defaultospfinstances.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New DefaultOSPFInstance CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "defaultospfinterfaces.protocols.eda.nokia.com",
+        "kind": "DefaultOSPFInterface",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "defaultospfinterfaces.protocols.eda.nokia.com",
-        "description": "New defaultospfinterfaces.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New DefaultOSPFInterface CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "Destination",
+        "apiVersion": "remotewrite.eda.nokia.com/v1alpha1",
+        "group": "remotewrite.eda.nokia.com",
+        "crdName": "destinations.remotewrite.eda.nokia.com",
+        "description": "New Destination CRD introduced in EDA 25.12.1 (remotewrite.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "Destination",
+        "apiVersion": "snmp.eda.nokia.com/v1alpha1",
+        "group": "snmp.eda.nokia.com",
+        "crdName": "destinations.snmp.eda.nokia.com",
+        "description": "New Destination CRD introduced in EDA 25.12.1 (snmp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "Export",
+        "apiVersion": "influxdb.eda.nokia.com/v1alpha1",
+        "group": "influxdb.eda.nokia.com",
+        "crdName": "exports.influxdb.eda.nokia.com",
+        "description": "New Export CRD introduced in EDA 25.12.1 (influxdb.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "Export",
+        "apiVersion": "nats.eda.nokia.com/v1alpha1",
+        "group": "nats.eda.nokia.com",
+        "crdName": "exports.nats.eda.nokia.com",
+        "description": "New Export CRD introduced in EDA 25.12.1 (nats.eda.nokia.com/v1alpha1)."
       },
       {
         "kind": "Export",
@@ -109,46 +284,74 @@
         "description": "New Export CRD introduced in EDA 25.12.1 (prom.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "githubactions.github.eda.nokia.com",
+        "kind": "Export",
+        "apiVersion": "remotewrite.eda.nokia.com/v1alpha1",
+        "group": "remotewrite.eda.nokia.com",
+        "crdName": "exports.remotewrite.eda.nokia.com",
+        "description": "New Export CRD introduced in EDA 25.12.1 (remotewrite.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "FTPServer",
+        "apiVersion": "management.eda.nokia.com/v1alpha1",
+        "group": "management.eda.nokia.com",
+        "crdName": "ftpservers.management.eda.nokia.com",
+        "description": "New FTPServer CRD introduced in EDA 25.12.1 (management.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "GitHubAction",
         "apiVersion": "github.eda.nokia.com/v1alpha1",
         "group": "github.eda.nokia.com",
         "crdName": "githubactions.github.eda.nokia.com",
-        "description": "New githubactions.github.eda.nokia.com CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
+        "description": "New GitHubAction CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "githubinstances.github.eda.nokia.com",
+        "kind": "GitHubInstance",
         "apiVersion": "github.eda.nokia.com/v1alpha1",
         "group": "github.eda.nokia.com",
         "crdName": "githubinstances.github.eda.nokia.com",
-        "description": "New githubinstances.github.eda.nokia.com CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
+        "description": "New GitHubInstance CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "githubissues.github.eda.nokia.com",
+        "kind": "GitHubIssue",
         "apiVersion": "github.eda.nokia.com/v1alpha1",
         "group": "github.eda.nokia.com",
         "crdName": "githubissues.github.eda.nokia.com",
-        "description": "New githubissues.github.eda.nokia.com CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
+        "description": "New GitHubIssue CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "gitlabinstances.gitlab.eda.nokia.com",
+        "kind": "GitlabInstance",
         "apiVersion": "gitlab.eda.nokia.com/v1alpha1",
         "group": "gitlab.eda.nokia.com",
         "crdName": "gitlabinstances.gitlab.eda.nokia.com",
-        "description": "New gitlabinstances.gitlab.eda.nokia.com CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
+        "description": "New GitlabInstance CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "gitlabissues.gitlab.eda.nokia.com",
+        "kind": "GitlabIssue",
         "apiVersion": "gitlab.eda.nokia.com/v1alpha1",
         "group": "gitlab.eda.nokia.com",
         "crdName": "gitlabissues.gitlab.eda.nokia.com",
-        "description": "New gitlabissues.gitlab.eda.nokia.com CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
+        "description": "New GitlabIssue CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "gitlabpipelines.gitlab.eda.nokia.com",
+        "kind": "GitlabPipeline",
         "apiVersion": "gitlab.eda.nokia.com/v1alpha1",
         "group": "gitlab.eda.nokia.com",
         "crdName": "gitlabpipelines.gitlab.eda.nokia.com",
-        "description": "New gitlabpipelines.gitlab.eda.nokia.com CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
+        "description": "New GitlabPipeline CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "GRPCServer",
+        "apiVersion": "management.eda.nokia.com/v1alpha1",
+        "group": "management.eda.nokia.com",
+        "crdName": "grpcservers.management.eda.nokia.com",
+        "description": "New GRPCServer CRD introduced in EDA 25.12.1 (management.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "HTTPServer",
+        "apiVersion": "management.eda.nokia.com/v1alpha1",
+        "group": "management.eda.nokia.com",
+        "crdName": "httpservers.management.eda.nokia.com",
+        "description": "New HTTPServer CRD introduced in EDA 25.12.1 (management.eda.nokia.com/v1alpha1)."
       },
       {
         "kind": "Incident",
@@ -172,46 +375,88 @@
         "description": "New Instance CRD introduced in EDA 25.12.1 (snow.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "networktopologies.topologies.eda.nokia.com",
+        "kind": "Locator",
+        "apiVersion": "support.eda.nokia.com/v1alpha1",
+        "group": "support.eda.nokia.com",
+        "crdName": "locators.support.eda.nokia.com",
+        "description": "New Locator CRD introduced in EDA 25.12.1 (support.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "MetricExport",
+        "apiVersion": "otlp.eda.nokia.com/v1alpha1",
+        "group": "otlp.eda.nokia.com",
+        "crdName": "metricexports.otlp.eda.nokia.com",
+        "description": "New MetricExport CRD introduced in EDA 25.12.1 (otlp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "NetworkTopology",
         "apiVersion": "topologies.eda.nokia.com/v1alpha1",
         "group": "topologies.eda.nokia.com",
         "crdName": "networktopologies.topologies.eda.nokia.com",
-        "description": "New networktopologies.topologies.eda.nokia.com CRD introduced in EDA 25.12.1 (topologies.eda.nokia.com/v1alpha1)."
+        "description": "New NetworkTopology CRD introduced in EDA 25.12.1 (topologies.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "ospfareadeployments.protocols.eda.nokia.com",
+        "kind": "Notifier",
+        "apiVersion": "notifiers.eda.nokia.com/v1",
+        "group": "notifiers.eda.nokia.com",
+        "crdName": "notifiers.notifiers.eda.nokia.com",
+        "description": "New Notifier CRD introduced in EDA 25.12.1 (notifiers.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "NSXPluginInstance",
+        "apiVersion": "nsx.eda.nokia.com/v1",
+        "group": "nsx.eda.nokia.com",
+        "crdName": "nsxplugininstances.nsx.eda.nokia.com",
+        "description": "New NSXPluginInstance CRD introduced in EDA 25.12.1 (nsx.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "NutanixPluginInstance",
+        "apiVersion": "nutanix.eda.nokia.com/v1",
+        "group": "nutanix.eda.nokia.com",
+        "crdName": "nutanixplugininstances.nutanix.eda.nokia.com",
+        "description": "New NutanixPluginInstance CRD introduced in EDA 25.12.1 (nutanix.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "OSPFAreaDeployment",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "ospfareadeployments.protocols.eda.nokia.com",
-        "description": "New ospfareadeployments.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New OSPFAreaDeployment CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "ospfareas.protocols.eda.nokia.com",
+        "kind": "OSPFArea",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "ospfareas.protocols.eda.nokia.com",
-        "description": "New ospfareas.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New OSPFArea CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "ospfinstancedeployments.protocols.eda.nokia.com",
+        "kind": "OSPFInstanceDeployment",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "ospfinstancedeployments.protocols.eda.nokia.com",
-        "description": "New ospfinstancedeployments.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New OSPFInstanceDeployment CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "ospfinstances.protocols.eda.nokia.com",
+        "kind": "OSPFInstance",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "ospfinstances.protocols.eda.nokia.com",
-        "description": "New ospfinstances.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New OSPFInstance CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
       },
       {
-        "kind": "ospfinterfaces.protocols.eda.nokia.com",
+        "kind": "OSPFInterface",
         "apiVersion": "protocols.eda.nokia.com/v1",
         "group": "protocols.eda.nokia.com",
         "crdName": "ospfinterfaces.protocols.eda.nokia.com",
-        "description": "New ospfinterfaces.protocols.eda.nokia.com CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+        "description": "New OSPFInterface CRD introduced in EDA 25.12.1 (protocols.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "Pager",
+        "apiVersion": "pagers.eda.nokia.com/v1alpha1",
+        "group": "pagers.eda.nokia.com",
+        "crdName": "pagers.pagers.eda.nokia.com",
+        "description": "New Pager CRD introduced in EDA 25.12.1 (pagers.eda.nokia.com/v1alpha1)."
       },
       {
         "kind": "Producer",
@@ -221,46 +466,109 @@
         "description": "New Producer CRD introduced in EDA 25.12.1 (kafka.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "routetraces.routing.eda.nokia.com",
+        "kind": "Provider",
+        "apiVersion": "notifiers.eda.nokia.com/v1",
+        "group": "notifiers.eda.nokia.com",
+        "crdName": "providers.notifiers.eda.nokia.com",
+        "description": "New Provider CRD introduced in EDA 25.12.1 (notifiers.eda.nokia.com/v1)."
+      },
+      {
+        "kind": "Publisher",
+        "apiVersion": "nats.eda.nokia.com/v1alpha1",
+        "group": "nats.eda.nokia.com",
+        "crdName": "publishers.nats.eda.nokia.com",
+        "description": "New Publisher CRD introduced in EDA 25.12.1 (nats.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "Receiver",
+        "apiVersion": "otlp.eda.nokia.com/v1alpha1",
+        "group": "otlp.eda.nokia.com",
+        "crdName": "receivers.otlp.eda.nokia.com",
+        "description": "New Receiver CRD introduced in EDA 25.12.1 (otlp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "RouteTrace",
         "apiVersion": "routing.eda.nokia.com/v1alpha1",
         "group": "routing.eda.nokia.com",
         "crdName": "routetraces.routing.eda.nokia.com",
-        "description": "New routetraces.routing.eda.nokia.com CRD introduced in EDA 25.12.1 (routing.eda.nokia.com/v1alpha1)."
+        "description": "New RouteTrace CRD introduced in EDA 25.12.1 (routing.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "rungithubworkflows.github.eda.nokia.com",
+        "kind": "RunGithubWorkflow",
         "apiVersion": "github.eda.nokia.com/v1alpha1",
         "group": "github.eda.nokia.com",
         "crdName": "rungithubworkflows.github.eda.nokia.com",
-        "description": "New rungithubworkflows.github.eda.nokia.com CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
+        "description": "New RunGithubWorkflow CRD introduced in EDA 25.12.1 (github.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "rungitlabpipelines.gitlab.eda.nokia.com",
+        "kind": "RunGitlabPipeline",
         "apiVersion": "gitlab.eda.nokia.com/v1alpha1",
         "group": "gitlab.eda.nokia.com",
         "crdName": "rungitlabpipelines.gitlab.eda.nokia.com",
-        "description": "New rungitlabpipelines.gitlab.eda.nokia.com CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
+        "description": "New RunGitlabPipeline CRD introduced in EDA 25.12.1 (gitlab.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "systemloadbalancers.siteinfo.eda.nokia.com",
+        "kind": "Server",
+        "apiVersion": "influxdb.eda.nokia.com/v1alpha1",
+        "group": "influxdb.eda.nokia.com",
+        "crdName": "servers.influxdb.eda.nokia.com",
+        "description": "New Server CRD introduced in EDA 25.12.1 (influxdb.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "SSHServer",
+        "apiVersion": "management.eda.nokia.com/v1alpha1",
+        "group": "management.eda.nokia.com",
+        "crdName": "sshservers.management.eda.nokia.com",
+        "description": "New SSHServer CRD introduced in EDA 25.12.1 (management.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "StandardOut",
+        "apiVersion": "stdout.eda.nokia.com/v1alpha1",
+        "group": "stdout.eda.nokia.com",
+        "crdName": "standardouts.stdout.eda.nokia.com",
+        "description": "New StandardOut CRD introduced in EDA 25.12.1 (stdout.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "SystemLoadBalancer",
         "apiVersion": "siteinfo.eda.nokia.com/v1alpha1",
         "group": "siteinfo.eda.nokia.com",
         "crdName": "systemloadbalancers.siteinfo.eda.nokia.com",
-        "description": "New systemloadbalancers.siteinfo.eda.nokia.com CRD introduced in EDA 25.12.1 (siteinfo.eda.nokia.com/v1alpha1)."
+        "description": "New SystemLoadBalancer CRD introduced in EDA 25.12.1 (siteinfo.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "tagsetdeployments.routingpolicies.eda.nokia.com",
+        "kind": "SystemPing",
+        "apiVersion": "routing.eda.nokia.com/v1alpha1",
+        "group": "routing.eda.nokia.com",
+        "crdName": "systempings.routing.eda.nokia.com",
+        "description": "New SystemPing CRD introduced in EDA 25.12.1 (routing.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "TagSetDeployment",
         "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
         "group": "routingpolicies.eda.nokia.com",
         "crdName": "tagsetdeployments.routingpolicies.eda.nokia.com",
-        "description": "New tagsetdeployments.routingpolicies.eda.nokia.com CRD introduced in EDA 25.12.1 (routingpolicies.eda.nokia.com/v1alpha1)."
+        "description": "New TagSetDeployment CRD introduced in EDA 25.12.1 (routingpolicies.eda.nokia.com/v1alpha1)."
       },
       {
-        "kind": "tagsets.routingpolicies.eda.nokia.com",
+        "kind": "TagSet",
         "apiVersion": "routingpolicies.eda.nokia.com/v1alpha1",
         "group": "routingpolicies.eda.nokia.com",
         "crdName": "tagsets.routingpolicies.eda.nokia.com",
-        "description": "New tagsets.routingpolicies.eda.nokia.com CRD introduced in EDA 25.12.1 (routingpolicies.eda.nokia.com/v1alpha1)."
+        "description": "New TagSet CRD introduced in EDA 25.12.1 (routingpolicies.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "TrapGroup",
+        "apiVersion": "snmp.eda.nokia.com/v1alpha1",
+        "group": "snmp.eda.nokia.com",
+        "crdName": "trapgroups.snmp.eda.nokia.com",
+        "description": "New TrapGroup CRD introduced in EDA 25.12.1 (snmp.eda.nokia.com/v1alpha1)."
+      },
+      {
+        "kind": "VmwarePluginInstance",
+        "apiVersion": "vmware.eda.nokia.com/v1",
+        "group": "vmware.eda.nokia.com",
+        "crdName": "vmwareplugininstances.vmware.eda.nokia.com",
+        "description": "New VmwarePluginInstance CRD introduced in EDA 25.12.1 (vmware.eda.nokia.com/v1)."
       }
     ],
     "removedResources": [
@@ -273,6 +581,11 @@
         "kind": "Monitor",
         "apiVersion": "system.eda.nokia.com/v1alpha1",
         "reason": "API version v1alpha1 removed from the EDA 25.12.1 catalog — migrate or decommission existing Monitor resources using system.eda.nokia.com/v1alpha1."
+      },
+      {
+        "kind": "Newping",
+        "apiVersion": "oam.eda.nokia.com/resource",
+        "reason": "API version resource removed from the EDA 25.12.1 catalog — migrate or decommission existing Newping resources using oam.eda.nokia.com/resource."
       }
     ],
     "modifiedResources": [
@@ -637,10 +950,10 @@
           },
           {
             "field": "spec.underlayProtocol.properties.protocol.items.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_added",
             "before": "[\"EBGP\"]",
             "after": "[\"EBGP\",\"OSPFv2\",\"OSPFv3\"]",
-            "networkBehavior": "Enum on Fabric removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on Fabric gained allowed value(s): OSPFv2, OSPFv3; existing manifests remain valid."
           },
           {
             "field": "spec.underlayProtocol.required",
@@ -1008,10 +1321,10 @@
           },
           {
             "field": "spec.statement.items.properties.match.properties.protocol.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[15 items]",
             "after": "[17 items]",
-            "networkBehavior": "Enum on Policy removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on Policy allowed values changed — added: value(s); removed: value(s)."
           }
         ]
       },
@@ -1176,10 +1489,10 @@
           },
           {
             "field": "spec.npp.properties.mode.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[\"normal\",\"maintenance\",\"null\",\"emulate\"]",
             "after": "[5 items]",
-            "networkBehavior": "Enum on TopoNode removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on TopoNode allowed values changed — added: value(s); removed: value(s)."
           }
         ]
       },
@@ -1406,10 +1719,10 @@
           },
           {
             "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.match.properties.protocol.enum",
-            "changeType": "enum_removed",
+            "changeType": "enum_changed",
             "before": "[15 items]",
             "after": "[17 items]",
-            "networkBehavior": "Enum on VirtualNetwork removed enum value(s); verify manifest values are still allowed."
+            "networkBehavior": "Enum on VirtualNetwork allowed values changed — added: value(s); removed: value(s)."
           },
           {
             "field": "spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.name.maxLength",
@@ -1629,114 +1942,18 @@
             "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
           }
         ]
-      },
-      {
-        "kind": "VirtualNetwork",
-        "apiVersion": "services.eda.nokia.com/v1alpha1",
-        "changes": [
-          {
-            "field": "spec.bridgeInterfaces.items.properties.spec.properties.uplink.properties.egress.description",
-            "changeType": "type_change",
-            "before": "\"Manages actions on traffic at Egress of the Local enpoint of the Uplink.\"",
-            "after": "\"Manages actions on traffic at Egress of the Local endpoint of the Uplink.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          },
-          {
-            "field": "spec.bridgeInterfaces.items.properties.spec.properties.uplink.properties.ingress.description",
-            "changeType": "type_change",
-            "before": "\"Manages actions on traffic at Ingress of the Local enpoint of the Uplink.\"",
-            "after": "\"Manages actions on traffic at Ingress of the Local endpoint of the Uplink.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          },
-          {
-            "field": "spec.irbInterfaces.items.properties.spec.properties.bfd.properties.ttl.description",
-            "changeType": "type_change",
-            "before": "\"Sets custom IP TTL or Hop Limit for multi-hop BFD sessions packets. Not appllicable to single-hop BFD sessions.\"",
-            "after": "\"Sets custom IP TTL or Hop Limit for multi-hop BFD sessions packets. Not applicable to single-hop BFD sessions.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          },
-          {
-            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.configuredName",
-            "changeType": "optional_added",
-            "before": "",
-            "after": "",
-            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.configuredName available on VirtualNetwork; existing manifests remain valid."
-          },
-          {
-            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.tags",
-            "changeType": "optional_added",
-            "before": "",
-            "after": "",
-            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.defaultAction.properties.tags available on VirtualNetwork; existing manifests remain valid."
-          },
-          {
-            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.action.properties.tags",
-            "changeType": "optional_added",
-            "before": "",
-            "after": "",
-            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.action.properties.tags available on VirtualNetwork; existing manifests remain valid."
-          },
-          {
-            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.match.properties.tags",
-            "changeType": "optional_added",
-            "before": "",
-            "after": "",
-            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.match.properties.tags available on VirtualNetwork; existing manifests remain valid."
-          },
-          {
-            "field": "spec.protocols.properties.routingPolicies.properties.policies.items.properties.spec.properties.statement.items.properties.match.properties.protocol.enum",
-            "changeType": "enum_removed",
-            "before": "[15 items]",
-            "after": "[17 items]",
-            "networkBehavior": "Enum on VirtualNetwork removed enum value(s); verify manifest values are still allowed."
-          },
-          {
-            "field": "spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.properties.configuredName",
-            "changeType": "optional_added",
-            "before": "",
-            "after": "",
-            "networkBehavior": "New optional field spec.protocols.properties.routingPolicies.properties.prefixSets.items.properties.spec.properties.configuredName available on VirtualNetwork; existing manifests remain valid."
-          },
-          {
-            "field": "spec.routedInterfaces.items.properties.spec.properties.bfd.properties.ttl.description",
-            "changeType": "type_change",
-            "before": "\"Sets custom IP TTL or Hop Limit for multi-hop BFD sessions packets. Not appllicable to single-hop BFD sessions.\"",
-            "after": "\"Sets custom IP TTL or Hop Limit for multi-hop BFD sessions packets. Not applicable to single-hop BFD sessions.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          },
-          {
-            "field": "spec.routedInterfaces.items.properties.spec.properties.ipv4Parameters.description",
-            "changeType": "optional_added",
-            "before": "",
-            "after": "",
-            "networkBehavior": "New optional field spec.routedInterfaces.items.properties.spec.properties.ipv4Parameters.description available on VirtualNetwork; existing manifests remain valid."
-          },
-          {
-            "field": "spec.routers.items.properties.spec.properties.bgp.properties.ipAliasNexthops.items.properties.preferredActiveNode.description",
-            "changeType": "type_change",
-            "before": "\"When not set the ES is used in an all active mode. This references the ToppNode object and when set, the DF algorithm is configured to type preference and the selected Node is set with a higher preference value. All other Nodes have a lower value configured.\"",
-            "after": "\"When not set the ES is used in an all active mode. This references the TopoNode object and when set, the DF algorithm is configured to type preference and the selected Node is set with a higher preference value. All other Nodes have a lower value configured.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          },
-          {
-            "field": "spec.vlans.items.properties.spec.properties.uplink.properties.egress.description",
-            "changeType": "type_change",
-            "before": "\"Manages actions on traffic at Egress of the Local enpoint of the Uplink.\"",
-            "after": "\"Manages actions on traffic at Egress of the Local endpoint of the Uplink.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          },
-          {
-            "field": "spec.vlans.items.properties.spec.properties.uplink.properties.ingress.description",
-            "changeType": "type_change",
-            "before": "\"Manages actions on traffic at Ingress of the Local enpoint of the Uplink.\"",
-            "after": "\"Manages actions on traffic at Ingress of the Local endpoint of the Uplink.\"",
-            "networkBehavior": "Description on VirtualNetwork changed type or structure; validate existing values against the new schema."
-          }
-        ]
       }
     ],
     "deprecated": []
   },
-  "timestamp": 1780852181448,
+  "summary": {
+    "added": 81,
+    "removed": 3,
+    "modified": 39,
+    "deprecated": 0,
+    "unchanged": 87,
+    "specChanges": 77
+  },
+  "timestamp": 1782910163910,
   "source": "comparison"
 }

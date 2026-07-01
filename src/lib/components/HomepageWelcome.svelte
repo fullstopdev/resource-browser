@@ -4,6 +4,7 @@
 	import AppHeader from '$lib/components/AppHeader.svelte';
 	import type { CrdResource, EdaRelease } from '$lib/structure';
 	import { searchResources } from '$lib/resourceSearch';
+	import { buildComparisonPath } from '$lib/urlState';
 	import { getLatestVersion } from '$lib/versions';
 	import type { Writable } from 'svelte/store';
 
@@ -43,39 +44,55 @@
 		);
 	}
 
-	const quickActions = [
+	type QuickAction = {
+		id: string;
+		label: string;
+		description: string;
+		icon: string;
+		featured?: boolean;
+		href?: string;
+	};
+
+	const quickActions: QuickAction[] = [
 		{
 			id: 'browse',
 			label: 'Browse catalog',
-			description: '',
-			primary: true,
+			description: 'Full CRD index for the selected release',
+			featured: true,
 			icon: 'M4 6h16M4 10h16M4 14h16M4 18h16'
 		},
 		{
 			id: 'compare',
 			label: 'Compare releases',
-			description: 'Schema diff across versions',
+			description: 'Schema diff across EDA versions',
 			href: '/comparison',
 			icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
 		},
 		{
+			id: 'release-changes',
+			label: 'Release changes',
+			description: 'Changelog, deprecations, and new CRDs',
+			href: '/release-changes',
+			icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+		},
+		{
 			id: 'validate',
 			label: 'Validate YAML',
-			description: 'Check manifest against schema',
+			description: 'Check manifests against live schemas',
 			href: '/validate-yaml',
 			icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
 		},
 		{
 			id: 'spec',
 			label: 'Spec search',
-			description: 'Find fields and properties',
+			description: 'Find fields and properties across CRDs',
 			href: '/spec-search',
 			icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
 		},
 		{
 			id: 'dep-map',
 			label: 'Dependency map',
-			description: 'CRD relationships from schemas',
+			description: 'CRD reference graph from schemas',
 			href: '/dependency-map',
 			icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
 		}
@@ -154,13 +171,34 @@
 		if (release) await handleReleaseClick(release);
 	}
 
-	function handleQuickAction(action: (typeof quickActions)[number]) {
+	function quickActionDescription(action: QuickAction, releaseName: string) {
+		if (action.id === 'browse') {
+			return `Open full CRD catalog for ${releaseName}`;
+		}
+		return action.description;
+	}
+
+	function quickActionUrl(action: QuickAction, releaseName: string): string | null {
+		if (action.id === 'browse') return null;
+		if (action.id === 'compare') {
+			return buildComparisonPath({ sourceRelease: releaseName });
+		}
+		if (action.id === 'release-changes') {
+			return `/release-changes?v=${encodeURIComponent(releaseName)}`;
+		}
+		if (action.href) {
+			return `${action.href}?release=${encodeURIComponent(releaseName)}`;
+		}
+		return null;
+	}
+
+	function handleQuickAction(action: QuickAction) {
 		if (action.id === 'browse') {
 			void onBrowseRelease($selectedRelease);
-		} else if (action.href) {
-			const url = `${action.href}?release=${encodeURIComponent($selectedRelease.name)}`;
-			void goto(url);
+			return;
 		}
+		const url = quickActionUrl(action, $selectedRelease.name);
+		if (url) void goto(url);
 	}
 
 	function closeSearchResults() {
@@ -387,39 +425,35 @@
 			</section>
 
 			<aside
-				class="homepage-panel homepage-actions-panel border-slate-200 bg-white dark:border-blue-900/40"
+				class="homepage-quick-actions spec-search-results-panel"
 				aria-labelledby="actions-heading"
 			>
-				<div
-					class="homepage-panel-header border-b border-slate-200 dark:border-slate-700"
-				>
-					<h2
-						id="actions-heading"
-						class="homepage-panel-title text-slate-900 dark:text-slate-100"
-					>
-						Quick actions
-					</h2>
-					<p class="homepage-panel-desc text-slate-500 dark:text-slate-400">
-						Selected: <span class="homepage-mono text-slate-900 dark:text-slate-200"
-							>{$selectedRelease.name}</span
-						>
-					</p>
-				</div>
+				<header class="homepage-quick-actions__header">
+					<div class="homepage-quick-actions__intro">
+						<h2 id="actions-heading" class="homepage-quick-actions__title">Quick actions</h2>
+						<p class="homepage-quick-actions__subtitle">
+							Jump to engineering tools for your release
+						</p>
+					</div>
+					<div class="homepage-quick-actions__badge" aria-live="polite">
+						<span class="homepage-selected-label">Selected</span>
+						<span class="homepage-quick-actions__version">{$selectedRelease.name}</span>
+						{#if $selectedRelease.default}
+							<span class="homepage-default-tag homepage-default-tag--hero">latest</span>
+						{/if}
+					</div>
+				</header>
 
-				<div class="homepage-actions-list">
-					{#each quickActions as action}
-						<button
-							type="button"
-							class="homepage-action-btn border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-700/80 {action.primary
-								? 'is-primary'
-								: ''}"
-							on:click={() => handleQuickAction(action)}
-						>
-							<span
-								class="homepage-action-icon bg-slate-100 text-blue-600 dark:bg-slate-900 dark:text-blue-400"
-								aria-hidden="true"
+				<ul class="homepage-quick-actions__grid">
+					{#each quickActions as action (action.id)}
+						<li>
+							<button
+								type="button"
+								class="homepage-quick-action-card {action.featured ? 'is-featured' : ''}"
+								on:click={() => handleQuickAction(action)}
 							>
-								<svg class="homepage-action-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<span class="homepage-quick-action-card__icon" aria-hidden="true">
+								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -428,37 +462,30 @@
 									/>
 								</svg>
 							</span>
-							<span class="homepage-action-text">
-								<span
-									class="homepage-action-label text-slate-900 dark:text-slate-100"
-									>{action.label}</span
-								>
-								<span
-									class="homepage-action-desc text-slate-500 dark:text-slate-400"
-									>{action.id === 'browse'
-										? `Open full CRD catalog for ${$selectedRelease.name}`
-										: action.description}</span
-								>
+							<span class="homepage-quick-action-card__body">
+								<span class="homepage-quick-action-card__label">{action.label}</span>
+								<span class="homepage-quick-action-card__desc">
+									{quickActionDescription(action, $selectedRelease.name)}
+								</span>
 							</span>
-							{#if action.primary}
-								<svg
-									class="homepage-action-arrow homepage-action-svg"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M17 8l4 4m0 0l-4 4m4-4H3"
-									/>
-								</svg>
-							{/if}
-						</button>
+							<svg
+								class="homepage-quick-action-card__chevron"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								aria-hidden="true"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 5l7 7-7 7"
+								/>
+							</svg>
+							</button>
+						</li>
 					{/each}
-				</div>
+				</ul>
 			</aside>
 		</div>
 	</main>

@@ -2,8 +2,15 @@
  * Pre-warm KV cache for deterministic AI actions after a release deploy.
  *
  * Usage:
- *   RELEASE=26.4.2 npm run warm:cache
- *   SITE_URL=https://eda-resource-browser.pages.dev RELEASE=26.4.2 npm run warm:cache
+ *   RELEASE=26.4.3 npm run warm:cache
+ *   npm run warm:cache -- --release 26.4.3
+ *   npm run warm:cache -- --release 26.4.3 --local
+ *   npm run warm:cache -- --release 26.4.3 --base-url http://localhost:8788
+ *   WARM_CACHE_BASE_URL=https://eda-resource-browser.pages.dev npm run warm:cache
+ *
+ * Targets production by default. Use --local (or --base-url) to warm against a local
+ * wrangler pages dev server before deploy. A preflight check verifies
+ * dependency-graph.json is available on the target before warming CRDs.
  *
  * Actions warmed:
  *   dependency-map — full release topology from dependency-graph.json (once per release)
@@ -11,6 +18,7 @@
  *   Optional LLM: explain, example via WARM_ACTIONS=explain,example or npm run warm:cache:llm
  *
  * Optional env:
+ *   WARM_CACHE_BASE_URL / SITE_URL       — target site (default: production pages.dev)
  *   WARM_ACTIONS=schema-summary,explain   — subset of actions (default: all five)
  *   SLEEP_MS=300                           — delay between batch rounds
  *   CONCURRENCY=5                          — parallel CRDs per batch
@@ -26,8 +34,11 @@ import yaml from 'js-yaml';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { DETERMINISTIC_WARM_ACTIONS, LLM_WARM_ACTIONS, RELEASE_CACHE_KIND } from '../src/lib/ai/kvCache';
 import { activeApiVersion, filterActiveManifest } from '../src/lib/manifest/activeCrds';
-import { assertSafeFolderPath } from '../src/lib/yaml-validation/schemaCache';
+import { assertSafeFolderPath, releaseAssetPath } from '../src/lib/yaml-validation/schemaCache';
 import type { ReleasesConfig } from '../src/lib/structure';
+
+const PRODUCTION_URL = 'https://eda-resource-browser.pages.dev';
+const LOCAL_URL = 'http://localhost:8788';
 
 function configureFetchDispatcher(): void {
 	const proxyUrl =
@@ -55,13 +66,44 @@ const ROOT = process.cwd();
 const STATIC_ROOT = path.join(ROOT, 'static');
 const RELEASES_PATH = path.join(ROOT, 'src/lib/releases.yaml');
 
-const SITE_URL = process.env.SITE_URL ?? 'https://eda-resource-browser.pages.dev';
-const RELEASE = process.env.RELEASE;
 const SLEEP_MS = Number(process.env.SLEEP_MS) || 300;
 const CONCURRENCY = Math.max(1, Number(process.env.CONCURRENCY) || 5);
 const WARM_RETRIES = Math.max(1, Number(process.env.WARM_RETRIES) || 3);
 const RETRY_DELAY_MS = Number(process.env.WARM_RETRY_DELAY_MS) || 1500;
 const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS) || 120_000;
+const PREFLIGHT_TIMEOUT_MS = Number(process.env.PREFLIGHT_TIMEOUT_MS) || 15_000;
+
+function normalizeBaseUrl(url: string): string {
+	return url.replace(/\/+$/, '');
+}
+
+function parseCliArgs(): { release?: string; baseUrl: string; local: boolean } {
+	const args = process.argv.slice(2);
+	const local = args.includes('--local');
+	const releaseIdx = args.indexOf('--release');
+	const release = releaseIdx >= 0 ? args[releaseIdx + 1]?.trim() : undefined;
+	if (releaseIdx >= 0 && !release) {
+		throw new Error('Missing value for --release');
+	}
+
+	const baseUrlIdx = args.indexOf('--base-url');
+	const baseUrlFromArg = baseUrlIdx >= 0 ? args[baseUrlIdx + 1]?.trim() : undefined;
+	if (baseUrlIdx >= 0 && !baseUrlFromArg) {
+		throw new Error('Missing value for --base-url');
+	}
+	if (local && baseUrlFromArg) {
+		throw new Error('Use either --local or --base-url, not both');
+	}
+
+	const baseUrlRaw =
+		(local ? LOCAL_URL : undefined) ??
+		baseUrlFromArg ??
+		process.env.WARM_CACHE_BASE_URL?.trim() ??
+		process.env.SITE_URL?.trim() ??
+		PRODUCTION_URL;
+
+	return { release, baseUrl: normalizeBaseUrl(baseUrlRaw), local };
+}
 
 function parseWarmActions(): string[] {
 	const raw = process.env.WARM_ACTIONS?.trim();
@@ -79,17 +121,24 @@ function parseWarmActions(): string[] {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function loadCrdTargets(
-	releaseName: string
-): Promise<{ kind: string; group: string }[]> {
+async function loadReleasesConfig(): Promise<ReleasesConfig> {
 	const raw = await fsPromises.readFile(RELEASES_PATH, 'utf8');
-	const config = yaml.load(raw, { schema: yaml.CORE_SCHEMA }) as ReleasesConfig;
+	return yaml.load(raw, { schema: yaml.CORE_SCHEMA }) as ReleasesConfig;
+}
+
+async function resolveReleaseFolder(releaseName: string): Promise<string> {
+	const config = await loadReleasesConfig();
 	const release = config.releases.find((r) => r.name === releaseName || r.label === releaseName);
 	if (!release) {
 		throw new Error(`Release not found in releases.yaml: ${releaseName}`);
 	}
+	return assertSafeFolderPath(release.folder);
+}
 
-	const folder = assertSafeFolderPath(release.folder);
+async function loadCrdTargets(
+	releaseName: string
+): Promise<{ kind: string; group: string; version: string }[]> {
+	const folder = await resolveReleaseFolder(releaseName);
 	const manifestPath = path.join(STATIC_ROOT, folder, 'manifest.json');
 	const manifestRaw = await fsPromises.readFile(manifestPath, 'utf8');
 	const manifest = JSON.parse(manifestRaw) as {
@@ -110,22 +159,144 @@ async function loadCrdTargets(
 	return targets.sort((a, b) => `${a.kind}:${a.group}`.localeCompare(`${b.kind}:${b.group}`));
 }
 
-async function main() {
-	if (!RELEASE) {
-		console.error('Error: RELEASE env var required. Usage: RELEASE=26.4.2 npm run warm:cache');
+function isConnectionError(err: unknown): boolean {
+	if (!(err instanceof Error)) return false;
+	const msg = err.message.toLowerCase();
+	return (
+		msg.includes('econnrefused') ||
+		msg.includes('fetch failed') ||
+		msg.includes('network') ||
+		msg.includes('connect')
+	);
+}
+
+function printLocalServerHelp(): void {
+	console.error(
+		'\nLocal wrangler server does not appear to be running.\n' +
+			'  Terminal 1: npm run dev:ai\n' +
+			'  Terminal 2: npm run warm:cache -- --release <release> --local\n'
+	);
+}
+
+async function preflightDependencyGraph(
+	release: string,
+	baseUrl: string,
+	releaseFolder: string,
+	local: boolean
+): Promise<void> {
+	const assetPath = releaseAssetPath(releaseFolder, 'dependency-graph.json');
+	const assetUrl = `${baseUrl}${assetPath}`;
+	const localGraphPath = path.join(STATIC_ROOT, releaseFolder, 'dependency-graph.json');
+	const localExists = fs.existsSync(localGraphPath);
+
+	console.log(`Preflight: ${assetUrl}`);
+
+	let response: Response | undefined;
+	let fetchError: unknown;
+
+	try {
+		response = await fetch(assetUrl, {
+			method: 'GET',
+			signal: AbortSignal.timeout(PREFLIGHT_TIMEOUT_MS)
+		});
+	} catch (err) {
+		fetchError = err;
+	}
+
+	if (fetchError) {
+		if (local && isConnectionError(fetchError)) {
+			printLocalServerHelp();
+			process.exit(1);
+		}
+		console.error(
+			`\nPreflight failed: could not reach ${baseUrl} (${fetchError instanceof Error ? fetchError.message : fetchError})`
+		);
 		process.exit(1);
 	}
 
+	if (response?.ok) {
+		console.log('Preflight OK: dependency-graph.json found on target.\n');
+		return;
+	}
+
+	const status = response?.status ?? 'unknown';
+	console.error(`\nPreflight failed: dependency-graph.json returned HTTP ${status} at ${assetUrl}`);
+
+	if (localExists) {
+		if (baseUrl === PRODUCTION_URL || !local) {
+			console.error(
+				`\nFile exists locally (${localGraphPath}) but not on ${baseUrl}.` +
+					`\nDeploy first, then re-run warm:cache:\n` +
+					`  npm run deploy:cloudflare\n` +
+					`  npm run warm:cache -- --release ${release}\n` +
+					`\nOr warm against a local server before deploy:\n` +
+					`  npm run dev:ai\n` +
+					`  npm run warm:cache -- --release ${release} --local`
+			);
+		} else {
+			console.error(
+				`\nFile exists locally (${localGraphPath}) but the local server does not serve it yet.` +
+					`\nRebuild and restart the local server:\n` +
+					`  npm run dev:ai\n` +
+					`  npm run warm:cache -- --release ${release} --local`
+			);
+		}
+	} else {
+		console.error(
+			`\nNo local dependency-graph.json at ${localGraphPath}.` +
+				`\nGenerate it first:\n` +
+				`  RELEASE=${release} npm run build:dependency-graph`
+		);
+	}
+
+	process.exit(1);
+}
+
+async function main() {
+	let cli: ReturnType<typeof parseCliArgs>;
+	try {
+		cli = parseCliArgs();
+	} catch (err) {
+		console.error(`Error: ${err instanceof Error ? err.message : err}`);
+		process.exit(1);
+	}
+
+	const RELEASE = cli.release ?? process.env.RELEASE?.trim();
+	if (!RELEASE) {
+		console.error(
+			'Error: RELEASE required. Usage: RELEASE=26.4.3 npm run warm:cache\n' +
+				'       npm run warm:cache -- --release 26.4.3\n' +
+				'       npm run warm:cache -- --release 26.4.3 --local'
+		);
+		process.exit(1);
+	}
+
+	const baseUrl = cli.baseUrl;
 	const warmActions = parseWarmActions();
 	const releaseActions = warmActions.filter((a) => a === 'dependency-map');
 	const crdActions = warmActions.filter((a) => a !== 'dependency-map');
 
-	console.log(`\nWarming AI cache for release ${RELEASE} at ${SITE_URL}`);
+	console.log(`\nWarming AI cache for release ${RELEASE} at ${baseUrl}`);
+	if (cli.local) {
+		console.log('Mode: local wrangler pages dev');
+	}
 	console.log(
 		`Actions: ${releaseActions.length ? `${releaseActions.join(' → ')} → ` : ''}${crdActions.join(' → ')}\n`
 	);
 
-	let targets: { kind: string; group: string }[];
+	let releaseFolder: string;
+	try {
+		releaseFolder = await resolveReleaseFolder(RELEASE);
+	} catch (err) {
+		console.error(err instanceof Error ? err.message : err);
+		process.exit(1);
+	}
+
+	if (releaseActions.length) {
+		await preflightDependencyGraph(RELEASE, baseUrl, releaseFolder, cli.local);
+	}
+
+	let targets: { kind: string; group: string; version: string }[];
 	try {
 		targets = await loadCrdTargets(RELEASE);
 	} catch (err) {
@@ -153,7 +324,7 @@ async function main() {
 		let lastErr: unknown;
 		for (let attempt = 1; attempt <= WARM_RETRIES; attempt++) {
 			try {
-				return await fetch(`${SITE_URL}/api/ai`, {
+				return await fetch(`${baseUrl}/api/ai`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({

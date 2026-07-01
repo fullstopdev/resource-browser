@@ -51,9 +51,11 @@ import {
 import {
 	runWorkersAIMessages,
 	workersAIErrorResponse,
+	FIX_AI_MODEL,
 	FIX_AI_REQUEST_TIMEOUT_MS,
 	selectFixMaxTokens,
-	selectFixModel
+	selectFixModel,
+	WORKERS_AI_MODEL
 } from '$lib/ai/runWorkersAI';
 import { extractYamlIssueExcerpt } from '$lib/validate-bundle/yamlIssueExcerpt';
 
@@ -148,6 +150,8 @@ function parseFixIssue(value: unknown): FixIssueContext | null {
 		const action = str((suggestedFixRaw as Record<string, unknown>).action) || undefined;
 		if (field && value) suggestedFix = { field, value, action };
 	}
+	const excerptYaml = str(issue.excerptYaml) || undefined;
+	const excerptIsFullDocument = issue.excerptIsFullDocument === true;
 	const deterministicFixAvailable = issue.deterministicFixAvailable === true;
 	return {
 		message,
@@ -163,7 +167,9 @@ function parseFixIssue(value: unknown): FixIssueContext | null {
 		allowedValues,
 		expectedTypes,
 		deterministicFixAvailable,
-		suggestedFix
+		suggestedFix,
+		excerptYaml,
+		excerptIsFullDocument
 	};
 }
 
@@ -318,6 +324,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		if (
 			!isMigrationBatch &&
 			(primaryIssue.renameHint ||
+				primaryIssue.relocationHint ||
 				primaryIssue.issueKind === 'misspelledField' ||
 				primaryIssue.deterministicFixAvailable)
 		) {
@@ -355,6 +362,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 						group,
 						fieldPath: primaryIssue.fieldPath,
 						issueKind: primaryIssue.issueKind,
+						docDigest,
 						messageDigest: hashFixCacheDigest(
 							primaryIssue.message,
 							primaryIssue.fieldPath,
@@ -383,9 +391,12 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			? await loadAiSchema(release, kind, originFetch, group, version)
 			: null;
 
-		const excerpt = !isMigrationBatch
-			? extractYamlIssueExcerpt(userYaml, primaryIssue.fieldPath)
-			: null;
+		const excerpt =
+			!isMigrationBatch && primaryIssue.excerptYaml && !primaryIssue.excerptIsFullDocument
+				? { excerpt: primaryIssue.excerptYaml, isFullDocument: false }
+				: !isMigrationBatch
+					? extractYamlIssueExcerpt(userYaml, primaryIssue.fieldPath)
+					: null;
 
 		const prompt = schema
 			? isMigrationBatch
@@ -395,28 +406,43 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 					})
 			: promptFixYamlSyntax(release, userYaml, primaryIssue);
 
+		const fixModelOptions = {
+			batched: isMigrationBatch,
+			relocationHint: primaryIssue.relocationHint,
+			migrationContext: primaryIssue.migrationContext,
+			fieldPath: primaryIssue.fieldPath
+		};
+
 		try {
-			const answer = await runWorkersAIMessages(
-				ai!,
-				[
-					{ role: 'system', content: prompt.system },
-					{ role: 'user', content: prompt.user }
-				],
-				{
-					model: selectFixModel(primaryIssue.issueKind, {
-						batched: isMigrationBatch,
-						relocationHint: primaryIssue.relocationHint,
-						fieldPath: primaryIssue.fieldPath
-					}),
-					maxTokens: selectFixMaxTokens(primaryIssue.issueKind, {
-						batched: isMigrationBatch
-					}),
-					temperature: DETERMINISTIC_TEMPERATURE,
-					seed: DETERMINISTIC_SEED,
-					timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS
-				}
-			);
-			const parsed = parseFixResponse(answer);
+			const initialModel = selectFixModel(primaryIssue.issueKind, fixModelOptions);
+			const runFix = (model: string) =>
+				runWorkersAIMessages(
+					ai!,
+					[
+						{ role: 'system', content: prompt.system },
+						{ role: 'user', content: prompt.user }
+					],
+					{
+						model,
+						maxTokens: selectFixMaxTokens(primaryIssue.issueKind, {
+							batched: isMigrationBatch
+						}),
+						temperature: DETERMINISTIC_TEMPERATURE,
+						seed: DETERMINISTIC_SEED,
+						timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS
+					}
+				);
+
+			let answer = await runFix(initialModel);
+			let parsed = parseFixResponse(answer);
+
+			if (
+				initialModel === WORKERS_AI_MODEL &&
+				(!parsed.fixable || !parsed.fixedYaml)
+			) {
+				answer = await runFix(FIX_AI_MODEL);
+				parsed = parseFixResponse(answer);
+			}
 			const responsePayload = {
 				answer,
 				release,

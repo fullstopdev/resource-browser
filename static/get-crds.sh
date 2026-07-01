@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
+CRD_FETCHER_DIR="$(realpath "${SCRIPT_DIR}/../tools/crd-fetcher")"
 
 # Output directory
 output_dir="${SCRIPT_DIR}/resources"
@@ -17,7 +18,7 @@ fi
 
 mkdir -p "$output_dir"
 
-uv --project ${SCRIPT_DIR} sync --all-groups
+uv --project "${CRD_FETCHER_DIR}" sync --all-groups
 
 # YAML dictionary for CRD versions + group + kind
 crd_meta_file="$src_lib_dir/resources.yaml"
@@ -111,7 +112,7 @@ find "$temp_dir" -name "*.yaml" -not -name "*states.*.eda.nokia.com.yaml" -exec 
 if [ -f "$crd_meta_file" ]; then
   echo
   echo "Merging meta file with new information..."
-  uv run ${SCRIPT_DIR}/merge-crds.py "$crd_meta_file" "$crd_meta_tmp_file" > "$crd_meta_file.tmp" \
+  uv run --project "${CRD_FETCHER_DIR}" "${SCRIPT_DIR}/merge-crds.py" "$crd_meta_file" "$crd_meta_tmp_file" > "$crd_meta_file.tmp" \
     && mv "$crd_meta_file.tmp" "$crd_meta_file"
   rm -rf "$crd_meta_tmp_file"
 else

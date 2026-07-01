@@ -21,6 +21,17 @@ copyFileSync(mainToml, backupToml);
 copyFileSync(leanToml, mainToml);
 
 const wranglerBin = join(root, 'node_modules', '.bin', 'wrangler');
+
+const prune = spawnSync('node', ['scripts/prune-cloudflare-output.mjs'], {
+	cwd: root,
+	stdio: 'inherit',
+	env: process.env
+});
+if (prune.status !== 0) {
+	renameSync(backupToml, mainToml);
+	process.exit(prune.status ?? 1);
+}
+
 const deploy = spawnSync(
 	wranglerBin,
 	['pages', 'deploy', '.svelte-kit/cloudflare', '--project-name=eda-resource-browser'],

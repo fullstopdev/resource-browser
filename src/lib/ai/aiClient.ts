@@ -21,6 +21,9 @@ export type FixIssuePayload = {
 	expectedTypes?: string[];
 	deterministicFixAvailable?: boolean;
 	suggestedFix?: { action?: string; field: string; value: string };
+	/** Client-computed YAML excerpt for compact prompts (server prefers when set). */
+	excerptYaml?: string;
+	excerptIsFullDocument?: boolean;
 };
 
 export type AskAIActionParams = {
