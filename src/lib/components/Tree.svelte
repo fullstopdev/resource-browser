@@ -481,12 +481,6 @@
 						>{defaultVal}</code
 					>
 				</li>
-			{:else if diffMode && diffCompareData && getDefault(diffCompareData)}
-				<li
-					class="font-fira rounded-md border-l-3 border-amber-500 bg-gray-50 px-3 py-1.5 text-xs dark:border-amber-600 dark:bg-gray-800/50"
-				>
-					<code class="rounded px-1.5 py-0.5 text-transparent">&nbsp;</code>
-				</li>
 			{/if}
 			{#if getEnum(folder)}
 				<li
@@ -496,12 +490,6 @@
 					<div class="flex-1">
 						<EnumDisplay text={getEnum(folder)} />
 					</div>
-				</li>
-			{:else if diffMode && diffCompareData && getEnum(diffCompareData)}
-				<li
-					class="font-fira rounded-md border-l-3 border-purple-500 bg-gray-50 px-3 py-1.5 text-xs dark:border-purple-600 dark:bg-gray-800/50"
-				>
-					<code class="rounded px-1.5 py-0.5 text-transparent">&nbsp;</code>
 				</li>
 			{/if}
 			{#if formatVal}
@@ -513,12 +501,6 @@
 						class="rounded bg-white/50 px-1.5 py-0.5 text-cyan-900 dark:bg-black/20 dark:text-cyan-300"
 						>{formatVal}</code
 					>
-				</li>
-			{:else if diffMode && diffCompareData && getFormat(diffCompareData)}
-				<li
-					class="font-fira rounded-md border-l-3 border-blue-500 bg-gray-50 px-3 py-1.5 text-xs dark:border-blue-600 dark:bg-gray-800/50"
-				>
-					<code class="rounded px-1.5 py-0.5 text-transparent">&nbsp;</code>
 				</li>
 			{/if}
 			{#if minVal !== undefined || maxVal !== undefined}
@@ -535,12 +517,6 @@
 						{#if maxVal !== undefined}max: {maxVal}{/if}
 					</code>
 				</li>
-			{:else if diffMode && diffCompareData && (getMinimum(diffCompareData) !== undefined || getMaximum(diffCompareData) !== undefined)}
-				<li
-					class="font-fira rounded-md border-l-3 border-green-500 bg-gray-50 px-3 py-1.5 text-xs dark:border-green-600 dark:bg-gray-800/50"
-				>
-					<code class="rounded px-1.5 py-0.5 text-transparent">&nbsp;</code>
-				</li>
 			{/if}
 			{#if minItemsVal !== undefined || maxItemsVal !== undefined}
 				<li
@@ -555,12 +531,6 @@
 						{/if}
 						{#if maxItemsVal !== undefined}maxItems: {maxItemsVal}{/if}
 					</code>
-				</li>
-			{:else if diffMode && diffCompareData && (getMinItems(diffCompareData) !== undefined || getMaxItems(diffCompareData) !== undefined)}
-				<li
-					class="font-fira rounded-md border-l-3 border-indigo-500 bg-gray-50 px-3 py-1.5 text-xs dark:border-indigo-600 dark:bg-gray-800/50"
-				>
-					<code class="rounded px-1.5 py-0.5 text-transparent">&nbsp;</code>
 				</li>
 			{/if}
 
