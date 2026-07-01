@@ -6,14 +6,14 @@
 [![Svelte](https://img.shields.io/badge/Svelte-5-FF3E00?style=for-the-badge&logo=svelte&logoColor=white)](https://svelte.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%2B%20Workers%20AI-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com)
+[![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green?style=for-the-badge)](LICENSE)
 
 # EDA Resource Browser
 
 **A fast, release-aware web UI for exploring Nokia Event-Driven Automation (EDA) Custom Resource Definitions.**
 
-Browse CRD catalogs across EDA releases, inspect OpenAPI schemas, validate YAML, compare versions, and visualize resource dependencies — with optional Cloudflare Workers AI assistance.
+Browse CRD catalogs across EDA releases, inspect OpenAPI schemas, validate YAML, compare versions, and visualize resource dependencies.
 
 [Live Demo](https://eda-resource-browser.pages.dev) · [Report an Issue](https://github.com/fullstopdev/resource-browser/issues) · [EDA Documentation](https://docs.eda.dev/)
 
@@ -33,13 +33,10 @@ Working with Nokia EDA means navigating hundreds of Custom Resource Definitions 
 - **Static-first architecture** — CRD YAML and manifests ship with the app under `static/resources/`, so browsing and schema inspection work without a backend.
 - **Release-aware catalog** — Switch between EDA releases (25.4.x through 26.4.x) and drill into any CRD version.
 - **Power tools** — Spec search, bulk release comparison, YAML validation, and an interactive dependency map.
-- **Optional AI layer** — Cloudflare Workers AI, Vectorize RAG, and KV caching power schema-grounded actions and YAML fix suggestions on deploy.
 
 ---
 
 ## Screenshots
-
-> Add screenshots to `docs/images/` and replace the placeholders below.
 
 | Catalog & search | CRD schema detail | Release comparison |
 | :---: | :---: | :---: |
@@ -78,7 +75,6 @@ A Monaco-powered editor validates multi-document YAML bundles against live CRD s
 - Real-time AJV schema validation with inline error markers
 - Schema-aware completions and hover documentation
 - Deterministic structural fixes where possible
-- **AI-assisted fix** (optional) — preview and apply LLM-suggested corrections for complex issues
 - Shareable bundle URLs for collaboration
 
 ### 4. Release Comparison
@@ -105,34 +101,6 @@ Auto-generated release notes highlight what changed between EDA versions — new
 
 ---
 
-## AI Features (Cloudflare)
-
-When deployed to Cloudflare Pages with Workers AI bindings, the app exposes schema-grounded AI actions via `/api/ai` and caches deterministic responses in KV.
-
-| Action | Cached | Description |
-| :--- | :---: | :--- |
-| `explain` | ✅ | CRD overview and purpose |
-| `field` | ✅ | Explanation for a specific field path |
-| `example` | ✅ | Sample YAML (3 variants, random on cache hit) |
-| `compare` | ✅ | Schema differences between two releases |
-| `spec-search` | ✅ | Semantic field search within one CRD |
-| `validate` | ❌ | Validate user YAML with AI commentary |
-| `fix` | ❌ | Per-issue YAML fix on the Validate page |
-
-> [!NOTE]
-> The legacy free-form **Ask** tab (`/api/ask` + Vectorize RAG) is disabled by default. Set `PUBLIC_ASK_AI_ENABLED=true` to restore the legacy UI. YAML fix AI is enabled by default (`PUBLIC_FIX_AI_ENABLED`).
-
-**Bindings** (see `wrangler.toml`):
-
-| Binding | Service | Purpose |
-| :--- | :--- | :--- |
-| `AI` | Workers AI | LLM inference (`@cf/meta/llama-3.1-8b-instruct-fast`) |
-| `AI_CACHE` | KV | Deterministic action response cache |
-| `CRD_INDEX` | Vectorize | CRD schema chunks (optional RAG) |
-| `DOCS_INDEX` | Vectorize | Crawled [docs.eda.dev](https://docs.eda.dev/) pages (optional RAG) |
-
----
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -145,7 +113,6 @@ When deployed to Cloudflare Pages with Workers AI bindings, the app exposes sche
 | **Editor** | [Monaco Editor](https://microsoft.github.io/monaco-editor/) |
 | **Graphs** | [@xyflow/svelte](https://svelteflow.dev) + [D3](https://d3js.org) |
 | **Deployment** | [Cloudflare Pages](https://pages.cloudflare.com) (primary), [Vercel](https://vercel.com) (optional) |
-| **AI / RAG** | Cloudflare Workers AI, Vectorize, KV |
 | **Testing** | [Vitest](https://vitest.dev) + [Playwright](https://playwright.dev) |
 
 ---
@@ -196,9 +163,6 @@ cp .env.example .env
 | Variable | Default | Description |
 | :--- | :--- | :--- |
 | `ADAPTER` | `cloudflare` | Set to `vercel` for Vercel deployment |
-| `PUBLIC_FIX_AI_ENABLED` | `true` | Enable AI YAML fix on `/validate-yaml` |
-| `PUBLIC_ASK_AI_ENABLED` | `false` | Show legacy Ask AI UI (requires Vectorize) |
-| `CLOUDFLARE_API_TOKEN` | — | Wrangler / Workers AI auth (never commit) |
 
 Release list is configured in `src/lib/releases.yaml`. Each entry maps a release name to its folder under `static/resources/`.
 
@@ -215,95 +179,10 @@ npm run deploy:cloudflare
 
 Or connect the repository in the Cloudflare dashboard — build command: `npm run build:cloudflare`, output directory: `.svelte-kit/cloudflare`.
 
-**Lean deploy** (static site only, no AI bindings):
-
-```bash
-npm run deploy:cloudflare:lean
-```
-
 ### Vercel
 
 ```bash
 ADAPTER=vercel npm run build:vercel
-```
-
-### Local AI Development
-
-Test Workers AI actions locally with Wrangler:
-
-```bash
-export CLOUDFLARE_API_TOKEN=your_token   # or: npx wrangler login
-npm run dev:ai
-```
-
-The dev server runs at [http://localhost:8788](http://localhost:8788) with remote AI, KV, and Vectorize bindings.
-
-```bash
-curl -s -X POST http://localhost:8788/api/ai \
-  -H 'Content-Type: application/json' \
-  -d '{"release":"26.4.2","kind":"Fabric","group":"fabrics.eda.nokia.com","action":"explain"}'
-```
-
----
-
-## Vectorize RAG Setup (Optional)
-
-Vectorize indexes power semantic retrieval for the legacy Ask feature and enrich AI context. **The app works without Vectorize** — bindings are optional until indexes exist.
-
-### Create Indexes
-
-```bash
-wrangler vectorize create eda-crd-corpus-v1 --dimensions=768 --metric=cosine \
-  --metadata-index=release --metadata-index=kind --metadata-index=group --metadata-index=chunkType
-
-wrangler vectorize create eda-docs-v1 --dimensions=768 --metric=cosine \
-  --metadata-index=source --metadata-index=release --metadata-index=section
-```
-
-Uncomment the `[[vectorize]]` blocks in `wrangler.toml`, then embed:
-
-```bash
-export CLOUDFLARE_API_TOKEN=your_token
-npm run embed:crd-corpus          # CRD schema chunks from static/resources/
-npm run embed:eda-docs            # Crawled docs.eda.dev pages
-```
-
-Useful flags:
-
-```bash
-npm run embed:crd-corpus -- --release 26.4.2   # Single release
-npm run embed:crd-corpus -- --dry-run          # Count chunks only
-npm run embed:rebuild-manifest                 # Sync local manifest with Vectorize
-```
-
-> [!NOTE]
-> **Workers AI neuron budget:** Embedding and LLM calls share Cloudflare's daily neuron quota (10,000/day on Free/Paid Workers plans). Large embed jobs may hit HTTP 429 — resume after quota reset. Embed scripts track progress in `.vectorize-manifest.json` (gitignored) and skip already-upserted chunks on re-run.
-
----
-
-## KV Cache & Warm-Up
-
-Deterministic AI actions are cached in KV so each `(release × kind × action)` burns neurons only once.
-
-### One-Time KV Setup
-
-```bash
-wrangler kv namespace create AI_CACHE
-wrangler kv namespace create AI_CACHE --preview
-# Copy id + preview_id into wrangler.toml [[kv_namespaces]]
-```
-
-### Warm Cache After Deploy
-
-```bash
-export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt   # if needed
-SITE_URL=https://eda-resource-browser.pages.dev RELEASE=26.4.2 npm run warm:cache
-```
-
-Check coverage:
-
-```bash
-curl "https://eda-resource-browser.pages.dev/api/cache-status?release=26.4.2&summary=true"
 ```
 
 ---
@@ -313,17 +192,15 @@ curl "https://eda-resource-browser.pages.dev/api/cache-status?release=26.4.2&sum
 ```
 resource-browser/
 ├── src/
-│   ├── routes/                  # SvelteKit pages & API endpoints
+│   ├── routes/                  # SvelteKit pages
 │   │   ├── +page.svelte         # Home catalog
 │   │   ├── [name]/[version]/    # CRD detail pages
 │   │   ├── comparison/          # Release diff tool
 │   │   ├── dependency-map/      # Interactive topology graph
-│   │   ├── validate-yaml/       # YAML validator + AI fix
+│   │   ├── validate-yaml/       # YAML validator
 │   │   ├── spec-search/         # Schema field search
-│   │   ├── release-notes/       # Auto-generated changelogs
-│   │   └── api/ai/              # Workers AI action endpoint
+│   │   └── release-notes/       # Auto-generated changelogs
 │   └── lib/
-│       ├── ai/                  # Prompts, KV cache, AI client
 │       ├── comparison/          # Diff engine & UI components
 │       ├── dependency-map/      # Graph builder & layout
 │       ├── validate-bundle/     # Monaco editor, AJV validation
@@ -331,8 +208,8 @@ resource-browser/
 │       └── releases.yaml        # Release configuration
 ├── static/
 │   └── resources/<release>/       # Bundled CRD YAML + manifest.json
-├── scripts/                     # Embed, warm-cache, sitemap generators
-├── wrangler.toml                # Cloudflare bindings
+├── scripts/                     # Sitemap and release-notes generators
+├── wrangler.toml                # Cloudflare Pages configuration
 └── svelte.config.js             # Adapter selection (Cloudflare / Vercel)
 ```
 
@@ -362,22 +239,10 @@ flowchart TB
         Graph["dependency-graph.json"]
     end
 
-    subgraph CF["Cloudflare Pages (optional)"]
-        API["/api/ai · /api/cache-status"]
-        AI["Workers AI"]
-        KV["KV Cache"]
-        VZ["Vectorize RAG"]
-    end
-
     Catalog --> Manifest
     Detail --> YAML
     Tools --> YAML
     Tools --> Graph
-    Tools --> API
-    API --> AI
-    API --> KV
-    API --> VZ
-    VZ --> YAML
 ```
 
 **Data flow:**
@@ -385,7 +250,6 @@ flowchart TB
 1. **Browse** — Client loads `manifest.json` and YAML from static assets; no server round-trip for catalog operations.
 2. **Validate** — AJV compiles OpenAPI schemas client-side; Monaco provides editor UX.
 3. **Compare** — Diff engine loads schemas from two releases and computes structural changes.
-4. **AI actions** — POST to `/api/ai` with release/kind/action; KV serves cache hits at zero neuron cost.
 
 ---
 
@@ -396,7 +260,6 @@ flowchart TB
 | Command | Description |
 | :--- | :--- |
 | `npm run dev` | Vite dev server with hot reload |
-| `npm run dev:ai` | Build + Wrangler Pages dev with AI bindings |
 | `npm run build` | Production build (default Cloudflare adapter) |
 | `npm run build:cloudflare` | Cloudflare Pages build |
 | `npm run build:vercel` | Vercel build |
@@ -412,16 +275,6 @@ npm run test:unit        # Vitest (client + server projects)
 npm run test:e2e         # Playwright end-to-end
 npm run test             # Both
 ```
-
----
-
-## Corporate Network Notes
-
-If direct HTTPS to `api.cloudflare.com` fails behind a corporate proxy:
-
-- Keep `HTTP_PROXY` / `HTTPS_PROXY` set when running Wrangler and embed scripts
-- Set `NODE_EXTRA_CA_CERTS` for warm-cache and HTTPS requests
-- Embed scripts use undici `ProxyAgent` automatically when proxy env vars are present
 
 ---
 
