@@ -5,7 +5,16 @@
 	import type { CrdResource, EdaRelease } from '$lib/structure';
 	import { searchResources } from '$lib/resourceSearch';
 	import { buildComparisonPath } from '$lib/urlState';
+	import {
+		buildOpenApiCatalogPath,
+		buildOpenApiComparisonPath,
+		resolveOpenApiReleaseName
+	} from '$lib/openapi/urlState';
+	import { defaultOpenApiComparisonPair } from '$lib/openapi-comparison/presentation';
+	import type { OpenApiReleasesConfig } from '$lib/openapi/types';
 	import { getLatestVersion } from '$lib/versions';
+	import { loadStaticYaml } from '$lib/yaml/safeYaml';
+	import openapiReleasesYaml from '$lib/openapi-releases.yaml?raw';
 	import type { Writable } from 'svelte/store';
 
 	type ReleaseGroup = {
@@ -19,6 +28,10 @@
 	export let onResourceSelect: (resourceName: string) => void | Promise<void>;
 	export let onBrowseRelease: (release: EdaRelease) => void | Promise<void>;
 
+	const openApiReleases =
+		(loadStaticYaml(openapiReleasesYaml) as OpenApiReleasesConfig).releases ?? [];
+
+	$: openApiReleaseName = resolveOpenApiReleaseName(openApiReleases, $selectedRelease.name);
 	const VISIBLE_PER_TRAIN = 3;
 
 	let heroSearch = '';
@@ -53,48 +66,80 @@
 		href?: string;
 	};
 
-	const quickActions: QuickAction[] = [
+	type QuickActionGroup = {
+		id: string;
+		label: string;
+		actions: QuickAction[];
+	};
+
+	const quickActionGroups: QuickActionGroup[] = [
 		{
-			id: 'browse',
-			label: 'Browse catalog',
-			description: 'Full CRD index for the selected release',
-			featured: true,
-			icon: 'M4 6h16M4 10h16M4 14h16M4 18h16'
+			id: 'crds',
+			label: 'CRDs',
+			actions: [
+				{
+					id: 'browse',
+					label: 'Catalog',
+					description: 'Full CRD index for the selected release',
+					featured: true,
+					icon: 'M4 6h16M4 10h16M4 14h16M4 18h16'
+				},
+				{
+					id: 'compare',
+					label: 'Comparison',
+					description: 'Diff CRD schemas across releases',
+					href: '/comparison',
+					icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
+				},
+				{
+					id: 'release-changes',
+					label: 'Release Changes',
+					description: 'Changelog, deprecations, and new CRDs',
+					href: '/release-changes',
+					icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+				},
+				{
+					id: 'validate',
+					label: 'Validate YAML',
+					description: 'Check manifests against live schemas',
+					href: '/validate-yaml',
+					icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+				},
+				{
+					id: 'spec',
+					label: 'Spec Search',
+					description: 'Find fields and properties across CRDs',
+					href: '/spec-search',
+					icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
+				},
+				{
+					id: 'dep-map',
+					label: 'Dependency Map',
+					description: 'CRD reference graph from schemas',
+					href: '/dependency-map',
+					icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
+				}
+			]
 		},
 		{
-			id: 'compare',
-			label: 'Compare releases',
-			description: 'Schema diff across EDA versions',
-			href: '/comparison',
-			icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
-		},
-		{
-			id: 'release-changes',
-			label: 'Release changes',
-			description: 'Changelog, deprecations, and new CRDs',
-			href: '/release-changes',
-			icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
-		},
-		{
-			id: 'validate',
-			label: 'Validate YAML',
-			description: 'Check manifests against live schemas',
-			href: '/validate-yaml',
-			icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-		},
-		{
-			id: 'spec',
-			label: 'Spec search',
-			description: 'Find fields and properties across CRDs',
-			href: '/spec-search',
-			icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-		},
-		{
-			id: 'dep-map',
-			label: 'Dependency map',
-			description: 'CRD reference graph from schemas',
-			href: '/dependency-map',
-			icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1'
+			id: 'api-server',
+			label: 'API Server',
+			actions: [
+				{
+					id: 'api-explorer',
+					label: 'Explorer',
+					description: 'Browse REST, Query & app APIs',
+					href: '/openapi',
+					icon: 'M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm4 2h8M8 12h8M8 16h5'
+				},
+				{
+					id: 'api-comparison',
+					label: 'Comparison',
+					description: 'Diff APIs across releases',
+					href: '/openapi-comparison',
+					icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
+				}
+			]
 		}
 	];
 
@@ -171,23 +216,31 @@
 		if (release) await handleReleaseClick(release);
 	}
 
-	function quickActionDescription(action: QuickAction, releaseName: string) {
-		if (action.id === 'browse') {
-			return `Open full CRD catalog for ${releaseName}`;
-		}
+	function quickActionDescription(action: QuickAction) {
+		// Never interpolate release versions into homepage/menu copy.
 		return action.description;
 	}
 
-	function quickActionUrl(action: QuickAction, releaseName: string): string | null {
+	function quickActionUrl(action: QuickAction, crdReleaseName: string): string | null {
 		if (action.id === 'browse') return null;
 		if (action.id === 'compare') {
-			return buildComparisonPath({ sourceRelease: releaseName });
+			return buildComparisonPath({ sourceRelease: crdReleaseName });
+		}
+		if (action.id === 'api-explorer') {
+			return buildOpenApiCatalogPath({ release: openApiReleaseName });
+		}
+		if (action.id === 'api-comparison') {
+			const pair = defaultOpenApiComparisonPair(openApiReleases);
+			return buildOpenApiComparisonPath({
+				sourceRelease: pair.sourceRelease,
+				targetRelease: pair.targetRelease
+			});
 		}
 		if (action.id === 'release-changes') {
-			return `/release-changes?v=${encodeURIComponent(releaseName)}`;
+			return `/release-changes?v=${encodeURIComponent(crdReleaseName)}`;
 		}
 		if (action.href) {
-			return `${action.href}?release=${encodeURIComponent(releaseName)}`;
+			return `${action.href}?release=${encodeURIComponent(crdReleaseName)}`;
 		}
 		return null;
 	}
@@ -432,7 +485,7 @@
 					<div class="homepage-quick-actions__intro">
 						<h2 id="actions-heading" class="homepage-quick-actions__title">Quick actions</h2>
 						<p class="homepage-quick-actions__subtitle">
-							Jump to engineering tools for your release
+							CRDs and API Server tools for your release
 						</p>
 					</div>
 					<div class="homepage-quick-actions__badge" aria-live="polite">
@@ -444,48 +497,58 @@
 					</div>
 				</header>
 
-				<ul class="homepage-quick-actions__grid">
-					{#each quickActions as action (action.id)}
-						<li>
-							<button
-								type="button"
-								class="homepage-quick-action-card {action.featured ? 'is-featured' : ''}"
-								on:click={() => handleQuickAction(action)}
-							>
-							<span class="homepage-quick-action-card__icon" aria-hidden="true">
-								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d={action.icon}
-									/>
-								</svg>
-							</span>
-							<span class="homepage-quick-action-card__body">
-								<span class="homepage-quick-action-card__label">{action.label}</span>
-								<span class="homepage-quick-action-card__desc">
-									{quickActionDescription(action, $selectedRelease.name)}
-								</span>
-							</span>
-							<svg
-								class="homepage-quick-action-card__chevron"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-								aria-hidden="true"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 5l7 7-7 7"
-								/>
-							</svg>
-							</button>
-						</li>
-					{/each}
-				</ul>
+				{#each quickActionGroups as group (group.id)}
+					<section
+						class="homepage-quick-actions__group"
+						aria-labelledby="actions-group-{group.id}"
+					>
+						<h3 id="actions-group-{group.id}" class="homepage-quick-actions__group-label">
+							{group.label}
+						</h3>
+						<ul class="homepage-quick-actions__grid">
+							{#each group.actions as action (action.id)}
+								<li>
+									<button
+										type="button"
+										class="homepage-quick-action-card {action.featured ? 'is-featured' : ''}"
+										on:click={() => handleQuickAction(action)}
+									>
+										<span class="homepage-quick-action-card__icon" aria-hidden="true">
+											<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d={action.icon}
+												/>
+											</svg>
+										</span>
+										<span class="homepage-quick-action-card__body">
+											<span class="homepage-quick-action-card__label">{action.label}</span>
+											<span class="homepage-quick-action-card__desc">
+												{quickActionDescription(action)}
+											</span>
+										</span>
+										<svg
+											class="homepage-quick-action-card__chevron"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 5l7 7-7 7"
+											/>
+										</svg>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/each}
 			</aside>
 		</div>
 	</main>

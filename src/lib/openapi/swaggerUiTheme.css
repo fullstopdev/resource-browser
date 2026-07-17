@@ -1,0 +1,458 @@
+/* OpenAPI Paths viewer — EDA apidocs-inspired, more colorful & polished. */
+
+.openapi-doc-viewer {
+	--openapi-swagger-text: #0f172a;
+	--openapi-swagger-muted: #64748b;
+	--openapi-swagger-border: #e2e8f0;
+	--openapi-swagger-surface: #ffffff;
+	--openapi-swagger-panel: #f8fafc;
+	--openapi-swagger-tag-bg: #ffffff;
+	--openapi-swagger-tag-hover: #f1f5f9;
+	--openapi-swagger-input-bg: #ffffff;
+	--openapi-swagger-code: #0f172a;
+	--openapi-get: #3b82f6;
+	--openapi-get-bg: rgba(59, 130, 246, 0.1);
+	--openapi-get-border: rgba(59, 130, 246, 0.45);
+	--openapi-post: #10b981;
+	--openapi-post-bg: rgba(16, 185, 129, 0.1);
+	--openapi-post-border: rgba(16, 185, 129, 0.45);
+	--openapi-put: #f59e0b;
+	--openapi-put-bg: rgba(245, 158, 11, 0.1);
+	--openapi-put-border: rgba(245, 158, 11, 0.5);
+	--openapi-delete: #f43f5e;
+	--openapi-delete-bg: rgba(244, 63, 94, 0.1);
+	--openapi-delete-border: rgba(244, 63, 94, 0.5);
+	--openapi-patch: #14b8a6;
+	--openapi-patch-bg: rgba(20, 184, 166, 0.1);
+	--openapi-patch-border: rgba(20, 184, 166, 0.45);
+	--openapi-head: #8b5cf6;
+	--openapi-head-bg: rgba(139, 92, 246, 0.1);
+	--openapi-head-border: rgba(139, 92, 246, 0.45);
+	--openapi-options: #64748b;
+	--openapi-options-bg: rgba(100, 116, 139, 0.1);
+	--openapi-options-border: rgba(100, 116, 139, 0.4);
+	font-family: 'NokiaPureText', ui-sans-serif, system-ui, sans-serif;
+}
+
+.openapi-doc-viewer--dark {
+	--openapi-swagger-text: #f1f5f9;
+	--openapi-swagger-muted: #94a3b8;
+	--openapi-swagger-border: rgba(71, 85, 105, 0.55);
+	--openapi-swagger-surface: rgba(15, 23, 42, 0.92);
+	--openapi-swagger-panel: rgba(2, 6, 23, 0.55);
+	--openapi-swagger-tag-bg: rgba(15, 23, 42, 0.75);
+	--openapi-swagger-tag-hover: rgba(30, 41, 59, 0.9);
+	--openapi-swagger-input-bg: rgba(15, 23, 42, 0.95);
+	--openapi-swagger-code: #e2e8f0;
+	--openapi-get: #60a5fa;
+	--openapi-get-bg: rgba(96, 165, 250, 0.12);
+	--openapi-get-border: rgba(96, 165, 250, 0.55);
+	--openapi-post: #34d399;
+	--openapi-post-bg: rgba(52, 211, 153, 0.12);
+	--openapi-post-border: rgba(52, 211, 153, 0.55);
+	--openapi-put: #fbbf24;
+	--openapi-put-bg: rgba(251, 191, 36, 0.12);
+	--openapi-put-border: rgba(251, 191, 36, 0.55);
+	--openapi-delete: #fb7185;
+	--openapi-delete-bg: rgba(251, 113, 133, 0.12);
+	--openapi-delete-border: rgba(251, 113, 133, 0.55);
+	--openapi-patch: #2dd4bf;
+	--openapi-patch-bg: rgba(45, 212, 191, 0.12);
+	--openapi-patch-border: rgba(45, 212, 191, 0.55);
+	--openapi-head: #a78bfa;
+	--openapi-head-bg: rgba(167, 139, 250, 0.12);
+	--openapi-head-border: rgba(167, 139, 250, 0.55);
+	--openapi-options: #94a3b8;
+	--openapi-options-bg: rgba(148, 163, 184, 0.12);
+	--openapi-options-border: rgba(148, 163, 184, 0.45);
+}
+
+.openapi-doc-viewer__mount {
+	min-height: min(64vh, 820px);
+}
+
+.openapi-doc-viewer__loading,
+.openapi-doc-viewer__error {
+	padding: 2rem 1rem;
+	text-align: center;
+	font-size: 0.875rem;
+	color: var(--openapi-swagger-muted);
+}
+
+.openapi-doc-viewer__error {
+	color: #dc2626;
+}
+
+.openapi-doc-viewer--dark .openapi-doc-viewer__error {
+	color: #f87171;
+}
+
+/* Hide cluster-specific chrome; spec is read-only reference. */
+.openapi-doc-viewer .swagger-ui .topbar,
+.openapi-doc-viewer .swagger-ui .scheme-container,
+.openapi-doc-viewer .swagger-ui .auth-wrapper,
+.openapi-doc-viewer .swagger-ui .try-out,
+.openapi-doc-viewer .swagger-ui .btn.try-out__btn,
+.openapi-doc-viewer .swagger-ui .btn.execute,
+.openapi-doc-viewer .swagger-ui section.models {
+	display: none !important;
+}
+
+.openapi-doc-viewer .swagger-ui {
+	font-family: inherit;
+	color: var(--openapi-swagger-text);
+	background: transparent;
+}
+
+.openapi-doc-viewer .swagger-ui .wrapper {
+	padding: 0;
+	max-width: none;
+}
+
+.openapi-doc-viewer .swagger-ui .info {
+	margin: 0 0 1.25rem;
+}
+
+.openapi-doc-viewer .swagger-ui .info .title {
+	font-family: 'NokiaPureHeadline', ui-sans-serif, system-ui, sans-serif;
+	font-size: 1.375rem;
+	font-weight: 700;
+	color: var(--openapi-swagger-text);
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	line-height: 1.3;
+}
+
+.openapi-doc-viewer .swagger-ui .info .title small {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.375rem;
+	margin: 0;
+	top: 0;
+	background: transparent;
+}
+
+.openapi-doc-viewer .swagger-ui .info .title small.version-stamp,
+.openapi-doc-viewer .swagger-ui .info .title small pre {
+	margin: 0;
+	padding: 0.2rem 0.55rem;
+	border-radius: 9999px;
+	font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 0.6875rem;
+	font-weight: 700;
+	line-height: 1.2;
+	border: 1px solid var(--openapi-swagger-border);
+	background: var(--openapi-swagger-panel);
+	color: var(--openapi-swagger-muted);
+}
+
+.openapi-doc-viewer .swagger-ui .info .title small.version-stamp:last-of-type,
+.openapi-doc-viewer .swagger-ui .info .title small pre.version {
+	border-color: rgba(16, 185, 129, 0.45);
+	background: rgba(16, 185, 129, 0.14);
+	color: #059669;
+}
+
+.openapi-doc-viewer--dark .swagger-ui .info .title small.version-stamp:last-of-type,
+.openapi-doc-viewer--dark .swagger-ui .info .title small pre.version {
+	border-color: rgba(52, 211, 153, 0.45);
+	background: rgba(52, 211, 153, 0.16);
+	color: #6ee7b7;
+}
+
+.openapi-doc-viewer .swagger-ui .info .description,
+.openapi-doc-viewer .swagger-ui .info p,
+.openapi-doc-viewer .swagger-ui .info li,
+.openapi-doc-viewer .swagger-ui .info table {
+	color: var(--openapi-swagger-muted);
+	font-size: 0.875rem;
+	line-height: 1.55;
+}
+
+.openapi-doc-viewer .swagger-ui .filter-container {
+	margin: 0 0 1rem;
+	padding: 0;
+}
+
+.openapi-doc-viewer .swagger-ui .filter .operation-filter-input,
+.openapi-doc-viewer .swagger-ui .filter-container input[type='text'] {
+	border: 1px solid var(--openapi-swagger-border) !important;
+	border-radius: 0.625rem !important;
+	padding: 0.625rem 0.875rem !important;
+	font-size: 0.875rem !important;
+	background: var(--openapi-swagger-input-bg) !important;
+	color: var(--openapi-swagger-text) !important;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+	width: 100%;
+}
+
+.openapi-doc-viewer .swagger-ui .filter .operation-filter-input:focus,
+.openapi-doc-viewer .swagger-ui .filter-container input[type='text']:focus {
+	outline: none;
+	border-color: var(--openapi-get) !important;
+	box-shadow: 0 0 0 3px var(--openapi-get-bg);
+}
+
+/* Collapsible tag groups */
+.openapi-doc-viewer .swagger-ui .opblock-tag-section {
+	border: 1px solid var(--openapi-swagger-border);
+	border-radius: 0.75rem;
+	margin-bottom: 0.875rem;
+	background: var(--openapi-swagger-tag-bg);
+	overflow: hidden;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-tag {
+	border-bottom: 1px solid var(--openapi-swagger-border) !important;
+	padding: 0.75rem 1rem !important;
+	margin: 0 !important;
+	font-family: 'NokiaPureHeadline', ui-sans-serif, system-ui, sans-serif;
+	font-size: 0.9375rem !important;
+	font-weight: 700 !important;
+	color: var(--openapi-swagger-text) !important;
+	background: transparent;
+	transition: background 0.12s ease;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-tag:hover {
+	background: var(--openapi-swagger-tag-hover) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-tag small {
+	color: var(--openapi-swagger-muted) !important;
+	font-weight: 400 !important;
+	font-size: 0.75rem !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-tag svg {
+	color: var(--openapi-swagger-muted);
+}
+
+.openapi-doc-viewer .swagger-ui .no-margin {
+	padding: 0.5rem 0.625rem 0.75rem;
+}
+
+/* Operation rows — method-colored like EDA, richer */
+.openapi-doc-viewer .swagger-ui .opblock {
+	border-radius: 0.625rem !important;
+	margin: 0.5rem 0 !important;
+	box-shadow: none !important;
+	border: 1px solid transparent !important;
+	border-left-width: 4px !important;
+	background: var(--openapi-swagger-surface) !important;
+	overflow: hidden;
+	transition:
+		transform 0.12s ease,
+		box-shadow 0.12s ease,
+		border-color 0.12s ease;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock:hover {
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.openapi-doc-viewer--dark .swagger-ui .opblock:hover {
+	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.openapi-doc-viewer .swagger-ui .opblock .opblock-summary {
+	padding: 0.35rem 0.75rem 0.35rem 0.5rem !important;
+	border: none !important;
+	align-items: center;
+	gap: 0.625rem;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock .opblock-summary-method {
+	min-width: 4.5rem !important;
+	padding: 0.4rem 0.55rem !important;
+	border-radius: 0.4rem !important;
+	font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+	font-size: 0.6875rem !important;
+	font-weight: 800 !important;
+	letter-spacing: 0.04em;
+	text-shadow: none !important;
+	border: none !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock .opblock-summary-path,
+.openapi-doc-viewer .swagger-ui .opblock .opblock-summary-path a {
+	max-width: 100% !important;
+	font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+	font-size: 0.8125rem !important;
+	font-weight: 600 !important;
+	color: var(--openapi-swagger-text) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock .opblock-summary-description {
+	font-size: 0.8125rem !important;
+	font-weight: 400 !important;
+	color: var(--openapi-swagger-muted) !important;
+	padding-left: 0.25rem;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock .opblock-summary-control svg {
+	color: var(--openapi-swagger-muted);
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-get {
+	border-color: var(--openapi-get-border) !important;
+	border-left-color: var(--openapi-get) !important;
+	background: linear-gradient(90deg, var(--openapi-get-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-get .opblock-summary-method {
+	background: var(--openapi-get) !important;
+	color: #fff !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-post {
+	border-color: var(--openapi-post-border) !important;
+	border-left-color: var(--openapi-post) !important;
+	background: linear-gradient(90deg, var(--openapi-post-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-post .opblock-summary-method {
+	background: var(--openapi-post) !important;
+	color: #fff !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-put {
+	border-color: var(--openapi-put-border) !important;
+	border-left-color: var(--openapi-put) !important;
+	background: linear-gradient(90deg, var(--openapi-put-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-put .opblock-summary-method {
+	background: var(--openapi-put) !important;
+	color: #fff !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-delete {
+	border-color: var(--openapi-delete-border) !important;
+	border-left-color: var(--openapi-delete) !important;
+	background: linear-gradient(90deg, var(--openapi-delete-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+	background: var(--openapi-delete) !important;
+	color: #fff !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-patch {
+	border-color: var(--openapi-patch-border) !important;
+	border-left-color: var(--openapi-patch) !important;
+	background: linear-gradient(90deg, var(--openapi-patch-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-patch .opblock-summary-method {
+	background: var(--openapi-patch) !important;
+	color: #0f172a !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-head {
+	border-color: var(--openapi-head-border) !important;
+	border-left-color: var(--openapi-head) !important;
+	background: linear-gradient(90deg, var(--openapi-head-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-head .opblock-summary-method {
+	background: var(--openapi-head) !important;
+	color: #fff !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-options {
+	border-color: var(--openapi-options-border) !important;
+	border-left-color: var(--openapi-options) !important;
+	background: linear-gradient(90deg, var(--openapi-options-bg) 0%, var(--openapi-swagger-surface) 42%) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock.opblock-options .opblock-summary-method {
+	background: var(--openapi-options) !important;
+	color: #fff !important;
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-body {
+	padding: 0.75rem 1rem 1rem;
+	background: var(--openapi-swagger-panel);
+	border-top: 1px solid var(--openapi-swagger-border);
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-section-header {
+	background: transparent !important;
+	box-shadow: none !important;
+	border-bottom: 1px solid var(--openapi-swagger-border);
+	color: var(--openapi-swagger-text);
+}
+
+.openapi-doc-viewer .swagger-ui .opblock-description-wrapper,
+.openapi-doc-viewer .swagger-ui .opblock-external-docs-wrapper,
+.openapi-doc-viewer .swagger-ui .opblock-section-header,
+.openapi-doc-viewer .swagger-ui .parameters-col_description,
+.openapi-doc-viewer .swagger-ui .response-col_description,
+.openapi-doc-viewer .swagger-ui table thead tr th,
+.openapi-doc-viewer .swagger-ui table tbody tr td,
+.openapi-doc-viewer .swagger-ui .parameter__name,
+.openapi-doc-viewer .swagger-ui .parameter__type,
+.openapi-doc-viewer .swagger-ui .response-col_status,
+.openapi-doc-viewer .swagger-ui .tab li,
+.openapi-doc-viewer .swagger-ui label,
+.openapi-doc-viewer .swagger-ui .response-col_links {
+	font-size: 0.8125rem;
+	color: var(--openapi-swagger-text);
+}
+
+.openapi-doc-viewer .swagger-ui .parameter__type,
+.openapi-doc-viewer .swagger-ui .parameter__in,
+.openapi-doc-viewer .swagger-ui .opblock-summary-description,
+.openapi-doc-viewer .swagger-ui .markdown p,
+.openapi-doc-viewer .swagger-ui .renderedMarkdown p {
+	color: var(--openapi-swagger-muted);
+}
+
+.openapi-doc-viewer .swagger-ui table {
+	border-color: var(--openapi-swagger-border);
+}
+
+.openapi-doc-viewer .swagger-ui table thead tr td,
+.openapi-doc-viewer .swagger-ui table thead tr th {
+	border-bottom: 1px solid var(--openapi-swagger-border) !important;
+	color: var(--openapi-swagger-muted);
+	background: transparent;
+}
+
+.openapi-doc-viewer .swagger-ui .responses-inner,
+.openapi-doc-viewer .swagger-ui .model-container {
+	overflow-y: auto !important;
+	max-height: min(48vh, 520px);
+}
+
+.openapi-doc-viewer .swagger-ui .model-box,
+.openapi-doc-viewer .swagger-ui section.models .model-container,
+.openapi-doc-viewer .swagger-ui .highlight-code,
+.openapi-doc-viewer .swagger-ui .microlight {
+	background: var(--openapi-swagger-input-bg) !important;
+	border-radius: 0.5rem;
+}
+
+.openapi-doc-viewer .swagger-ui .microlight {
+	color: var(--openapi-swagger-code) !important;
+}
+
+.openapi-doc-viewer .swagger-ui .btn {
+	border-radius: 0.5rem;
+	box-shadow: none;
+}
+
+.openapi-doc-viewer .swagger-ui select {
+	border: 1px solid var(--openapi-swagger-border);
+	border-radius: 0.375rem;
+	background: var(--openapi-swagger-input-bg);
+	color: var(--openapi-swagger-text);
+}
+
+.openapi-doc-viewer .swagger-ui .loading-container .loading::after {
+	border-color: var(--openapi-get) transparent var(--openapi-get) transparent;
+}

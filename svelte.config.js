@@ -16,6 +16,7 @@ const adapter =
 					'/images/*',
 					'/releases/*',
 					'/resources/*',
+					'/openapi/*',
 					'/release-notes/*',
 					'/google795c3198bb040340.html',
 					'/robots.txt',

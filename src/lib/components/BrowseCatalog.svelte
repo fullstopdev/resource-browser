@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AppHeader from '$lib/components/AppHeader.svelte';
+	import HeaderReleaseSelect from '$lib/components/HeaderReleaseSelect.svelte';
 	import ResourceModal from '$lib/components/ResourceModal.svelte';
 	import type { ResourceViewMode } from '$lib/resourceView';
 	import { displayGroup, displayKind } from '$lib/resourceSearch';
@@ -97,12 +98,6 @@
 		return sortAsc ? '↑' : '↓';
 	}
 
-	async function handleReleaseSelect(event: Event) {
-		const select = event.target as HTMLSelectElement;
-		const release = allReleases.find((r) => r.name === select.value);
-		if (release) await onReleaseChange(release);
-	}
-
 	function openResourceModal(res: CrdResource, event?: Event, viewMode: ResourceViewMode = 'schema') {
 		event?.preventDefault();
 		event?.stopPropagation();
@@ -149,23 +144,16 @@
 		}}
 	>
 		<svelte:fragment slot="actions">
-			<span
-				class="hidden max-w-[7rem] truncate rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 md:inline dark:bg-blue-900/30 dark:text-blue-300"
-			>
-				{selectedRelease.label}
-			</span>
-			<select
+			<HeaderReleaseSelect
+				id="catalog-release"
 				value={selectedRelease.name}
-				on:change={handleReleaseSelect}
-				aria-label="Select EDA release"
-				class="max-w-[7.5rem] min-h-11 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-slate-900 shadow-sm transition-colors hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:max-w-none sm:px-3 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-			>
-				{#each allReleases as release}
-					<option value={release.name}>
-						{release.label}{release.default ? ' (Latest)' : ''}
-					</option>
-				{/each}
-			</select>
+				releases={allReleases}
+				onChange={(name) => {
+					const release = allReleases.find((r) => r.name === name);
+					if (release) void onReleaseChange(release);
+				}}
+				ariaLabel="Select EDA release"
+			/>
 		</svelte:fragment>
 	</AppHeader>
 

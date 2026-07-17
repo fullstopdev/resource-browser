@@ -9,7 +9,13 @@
 	import ComparisonHeader from '$lib/comparison/components/ComparisonHeader.svelte';
 	import ReleaseSelectorCard from '$lib/comparison/components/ReleaseSelectorCard.svelte';
 	import ComparisonResults from '$lib/comparison/components/ComparisonResults.svelte';
+	import DiffDetailModal from '$lib/comparison/components/DiffDetailModal.svelte';
 	import ResourceModal from '$lib/components/ResourceModal.svelte';
+	import {
+		findDetailLineIndex,
+		type DiffDetailModalPayload,
+		type ParsedDiffLine
+	} from '$lib/comparison/diffDetails';
 	import { compareHint, matchesSearch } from '$lib/comparison/comparisonUtils';
 	import {
 		generateBulkDiffReport,
@@ -57,6 +63,9 @@
 	let modalVersion: string | null = null;
 	let modalCompareRelease: string | null = null;
 	let modalCompareVersion: string | null = null;
+
+	let diffModalOpen = false;
+	let diffModalPayload: DiffDetailModalPayload | null = null;
 
 	const manifestCache = getManifestCache();
 	const yamlCache: Map<string, string> = new Map();
@@ -296,6 +305,24 @@
 		modalCompareVersion = null;
 	}
 
+	function openDiffLineModal(crd: CrdDiffEntry, _line: number, parsed: ParsedDiffLine) {
+		diffModalPayload = {
+			title: parsed.path,
+			changeKind:
+				parsed.type === 'add' ? 'added' : parsed.type === 'remove' ? 'removed' : 'modified',
+			sourceLabel: `${report?.sourceRelease ?? sourceReleaseName} (${crd.version})`,
+			targetLabel: `${report?.targetRelease ?? targetReleaseName} (${crd.targetVersion ?? crd.version})`,
+			details: crd.details,
+			focusedLine: findDetailLineIndex(crd.details, parsed)
+		};
+		diffModalOpen = true;
+	}
+
+	function closeDiffLineModal() {
+		diffModalOpen = false;
+		diffModalPayload = null;
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
 		const target = e.target as HTMLElement | null;
@@ -512,6 +539,7 @@
 					searchRegex = !searchRegex;
 				}}
 				onViewCrd={openCrdModal}
+				onDiffLineClick={openDiffLineModal}
 			/>
 		{:else if generating}
 			<div class="spec-search-results-panel">
@@ -554,3 +582,5 @@
 		onClose={closeCrdModal}
 	/>
 {/if}
+
+<DiffDetailModal open={diffModalOpen} payload={diffModalPayload} onClose={closeDiffLineModal} />

@@ -35,13 +35,25 @@ export function parseDiffLine(detail: string): ParsedDiffLine {
 
 	if (raw.startsWith('+')) {
 		type = 'add';
-		const m = raw.match(/^\+\s*(?:Added:\s*)?(.+)$/i);
-		path = m?.[1]?.trim() ?? raw.slice(1).trim();
+		const withValue = raw.match(/^\+\s*(?:Added:\s*)?(.+?) :: (.+)$/i);
+		if (withValue) {
+			path = withValue[1].trim();
+			after = withValue[2].trim();
+		} else {
+			const m = raw.match(/^\+\s*(?:Added:\s*)?(.+)$/i);
+			path = m?.[1]?.trim() ?? raw.slice(1).trim();
+		}
 		label = `+ ${path}`;
 	} else if (raw.startsWith('-')) {
 		type = 'remove';
-		const m = raw.match(/^-\s*(?:Removed:\s*)?(.+)$/i);
-		path = m?.[1]?.trim() ?? raw.slice(1).trim();
+		const withValue = raw.match(/^-\s*(?:Removed:\s*)?(.+?) :: (.+)$/i);
+		if (withValue) {
+			path = withValue[1].trim();
+			before = withValue[2].trim();
+		} else {
+			const m = raw.match(/^-\s*(?:Removed:\s*)?(.+)$/i);
+			path = m?.[1]?.trim() ?? raw.slice(1).trim();
+		}
 		label = `− ${path}`;
 	} else if (raw.startsWith('~')) {
 		type = 'modify';
@@ -103,10 +115,14 @@ export function buildSideBySideRows(lines: ParsedDiffLine[]): DiffViewRow[] {
 				rightType: null
 			});
 		} else if (line.type === 'modify') {
+			const left =
+				line.before !== undefined ? `${line.path}: ${line.before}` : line.path;
+			const right =
+				line.after !== undefined ? `${line.path}: ${line.after}` : line.path;
 			rows.push({
 				lineNum: lineNum++,
-				left: line.path,
-				right: line.path,
+				left,
+				right,
 				leftType: 'modify',
 				rightType: 'modify'
 			});
@@ -128,4 +144,69 @@ export function diffLineClass(type: DiffLineType | null): string {
 	if (type === 'remove') return 'comparison-diff-cell comparison-diff-cell--remove';
 	if (type === 'modify') return 'comparison-diff-cell comparison-diff-cell--modify';
 	return 'comparison-diff-cell comparison-diff-cell--neutral';
+}
+
+export type DiffChangeKind = 'added' | 'removed' | 'modified';
+
+export type DiffDetailModalPayload = {
+	title: string;
+	subtitle?: string;
+	/** Short context label above the title (default: Schema diff). */
+	eyebrow?: string;
+	changeKind?: DiffChangeKind;
+	sourceLabel: string;
+	targetLabel: string;
+	details: string[];
+	/** 1-based line within `details` to highlight in the modal grid. */
+	focusedLine?: number;
+	secondaryAction?: { href: string; label: string };
+};
+
+export function diffChangeKindLabel(kind: DiffChangeKind): string {
+	if (kind === 'added') return 'Added';
+	if (kind === 'removed') return 'Removed';
+	return 'Modified';
+}
+
+export function diffChangeKindBadgeClass(kind: DiffChangeKind): string {
+	if (kind === 'removed') {
+		return 'release-notes-change-badge release-notes-change-badge--breaking';
+	}
+	if (kind === 'modified') {
+		return 'release-notes-change-badge release-notes-change-badge--warning';
+	}
+	return 'release-notes-change-badge release-notes-change-badge--safe';
+}
+
+/** Build a CRD-style detail line from structured field change data. */
+export function buildDiffDetailLine(input: {
+	field: string;
+	kind: DiffChangeKind;
+	before?: string;
+	after?: string;
+}): string {
+	const { field, kind, before, after } = input;
+	if (kind === 'added') {
+		return after != null ? `+ Added: ${field} :: ${after}` : `+ Added: ${field}`;
+	}
+	if (kind === 'removed') {
+		return before != null ? `- Removed: ${field} :: ${before}` : `- Removed: ${field}`;
+	}
+	if (before != null || after != null) {
+		return `~ Modified: ${field} :: ${before ?? '—'} → ${after ?? '—'}`;
+	}
+	return `~ Modified: ${field}`;
+}
+
+export function syntheticPathDetailLine(
+	changeKind: 'added' | 'removed',
+	path: string
+): string {
+	return changeKind === 'added' ? `+ Added: ${path}` : `- Removed: ${path}`;
+}
+
+/** Map a parsed diff line to its 1-based index within a details list, if present. */
+export function findDetailLineIndex(details: string[], parsed: ParsedDiffLine): number {
+	const index = details.findIndex((detail) => detail.trim() === parsed.raw.trim());
+	return index >= 0 ? index + 1 : 1;
 }

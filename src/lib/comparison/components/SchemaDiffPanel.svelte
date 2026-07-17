@@ -4,7 +4,8 @@
 		buildSideBySideRows,
 		diffLineClass,
 		groupDiffLines,
-		type DiffSection
+		type DiffSection,
+		type ParsedDiffLine
 	} from '../diffDetails';
 
 	export let details: string[] = [];
@@ -16,6 +17,8 @@
 	export let highlightedLine: number | null = null;
 	/** Called with the row's line number when the user clicks its copy-link button. */
 	export let onCopyLineLink: (line: number) => void = () => {};
+	/** Called when the user clicks a diff row to inspect it in a modal. */
+	export let onLineClick: ((line: number, parsed: ParsedDiffLine) => void) | undefined = undefined;
 
 	let activeTab: DiffSection = 'spec';
 
@@ -78,9 +81,11 @@
 			</div>
 			<div class="comparison-schema-diff__body">
 				{#each rows as row (row.lineNum)}
+					{@const parsedLine = activeLines[row.lineNum - 1]}
 					<div
 						class="comparison-schema-diff__row"
 						class:comparison-schema-diff__row--highlighted={highlightedLine === row.lineNum}
+						class:comparison-schema-diff__row--clickable={!!onLineClick}
 						role="row"
 						id="diff-line-{row.lineNum}"
 					>
@@ -89,38 +94,67 @@
 							class="comparison-schema-diff__line-link"
 							title="Copy a link to this line"
 							aria-label="Copy a link to this line"
-							on:click={() => onCopyLineLink(row.lineNum)}
+							on:click|stopPropagation={() => onCopyLineLink(row.lineNum)}
 						>
 							<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" />
 							</svg>
 						</button>
-						<div
-							class="{diffLineClass(row.leftType)}"
-							role="cell"
-						>
-							<span class="comparison-schema-diff__line-num" aria-hidden="true">{row.lineNum}</span>
-							<span class="comparison-schema-diff__line-text">
-								{#if row.left}
-									{@html highlightMatches(row.left, searchQuery, searchRegex)}
-								{:else}
-									<span class="comparison-schema-diff__gap" aria-hidden="true">·</span>
-								{/if}
-							</span>
-						</div>
-						<div
-							class="{diffLineClass(row.rightType)}"
-							role="cell"
-						>
-							<span class="comparison-schema-diff__line-num" aria-hidden="true">{row.lineNum}</span>
-							<span class="comparison-schema-diff__line-text">
-								{#if row.right}
-									{@html highlightMatches(row.right, searchQuery, searchRegex)}
-								{:else}
-									<span class="comparison-schema-diff__gap" aria-hidden="true">·</span>
-								{/if}
-							</span>
-						</div>
+						{#if onLineClick}
+							<button
+								type="button"
+								class="{diffLineClass(row.leftType)} comparison-schema-diff__cell-btn"
+								role="cell"
+								title="View diff detail"
+								on:click={() => onLineClick?.(row.lineNum, parsedLine)}
+							>
+								<span class="comparison-schema-diff__line-num" aria-hidden="true">{row.lineNum}</span>
+								<span class="comparison-schema-diff__line-text">
+									{#if row.left}
+										{@html highlightMatches(row.left, searchQuery, searchRegex)}
+									{:else}
+										<span class="comparison-schema-diff__gap" aria-hidden="true">·</span>
+									{/if}
+								</span>
+							</button>
+							<button
+								type="button"
+								class="{diffLineClass(row.rightType)} comparison-schema-diff__cell-btn"
+								role="cell"
+								title="View diff detail"
+								on:click={() => onLineClick?.(row.lineNum, parsedLine)}
+							>
+								<span class="comparison-schema-diff__line-num" aria-hidden="true">{row.lineNum}</span>
+								<span class="comparison-schema-diff__line-text">
+									{#if row.right}
+										{@html highlightMatches(row.right, searchQuery, searchRegex)}
+									{:else}
+										<span class="comparison-schema-diff__gap" aria-hidden="true">·</span>
+									{/if}
+								</span>
+							</button>
+						{:else}
+							<div class="{diffLineClass(row.leftType)}" role="cell">
+								<span class="comparison-schema-diff__line-num" aria-hidden="true">{row.lineNum}</span>
+								<span class="comparison-schema-diff__line-text">
+									{#if row.left}
+										{@html highlightMatches(row.left, searchQuery, searchRegex)}
+									{:else}
+										<span class="comparison-schema-diff__gap" aria-hidden="true">·</span>
+									{/if}
+								</span>
+							</div>
+							<div class="{diffLineClass(row.rightType)}" role="cell">
+								<span class="comparison-schema-diff__line-num" aria-hidden="true">{row.lineNum}</span>
+								<span class="comparison-schema-diff__line-text">
+									{#if row.right}
+										{@html highlightMatches(row.right, searchQuery, searchRegex)}
+									{:else}
+										<span class="comparison-schema-diff__gap" aria-hidden="true">·</span>
+									{/if}
+								</span>
+							</div>
+						{/if}
 					</div>
 				{/each}
 			</div>

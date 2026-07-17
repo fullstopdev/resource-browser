@@ -26,6 +26,8 @@ import {
 	type NodeType
 } from './types';
 
+import { walkSchema } from '../schemaGraph/walkSchema';
+
 export type CatalogEntry = {
 	id: string;
 	kind: string;
@@ -888,16 +890,27 @@ export function extractSchemaReferences(openApiSchema: unknown): SchemaReference
 		}
 	};
 
-	const walk = (node: unknown, path: string) => {
+	const stringifyPath = (segments: string[]): string => {
+		if (segments.length === 0) return '';
+		let out = segments[0] ?? '';
+		for (let i = 1; i < segments.length; i++) {
+			const seg = segments[i]!;
+			// Match the legacy schemaRefs path formatting exactly:
+			// - items are appended as `[]` (no dot)
+			// - additionalProperties uses `*` after a dot (e.g. `path.*`)
+			if (seg === '[]') out += '[]';
+			else out += `.${seg}`;
+		}
+		return out;
+	};
+
+	walkSchema(openApiSchema, (currentPath, node) => {
 		if (!node || typeof node !== 'object') return;
 		const n = node as Record<string, unknown>;
+		const path = stringifyPath(currentPath);
 
 		if (n['x-references'] !== undefined) {
-			emitXReferences(
-				n['x-references'],
-				path || 'schema',
-				path ? 'x-references' : 'root-x-references'
-			);
+			emitXReferences(n['x-references'], path || 'schema', path ? 'x-references' : 'root-x-references');
 		}
 
 		if (n['x-kubernetes-group-version-kind'] !== undefined) {
@@ -907,27 +920,8 @@ export function extractSchemaReferences(openApiSchema: unknown): SchemaReference
 		if (n.properties && typeof n.properties === 'object') {
 			const props = n.properties as Record<string, unknown>;
 			detectKindApiVersionEnum(props, path, add);
-			for (const [key, val] of Object.entries(props)) {
-				walk(val, path ? `${path}.${key}` : key);
-			}
 		}
-
-		if (n.additionalProperties && typeof n.additionalProperties === 'object') {
-			walk(n.additionalProperties, path ? `${path}.*` : '*');
-		}
-		if (n.items) {
-			walk(n.items, path ? `${path}[]` : '[]');
-		}
-		for (const comb of ['allOf', 'anyOf', 'oneOf'] as const) {
-			if (Array.isArray(n[comb])) {
-				for (const el of n[comb]) {
-					walk(el, path);
-				}
-			}
-		}
-	};
-
-	walk(openApiSchema, '');
+	});
 	return results;
 }
 

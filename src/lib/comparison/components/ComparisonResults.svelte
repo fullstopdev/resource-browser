@@ -12,6 +12,7 @@
 	} from '../comparisonUtils';
 	import type { BulkDiffReport, CrdDiffEntry, DiffStatus } from '../types';
 	import SchemaDiffPanel from './SchemaDiffPanel.svelte';
+	import type { ParsedDiffLine } from '../diffDetails';
 	import { downloadBulkDiffReport } from '../exportReport';
 
 	export let report: BulkDiffReport;
@@ -35,6 +36,9 @@
 	export let onClearSearch: () => void = () => {};
 	export let onToggleSearchRegex: () => void = () => {};
 	export let onViewCrd: (crd: CrdDiffEntry) => void = () => {};
+	/** Called when the user clicks a diff line to open the side-by-side detail modal. */
+	export let onDiffLineClick: (crd: CrdDiffEntry, line: number, parsed: ParsedDiffLine) => void =
+		() => {};
 	/** Called when the user copies a deep link to a specific CRD (and optionally a line). */
 	export let onCopyLink: (crd: CrdDiffEntry, line?: number) => void = () => {};
 
@@ -327,6 +331,7 @@
 												{searchRegex}
 												highlightedLine={isHighlighted ? highlightedLine : null}
 												onCopyLineLink={(line) => onCopyLink(crd, line)}
+												onLineClick={(line, parsed) => onDiffLineClick(crd, line, parsed)}
 											/>
 										{:else if crd.details.length > 0}
 											<ul class="comparison-crd-card__simple-list">

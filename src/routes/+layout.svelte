@@ -9,11 +9,25 @@
 
 	let { children } = $props();
 
-	// Show sidebar on resource detail pages (only when path looks like /<resource>/<version>)
+	// Show sidebar on CRD resource detail pages only (/<resource>/<version>).
 	const isDetailPage = derived(page, ($page) => {
 		const path = $page.url.pathname || '/';
-		// Explicit exclusion for certain routes that should never show the sidebar
-		if (path.startsWith('/bulk-diff') || path.startsWith('/spec-search')) return false;
+		const noSidebarPrefixes = [
+			'/bulk-diff',
+			'/spec-search',
+			'/spec-search-auto',
+			'/openapi',
+			'/openapi-comparison',
+			'/api-browser',
+			'/comparison',
+			'/release-changes',
+			'/release-notes',
+			'/validate-yaml',
+			'/dependency-map'
+		];
+		if (noSidebarPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+			return false;
+		}
 		// Match two segments like /resource/version; do not show for single-segment paths
 		return /^\/[^\/]+\/[^\/]+$/.test(path);
 	});
