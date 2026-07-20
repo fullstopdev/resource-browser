@@ -1,0 +1,368 @@
+[
+  {
+    "id": "aaa.eda.nokia.com/v1",
+    "title": "AAA Application APIs.",
+    "group": "aaa.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/aaa.eda.nokia.com/v1/aaa.json",
+    "pathCount": 38,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "ai.core.eda.nokia.com/v1",
+    "title": "AI Application APIs.",
+    "group": "ai.core.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/ai.core.eda.nokia.com/v1/ai.json",
+    "pathCount": 33,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "aifabrics.eda.nokia.com/v1",
+    "title": "AIFabrics Application APIs.",
+    "group": "aifabrics.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/aifabrics.eda.nokia.com/v1/aifabrics.json",
+    "pathCount": 10,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "core",
+    "title": "API Server (REST, Query & EQL)",
+    "group": "API Server",
+    "apiVersion": "core",
+    "file": "core/core.json",
+    "pathCount": 108,
+    "tags": [
+      "coreAbout",
+      "coreAccess",
+      "coreAdmin",
+      "coreAlarms",
+      "coreAutoComplete",
+      "coreBranch",
+      "coreChat",
+      "coreDB",
+      "coreMRs",
+      "coreNodeconfig",
+      "coreQuery",
+      "coreStore",
+      "coreTopology",
+      "coreTransaction",
+      "coreUss",
+      "coreWorkflows",
+      "eql",
+      "query"
+    ]
+  },
+  {
+    "id": "appstore.eda.nokia.com/v1",
+    "title": "App Store Application APIs.",
+    "group": "appstore.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/appstore.eda.nokia.com/v1/appstore.json",
+    "pathCount": 22,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "bootstrap.eda.nokia.com/v1",
+    "title": "Bootstrap Application APIs.",
+    "group": "bootstrap.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/bootstrap.eda.nokia.com/v1/bootstrap.json",
+    "pathCount": 30,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "certcheck.eda.nokia.com/v1alpha1",
+    "title": "Cert Checker Application APIs.",
+    "group": "certcheck.eda.nokia.com",
+    "apiVersion": "v1alpha1",
+    "file": "apps/certcheck.eda.nokia.com/v1alpha1/certcheck.json",
+    "pathCount": 10,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "components.eda.nokia.com/v2",
+    "title": "Components Application APIs.",
+    "group": "components.eda.nokia.com",
+    "apiVersion": "v2",
+    "file": "apps/components.eda.nokia.com/v2/components.json",
+    "pathCount": 45,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "config.eda.nokia.com/v1",
+    "title": "Configuration Application APIs.",
+    "group": "config.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/config.eda.nokia.com/v1/config.json",
+    "pathCount": 10,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "core.eda.nokia.com/v1",
+    "title": "Core Application APIs.",
+    "group": "core.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/core.eda.nokia.com/v1/core.json",
+    "pathCount": 192,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "coreext.eda.nokia.com/v1alpha1",
+    "title": "Core Extensions Application APIs.",
+    "group": "coreext.eda.nokia.com",
+    "apiVersion": "v1alpha1",
+    "file": "apps/coreext.eda.nokia.com/v1alpha1/coreext.json",
+    "pathCount": 7,
+    "tags": [
+      "workflows"
+    ]
+  },
+  {
+    "id": "environment.eda.nokia.com/v1",
+    "title": "Environment Application APIs.",
+    "group": "environment.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/environment.eda.nokia.com/v1/environment.json",
+    "pathCount": 16,
+    "tags": [
+      "workflows"
+    ]
+  },
+  {
+    "id": "fabrics.eda.nokia.com/v1",
+    "title": "Fabrics Application APIs.",
+    "group": "fabrics.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/fabrics.eda.nokia.com/v1/fabrics.json",
+    "pathCount": 25,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "filters.eda.nokia.com/v1",
+    "title": "Filters Application APIs.",
+    "group": "filters.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/filters.eda.nokia.com/v1/filters.json",
+    "pathCount": 24,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "interfaces.eda.nokia.com/v1",
+    "title": "Interface Application APIs.",
+    "group": "interfaces.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/interfaces.eda.nokia.com/v1/interfaces.json",
+    "pathCount": 25,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "management.eda.nokia.com/v1",
+    "title": "Management Application APIs.",
+    "group": "management.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/management.eda.nokia.com/v1/management.json",
+    "pathCount": 31,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "microsegmentation.eda.nokia.com/v1alpha1",
+    "title": "Micro Segmentation Application APIs.",
+    "group": "microsegmentation.eda.nokia.com",
+    "apiVersion": "v1alpha1",
+    "file": "apps/microsegmentation.eda.nokia.com/v1alpha1/microsegmentation.json",
+    "pathCount": 24,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "mpls.eda.nokia.com/v1alpha1",
+    "title": "MPLS Application APIs.",
+    "group": "mpls.eda.nokia.com",
+    "apiVersion": "v1alpha1",
+    "file": "apps/mpls.eda.nokia.com/v1alpha1/mpls.json",
+    "pathCount": 24,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "oam.eda.nokia.com/v1",
+    "title": "OAM Application APIs.",
+    "group": "oam.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/oam.eda.nokia.com/v1/oam.json",
+    "pathCount": 33,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "os.eda.nokia.com/v1",
+    "title": "Operating System Application APIs.",
+    "group": "os.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/os.eda.nokia.com/v1/os.json",
+    "pathCount": 8,
+    "tags": [
+      "workflows"
+    ]
+  },
+  {
+    "id": "platformmetrics.eda.nokia.com/v1",
+    "title": "Platform Metrics Application APIs.",
+    "group": "platformmetrics.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/platformmetrics.eda.nokia.com/v1/platformmetrics.json",
+    "pathCount": 0,
+    "tags": []
+  },
+  {
+    "id": "protocols.eda.nokia.com/v2",
+    "title": "Protocols Application APIs.",
+    "group": "protocols.eda.nokia.com",
+    "apiVersion": "v2",
+    "file": "apps/protocols.eda.nokia.com/v2/protocols.json",
+    "pathCount": 137,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "qos.eda.nokia.com/v2",
+    "title": "QoS Application APIs.",
+    "group": "qos.eda.nokia.com",
+    "apiVersion": "v2",
+    "file": "apps/qos.eda.nokia.com/v2/qos.json",
+    "pathCount": 45,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "routing.eda.nokia.com/v1",
+    "title": "Routing Application APIs.",
+    "group": "routing.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/routing.eda.nokia.com/v1/routing.json",
+    "pathCount": 63,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "routingpolicies.eda.nokia.com/v1",
+    "title": "Routing Policies Application APIs.",
+    "group": "routingpolicies.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/routingpolicies.eda.nokia.com/v1/routingpolicies.json",
+    "pathCount": 45,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "security.eda.nokia.com/v1",
+    "title": "Security Application APIs.",
+    "group": "security.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/security.eda.nokia.com/v1/security.json",
+    "pathCount": 17,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "services.eda.nokia.com/v2",
+    "title": "Services Application APIs.",
+    "group": "services.eda.nokia.com",
+    "apiVersion": "v2",
+    "file": "apps/services.eda.nokia.com/v2/services.json",
+    "pathCount": 81,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  },
+  {
+    "id": "siteinfo.eda.nokia.com/v1",
+    "title": "Site Information Application APIs.",
+    "group": "siteinfo.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/siteinfo.eda.nokia.com/v1/siteinfo.json",
+    "pathCount": 38,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "support.eda.nokia.com/v1",
+    "title": "Support Application APIs.",
+    "group": "support.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/support.eda.nokia.com/v1/support.json",
+    "pathCount": 8,
+    "tags": [
+      "workflows"
+    ]
+  },
+  {
+    "id": "timing.eda.nokia.com/v1",
+    "title": "Timing Application APIs.",
+    "group": "timing.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/timing.eda.nokia.com/v1/timing.json",
+    "pathCount": 10,
+    "tags": [
+      "apps"
+    ]
+  },
+  {
+    "id": "topologies.eda.nokia.com/v1",
+    "title": "Topologies Application APIs.",
+    "group": "topologies.eda.nokia.com",
+    "apiVersion": "v1",
+    "file": "apps/topologies.eda.nokia.com/v1/topologies.json",
+    "pathCount": 47,
+    "tags": [
+      "apps",
+      "workflows"
+    ]
+  }
+]
