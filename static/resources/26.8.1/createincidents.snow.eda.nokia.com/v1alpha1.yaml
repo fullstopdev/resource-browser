@@ -1,0 +1,128 @@
+name: v1alpha1
+schema:
+  openAPIV3Schema:
+    description: CreateIncident is the Schema for the createincidents API.
+    properties:
+      apiVersion:
+        description: |-
+          APIVersion defines the versioned schema of this representation of an object.
+          Servers should convert recognized schemas to the latest internal value, and
+          may reject unrecognized values.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+        type: string
+      kind:
+        description: |-
+          Kind is a string value representing the REST resource this object represents.
+          Servers may infer this from the endpoint the client submits requests to.
+          Cannot be updated.
+          In CamelCase.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+        type: string
+      metadata:
+        type: object
+      spec:
+        description: spec defines the desired state of CreateIncident
+        properties:
+          alarmName:
+            description: Name of the alarm to raise an incident for.
+            type: string
+          alarmNamespace:
+            description: Namespace of the alarm to raise an incident for.
+            type: string
+          assignedTo:
+            description: The individual assigned to resolve the incident (references the User table).
+            type: string
+          assignmentGroup:
+            description: The group responsible for addressing the incident (references the Group table).
+            type: string
+          callerId:
+            description: The user who reported the incident (references the User table).
+            type: string
+          category:
+            description: General category of the incident (e.g., Software, Hardware, Network).
+            type: string
+          closeCode:
+            description: A code indicating how the incident was resolved (e.g., Solved (Workaround), Solved (Permanently)).
+            type: string
+          closeNotes:
+            description: Notes on how the incident was resolved.
+            type: string
+          cmdbci:
+            description: |-
+              The Configuration Item (CI) associated with the incident,
+              linking it to an asset or service in the CMDB (Configuration Management Database).
+            type: string
+          customFields:
+            description: List of custom fields to add to the incident
+            items:
+              properties:
+                name:
+                  description: Custom field name
+                  type: string
+                value:
+                  description: Custom field value, a Go template
+                  type: string
+              type: object
+            type: array
+          description:
+            description: A detailed description of the issue.
+            type: string
+          enabled:
+            description: |-
+              Indicates if the incident generator is enabled.
+              Mirrors ClusterIncident.spec.enabled.
+            type: boolean
+          impact:
+            description: Impact level on the organization, usually from 1 (highest) to 3 (lowest).
+            type: string
+          instance:
+            description: |-
+              ClusterInstances associated with this incident.
+              Mirrors ClusterIncident.spec.instance.
+            items:
+              type: string
+            minItems: 1
+            type: array
+          location:
+            description: Physical or logical location related to the incident.
+            type: string
+          priority:
+            description: Numeric priority of the incident, usually from 1 (highest) to 5 (lowest).
+            type: string
+          resolutionCode:
+            description: Indicates the type of resolution applied.
+            type: string
+          shortDescription:
+            description: |-
+              A Go template used to generate a brief summary of the incident
+              when raising it in service now.
+              The template can use the fields from the subscription results.
+              e.g. 'Interface {{.node.srl.interface.name}} is down on node {{.node.name}}'.
+            type: string
+          state:
+            description: |-
+              The current status of the incident, typically represented by codes:
+                1: New
+                2: In Progress
+                3: On Hold
+                6: Resolved
+                7: Closed
+                8: Canceled
+            type: string
+          subCategory:
+            description: More specific subcategory within the main category.
+            type: string
+          urgency:
+            description: Urgency level, typically from 1 (highest) to 5 (lowest).
+            type: string
+        type: object
+      status:
+        description: status defines the observed state of CreateIncident
+        type: object
+    required:
+      - spec
+    type: object
+served: true
+storage: true
+subresources:
+  status: {}

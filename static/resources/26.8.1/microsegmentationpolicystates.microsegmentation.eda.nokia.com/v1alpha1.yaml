@@ -1,0 +1,162 @@
+name: v1alpha1
+schema:
+  openAPIV3Schema:
+    description: MicroSegmentationPolicyState is the Schema for the microsegmentationpolicystates API
+    properties:
+      apiVersion:
+        description: |-
+          APIVersion defines the versioned schema of this representation of an object.
+          Servers should convert recognized schemas to the latest internal value, and
+          may reject unrecognized values.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+        type: string
+      kind:
+        description: |-
+          Kind is a string value representing the REST resource this object represents.
+          Servers may infer this from the endpoint the client submits requests to.
+          Cannot be updated.
+          In CamelCase.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+        type: string
+      metadata:
+        type: object
+      spec:
+        description: MicroSegmentationPolicyStateSpec defines the desired state of MicroSegmentationPolicyState
+        properties:
+          entries:
+            description: Entries holds per-entry state with flattened match criteria, action, and statistics.
+            items:
+              description: MicroSegmentationPolicyEntryState holds per-entry match criteria, action, and statistics.
+              properties:
+                collectStats:
+                  description: CollectStats on matching traffic.
+                  type: boolean
+                description:
+                  description: Description from the policy entry.
+                  type: string
+                destinationGroupTag:
+                  description: DestinationGroupTags to match.
+                  items:
+                    type: string
+                  type: array
+                destinationPortName:
+                  description: DestinationPortName to match.
+                  type: string
+                destinationPortNumber:
+                  description: DestinationPortNumber to match.
+                  format: int64
+                  maximum: 65535
+                  type: integer
+                destinationPortOperator:
+                  description: DestinationPortOperator (Equals, GreaterOrEquals, LessOrEquals).
+                  type: string
+                destinationPortRange:
+                  description: DestinationPortRange to match (format n-m).
+                  type: string
+                entryId:
+                  description: EntryID is the ACL entry sequence-id on the node.
+                  format: int64
+                  type: integer
+                forward:
+                  description: 'Forward action: Accept or Drop.'
+                  type: string
+                ipVersion:
+                  description: IPVersion to match (IPv4, IPv6).
+                  type: string
+                log:
+                  description: Log matching traffic.
+                  type: boolean
+                protocolName:
+                  description: ProtocolName to match.
+                  type: string
+                protocolNumber:
+                  description: ProtocolNumber to match.
+                  format: int64
+                  maximum: 65535
+                  type: integer
+                sourceGroupTag:
+                  description: SourceGroupTags to match.
+                  items:
+                    type: string
+                  type: array
+                sourcePortName:
+                  description: SourcePortName to match.
+                  type: string
+                sourcePortNumber:
+                  description: SourcePortNumber to match.
+                  format: int64
+                  maximum: 65535
+                  type: integer
+                sourcePortOperator:
+                  description: SourcePortOperator (Equals, GreaterOrEquals, LessOrEquals).
+                  type: string
+                sourcePortRange:
+                  description: SourcePortRange to match (format n-m).
+                  type: string
+                tcpFlags:
+                  description: TCPFlags to match.
+                  type: string
+              required:
+                - entryId
+              type: object
+            type: array
+          groupTags:
+            description: GroupTags lists group tag state entries (name and per-scope tag, nodes, router, bridgeDomain).
+            items:
+              description: MicroSegmentationPolicyGroupTagStateEntry is the resolved state for one GroupTag across scopes.
+              properties:
+                name:
+                  description: Name is the GroupTag name.
+                  type: string
+                scopes:
+                  description: Scopes holds the resolved state per scope (e.g. vnet name).
+                  items:
+                    description: MicroSegmentationPolicyGroupTagScopeState is the resolved state for one GroupTag in one scope.
+                    properties:
+                      nodes:
+                        description: Nodes holds per-node state (router and bridge domain names) in this scope.
+                        items:
+                          description: 'MicroSegmentationPolicyGroupTagScopeNodeState is the resolved state for one node: nodeName, routers, bridgeDomains (names).'
+                          properties:
+                            bridgeDomains:
+                              description: BridgeDomains holds the bridge domain name(s) on this node where the policy is applied.
+                              items:
+                                type: string
+                              type: array
+                            nodeName:
+                              description: NodeName is the node name.
+                              type: string
+                            routers:
+                              description: Routers holds the router name(s) on this node where the policy is applied.
+                              items:
+                                type: string
+                              type: array
+                          required:
+                            - nodeName
+                          type: object
+                        type: array
+                      scopeName:
+                        description: ScopeName identifies the service scope (e.g. vnet1, vnet2).
+                        type: string
+                      tag:
+                        description: Tag is the GroupTagID assigned for this scope.
+                        format: int64
+                        type: integer
+                    required:
+                      - scopeName
+                      - tag
+                    type: object
+                  type: array
+              required:
+                - name
+              type: object
+            type: array
+        type: object
+      status:
+        description: MicroSegmentationPolicyStateStatus defines the observed state of MicroSegmentationPolicyState
+        type: object
+    type: object
+served: true
+storage: true
+subresources:
+  status: {}

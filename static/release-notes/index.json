@@ -1,12 +1,26 @@
 {
-  "generatedAt": "2026-07-20T07:53:45.642Z",
-  "latest": "26.4.3",
+  "generatedAt": "2026-08-31T12:42:28.617Z",
+  "latest": "26.8.1",
   "entries": [
+    {
+      "toVer": "26.8.1",
+      "fromVer": "26.4.3",
+      "source": "comparison",
+      "timestamp": 1788179702198,
+      "summary": {
+        "added": 40,
+        "removed": 7,
+        "modified": 61,
+        "deprecated": 0,
+        "unchanged": 116,
+        "specChanges": 248
+      }
+    },
     {
       "toVer": "26.4.3",
       "fromVer": "26.4.2",
       "source": "comparison",
-      "timestamp": 1782910162927,
+      "timestamp": 1788179702402,
       "summary": {
         "added": 0,
         "removed": 0,
@@ -20,7 +34,7 @@
       "toVer": "26.4.2",
       "fromVer": "26.4.1",
       "source": "comparison",
-      "timestamp": 1782910163159,
+      "timestamp": 1788179702592,
       "summary": {
         "added": 0,
         "removed": 0,
@@ -34,7 +48,7 @@
       "toVer": "26.4.1",
       "fromVer": "25.12.3",
       "source": "comparison",
-      "timestamp": 1782910163386,
+      "timestamp": 1788179702819,
       "summary": {
         "added": 53,
         "removed": 0,
@@ -48,7 +62,7 @@
       "toVer": "25.12.3",
       "fromVer": "25.12.2",
       "source": "comparison",
-      "timestamp": 1782910163608,
+      "timestamp": 1788179703012,
       "summary": {
         "added": 0,
         "removed": 0,
@@ -62,7 +76,7 @@
       "toVer": "25.12.2",
       "fromVer": "25.12.1",
       "source": "comparison",
-      "timestamp": 1782910163771,
+      "timestamp": 1788179703172,
       "summary": {
         "added": 0,
         "removed": 0,
@@ -76,7 +90,7 @@
       "toVer": "25.12.1",
       "fromVer": "25.8.3",
       "source": "comparison",
-      "timestamp": 1782910163910,
+      "timestamp": 1788179703293,
       "summary": {
         "added": 81,
         "removed": 3,
@@ -90,7 +104,7 @@
       "toVer": "25.8.3",
       "fromVer": "25.8.2",
       "source": "comparison",
-      "timestamp": 1782910164062,
+      "timestamp": 1788179703443,
       "summary": {
         "added": 0,
         "removed": 0,
@@ -104,7 +118,7 @@
       "toVer": "25.8.2",
       "fromVer": "25.8.1",
       "source": "comparison",
-      "timestamp": 1782910164199,
+      "timestamp": 1788179703571,
       "summary": {
         "added": 0,
         "removed": 0,
@@ -118,7 +132,7 @@
       "toVer": "25.8.1",
       "fromVer": "25.4.2",
       "source": "comparison",
-      "timestamp": 1782910164327,
+      "timestamp": 1788179703701,
       "summary": {
         "added": 15,
         "removed": 8,
