@@ -1,0 +1,61 @@
+name: v2
+schema:
+  openAPIV3Schema:
+    description: NutanixEDAManagedBridgeDomain is the Schema for the nutanixedamanagedbridgedomains API
+    properties:
+      apiVersion:
+        description: |-
+          APIVersion defines the versioned schema of this representation of an object.
+          Servers should convert recognized schemas to the latest internal value, and
+          may reject unrecognized values.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+        type: string
+      kind:
+        description: |-
+          Kind is a string value representing the REST resource this object represents.
+          Servers may infer this from the endpoint the client submits requests to.
+          Cannot be updated.
+          In CamelCase.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+        type: string
+      metadata:
+        type: object
+      spec:
+        description: NutanixEDAManagedBridgeDomainSpec defines the desired state of NutanixEDAManagedBridgeDomain
+        properties:
+          bridgeDomainName:
+            description: The name of the EDA BridgeDomain.
+            type: string
+          managementType:
+            description: |-
+              The ManagementType of the Nutanix Subnet. If you choose "EDA Ignored", the Nutanix Prism Central Connect plugin
+              will not try to program any VLANs for this Nutanix Subnet.
+            enum:
+              - EDA Managed
+              - EDA Ignored
+            type: string
+          pluginName:
+            description: The name of the ConnectPlugin managed by the Nutanix app.
+            type: string
+          subnetId:
+            description: The ID of the Subnet managed by the BridgeDomain.
+            type: string
+        required:
+          - bridgeDomainName
+          - pluginName
+          - subnetId
+        type: object
+      status:
+        description: NutanixEDAManagedBridgeDomainStatus defines the observed state of NutanixEDAManagedBridgeDomain
+        properties:
+          errorMessage:
+            type: string
+          operationalStatus:
+            description: Indicates the current operational state of the BridgeDomain
+            type: string
+        type: object
+    type: object
+served: true
+storage: true
+subresources:
+  status: {}

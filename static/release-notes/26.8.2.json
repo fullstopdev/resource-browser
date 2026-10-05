@@ -1,0 +1,34 @@
+{
+  "toVer": "26.8.2",
+  "fromVer": "26.8.1",
+  "notes": {
+    "newResources": [],
+    "removedResources": [],
+    "modifiedResources": [
+      {
+        "kind": "Export",
+        "apiVersion": "prom.eda.nokia.com/v1alpha1",
+        "changes": [
+          {
+            "field": "spec.exports.items.properties.labels.properties.dynamic.items.required",
+            "changeType": "removed",
+            "before": "",
+            "after": "",
+            "networkBehavior": "Export manifests referencing spec.exports.items.properties.labels.properties.dynamic.items.required must remove this field before apply."
+          }
+        ]
+      }
+    ],
+    "deprecated": []
+  },
+  "summary": {
+    "added": 0,
+    "removed": 0,
+    "modified": 1,
+    "deprecated": 0,
+    "unchanged": 300,
+    "specChanges": 1
+  },
+  "timestamp": 1791223379244,
+  "source": "comparison"
+}

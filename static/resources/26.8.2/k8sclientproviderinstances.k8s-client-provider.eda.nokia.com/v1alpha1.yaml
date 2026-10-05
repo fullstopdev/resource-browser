@@ -1,0 +1,65 @@
+name: v1alpha1
+schema:
+  openAPIV3Schema:
+    description: K8sClientProviderInstance is the Schema for the k8sclientproviderinstances API
+    properties:
+      apiVersion:
+        description: |-
+          APIVersion defines the versioned schema of this representation of an object.
+          Servers should convert recognized schemas to the latest internal value, and
+          may reject unrecognized values.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+        type: string
+      kind:
+        description: |-
+          Kind is a string value representing the REST resource this object represents.
+          Servers may infer this from the endpoint the client submits requests to.
+          Cannot be updated.
+          In CamelCase.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+        type: string
+      metadata:
+        type: object
+      spec:
+        description: K8sClientProviderInstanceSpec defines the desired state of K8sClientProviderInstance
+        properties:
+          authSecretRef:
+            description: The name of the secret containing 'username' and 'auth token' keys to authenticate to K8s cluster.
+            type: string
+          k8sClusterSkipTLSVerify:
+            default: false
+            description: True if the client skips verifying the server's certificate.
+            type: boolean
+          k8sClusterTLSCertificate:
+            description: The certificate for the server to verify, if self-signed.
+            type: string
+          k8sClusterTLSEnabled:
+            default: true
+            description: Defines whether tls is enabled.
+            type: boolean
+          k8sClusterURI:
+            description: The URI of the Kubernetes cluster API, including http scheme and port.
+            type: string
+          namespace:
+            description: The namespace this K8s Client Provider Instance operates on.
+            type: string
+        required:
+          - authSecretRef
+          - k8sClusterSkipTLSVerify
+          - k8sClusterTLSEnabled
+          - k8sClusterURI
+        type: object
+      status:
+        description: K8sClientProviderInstanceStatus defines the observed state of K8sClientProviderInstance
+        properties:
+          result:
+            description: |-
+              INSERT ADDITIONAL STATUS FIELDS - define observed state of cluster
+              Important: Run "edabuilder generate" to regenerate code after modifying this file
+            type: string
+        type: object
+    type: object
+served: true
+storage: true
+subresources:
+  status: {}
