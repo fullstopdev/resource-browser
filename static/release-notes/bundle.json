@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-05T18:16:33.884Z",
+  "generatedAt": "2026-10-05T18:22:02.442Z",
   "latest": "26.8.2",
   "entries": [
     {
@@ -8,32 +8,18 @@
       "notes": {
         "newResources": [],
         "removedResources": [],
-        "modifiedResources": [
-          {
-            "kind": "Export",
-            "apiVersion": "prom.eda.nokia.com/v1alpha1",
-            "changes": [
-              {
-                "field": "spec.exports.items.properties.labels.properties.dynamic.items.required",
-                "changeType": "removed",
-                "before": "",
-                "after": "",
-                "networkBehavior": "Export manifests referencing spec.exports.items.properties.labels.properties.dynamic.items.required must remove this field before apply."
-              }
-            ]
-          }
-        ],
+        "modifiedResources": [],
         "deprecated": []
       },
       "summary": {
         "added": 0,
         "removed": 0,
-        "modified": 1,
+        "modified": 0,
         "deprecated": 0,
-        "unchanged": 300,
-        "specChanges": 1
+        "unchanged": 301,
+        "specChanges": 0
       },
-      "timestamp": 1791224192134,
+      "timestamp": 1791224520689,
       "source": "comparison"
     },
     {
@@ -9487,7 +9473,7 @@
         "unchanged": 116,
         "specChanges": 248
       },
-      "timestamp": 1791224192353,
+      "timestamp": 1791224520939,
       "source": "comparison"
     },
     {
@@ -9507,7 +9493,7 @@
         "unchanged": 268,
         "specChanges": 0
       },
-      "timestamp": 1791224192602,
+      "timestamp": 1791224521184,
       "source": "comparison"
     },
     {
@@ -9581,7 +9567,7 @@
         "unchanged": 265,
         "specChanges": 3
       },
-      "timestamp": 1791224192827,
+      "timestamp": 1791224521404,
       "source": "comparison"
     },
     {
@@ -25431,7 +25417,7 @@
         "unchanged": 96,
         "specChanges": 1426
       },
-      "timestamp": 1791224193010,
+      "timestamp": 1791224521613,
       "source": "comparison"
     },
     {
@@ -25478,7 +25464,7 @@
         "unchanged": 213,
         "specChanges": 2
       },
-      "timestamp": 1791224193161,
+      "timestamp": 1791224521792,
       "source": "comparison"
     },
     {
@@ -25498,7 +25484,7 @@
         "unchanged": 213,
         "specChanges": 0
       },
-      "timestamp": 1791224193298,
+      "timestamp": 1791224521948,
       "source": "comparison"
     },
     {
@@ -27457,7 +27443,7 @@
         "unchanged": 87,
         "specChanges": 77
       },
-      "timestamp": 1791224193401,
+      "timestamp": 1791224522063,
       "source": "comparison"
     },
     {
@@ -27477,7 +27463,7 @@
         "unchanged": 131,
         "specChanges": 0
       },
-      "timestamp": 1791224193615,
+      "timestamp": 1791224522201,
       "source": "comparison"
     },
     {
@@ -27497,7 +27483,7 @@
         "unchanged": 137,
         "specChanges": 0
       },
-      "timestamp": 1791224193725,
+      "timestamp": 1791224522321,
       "source": "comparison"
     },
     {
@@ -29948,7 +29934,7 @@
         "unchanged": 84,
         "specChanges": 152
       },
-      "timestamp": 1791224193855,
+      "timestamp": 1791224522439,
       "source": "comparison"
     }
   ]

@@ -59,6 +59,9 @@ schema:
                           replacement:
                             description: A regular expression replacement to be applied to the field value.
                             type: string
+                        required:
+                          - field
+                          - path
                         type: object
                       type: array
                     static:
