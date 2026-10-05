@@ -1,6 +1,9 @@
 test-results
 node_modules
 
+# Accidental OpenAPI fetch without RELEASE=26.8.x
+static/openapi/unlabeled/
+
 # Output
 .output
 .vercel
