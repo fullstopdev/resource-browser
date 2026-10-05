@@ -1,0 +1,352 @@
+{
+  "paths": {
+    "/apps/aaa.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/aaa.eda.nokia.com/v1",
+        "title": "AAA Application APIs"
+      }
+    },
+    "/apps/ai.core.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/ai.core.eda.nokia.com/v1",
+        "title": "AI Application APIs"
+      }
+    },
+    "/apps/aifabrics.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/aifabrics.eda.nokia.com/v1",
+        "title": "AIFabrics Application APIs"
+      }
+    },
+    "/apps/appstore.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/appstore.eda.nokia.com/v1",
+        "title": "Store Application APIs"
+      }
+    },
+    "/apps/bootstrap.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/bootstrap.eda.nokia.com/v1",
+        "title": "Bootstrap Application APIs"
+      }
+    },
+    "/apps/certcheck.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/certcheck.eda.nokia.com/v1alpha1",
+        "title": "Cert Checker Application APIs"
+      }
+    },
+    "/apps/certchecker.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/certchecker.eda.nokia.com/v1alpha1",
+        "title": "CertChecker Application APIs"
+      }
+    },
+    "/apps/components.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/components.eda.nokia.com/v2",
+        "title": "Components Application APIs"
+      }
+    },
+    "/apps/config.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/config.eda.nokia.com/v1",
+        "title": "Configuration Application APIs"
+      }
+    },
+    "/apps/connect.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/connect.eda.nokia.com/v2",
+        "title": "Cloud Connect Application APIs"
+      }
+    },
+    "/apps/core.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/core.eda.nokia.com/v1",
+        "title": "Core Application APIs"
+      }
+    },
+    "/apps/coreext.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/coreext.eda.nokia.com/v1alpha1",
+        "title": "Core Extensions Application APIs"
+      }
+    },
+    "/apps/discord.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/discord.eda.nokia.com/v1alpha1",
+        "title": "Discord Application APIs"
+      }
+    },
+    "/apps/environment.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/environment.eda.nokia.com/v1",
+        "title": "Environment Application APIs"
+      }
+    },
+    "/apps/fabrics.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/fabrics.eda.nokia.com/v1",
+        "title": "Fabrics Application APIs"
+      }
+    },
+    "/apps/filters.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/filters.eda.nokia.com/v1",
+        "title": "Filters Application APIs"
+      }
+    },
+    "/apps/flowsampling.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/flowsampling.eda.nokia.com/v1alpha1",
+        "title": "Flow Sampling Application APIs"
+      }
+    },
+    "/apps/github.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/github.eda.nokia.com/v1alpha1",
+        "title": "GitHub Application APIs"
+      }
+    },
+    "/apps/gitlab.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/gitlab.eda.nokia.com/v1alpha1",
+        "title": "Gitlab Application APIs"
+      }
+    },
+    "/apps/influxdb.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/influxdb.eda.nokia.com/v1alpha1",
+        "title": "InfluxDB Exporter Application APIs"
+      }
+    },
+    "/apps/interfaces.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/interfaces.eda.nokia.com/v1",
+        "title": "Interface Application APIs"
+      }
+    },
+    "/apps/k8s-client-provider.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/k8s-client-provider.eda.nokia.com/v1alpha1",
+        "title": "K8s Client Provider Application APIs"
+      }
+    },
+    "/apps/kafka.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/kafka.eda.nokia.com/v1",
+        "title": "Kafka Exporter Application APIs"
+      }
+    },
+    "/apps/kafkaimporter.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/kafkaimporter.eda.nokia.com/v1alpha1",
+        "title": "Kafka Importer Application APIs"
+      }
+    },
+    "/apps/logging.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/logging.eda.nokia.com/v1alpha1",
+        "title": "Logging Application APIs"
+      }
+    },
+    "/apps/management.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/management.eda.nokia.com/v1",
+        "title": "Management Application APIs"
+      }
+    },
+    "/apps/microsegmentation.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/microsegmentation.eda.nokia.com/v1alpha1",
+        "title": "Micro Segmentation Application APIs"
+      }
+    },
+    "/apps/mpls.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/mpls.eda.nokia.com/v1alpha1",
+        "title": "MPLS Application APIs"
+      }
+    },
+    "/apps/nats.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/nats.eda.nokia.com/v1",
+        "title": "NATS Exporter Application APIs"
+      }
+    },
+    "/apps/natsimporter.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/natsimporter.eda.nokia.com/v1alpha1",
+        "title": "NATS Importer Application APIs"
+      }
+    },
+    "/apps/netbox.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/netbox.eda.nokia.com/v1alpha1",
+        "title": "NetBox Application APIs"
+      }
+    },
+    "/apps/notifiers.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/notifiers.eda.nokia.com/v1",
+        "title": "Notifier Application APIs"
+      }
+    },
+    "/apps/nsx.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/nsx.eda.nokia.com/v2",
+        "title": "NSX Plugin Operator Application APIs"
+      }
+    },
+    "/apps/nutanix.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/nutanix.eda.nokia.com/v2",
+        "title": "Connect Nutanix Prism Operator Application APIs"
+      }
+    },
+    "/apps/oam.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/oam.eda.nokia.com/v1",
+        "title": "OAM Application APIs"
+      }
+    },
+    "/apps/openai.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/openai.eda.nokia.com/v1",
+        "title": "OpenAI Application APIs"
+      }
+    },
+    "/apps/openstack-client-provider.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/openstack-client-provider.eda.nokia.com/v1alpha1",
+        "title": "Openstack Client Provider Application APIs"
+      }
+    },
+    "/apps/os.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/os.eda.nokia.com/v1",
+        "title": "Operating System Application APIs"
+      }
+    },
+    "/apps/otlp.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/otlp.eda.nokia.com/v1alpha1",
+        "title": "OTLP Exporter Application APIs"
+      }
+    },
+    "/apps/pagers.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/pagers.eda.nokia.com/v1alpha1",
+        "title": "Pager Duty Application APIs"
+      }
+    },
+    "/apps/platformmetrics.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/platformmetrics.eda.nokia.com/v1",
+        "title": "Platform Metrics Application APIs"
+      }
+    },
+    "/apps/prom.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/prom.eda.nokia.com/v1alpha1",
+        "title": "Prometheus Exporter Application APIs"
+      }
+    },
+    "/apps/protocols.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/protocols.eda.nokia.com/v2",
+        "title": "Protocols Application APIs"
+      }
+    },
+    "/apps/qos.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/qos.eda.nokia.com/v2",
+        "title": "QoS Application APIs"
+      }
+    },
+    "/apps/remotewrite.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/remotewrite.eda.nokia.com/v1",
+        "title": "Remote Write Application APIs"
+      }
+    },
+    "/apps/routing.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/routing.eda.nokia.com/v1",
+        "title": "Routing Application APIs"
+      }
+    },
+    "/apps/routingpolicies.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/routingpolicies.eda.nokia.com/v1",
+        "title": "Routing Policies Application APIs"
+      }
+    },
+    "/apps/security.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/security.eda.nokia.com/v1",
+        "title": "Security Application APIs"
+      }
+    },
+    "/apps/services.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/services.eda.nokia.com/v2",
+        "title": "Services Application APIs"
+      }
+    },
+    "/apps/siteinfo.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/siteinfo.eda.nokia.com/v1",
+        "title": "Site Information Application APIs"
+      }
+    },
+    "/apps/snmp.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/snmp.eda.nokia.com/v1alpha1",
+        "title": "SNMP Traps Application APIs"
+      }
+    },
+    "/apps/snow.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/snow.eda.nokia.com/v1alpha1",
+        "title": "ServiceNow Application APIs"
+      }
+    },
+    "/apps/stdout.eda.nokia.com/v1alpha1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/stdout.eda.nokia.com/v1alpha1",
+        "title": "Standard Out Exporter Application APIs"
+      }
+    },
+    "/apps/support.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/support.eda.nokia.com/v1",
+        "title": "Support Application APIs"
+      }
+    },
+    "/apps/timing.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/timing.eda.nokia.com/v1",
+        "title": "Timing Application APIs"
+      }
+    },
+    "/apps/topologies.eda.nokia.com/v1": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/topologies.eda.nokia.com/v1",
+        "title": "Topologies Application APIs"
+      }
+    },
+    "/apps/vmware.eda.nokia.com/v2": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/apps/vmware.eda.nokia.com/v2",
+        "title": "Vmware Plugin Operator Application APIs"
+      }
+    },
+    "/core": {
+      "x-eda-nokia-com": {
+        "serverRelativeURL": "/openapi/v3/core",
+        "title": "EDA Core APIs"
+      }
+    }
+  }
+}
