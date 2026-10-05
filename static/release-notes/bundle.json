@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-05T18:03:01.008Z",
+  "generatedAt": "2026-10-05T18:16:33.884Z",
   "latest": "26.8.2",
   "entries": [
     {
@@ -33,7 +33,7 @@
         "unchanged": 300,
         "specChanges": 1
       },
-      "timestamp": 1791223379244,
+      "timestamp": 1791224192134,
       "source": "comparison"
     },
     {
@@ -9487,7 +9487,7 @@
         "unchanged": 116,
         "specChanges": 248
       },
-      "timestamp": 1791223379489,
+      "timestamp": 1791224192353,
       "source": "comparison"
     },
     {
@@ -9507,7 +9507,7 @@
         "unchanged": 268,
         "specChanges": 0
       },
-      "timestamp": 1791223379717,
+      "timestamp": 1791224192602,
       "source": "comparison"
     },
     {
@@ -9581,7 +9581,7 @@
         "unchanged": 265,
         "specChanges": 3
       },
-      "timestamp": 1791223379941,
+      "timestamp": 1791224192827,
       "source": "comparison"
     },
     {
@@ -25431,7 +25431,7 @@
         "unchanged": 96,
         "specChanges": 1426
       },
-      "timestamp": 1791223380160,
+      "timestamp": 1791224193010,
       "source": "comparison"
     },
     {
@@ -25478,7 +25478,7 @@
         "unchanged": 213,
         "specChanges": 2
       },
-      "timestamp": 1791223380330,
+      "timestamp": 1791224193161,
       "source": "comparison"
     },
     {
@@ -25498,7 +25498,7 @@
         "unchanged": 213,
         "specChanges": 0
       },
-      "timestamp": 1791223380489,
+      "timestamp": 1791224193298,
       "source": "comparison"
     },
     {
@@ -27457,7 +27457,7 @@
         "unchanged": 87,
         "specChanges": 77
       },
-      "timestamp": 1791223380608,
+      "timestamp": 1791224193401,
       "source": "comparison"
     },
     {
@@ -27477,7 +27477,7 @@
         "unchanged": 131,
         "specChanges": 0
       },
-      "timestamp": 1791223380753,
+      "timestamp": 1791224193615,
       "source": "comparison"
     },
     {
@@ -27497,7 +27497,7 @@
         "unchanged": 137,
         "specChanges": 0
       },
-      "timestamp": 1791223380878,
+      "timestamp": 1791224193725,
       "source": "comparison"
     },
     {
@@ -29948,7 +29948,7 @@
         "unchanged": 84,
         "specChanges": 152
       },
-      "timestamp": 1791223381004,
+      "timestamp": 1791224193855,
       "source": "comparison"
     }
   ]
