@@ -13,14 +13,16 @@ the release you choose, in an editor with inline errors, completions, hover help
 ## Using it
 
 1. Pick the **target release** your manifests are for.
-2. Paste or type YAML, **open a file**, or **drop a `.yaml` file** on the editor. Several documents
-   separated by `---` are validated together. Input is limited to **512 KiB**.
+2. Paste or type YAML. Several documents separated by `---` are validated together. Input
+   is limited to **512 KiB**.
 3. Errors, warnings and hints appear as you type (about half a second after you stop), underlined in
    the editor and listed with filters: **All**, **Errors**, **Warnings**, **Info**.
 4. Fix issues one by one, from the editor's lightbulb, or all at once with **AI Fix**.
 
-Your text is **saved in this browser** as you type. When you come back, the page restores it and
-offers **Start fresh**. Nothing is uploaded.
+Your YAML stays **in this page only**: it is not stored in the browser and is gone when you leave
+the page. Validation runs in your browser; the document is sent to the server only when you use an
+AI feature (AI Fix, AI preview, More detail). Use **Copy**, **Download** or **Copy share link** to
+keep it.
 
 ### Toolbar
 
@@ -30,7 +32,6 @@ offers **Start fresh**. Nothing is uploaded.
 | Copy            | Copies the YAML                                                                                                                   |
 | Copy share link | Copies a link that **contains** the YAML (compressed in the URL); opening it loads the same text and release                      |
 | Download        | Saves the YAML as `eda-manifests.yaml`                                                                                            |
-| Open file       | Loads a `.yaml` file (you can also drop it on the editor)                                                                         |
 | Insert example… | Appends a minimal manifest for any kind of the release: required fields only, defaults and placeholders filled in from the schema |
 
 ### Keyboard

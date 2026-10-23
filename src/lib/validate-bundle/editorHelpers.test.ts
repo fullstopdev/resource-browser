@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import yaml from 'js-yaml';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clearDraft, loadDraft, saveDraft } from './draftStorage';
+import { purgeLegacyDraft } from './draftStorage';
 import { validateBundle } from './index';
 import { explainIssueFromSchema } from './issueExplain';
 import { parseBundleResources } from './parser';
@@ -86,41 +86,20 @@ describe('explainIssueFromSchema', () => {
 	});
 });
 
-describe('draftStorage', () => {
-	function memoryStorage(): Storage {
-		const data = new Map<string, string>();
-		return {
-			getItem: (k) => data.get(k) ?? null,
-			setItem: (k, v) => void data.set(k, v),
-			removeItem: (k) => void data.delete(k),
-			clear: () => data.clear(),
-			key: () => null,
-			length: 0
-		};
-	}
+describe('purgeLegacyDraft', () => {
+	it('removes a draft saved by the old autosave, and never throws', () => {
+		const data = new Map([['validate-yaml:draft:v1', '{"yaml":"secret"}']]);
+		const storage = {
+			removeItem: (k: string) => void data.delete(k)
+		} as unknown as Storage;
+		purgeLegacyDraft(storage);
+		expect(data.size).toBe(0);
 
-	it('saves, loads and clears a draft', () => {
-		const storage = memoryStorage();
-		saveDraft({ yaml: 'kind: X', release: '26.8.2' }, storage);
-		expect(loadDraft(storage)).toMatchObject({ yaml: 'kind: X', release: '26.8.2' });
-		clearDraft(storage);
-		expect(loadDraft(storage)).toBeNull();
-	});
-
-	it('never throws when storage is blocked', () => {
 		const blocked = {
-			getItem: () => {
-				throw new Error('blocked');
-			},
-			setItem: () => {
-				throw new Error('blocked');
-			},
 			removeItem: () => {
 				throw new Error('blocked');
 			}
 		} as unknown as Storage;
-		expect(loadDraft(blocked)).toBeNull();
-		expect(() => saveDraft({ yaml: 'x' }, blocked)).not.toThrow();
-		expect(() => clearDraft(blocked)).not.toThrow();
+		expect(() => purgeLegacyDraft(blocked)).not.toThrow();
 	});
 });

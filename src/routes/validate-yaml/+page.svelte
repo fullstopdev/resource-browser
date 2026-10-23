@@ -44,12 +44,11 @@
 	import { explainField, fixYAML } from '$lib/ai/aiClient';
 	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
 	import { buildShareUrl, encodeBundleForUrl } from '$lib/validate-bundle/shareBundle';
-	import { clearDraft, loadDraft, saveDraft } from '$lib/validate-bundle/draftStorage';
+	import { purgeLegacyDraft } from '$lib/validate-bundle/draftStorage';
 	import { explainIssueFromSchema, type IssueExplanation } from '$lib/validate-bundle/issueExplain';
 	import { buildSkeletonYaml } from '$lib/validate-bundle/schemaSkeleton';
 	import { withoutDeterministicHints } from '$lib/validate-bundle/fixIssueContext';
 	import { fetchSchema, schemaPath } from '$lib/yaml-validation/schemaCache';
-	import { MAX_YAML_INPUT_BYTES } from '$lib/yaml/inputLimits';
 	import { fixAiEnabled } from '$lib/featureFlags';
 	import { clampYamlInput } from '$lib/yaml/inputLimits';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
@@ -93,13 +92,6 @@
 	let fixSummaryTimer: ReturnType<typeof setTimeout> | null = null;
 	let validationGeneration = 0;
 	let issueFilter: 'all' | 'errors' | 'warnings' | 'info' = 'all';
-	/** When the editor text was restored from an autosaved draft (shows the banner). */
-	let draftRestoredAt: number | null = null;
-	/** Drafts are saved only after the initial load, so the example never overwrites one. */
-	let draftReady = false;
-	let draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
-	let fileInput: HTMLInputElement | null = null;
-	let isDraggingFile = false;
 	let skeletonKind = '';
 	/** Issue whose schema explanation is open, and its optional AI answer. */
 	let explainIssueId: string | null = null;
@@ -300,42 +292,6 @@
 		link.download = 'eda-manifests.yaml';
 		link.click();
 		URL.revokeObjectURL(url);
-	}
-
-	async function openYamlFile(file: File | undefined) {
-		if (!file) return;
-		if (file.size > MAX_YAML_INPUT_BYTES) {
-			showToast('File is larger than 512 KB.');
-			return;
-		}
-		setYamlInput(await file.text());
-		draftRestoredAt = null;
-		showToast(`Opened ${file.name}`);
-		void runValidation();
-	}
-
-	function onEditorDrop(event: DragEvent) {
-		isDraggingFile = false;
-		const file = event.dataTransfer?.files?.[0];
-		if (file) void openYamlFile(file);
-	}
-
-	function startFresh() {
-		clearDraft();
-		draftRestoredAt = null;
-		setYamlInput(EXAMPLE_BUNDLE_YAML);
-		void runValidation();
-	}
-
-	$: if (browser && draftReady) {
-		const yaml = yamlInput;
-		const releaseForDraft = release?.name;
-		if (draftSaveTimer) clearTimeout(draftSaveTimer);
-		draftSaveTimer = setTimeout(() => {
-			// The untouched example isn't worth keeping as a draft.
-			if (yaml === EXAMPLE_BUNDLE_YAML) clearDraft();
-			else saveDraft({ yaml, release: releaseForDraft });
-		}, 800);
 	}
 
 	/** F8 / Shift+F8: next / previous issue that has a line, in editor order. */
@@ -563,7 +519,7 @@
 			}
 
 			if (hasYamlChanges) {
-				// Never overwrite text that changed after the fix started (draft restore, share link).
+				// Never overwrite text that changed after the fix started (e.g. a share link loaded).
 				if (yamlInput !== snapshot) {
 					showToast('The YAML changed while fixing, so the fixes were not applied. Run the fix again.');
 					return;
@@ -1290,15 +1246,9 @@
 			} else {
 				showToast('Could not decode bundle from URL — using default example.');
 			}
-		} else {
-			// A share link wins; otherwise bring back the last draft from this browser.
-			const draft = loadDraft();
-			if (draft && draft.yaml !== EXAMPLE_BUNDLE_YAML) {
-				setYamlInput(draft.yaml);
-				draftRestoredAt = draft.savedAt;
-			}
 		}
-		draftReady = true;
+		// YAML is never kept in the browser; remove drafts saved by an earlier version of the page.
+		purgeLegacyDraft();
 
 		clientReady = true;
 		void runValidation();
@@ -1315,7 +1265,6 @@
 		if (yamlCopyTimer) clearTimeout(yamlCopyTimer);
 		if (completionRefreshTimer) clearTimeout(completionRefreshTimer);
 		if (liveValidateTimer) clearTimeout(liveValidateTimer);
-		if (draftSaveTimer) clearTimeout(draftSaveTimer);
 	});
 
 </script>
@@ -1541,28 +1490,6 @@
 							</svg>
 						</button>
 
-						<button
-							type="button"
-							class="validate-yaml-btn validate-yaml-btn--ghost validate-yaml-btn--icon"
-							aria-label="Open YAML file"
-							title="Open a .yaml file (or drop one on the editor)"
-							on:click={() => fileInput?.click()}
-						>
-							<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="validate-yaml-btn__icon" aria-hidden="true">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-							</svg>
-						</button>
-						<input
-							bind:this={fileInput}
-							type="file"
-							accept=".yaml,.yml,text/yaml,application/yaml,text/plain"
-							class="sr-only"
-							tabindex="-1"
-							on:change={(e) => {
-								void openYamlFile(e.currentTarget.files?.[0]);
-								e.currentTarget.value = '';
-							}}
-						/>
 
 						{#if skeletonKinds.length > 0}
 							<label class="validate-yaml-insert">
@@ -1676,30 +1603,8 @@
 						aria-labelledby="validate-yaml-tab-editor"
 						class="validate-yaml-editor-column"
 						class:validate-yaml-view--hidden={!isSplitWorkspace && activeView !== 'editor'}
-						class:validate-yaml-editor-column--dragging={isDraggingFile}
 						aria-hidden={!isSplitWorkspace && activeView !== 'editor'}
-						on:dragover|preventDefault={() => (isDraggingFile = true)}
-						on:dragleave={() => (isDraggingFile = false)}
-						on:drop|preventDefault={onEditorDrop}
 					>
-						{#if draftRestoredAt !== null}
-							<div class="validate-yaml-draft-banner" role="status">
-								<span>
-									Restored your draft from {new Date(draftRestoredAt).toLocaleString()}.
-								</span>
-								<button type="button" class="validate-yaml-draft-banner__btn" on:click={startFresh}>
-									Start fresh
-								</button>
-								<button
-									type="button"
-									class="validate-yaml-draft-banner__btn"
-									aria-label="Dismiss"
-									on:click={() => (draftRestoredAt = null)}
-								>
-									✕
-								</button>
-							</div>
-						{/if}
 						{#if browser}
 							{#if MonacoEditorCmp}
 								<!-- Monaco editor loaded dynamically; instance typing is runtime-only -->

@@ -22,32 +22,40 @@ test.beforeEach(async ({ page }) => {
 	);
 });
 
-async function openWithDraft(page: Page, yaml: string) {
-	await page.addInitScript(
-		([key, value]) =>
-			localStorage.setItem(key, JSON.stringify({ yaml: value, savedAt: 1_700_000_000_000 })),
-		[DRAFT_KEY, yaml]
-	);
+/** Open the page and paste `yaml` into the editor (Monaco keeps pasted text exactly). */
+async function openWithYaml(page: Page, yaml: string) {
+	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
 	await page.goto('/validate-yaml');
 	await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 30_000 });
+	await page.evaluate((text) => navigator.clipboard.writeText(text), yaml);
+	await page.locator('.monaco-editor .view-lines').click();
+	await page.keyboard.press('ControlOrMeta+a');
+	await page.keyboard.press('ControlOrMeta+v');
 }
 
-/** Monaco renders spaces as U+00A0; normalize so plain substrings match. */
 const editorText = async (page: Page) =>
 	(await page.locator('.monaco-editor .view-lines').innerText()).replace(/\u00a0/g, ' ');
 
-test('restores the autosaved draft and can start fresh', async ({ page }) => {
-	await openWithDraft(page, BAD_TOPONODE);
-	await expect(page.locator('.validate-yaml-draft-banner')).toContainText('Restored your draft');
-	await expect.poll(() => editorText(page)).toContain('operatingSystem');
+test('does not keep the YAML in the browser between visits', async ({ page }) => {
+	// A draft saved by the old autosave feature must be deleted, not restored.
+	await page.addInitScript(
+		([key]) => localStorage.setItem(key, JSON.stringify({ yaml: 'kind: OldSecret', savedAt: 1 })),
+		[DRAFT_KEY]
+	);
+	await openWithYaml(page, BAD_TOPONODE.replace('leaf-01', 'leaf-private'));
+	await expect.poll(() => editorText(page)).toContain('leaf-private');
+	expect(await page.evaluate((key) => localStorage.getItem(key), DRAFT_KEY)).toBeNull();
 
-	await page.getByRole('button', { name: 'Start fresh' }).click();
-	await expect(page.locator('.validate-yaml-draft-banner')).toHaveCount(0);
+	await page.goto('/docs');
+	await page.goto('/validate-yaml');
+	await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 30_000 });
 	await expect.poll(() => editorText(page)).toContain('lab-topology');
+	expect(await editorText(page)).not.toContain('leaf-private');
+	expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('leaf-private');
 });
 
 test('reports the enum error and explains the field from the schema', async ({ page }) => {
-	await openWithDraft(page, BAD_TOPONODE);
+	await openWithYaml(page, BAD_TOPONODE);
 	const issue = page.locator('.validate-yaml-issue-msg', { hasText: 'operatingSystem' }).first();
 	await expect(issue).toContainText("value 'SRL' is invalid", { timeout: 20_000 });
 
@@ -58,7 +66,7 @@ test('reports the enum error and explains the field from the schema', async ({ p
 });
 
 test('inserts a minimal manifest for a kind from its schema', async ({ page }) => {
-	await openWithDraft(page, BAD_TOPONODE);
+	await openWithYaml(page, BAD_TOPONODE);
 	const picker = page.locator('.validate-yaml-insert__select');
 	await expect(
 		picker.locator('option', { hasText: 'Interface (interfaces.eda.nokia.com)' })
@@ -70,33 +78,22 @@ test('inserts a minimal manifest for a kind from its schema', async ({ page }) =
 	await expect.poll(() => editorText(page)).toContain('my-interface');
 });
 
-test('opens a YAML file from disk', async ({ page }) => {
-	await openWithDraft(page, BAD_TOPONODE);
-	await page.locator('input[type="file"]').setInputFiles({
-		name: 'node.yaml',
-		mimeType: 'application/yaml',
-		buffer: Buffer.from(BAD_TOPONODE.replace('leaf-01', 'leaf-from-file'))
-	});
-	await expect.poll(() => editorText(page)).toContain('leaf-from-file');
-});
-
 test('share link round-trips the YAML', async ({ page, context, baseURL }) => {
 	await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: baseURL });
-	await openWithDraft(page, BAD_TOPONODE.replace('leaf-01', 'leaf-shared'));
+	await openWithYaml(page, BAD_TOPONODE.replace('leaf-01', 'leaf-shared'));
 	await page.getByRole('button', { name: 'Copy share link' }).click();
 	const link = await expect
 		.poll(() => page.evaluate(() => navigator.clipboard.readText()))
 		.toContain('bundle=')
 		.then(() => page.evaluate(() => navigator.clipboard.readText()));
 
-	await page.evaluate((key) => localStorage.removeItem(key), DRAFT_KEY);
 	await page.goto(link);
 	await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 30_000 });
 	await expect.poll(() => editorText(page)).toContain('leaf-shared');
 });
 
 test('Info filter and F8 navigation are available', async ({ page }) => {
-	await openWithDraft(page, BAD_TOPONODE);
+	await openWithYaml(page, BAD_TOPONODE);
 	await expect(page.locator('.validate-yaml-issue-msg').first()).toBeVisible({ timeout: 20_000 });
 	await expect(page.getByRole('tab', { name: 'Info' })).toBeVisible();
 
@@ -110,7 +107,7 @@ test('Info filter and F8 navigation are available', async ({ page }) => {
 });
 
 test('an applied fix can be undone with Ctrl+Z', async ({ page }) => {
-	await openWithDraft(page, BAD_TOPONODE);
+	await openWithYaml(page, BAD_TOPONODE);
 	const issueRow = page.locator('li', {
 		has: page.locator('.validate-yaml-issue-msg', { hasText: 'operatingSystem' })
 	});
