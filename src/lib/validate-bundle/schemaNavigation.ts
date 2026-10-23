@@ -412,3 +412,27 @@ export function findNestedSchemaPropertyPath(
 	if (matches.length === 1) return matches[0]!;
 	return null;
 }
+
+/** `spec.a.0.b`, `/spec/a/0/b`, `spec.a[0].b` → ['spec', 'a', '0', 'b'] */
+function fieldPathSegments(fieldPath: string): string[] {
+	return fieldPath
+		.replace(/^\//, '')
+		.replace(/\[(\d+)\]/g, '.$1')
+		.split(/[./]/)
+		.filter(Boolean);
+}
+
+/** Schema node for a `spec.…` field path, descending into array items for index segments. */
+export function specSchemaAtPath(specSchema: unknown, fieldPath: string): unknown {
+	const segments = fieldPathSegments(fieldPath);
+	if (segments[0] !== 'spec') return null;
+	let current: unknown = specSchema;
+	for (const segment of segments.slice(1)) {
+		current = /^\d+$/.test(segment)
+			? getItemsSchema(current)
+			: getChildPropertySchema(current, segment);
+		if (!current) return null;
+	}
+	return current;
+}
+

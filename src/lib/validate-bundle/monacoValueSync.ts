@@ -48,6 +48,10 @@ type MonacoEditorLike = {
 	getPosition(): MonacoPosition | null;
 	getSelection(): MonacoSelection | null;
 	setValue(value: string): void;
+	/** Undoable replacement (Monaco); returns false when refused, e.g. read-only. */
+	// `range: never` lets Monaco's IRange-typed method satisfy this minimal shape.
+	executeEdits?(source: string, edits: { range: never; text: string }[]): boolean;
+	pushUndoStop?(): boolean;
 	setPosition(position: MonacoPosition): void;
 	setSelection(selection: MonacoSelection): void;
 };
@@ -79,7 +83,20 @@ export function setEditorValuePreservingCursor(
 			})
 		: cursorOffset;
 
-	editor.setValue(nextText);
+	// executeEdits keeps the change on the undo stack, so Ctrl+Z reverts an applied fix;
+	// setValue would wipe the history.
+	const undoable =
+		editor.executeEdits && editor.pushUndoStop
+			? (editor.pushUndoStop(),
+				editor.executeEdits('validate-yaml', [
+					{ range: model.getFullModelRange() as never, text: nextText }
+				]))
+			: false;
+	if (undoable) {
+		editor.pushUndoStop!();
+	} else {
+		editor.setValue(nextText);
+	}
 
 	const updatedModel = editor.getModel();
 	if (!updatedModel) return;

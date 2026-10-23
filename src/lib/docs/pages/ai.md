@@ -1,45 +1,39 @@
 ---
 title: AI & caching
-description: How /api/ai works — actions, models, request limits, the KV cache, fallbacks and cache warming.
+description: How /api/ai works — actions, models, request limits, server-side verification of fixes, the KV cache, fallbacks and cache warming.
 section: Developer
 order: 3
 ---
 
-The site uses **Cloudflare Workers AI** for one user-facing feature: **AI Fix** in
-[Validate YAML](validate-yaml.md). The same endpoint, `POST /api/ai`, also exposes other actions
-that are used by the cache-warming script.
-
-> [!NOTE]
-> Only the `fix` action is called from the UI today. The other actions are kept for cache warming
-> and future features.
+The site uses **Cloudflare Workers AI** in [Validate YAML](validate-yaml.md): **AI Fix** and the
+**More detail (AI)** field explanation. Both go through `POST /api/ai`.
 
 ## Actions
 
-| Action           | LLM? | Returns                                                              |
-| ---------------- | ---- | -------------------------------------------------------------------- |
-| `fix`            | Yes  | Corrected YAML for one issue, several issues, or a syntax error      |
-| `explain`        | Yes  | Plain-language explanation of a CRD (falls back to a schema summary) |
-| `field`          | Yes  | Explanation of one field (falls back to schema facts)                |
-| `example`        | Yes  | Example manifests; one is picked per response                        |
-| `compare`        | Yes  | What changed for a CRD between two releases                          |
-| `spec-search`    | Yes  | Answer to a free-text question about a CRD                           |
-| `validate`       | Yes  | Review of a manifest (never cached)                                  |
-| `schema-summary` | No   | Deterministic summary of the schema                                  |
-| `relationships`  | No   | Deterministic list of related CRDs                                   |
-| `dependency-map` | No   | Release-wide dependency summary from `dependency-graph.json`         |
-| `full-context`   | No   | Summary + relationships + any cached explain/example, joined         |
+| Action                                            | LLM? | Used by               | Returns                                                                                           |
+| ------------------------------------------------- | ---- | --------------------- | ------------------------------------------------------------------------------------------------- |
+| `fix`                                             | Yes  | AI Fix                | Corrected YAML for one issue, several issues, or a syntax error — **verified**                    |
+| `field`                                           | Yes  | Explain → More detail | Plain-language explanation of one field (falls back to schema facts)                              |
+| `explain`                                         | Yes  | cache warming         | Explanation of a CRD (falls back to a schema summary)                                             |
+| `example`                                         | Yes  | cache warming         | Example manifests; one is picked per response                                                     |
+| `spec-search`                                     | Yes  | —                     | Answer to a free-text question about a CRD                                                        |
+| `schema-summary`, `relationships`, `full-context` | No   | cache warming         | Deterministic text built from the schema                                                          |
+| `dependency-map`                                  | No   | cache warming         | Release-wide dependency summary                                                                   |
+| `validate`, `compare`                             | —    | —                     | **Disabled (404)**: they duplicated the browser validator and the diff engine and only cost quota |
 
 All LLM calls use `temperature = 0` and a fixed seed, so the same input gives the same answer
 and can be cached.
 
 ## Models
 
-| Model                                      | Used for                                                                                                      |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `@cf/meta/llama-3.1-8b-instruct-fast`      | Default for all actions and simple fixes                                                                      |
-| `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | Batched fixes, relocations, migrations, deeply nested fields — and a retry when the 8B answer can't be parsed |
+| Tier        | Default model                              | Override           |
+| ----------- | ------------------------------------------ | ------------------ |
+| Default     | `@cf/meta/llama-3.1-8b-instruct-fast`      | `AI_MODEL_DEFAULT` |
+| Fix / retry | `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | `AI_MODEL_FIX`     |
 
-Timeouts are 90 s (120 s for fixes).
+Simple fixes start on the default model; batched, relocation, migration and deeply nested fixes start
+on the fix model. Output token limits are sized from the document the model must return (about
+1.3× its tokens, at most 4,096). Timeouts are 90 s (120 s for fixes).
 
 ## A fix request, step by step
 
@@ -48,55 +42,69 @@ sequenceDiagram
   participant B as Browser
   participant W as /api/ai Worker
   participant K as KV AI_CACHE
-  participant S as Static schemas
   participant L as Workers AI
   B->>W: POST action=fix, release, kind, userYaml, issue(s)
-  W->>W: Check size limits and required fields
-  alt Fix AI disabled
-    W-->>B: 403
-  else A rule-based fix exists
-    W-->>B: 422 (use the deterministic fix)
+  W->>W: Same-origin check, size limits, required fields
+  alt A rule-based fix exists
+    W-->>B: 422 (use the one-click Fix)
   else
-    W->>K: GET fix key (document digest + issue digest)
-    alt Cached
-      K-->>W: Stored fix
-      W-->>B: fix, cached=true
-    else Not cached
-      W->>S: Load manifest and CRD schema
-      W->>W: Build prompt with a YAML excerpt around the issue
-      W->>L: Run 8B or 70B model
-      L-->>W: Answer
-      W->>W: Parse the fix
-      opt Unparseable 8B answer
-        W->>L: Retry with 70B
+    W->>W: Short doc → send it whole, long doc → excerpt around the issue
+    W->>W: Allowed values and types taken from the CRD schema
+    W->>K: GET sha256(prompt version, model, prompt)
+    alt Cached (always a verified fix)
+      K-->>B: fix, cached=true
+    else
+      W->>L: Attempt 1
+      W->>W: Parse, splice excerpt back, verify
+      opt Rejected or unparseable
+        W->>L: Attempt 2 on the fix model, with the rejection reason
+        W->>W: Parse, splice, verify
       end
-      W->>K: PUT fix (only if valid)
-      W-->>B: fix, cached=false
+      W->>K: PUT only if verified (30-day TTL, in the background)
+      W-->>B: fixedYaml + verified, or fixable=false with the reason
     end
   end
 ```
 
+### Long documents
+
+Documents up to **200 lines** are sent whole and the model returns the whole document. Longer ones
+are cut to the lines around the issue; the model returns **only those lines**, and the server
+splices them back by line range. The model never has to reproduce text it didn't see.
+
+### Verification
+
+Before a fix is returned or cached, the server checks it:
+
+1. it parses as a single YAML object;
+2. the minimal-edit guard passes — `kind` and `apiVersion` unchanged, no unrelated keys added, a
+   bounded number of changed lines (the same guard the browser uses);
+3. the reported issue is resolved — enum value now allowed, type matches the schema, required field
+   present, unknown field removed. YAML syntax fixes only need to parse.
+
+Ajv can't run in Workers (it compiles validators with `new Function`), so the server checks the
+issue directly against the schema; the browser then re-runs full validation on the result.
+
 ## Request limits
 
-| Limit        | Value                        |
-| ------------ | ---------------------------- |
-| Request body | 1 MB                         |
-| `userYaml`   | 512 KiB (same as the editor) |
-| `field`      | 1,024 characters             |
-| `issues`     | 100 per request              |
+| Limit        | Value                                                                              |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Request body | 1 MB                                                                               |
+| `userYaml`   | 512 KiB (same as the editor)                                                       |
+| `field`      | 1,024 characters                                                                   |
+| `issues`     | 100 per request                                                                    |
+| Origin       | Same-origin browser requests only (scripts without an `Origin` header are allowed) |
 
 ## Cache keys
 
-Answers are stored in KV without expiry. Keys are versioned (`v2`) so a format change can't
-return stale shapes:
-
 ```text
-ai:v2:{release}:{kind}:{group}:{apiVersion}:{field}:{compareRelease}:{action}
-ai:v2:fix:{release}:{kind}:{group}:{fieldPath}:{issueKind}:{docDigest}:{messageDigest}
-ai:v2:fix-migration:{release}:{kind}:{group}:{docDigest}:{issueIdsDigest}
+ai:v3:fix:{release}:{sha256(promptVersion, model, system prompt, user prompt)}   (30-day TTL)
+ai:v2:{release}:{kind}:{group}:{apiVersion}:{field}:{compareRelease}:{action}     (other actions)
 ```
 
-Missing parts are written as `none`; release-wide entries use the kind `__release__`.
+Fix keys hash everything that shaped the answer. Hints sent by the browser are part of the prompt,
+so a crafted request can only populate its own key — never the entry other users read — and only
+verified fixes are written. Bumping `FIX_PROMPT_VERSION` retires all cached fixes.
 
 ## Failures and fallbacks
 
@@ -104,20 +112,39 @@ Missing parts are written as `none`; release-wide entries use the kind `__releas
 flowchart LR
   REQ["LLM call"] --> OK{"Succeeded?"}
   OK -->|"yes"| ANS["Answer"]
-  OK -->|"quota exhausted"| Q["explain / field: schema-based fallback; others: quota error"]
+  OK -->|"quota exhausted"| Q["explain / field: schema-based fallback, others: quota error"]
   OK -->|"timeout"| T["504"]
-  OK -->|"other error"| E["explain / field: fallback; others: 500"]
+  OK -->|"other error"| E["explain / field: fallback, others: 500"]
 ```
 
-Fallback answers are marked `llmFallback: true` with a reason, so the UI can say the answer is
-basic.
+The browser cancels requests when you press **Cancel** or close the AI panel, and gives up after
+130 s.
+
+## Observability
+
+Every AI call writes one JSON log line (`{"evt":"ai", …}`) with the action, release, kind, cache
+hit, whether the fix was verified, attempts, model, excerpt or full mode, the reject reason and the
+latency. Read them in **Workers & Pages → your project → Logs** to track the fix success rate.
+
+## Measuring fix quality
+
+`src/lib/ai/eval/fixCases.ts` holds 20 real cases (enum, type, required, unknown field, syntax, and a
+long document) built on the 26.8.2 schemas, each with an independent check. Run them against any
+deployment:
+
+```bash
+npm run eval:fix -- --base-url https://<preview>.eda-resource-browser.pages.dev
+```
+
+The report lists pass/fail per case, latency, cache hits and retries. Use it before changing a
+model or a prompt.
 
 ## Feature flags
 
-| Variable                | Effect                                                    |
-| ----------------------- | --------------------------------------------------------- |
-| `PUBLIC_FIX_AI_ENABLED` | `false` disables AI Fix (UI and endpoint). On by default. |
-| `PUBLIC_ASK_AI_ENABLED` | Reserved for an Ask-AI panel; currently unused.           |
+| Variable                | Effect                                                         |
+| ----------------------- | -------------------------------------------------------------- |
+| `PUBLIC_FIX_AI_ENABLED` | `false` disables AI features (UI and endpoint). On by default. |
+| `PUBLIC_ASK_AI_ENABLED` | Reserved for an Ask-AI panel; currently unused.                |
 
 The **lean** deploy (`npm run deploy:cloudflare:lean`) turns both off and deploys without any
 AI, KV or Vectorize bindings.
@@ -132,7 +159,4 @@ npm run warm:cache -- --release 26.8.2
 WARM_ACTIONS=explain,example npm run warm:cache:llm -- --release 26.8.2
 ```
 
-It checks that `dependency-graph.json` is reachable first, then warms `dependency-map` once and
-`schema-summary`, `relationships` and `full-context` per CRD. Concurrency, pauses, retries and
-timeouts are set with `CONCURRENCY`, `SLEEP_MS`, `WARM_RETRIES` and `FETCH_TIMEOUT_MS`.
 `GET /api/cache-status?release=…&kind=…` shows what is cached for one CRD.

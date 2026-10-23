@@ -219,4 +219,84 @@ spec: {}
 		const apiIssue = result.issues.find((i) => i.message.includes('Invalid apiVersion:'));
 		expect(apiIssue?.suggestedFix?.value).toBe('topologies.eda.nokia.com/v1');
 	});
+
+	it('validates each document against the apiVersion it declares, not the latest', async () => {
+		const versionedManifest: ManifestEntry[] = [
+			{
+				name: 'widgets.demo.eda.nokia.com',
+				kind: 'Widget',
+				group: 'demo.eda.nokia.com',
+				versions: [{ name: 'v1alpha1', deprecated: true }, { name: 'v1' }]
+			}
+		];
+		const schemaFor = (field: string) => `schema:
+  openAPIV3Schema:
+    properties:
+      spec:
+        type: object
+        required: [${field}]
+        properties:
+          ${field}:
+            type: string
+    required:
+      - spec`;
+		const requested: string[] = [];
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				const url = typeof input === 'string' ? input : input.toString();
+				requested.push(url);
+				if (url.endsWith('/widgets.demo.eda.nokia.com/v1alpha1.yaml')) {
+					return new Response(schemaFor('oldField'), { status: 200 });
+				}
+				if (url.endsWith('/widgets.demo.eda.nokia.com/v1.yaml')) {
+					return new Response(schemaFor('newField'), { status: 200 });
+				}
+				return new Response(null, { status: 404 });
+			})
+		);
+
+		const result = await validateBundle({
+			yamlInput: `apiVersion: demo.eda.nokia.com/v1alpha1
+kind: Widget
+metadata:
+  name: legacy
+  namespace: eda
+spec:
+  oldField: kept
+`,
+			releaseFolder: 'resources/test-declared-version',
+			releaseLabel: 'EDA test',
+			manifest: versionedManifest
+		});
+
+		expect(requested.some((u) => u.endsWith('/v1alpha1.yaml'))).toBe(true);
+		const schemaIssues = result.issues.filter((i) => i.category === 'schema');
+		// Deprecation is still reported, but the v1 schema (newField) must not be applied.
+		expect(schemaIssues.some((i) => i.message.includes('deprecated'))).toBe(true);
+		expect(schemaIssues.some((i) => i.message.includes('oldField'))).toBe(false);
+		expect(schemaIssues.some((i) => i.message.includes('newField'))).toBe(false);
+	});
+
+	it('numbers schema issue ids uniquely within a run', async () => {
+		const result = await validateBundle({
+			yamlInput: `apiVersion: config.eda.nokia.com/v1
+kind: NotARealKind
+metadata:
+  name: a
+  namespace: eda
+---
+apiVersion: config.eda.nokia.com/v1
+kind: AlsoNotReal
+metadata:
+  name: b
+  namespace: eda
+`,
+			releaseFolder: 'resources/26.4.2',
+			releaseLabel: 'EDA 26.4.2',
+			manifest
+		});
+		const ids = result.issues.map((i) => i.id);
+		expect(new Set(ids).size).toBe(ids.length);
+	});
 });

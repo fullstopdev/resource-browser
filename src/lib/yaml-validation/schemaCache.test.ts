@@ -41,3 +41,41 @@ describe('assertSafePathSegment', () => {
 		);
 	});
 });
+
+describe('fetchSchema request handling', () => {
+	const schemaText =
+		'schema:\n  openAPIV3Schema:\n    properties:\n      spec:\n        type: object\n';
+
+	it('shares one request between concurrent callers', async () => {
+		const { fetchSchema } = await import('./schemaCache');
+		let calls = 0;
+		const fetcher = (async () => {
+			calls += 1;
+			await new Promise((r) => setTimeout(r, 5));
+			return new Response(schemaText, { status: 200 });
+		}) as unknown as typeof fetch;
+		const [a, b] = await Promise.all([
+			fetchSchema('/test/dedupe/v1.yaml', fetcher),
+			fetchSchema('/test/dedupe/v1.yaml', fetcher)
+		]);
+		expect(calls).toBe(1);
+		expect(a).toBe(b);
+	});
+
+	it('does not re-request a missing schema right away, and survives network errors', async () => {
+		const { fetchSchema } = await import('./schemaCache');
+		let calls = 0;
+		const notFound = (async () => {
+			calls += 1;
+			return new Response(null, { status: 404 });
+		}) as unknown as typeof fetch;
+		expect(await fetchSchema('/test/missing/v1.yaml', notFound)).toBeNull();
+		expect(await fetchSchema('/test/missing/v1.yaml', notFound)).toBeNull();
+		expect(calls).toBe(1);
+
+		const failing = (async () => {
+			throw new TypeError('network down');
+		}) as unknown as typeof fetch;
+		await expect(fetchSchema('/test/offline/v1.yaml', failing)).resolves.toBeNull();
+	});
+});

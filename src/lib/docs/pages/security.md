@@ -28,27 +28,48 @@ assets (Cloudflare Pages doesn't apply `_headers` to Worker responses):
 ```mermaid
 flowchart TB
   subgraph AI["POST /api/ai"]
-    A1["Body at most 1 MB"] --> A2["YAML at most 512 KiB, field at most 1,024 chars, at most 100 issues"]
-    A2 --> A3["Action allowlist and required fields"]
-    A3 --> A4["Release names resolved from a fixed list; path segments validated"]
+    A0["Same-origin browser requests only"] --> A1["Body at most 1 MB"]
+    A1 --> A2["YAML at most 512 KiB, field at most 1,024 chars, at most 100 issues"]
+    A2 --> A3["Action allowlist, validate and compare disabled"]
+    A3 --> A4["Release names resolved from a fixed list, path segments validated"]
+    A4 --> A5["Fixes verified before they are returned or cached"]
   end
   subgraph PX["POST /api/openapi-proxy"]
     P1["Body at most 5 MB"] --> P2["Target origin must be the one configured EDA API"]
     P2 --> P3["Redirects not followed"]
-    P3 --> P4["Host, cookie and hop-by-hop headers dropped; generic errors"]
+    P3 --> P4["Host, cookie and hop-by-hop headers dropped, generic errors"]
   end
   subgraph CS["GET /api/cache-status"]
     C1["Per-CRD lookups: a few KV reads"] --> C2["Full summary requires a bearer token"]
   end
 ```
 
-- **AI cost control.** Size limits stop a single request from sending a huge prompt. For extra
-  protection, add a Cloudflare rate-limiting rule on `/api/ai`.
+- **AI cost control.** Size limits stop a single request from sending a huge prompt, LLM actions
+  without a UI are disabled, and other sites' pages can't call the endpoint. Scripts can still call
+  it directly, so add a Cloudflare rate-limiting rule (below).
+- **Shared cache integrity.** AI fixes are cached under a hash of the full prompt and only after
+  server-side verification, so one client can't plant a bad fix that others receive.
 - **No server-side request forgery.** The proxy only talks to one configured origin and never
   follows redirects, so it can't be bounced to internal addresses.
 - **Cache summary.** `?summary=true` scans every CRD of a release (hundreds of KV reads). It is
   disabled unless the `CACHE_STATUS_TOKEN` secret is set, and then requires
   `Authorization: Bearer …`.
+
+## Rate limiting `/api/ai`
+
+Rate limiting is configured at the Cloudflare edge, not in code. In the dashboard: **your domain or
+the Pages project → Security → WAF → Rate limiting rules → Create rule**:
+
+| Setting                       | Value                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| If incoming requests match    | URI Path equals `/api/ai` **and** Request Method equals `POST`          |
+| With the same characteristics | IP                                                                      |
+| When rate exceeds             | 20 requests per 1 minute                                                |
+| Then                          | Block for 1 minute (returns 429; the page shows "Too many AI requests") |
+
+A bulk AI Fix on a large bundle makes a request per remaining issue, so keep the limit above ~15 per
+minute for real users. Rate limiting rules apply to custom domains on a Cloudflare zone; a
+`*.pages.dev` hostname alone can't have WAF rules.
 
 ## Rendering untrusted text
 

@@ -14,6 +14,11 @@ const SAFE_PATH_SEGMENT = /^[a-z0-9._-]+$/i;
 const schemaTextCache = new Map<string, string>();
 const schemaDataCache = new Map<string, SchemaSections>();
 const validatorCache = new Map<string, ValidateFunction>();
+/** Requests in progress, so validation and completions share one fetch per schema. */
+const schemaInFlight = new Map<string, Promise<SchemaSections | null>>();
+/** Paths that returned 404, with the time until which they are not re-requested. */
+const schemaMissingUntil = new Map<string, number>();
+const MISSING_SCHEMA_RETRY_MS = 60_000;
 
 /** Reject a single path segment that could enable traversal or injection. */
 export function assertSafePathSegment(segment: string, label: string): string {
@@ -67,21 +72,41 @@ export async function fetchSchema(
 	path: string,
 	fetcher: typeof fetch = fetch
 ): Promise<SchemaSections | null> {
-	if (schemaDataCache.has(path)) {
-		return schemaDataCache.get(path)!;
-	}
+	const cached = schemaDataCache.get(path);
+	if (cached) return cached;
+	if ((schemaMissingUntil.get(path) ?? 0) > Date.now()) return null;
 
-	let text = schemaTextCache.get(path);
-	if (!text) {
-		const resp = await fetcher(path);
-		if (!resp.ok) return null;
-		text = await resp.text();
-		schemaTextCache.set(path, text);
-	}
+	const pending = schemaInFlight.get(path);
+	if (pending) return pending;
 
-	const sections = parseSchemaText(text);
-	schemaDataCache.set(path, sections);
-	return sections;
+	const request = (async () => {
+		let text = schemaTextCache.get(path);
+		if (!text) {
+			let resp: Response;
+			try {
+				resp = await fetcher(path);
+			} catch {
+				// Network error: report the schema as unavailable instead of failing the whole run.
+				return null;
+			}
+			if (!resp.ok) {
+				if (resp.status === 404) schemaMissingUntil.set(path, Date.now() + MISSING_SCHEMA_RETRY_MS);
+				return null;
+			}
+			text = await resp.text();
+			schemaTextCache.set(path, text);
+		}
+		const sections = parseSchemaText(text);
+		schemaDataCache.set(path, sections);
+		return sections;
+	})();
+
+	schemaInFlight.set(path, request);
+	try {
+		return await request;
+	} finally {
+		schemaInFlight.delete(path);
+	}
 }
 
 /** Fetch multiple schemas in parallel with deduplication. */

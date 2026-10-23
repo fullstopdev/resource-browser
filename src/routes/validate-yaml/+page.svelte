@@ -41,8 +41,15 @@
 	} from '$lib/validate-bundle';
 	import AiFixPreviewPanel from '$lib/validate-bundle/AiFixPreviewPanel.svelte';
 	import FixAllReviewPanel from '$lib/validate-bundle/FixAllReviewPanel.svelte';
-	import { fixYAML } from '$lib/ai/aiClient';
-	import { extractYamlIssueExcerpt } from '$lib/validate-bundle/yamlIssueExcerpt';
+	import { explainField, fixYAML } from '$lib/ai/aiClient';
+	import SimpleMarkdown from '$lib/components/SimpleMarkdown.svelte';
+	import { buildShareUrl, encodeBundleForUrl } from '$lib/validate-bundle/shareBundle';
+	import { clearDraft, loadDraft, saveDraft } from '$lib/validate-bundle/draftStorage';
+	import { explainIssueFromSchema, type IssueExplanation } from '$lib/validate-bundle/issueExplain';
+	import { buildSkeletonYaml } from '$lib/validate-bundle/schemaSkeleton';
+	import { withoutDeterministicHints } from '$lib/validate-bundle/fixIssueContext';
+	import { fetchSchema, schemaPath } from '$lib/yaml-validation/schemaCache';
+	import { MAX_YAML_INPUT_BYTES } from '$lib/yaml/inputLimits';
 	import { fixAiEnabled } from '$lib/featureFlags';
 	import { clampYamlInput } from '$lib/yaml/inputLimits';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
@@ -85,7 +92,20 @@
 	let fixSummary: FixSummary | null = null;
 	let fixSummaryTimer: ReturnType<typeof setTimeout> | null = null;
 	let validationGeneration = 0;
-	let issueFilter: 'all' | 'errors' | 'warnings' = 'all';
+	let issueFilter: 'all' | 'errors' | 'warnings' | 'info' = 'all';
+	/** When the editor text was restored from an autosaved draft (shows the banner). */
+	let draftRestoredAt: number | null = null;
+	/** Drafts are saved only after the initial load, so the example never overwrites one. */
+	let draftReady = false;
+	let draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
+	let fileInput: HTMLInputElement | null = null;
+	let isDraggingFile = false;
+	let skeletonKind = '';
+	/** Issue whose schema explanation is open, and its optional AI answer. */
+	let explainIssueId: string | null = null;
+	let explainAiAnswer = '';
+	let explainAiError = '';
+	let explainAiLoading = false;
 	let issueSearch = '';
 	let collapsedGroups = new Set<string>();
 	let yamlTruncationWarned = false;
@@ -100,6 +120,9 @@
 	let aiFixFixable = false;
 	let aiFixApplyBlockedReason: string | null = null;
 	let aiFixRequestId = 0;
+	/** Cancels the running bulk AI fix or the open single-issue AI preview. */
+	let fixAllController: AbortController | null = null;
+	let aiPreviewController: AbortController | null = null;
 	let isFixingAll = false;
 	let fixAllReviewOpen = false;
 	let fixAllReviewBefore = '';
@@ -155,6 +178,7 @@
 	$: filteredIssues = displayIssues.filter((issue) => {
 		if (issueFilter === 'errors' && issue.severity !== 'error') return false;
 		if (issueFilter === 'warnings' && issue.severity !== 'warning') return false;
+		if (issueFilter === 'info' && issue.severity !== 'info') return false;
 		const q = issueSearch.trim().toLowerCase();
 		if (!q) return true;
 		return (
@@ -253,6 +277,136 @@
 		}
 	}
 
+	async function handleShareLink() {
+		if (!yamlInput.trim() || !release) return;
+		const encoded = await encodeBundleForUrl(yamlInput);
+		if (encoded.tooLarge || !encoded.param) {
+			showToast('Too large for a share link — use Download and send the file instead.');
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(buildShareUrl(window.location.origin, release.name, encoded.param));
+			showToast('Share link copied — it contains the YAML itself, no upload.');
+		} catch {
+			showToast('Could not copy the share link');
+		}
+	}
+
+	function handleDownloadYaml() {
+		if (!yamlInput.trim()) return;
+		const url = URL.createObjectURL(new Blob([yamlInput], { type: 'application/yaml' }));
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'eda-manifests.yaml';
+		link.click();
+		URL.revokeObjectURL(url);
+	}
+
+	async function openYamlFile(file: File | undefined) {
+		if (!file) return;
+		if (file.size > MAX_YAML_INPUT_BYTES) {
+			showToast('File is larger than 512 KB.');
+			return;
+		}
+		setYamlInput(await file.text());
+		draftRestoredAt = null;
+		showToast(`Opened ${file.name}`);
+		void runValidation();
+	}
+
+	function onEditorDrop(event: DragEvent) {
+		isDraggingFile = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (file) void openYamlFile(file);
+	}
+
+	function startFresh() {
+		clearDraft();
+		draftRestoredAt = null;
+		setYamlInput(EXAMPLE_BUNDLE_YAML);
+		void runValidation();
+	}
+
+	$: if (browser && draftReady) {
+		const yaml = yamlInput;
+		const releaseForDraft = release?.name;
+		if (draftSaveTimer) clearTimeout(draftSaveTimer);
+		draftSaveTimer = setTimeout(() => {
+			// The untouched example isn't worth keeping as a draft.
+			if (yaml === EXAMPLE_BUNDLE_YAML) clearDraft();
+			else saveDraft({ yaml, release: releaseForDraft });
+		}, 800);
+	}
+
+	/** F8 / Shift+F8: next / previous issue that has a line, in editor order. */
+	function navigateIssue(direction: 1 | -1) {
+		const withLines = filteredIssues
+			.filter((i) => i.line !== undefined)
+			.sort((a, b) => a.line! - b.line!);
+		if (withLines.length === 0) return;
+		const current = highlightLine ?? 0;
+		const next =
+			direction === 1
+				? (withLines.find((i) => i.line! > current) ?? withLines[0]!)
+				: ([...withLines].reverse().find((i) => i.line! < current) ?? withLines[withLines.length - 1]!);
+		jumpToIssue(next);
+	}
+
+	function quickFixFromEditor(issueId: string) {
+		const issue = result?.issues.find((i) => i.id === issueId);
+		if (issue?.suggestedFix) void handleApplyFix(issue, new MouseEvent('click'));
+	}
+
+	function toggleExplain(issue: BundleIssue, event: MouseEvent) {
+		event.stopPropagation();
+		explainIssueId = explainIssueId === issue.id ? null : issue.id;
+		explainAiAnswer = '';
+		explainAiError = '';
+		explainAiLoading = false;
+	}
+
+	async function explainWithAi(issue: BundleIssue, explanation: IssueExplanation) {
+		if (!release || !explanation.kind) return;
+		const resource = result?.resources.find((r) => r.docIndex + 1 === (issue.docIndex ?? 1));
+		explainAiLoading = true;
+		explainAiError = '';
+		const response = await explainField(
+			release.name,
+			explanation.kind,
+			explanation.fieldPath,
+			resource?.group
+		);
+		if (explainIssueId !== issue.id) return;
+		explainAiLoading = false;
+		if (response.error) explainAiError = response.error;
+		else explainAiAnswer = response.answer;
+	}
+
+	/** Kinds offered by "Insert example": config CRDs of the selected release. */
+	$: skeletonKinds = manifestResources
+		.filter((r) => r.kind && r.group && !r.name.includes('states.'))
+		.sort((a, b) => a.kind!.localeCompare(b.kind!));
+
+	async function insertSkeleton(name: string) {
+		skeletonKind = '';
+		const entry = manifestResources.find((r) => r.name === name);
+		if (!release || !entry?.kind || !entry.group) return;
+		const version = getLatestVersion(entry);
+		const sections = version ? await fetchSchema(schemaPath(release.folder, entry.name, version)) : null;
+		if (!sections) {
+			showToast(`Could not load the ${entry.kind} schema.`);
+			return;
+		}
+		const skeleton = buildSkeletonYaml({
+			apiVersion: `${entry.group}/${version}`,
+			kind: entry.kind,
+			specSchema: sections.spec
+		});
+		setYamlInput(yamlInput.trim() ? `${yamlInput.trimEnd()}\n---\n${skeleton}` : skeleton);
+		showToast(`Inserted a minimal ${entry.kind} — fill in the empty values.`);
+		void runValidation();
+	}
+
 	async function getFormatOptions() {
 		if (manifestResources.length) {
 			return { releaseFolder: release!.folder, manifest: manifestResources };
@@ -278,7 +432,7 @@
 		return `Replace ${fix.field} with ${fix.value}`;
 	}
 
-	function createAiFixFn(): AiFixFn {
+	function createAiFixFn(signal?: AbortSignal): AiFixFn {
 		return async ({ docYaml, issue, issues, kind, group }) => {
 			if (!release) return {};
 			const formatOptions = await getFormatOptions();
@@ -306,17 +460,19 @@
 				const result = await fixYAML(release.name, docYaml, payloads[0]!, {
 					kind,
 					group,
-					issues: payloads
+					issues: payloads,
+					signal
 				});
 				return {
 					fixedYaml: result.fixedYaml,
 					fixable: result.fixable,
 					error: result.error,
-					fallbackReason: result.fallbackReason
+					fallbackReason: result.fallbackReason,
+					aborted: result.aborted
 				};
 			}
 
-			const payload = await buildFixIssueContext(issue, contextOptions);
+			let payload = await buildFixIssueContext(issue, contextOptions);
 			if (isDeterministicFixContext(payload)) {
 				const fix = suggestedFixFromFixContext(payload, issue);
 				if (fix) {
@@ -325,24 +481,21 @@
 						return { fixedYaml, fixable: true };
 					}
 				}
+				// The one-click fix doesn't apply here: ask the AI without that hint.
+				payload = withoutDeterministicHints(payload);
 			}
 
-			const excerpt = extractYamlIssueExcerpt(docYaml, payload.fieldPath);
-			const result = await fixYAML(
-				release.name,
-				docYaml,
-				{
-					...payload,
-					excerptYaml: excerpt.isFullDocument ? undefined : excerpt.excerpt,
-					excerptIsFullDocument: excerpt.isFullDocument
-				},
-				kind ? { kind, group } : undefined
-			);
+			// The server picks the excerpt itself and verifies the fix before returning it.
+			const result = await fixYAML(release.name, docYaml, payload, {
+				...(kind ? { kind, group } : {}),
+				signal
+			});
 			return {
 				fixedYaml: result.fixedYaml,
 				fixable: result.fixable,
 				error: result.error,
-				fallbackReason: result.fallbackReason
+				fallbackReason: result.fallbackReason,
+				aborted: result.aborted
 			};
 		};
 	}
@@ -387,12 +540,16 @@
 		const includeAi = options.includeAi === true && fixAiEnabled;
 
 		isFixingAll = true;
+		const snapshot = yamlInput;
+		const controller = new AbortController();
+		fixAllController = controller;
 		try {
 			const formatOptions = await getFormatOptions();
-			const fixResult = await fixAllBundle(yamlInput, issues, {
+			const fixResult = await fixAllBundle(snapshot, issues, {
 				...formatOptions,
 				includeAi,
-				...(includeAi ? { aiFix: createAiFixFn() } : {}),
+				signal: controller.signal,
+				...(includeAi ? { aiFix: createAiFixFn(controller.signal) } : {}),
 				revalidateIssues: revalidateFixIssues,
 				resolveDocIndex: resolveIssueDocIndex,
 				resolveIdentity: (issue, docYaml) => resolveFixIdentity(issue, docYaml)
@@ -406,6 +563,11 @@
 			}
 
 			if (hasYamlChanges) {
+				// Never overwrite text that changed after the fix started (draft restore, share link).
+				if (yamlInput !== snapshot) {
+					showToast('The YAML changed while fixing, so the fixes were not applied. Run the fix again.');
+					return;
+				}
 				setYamlInput(fixResult.yaml);
 				fixAllReviewBefore = fixResult.beforeYaml;
 				fixAllReviewAfter = fixResult.afterYaml;
@@ -469,9 +631,17 @@
 						: `${prefix}No automatic fixes were applicable. Use Fix on individual issues.`
 				);
 			}
+			if (fixResult.aborted) {
+				showToast('AI Fix cancelled. Fixes made before cancelling were kept.');
+			}
 		} finally {
 			isFixingAll = false;
+			fixAllController = null;
 		}
+	}
+
+	function cancelFixAll() {
+		fixAllController?.abort();
 	}
 
 	async function handleAiFix() {
@@ -692,12 +862,15 @@
 			if (generation !== validationGeneration) return;
 
 			manifestResources = manifest;
-			result = await validateBundle({
+			const nextResult = await validateBundle({
 				yamlInput,
 				releaseFolder: release.folder,
 				releaseLabel: release.label,
 				manifest
 			});
+			// A newer run started while this one was validating; its result wins.
+			if (generation !== validationGeneration) return;
+			result = nextResult;
 			void refreshCompletionContext();
 		} catch (error) {
 			if (generation !== validationGeneration) return;
@@ -788,6 +961,8 @@
 	}
 
 	function closeAiFixPanel() {
+		aiPreviewController?.abort();
+		aiPreviewController = null;
 		aiFixPanelOpen = false;
 		aiFixIssue = null;
 		aiFixLoading = false;
@@ -850,7 +1025,7 @@
 		aiFixApplyBlockedReason = null;
 
 		const formatOptions = await getFormatOptions();
-		const payload = await buildFixIssueContext(issueForAi, {
+		let payload = await buildFixIssueContext(issueForAi, {
 			releaseFolder: formatOptions.releaseFolder,
 			manifest: formatOptions.manifest,
 			kind,
@@ -860,27 +1035,26 @@
 
 		if (isDeterministicFixContext(payload)) {
 			const fix = suggestedFixFromFixContext(payload, issueForAi);
-			if (fix) {
+			if (fix && applySuggestedFix(yamlInput, { ...issueForAi, suggestedFix: fix })) {
 				aiFixLoading = false;
 				aiFixPanelOpen = false;
 				void handleApplyFix({ ...issueForAi, suggestedFix: fix }, new MouseEvent('click'));
 				return;
 			}
+			// No applicable one-click fix: ask the AI without the deterministic hint.
+			payload = withoutDeterministicHints(payload);
 		}
 
-		const excerpt = extractYamlIssueExcerpt(docYaml, payload.fieldPath);
-		const result = await fixYAML(
-			release.name,
-			docYaml,
-			{
-				...payload,
-				excerptYaml: excerpt.isFullDocument ? undefined : excerpt.excerpt,
-				excerptIsFullDocument: excerpt.isFullDocument
-			},
-			kind ? { kind, group } : undefined
-		);
+		aiPreviewController?.abort();
+		const controller = new AbortController();
+		aiPreviewController = controller;
+		const result = await fixYAML(release.name, docYaml, payload, {
+			...(kind ? { kind, group } : {}),
+			signal: controller.signal
+		});
+		if (aiPreviewController === controller) aiPreviewController = null;
 
-		if (requestId !== aiFixRequestId) return;
+		if (requestId !== aiFixRequestId || result.aborted) return;
 
 		aiFixLoading = false;
 		if (result.error) {
@@ -942,7 +1116,13 @@
 		if (issueToFix.suggestedFix) {
 			const updated = applySuggestedFix(yamlInput, issueToFix);
 			if (!updated) {
-				showToast('Could not apply fix — edit the field manually.');
+				if (fixAiEnabled && release && (issue.severity === 'error' || issue.severity === 'warning')) {
+					// The one-click fix can't be applied to this text; let the AI propose one instead.
+					const { suggestedFix: _unusable, ...withoutFix } = issueToFix;
+					void openAiFixPreview(withoutFix);
+				} else {
+					showToast('Could not apply fix — edit the field manually.');
+				}
 				return;
 			}
 
@@ -1110,7 +1290,15 @@
 			} else {
 				showToast('Could not decode bundle from URL — using default example.');
 			}
+		} else {
+			// A share link wins; otherwise bring back the last draft from this browser.
+			const draft = loadDraft();
+			if (draft && draft.yaml !== EXAMPLE_BUNDLE_YAML) {
+				setYamlInput(draft.yaml);
+				draftRestoredAt = draft.savedAt;
+			}
 		}
+		draftReady = true;
 
 		clientReady = true;
 		void runValidation();
@@ -1127,6 +1315,7 @@
 		if (yamlCopyTimer) clearTimeout(yamlCopyTimer);
 		if (completionRefreshTimer) clearTimeout(completionRefreshTimer);
 		if (liveValidateTimer) clearTimeout(liveValidateTimer);
+		if (draftSaveTimer) clearTimeout(draftSaveTimer);
 	});
 
 </script>
@@ -1247,6 +1436,15 @@
 								{isFixingAll ? 'Fixing…' : 'AI Fix'}
 							</span>
 						</button>
+						{#if isFixingAll && fixAllController}
+							<button
+								type="button"
+								class="validate-yaml-btn validate-yaml-btn--ghost"
+								on:click={cancelFixAll}
+							>
+								Cancel
+							</button>
+						{/if}
 					</div>
 
 					<div class="validate-yaml-action-bar__utils">
@@ -1316,6 +1514,72 @@
 								</svg>
 							{/if}
 						</button>
+
+						<button
+							type="button"
+							class="validate-yaml-btn validate-yaml-btn--ghost validate-yaml-btn--icon"
+							disabled={!yamlInput.trim() || !release}
+							aria-label="Copy share link"
+							title="Copy a share link (the YAML is encoded in the link)"
+							on:click={() => void handleShareLink()}
+						>
+							<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="validate-yaml-btn__icon" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+							</svg>
+						</button>
+
+						<button
+							type="button"
+							class="validate-yaml-btn validate-yaml-btn--ghost validate-yaml-btn--icon"
+							disabled={!yamlInput.trim()}
+							aria-label="Download YAML"
+							title="Download as .yaml"
+							on:click={handleDownloadYaml}
+						>
+							<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="validate-yaml-btn__icon" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+							</svg>
+						</button>
+
+						<button
+							type="button"
+							class="validate-yaml-btn validate-yaml-btn--ghost validate-yaml-btn--icon"
+							aria-label="Open YAML file"
+							title="Open a .yaml file (or drop one on the editor)"
+							on:click={() => fileInput?.click()}
+						>
+							<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="validate-yaml-btn__icon" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+							</svg>
+						</button>
+						<input
+							bind:this={fileInput}
+							type="file"
+							accept=".yaml,.yml,text/yaml,application/yaml,text/plain"
+							class="sr-only"
+							tabindex="-1"
+							on:change={(e) => {
+								void openYamlFile(e.currentTarget.files?.[0]);
+								e.currentTarget.value = '';
+							}}
+						/>
+
+						{#if skeletonKinds.length > 0}
+							<label class="validate-yaml-insert">
+								<span class="sr-only">Insert a minimal manifest for a kind</span>
+								<select
+									class="validate-yaml-insert__select"
+									bind:value={skeletonKind}
+									title="Insert a minimal manifest with the required fields of a kind"
+									on:change={() => skeletonKind && void insertSkeleton(skeletonKind)}
+								>
+									<option value="">Insert example…</option>
+									{#each skeletonKinds as kindEntry (kindEntry.name)}
+										<option value={kindEntry.name}>{kindEntry.kind} ({kindEntry.group})</option>
+									{/each}
+								</select>
+							</label>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -1412,8 +1676,30 @@
 						aria-labelledby="validate-yaml-tab-editor"
 						class="validate-yaml-editor-column"
 						class:validate-yaml-view--hidden={!isSplitWorkspace && activeView !== 'editor'}
+						class:validate-yaml-editor-column--dragging={isDraggingFile}
 						aria-hidden={!isSplitWorkspace && activeView !== 'editor'}
+						on:dragover|preventDefault={() => (isDraggingFile = true)}
+						on:dragleave={() => (isDraggingFile = false)}
+						on:drop|preventDefault={onEditorDrop}
 					>
+						{#if draftRestoredAt !== null}
+							<div class="validate-yaml-draft-banner" role="status">
+								<span>
+									Restored your draft from {new Date(draftRestoredAt).toLocaleString()}.
+								</span>
+								<button type="button" class="validate-yaml-draft-banner__btn" on:click={startFresh}>
+									Start fresh
+								</button>
+								<button
+									type="button"
+									class="validate-yaml-draft-banner__btn"
+									aria-label="Dismiss"
+									on:click={() => (draftRestoredAt = null)}
+								>
+									✕
+								</button>
+							</div>
+						{/if}
 						{#if browser}
 							{#if MonacoEditorCmp}
 								<!-- Monaco editor loaded dynamically; instance typing is runtime-only -->
@@ -1425,6 +1711,9 @@
 									validating={isValidating}
 									completionContext={yamlCompletionContext}
 									validationIssues={result?.issues ?? []}
+									readOnly={isFixingAll}
+									onNavigateIssue={navigateIssue}
+									onQuickFix={quickFixFromEditor}
 									hideToolbarLabel
 									onValidate={() => void runValidation()}
 									onTruncate={() => {
@@ -1485,6 +1774,16 @@
 											on:click={() => (issueFilter = 'warnings')}
 										>
 											Warnings
+										</button>
+										<button
+											type="button"
+											role="tab"
+											aria-selected={issueFilter === 'info'}
+											class="validate-yaml-filter-tab"
+											class:validate-yaml-filter-tab--active={issueFilter === 'info'}
+											on:click={() => (issueFilter = 'info')}
+										>
+											Info
 										</button>
 									</div>
 									<label class="validate-yaml-search">
@@ -1675,6 +1974,16 @@
 																	Fix
 																</button>
 															{/if}
+															{#if issue.fieldPath?.startsWith('spec')}
+																<button
+																	type="button"
+																	class="validate-yaml-issue-schema-link"
+																	aria-expanded={explainIssueId === issue.id}
+																	on:click={(e) => toggleExplain(issue, e)}
+																>
+																	{explainIssueId === issue.id ? 'Hide explanation' : 'Explain'}
+																</button>
+															{/if}
 															{#if crdEntry}
 																<button
 																	type="button"
@@ -1685,6 +1994,42 @@
 																</button>
 															{/if}
 														</div>
+														{#if explainIssueId === issue.id}
+															{@const explanation = explainIssueFromSchema(issue, yamlCompletionContext)}
+															<div class="validate-yaml-explain">
+																{#if explanation}
+																	<dl class="validate-yaml-explain__facts">
+																		{#each explanation.facts as fact (fact.label)}
+																			<dt>{fact.label}</dt>
+																			<dd>{fact.value}</dd>
+																		{/each}
+																	</dl>
+																	{#if explanation.description}
+																		<p class="validate-yaml-explain__desc">{explanation.description}</p>
+																	{/if}
+																	{#if fixAiEnabled && explanation.kind && !explainAiAnswer}
+																		<button
+																			type="button"
+																			class="validate-yaml-issue-schema-link"
+																			disabled={explainAiLoading}
+																			on:click={() => void explainWithAi(issue, explanation)}
+																		>
+																			{explainAiLoading ? 'Asking AI…' : 'More detail (AI)'}
+																		</button>
+																	{/if}
+																	{#if explainAiError}
+																		<p class="validate-yaml-explain__error">{explainAiError}</p>
+																	{/if}
+																	{#if explainAiAnswer}
+																		<SimpleMarkdown source={explainAiAnswer} />
+																	{/if}
+																{:else}
+																	<p class="validate-yaml-explain__desc">
+																		No schema details for this field yet — the schema may still be loading.
+																	</p>
+																{/if}
+															</div>
+														{/if}
 													</div>
 												</li>
 											{/each}

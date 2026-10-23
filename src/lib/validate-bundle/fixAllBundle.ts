@@ -22,6 +22,8 @@ export type AiFixResult = {
 	fixable?: boolean;
 	error?: string;
 	fallbackReason?: 'quota' | 'llm_error';
+	/** The user cancelled the request. */
+	aborted?: boolean;
 };
 
 export type AiFixFn = (params: {
@@ -47,6 +49,8 @@ export type FixAllBundleOptions = FormatYamlOptions & {
 	includeLayoutFormat?: boolean;
 	/** When true, invoke AI for syntax and remaining issues (requires aiFix). Default false. */
 	includeAi?: boolean;
+	/** Cancels the AI part of the run; fixes applied so far are kept. */
+	signal?: AbortSignal;
 };
 
 export type FixAllChange = {
@@ -69,6 +73,8 @@ export type FixAllResult = {
 	aiFixCount: number;
 	aiUnavailable: boolean;
 	aiUnavailableReason?: string;
+	/** The user cancelled; fixes applied before cancelling are kept. */
+	aborted?: boolean;
 	remainingErrors: number;
 	remainingWarnings: number;
 };
@@ -214,10 +220,17 @@ async function tryDeterministicFixBeforeAi(
 	return { fixedYaml, fix };
 }
 
+/** Identifies an issue across re-validations (ids are renumbered on every run). */
+function aiFingerprint(docIndex: number, issue: BundleIssue): string {
+	return `${docIndex}|${issue.fieldPath ?? ''}|${issue.message}`;
+}
+
 async function applyAiFixes(
 	yaml: string,
 	issues: BundleIssue[],
-	options?: FixAllBundleOptions
+	options?: FixAllBundleOptions,
+	/** Issues already sent to the AI in this run; shared across passes so they are not re-sent. */
+	attempted: Set<string> = new Set()
 ): Promise<{
 	yaml: string;
 	aiFixCount: number;
@@ -225,9 +238,17 @@ async function applyAiFixes(
 	changes: FixAllChange[];
 	aiUnavailable: boolean;
 	aiUnavailableReason?: string;
+	aborted: boolean;
 }> {
 	if (!options?.aiFix || issues.length === 0) {
-		return { yaml, aiFixCount: 0, suggestedFixCount: 0, changes: [], aiUnavailable: false };
+		return {
+			yaml,
+			aiFixCount: 0,
+			suggestedFixCount: 0,
+			changes: [],
+			aiUnavailable: false,
+			aborted: false
+		};
 	}
 
 	const resolveDocIndex = options.resolveDocIndex ?? defaultDocIndex;
@@ -238,28 +259,42 @@ async function applyAiFixes(
 	const changes: FixAllChange[] = [];
 	let aiUnavailable = false;
 	let aiUnavailableReason: string | undefined;
+	let aborted = false;
 	let currentYaml = yaml;
 
 	const byDoc = groupIssuesByDoc(issues, resolveDocIndex);
 
 	for (const [docIndex, docIssues] of byDoc) {
-		if (aiUnavailable) break;
+		if (aiUnavailable || aborted) break;
 
 		const docYaml = extractDocumentYaml(currentYaml, docIndex);
 		if (!docYaml) continue;
 
 		const { kind, group } = resolveIdentity(docIssues[0]!, docYaml);
-		let remaining = [...docIssues];
+		const notTried = (list: BundleIssue[]) =>
+			list.filter((i) => !attempted.has(aiFingerprint(docIndex, i)));
+		/** Re-validated issues for this document that the AI has not tried yet. */
+		const freshRemaining = (fresh: BundleIssue[]) =>
+			notTried(issuesNeedingAi(fresh, currentYaml).filter((i) => (i.docIndex ?? 1) === docIndex));
+		let remaining = notTried(docIssues);
+		// Counts deterministic fixes and every AI call, successful or not.
 		let fixesThisDoc = 0;
 
 		while (
 			remaining.length > 0 &&
 			!aiUnavailable &&
+			!aborted &&
 			fixesThisDoc < MAX_AI_FIXES_PER_DOC
 		) {
+			if (options.signal?.aborted) {
+				aborted = true;
+				break;
+			}
 			const currentDocYaml = extractDocumentYaml(currentYaml, docIndex) ?? docYaml;
 
 			if (needsMigrationBatch(remaining)) {
+				for (const batchIssue of remaining) attempted.add(aiFingerprint(docIndex, batchIssue));
+				fixesThisDoc += 1;
 				const result = await options.aiFix({
 					docYaml: currentDocYaml,
 					issue: remaining[0]!,
@@ -268,6 +303,10 @@ async function applyAiFixes(
 					group
 				});
 
+				if (result.aborted) {
+					aborted = true;
+					break;
+				}
 				if (isAiUnavailableResult(result)) {
 					aiUnavailable = true;
 					aiUnavailableReason = result.error ?? 'Workers AI unavailable';
@@ -291,23 +330,28 @@ async function applyAiFixes(
 					continue;
 				}
 
-				currentYaml = updated;
-				aiFixCount += 1;
-				fixesThisDoc += 1;
-				changes.push({
-					source: 'ai',
-					label: `AI migration: ${remaining.length} issue(s)`,
-					docIndex
-				});
-
 				if (options?.revalidateIssues) {
-					const fresh = await options.revalidateIssues(currentYaml);
-					remaining = issuesNeedingAi(fresh).filter(
+					const fresh = await options.revalidateIssues(updated);
+					const docIssuesAfter = issuesNeedingAi(fresh, updated).filter(
 						(i) => (i.docIndex ?? 1) === docIndex
 					);
+					// Keep the batch fix only if it actually reduced this document's issues.
+					if (docIssuesAfter.length >= remaining.length) {
+						remaining = [];
+						continue;
+					}
+					currentYaml = updated;
+					remaining = freshRemaining(fresh);
 				} else {
+					currentYaml = updated;
 					remaining = [];
 				}
+				aiFixCount += 1;
+				changes.push({
+					source: 'ai',
+					label: 'AI migration: batched schema fixes',
+					docIndex
+				});
 				continue;
 			}
 
@@ -339,9 +383,7 @@ async function applyAiFixes(
 						fixesThisDoc += 1;
 						if (options?.revalidateIssues) {
 							const fresh = await options.revalidateIssues(currentYaml);
-							remaining = issuesNeedingAi(fresh).filter(
-								(i) => (i.docIndex ?? 1) === docIndex
-							);
+							remaining = freshRemaining(fresh);
 						} else {
 							remaining = remaining.slice(1);
 						}
@@ -350,6 +392,8 @@ async function applyAiFixes(
 				}
 			}
 
+			attempted.add(aiFingerprint(docIndex, issue));
+			fixesThisDoc += 1;
 			const result = await options.aiFix({
 				docYaml: currentDocYaml,
 				issue,
@@ -357,6 +401,10 @@ async function applyAiFixes(
 				group
 			});
 
+			if (result.aborted) {
+				aborted = true;
+				break;
+			}
 			if (isAiUnavailableResult(result)) {
 				aiUnavailable = true;
 				aiUnavailableReason = result.error ?? 'Workers AI unavailable';
@@ -380,28 +428,42 @@ async function applyAiFixes(
 				continue;
 			}
 
-			currentYaml = updated;
+			if (options?.revalidateIssues) {
+				const fresh = await options.revalidateIssues(updated);
+				const fingerprint = aiFingerprint(docIndex, issue);
+				const stillReported = fresh.some(
+					(i) => (i.docIndex ?? 1) === docIndex && aiFingerprint(docIndex, i) === fingerprint
+				);
+				// Keep an AI fix only if re-validation confirms the issue is gone.
+				if (stillReported) {
+					remaining = remaining.slice(1);
+					continue;
+				}
+				currentYaml = updated;
+				remaining = freshRemaining(fresh);
+			} else {
+				currentYaml = updated;
+				remaining = remaining.slice(1);
+			}
 			aiFixCount += 1;
-			fixesThisDoc += 1;
 			changes.push({
 				issueId: issue.id,
 				source: 'ai',
 				label: `AI: ${issue.message.slice(0, 80)}${issue.message.length > 80 ? '…' : ''}`,
 				docIndex
 			});
-
-			if (options?.revalidateIssues) {
-				const fresh = await options.revalidateIssues(currentYaml);
-				remaining = issuesNeedingAi(fresh).filter(
-					(i) => (i.docIndex ?? 1) === docIndex
-				);
-			} else {
-				remaining = remaining.slice(1);
-			}
 		}
 	}
 
-	return { yaml: currentYaml, aiFixCount, suggestedFixCount, changes, aiUnavailable, aiUnavailableReason };
+	return {
+		yaml: currentYaml,
+		aiFixCount,
+		suggestedFixCount,
+		changes,
+		aiUnavailable,
+		aiUnavailableReason,
+		aborted
+	};
 }
 
 function suggestedFixPriority(issue: BundleIssue): number {
@@ -536,12 +598,19 @@ async function applyDeterministicPass(
 	};
 }
 
-function issuesNeedingAi(issues: BundleIssue[]): BundleIssue[] {
-	return issues.filter(
-		(issue) =>
-			!issue.suggestedFix &&
-			(issue.severity === 'error' || issue.severity === 'warning')
-	);
+/**
+ * Issues the AI should look at: errors/warnings without a one-click fix, plus issues whose
+ * one-click fix cannot be applied to `yaml` (their suggestion is dropped so the AI gets a plain
+ * request instead of a hint the server would bounce back as "use the deterministic fix").
+ */
+function issuesNeedingAi(issues: BundleIssue[], yaml?: string): BundleIssue[] {
+	return issues.flatMap((issue) => {
+		if (issue.severity !== 'error' && issue.severity !== 'warning') return [];
+		if (!issue.suggestedFix) return [issue];
+		if (yaml === undefined || applySuggestedFix(yaml, issue) !== null) return [];
+		const { suggestedFix: _unusable, ...withoutFix } = issue;
+		return [withoutFix];
+	});
 }
 
 async function maybeEnrichIssues(
@@ -705,16 +774,28 @@ export async function fixAllBundle(
 		}
 	}
 
+	let aborted = false;
 	if (includeAi) {
+		const attemptedAi = new Set<string>();
 		for (let aiPass = 0; aiPass < MAX_AI_PASSES; aiPass++) {
-			const aiTargets = issuesNeedingAi(workingIssues);
+			if (options?.signal?.aborted) {
+				aborted = true;
+				break;
+			}
+			// Only a re-validated list is current enough to tell a fix that can't apply from one
+			// that already did.
+			const aiTargets = issuesNeedingAi(workingIssues, options?.revalidateIssues ? yaml : undefined);
 			if (aiTargets.length === 0) break;
 
-			const aiResult = await applyAiFixes(yaml, aiTargets, options);
+			const aiResult = await applyAiFixes(yaml, aiTargets, options, attemptedAi);
 			yaml = aiResult.yaml;
 			aiFixCount += aiResult.aiFixCount;
 			suggestedFixCount += aiResult.suggestedFixCount;
 			changes.push(...aiResult.changes);
+			if (aiResult.aborted) {
+				aborted = true;
+				break;
+			}
 			if (aiResult.aiUnavailable) {
 				aiUnavailable = true;
 				aiUnavailableReason = aiResult.aiUnavailableReason;
@@ -765,6 +846,7 @@ export async function fixAllBundle(
 		aiFixCount,
 		aiUnavailable,
 		aiUnavailableReason,
+		aborted,
 		remainingErrors: totalErrors,
 		remainingWarnings: totalWarnings
 	};

@@ -35,6 +35,12 @@ export let validationIssues: BundleIssue[] = [];
 export let hideToolbarLabel = false;
 export let onValidate: (() => void) | undefined = undefined;
 export let onTruncate: (() => void) | undefined = undefined;
+/** Blocks typing, e.g. while a bulk fix is running on a snapshot of the text. */
+export let readOnly = false;
+/** F8 / Shift+F8: move to the next (1) or previous (-1) issue. */
+export let onNavigateIssue: ((direction: 1 | -1) => void) | undefined = undefined;
+/** Lightbulb quick fix: apply the issue's one-click suggested fix. */
+export let onQuickFix: ((issueId: string) => void) | undefined = undefined;
 
 let containerEl: HTMLDivElement | undefined;
 let editor: MonacoEditor | null = null;
@@ -44,6 +50,7 @@ let ignoreModelChange = false;
 let completionDisposable: MonacoDisposable | null = null;
 let hoverDisposable: MonacoDisposable | null = null;
 let cursorDisposable: MonacoDisposable | null = null;
+let codeActionDisposable: MonacoDisposable | null = null;
 /** Updated reactively so the Monaco provider closure always sees the latest context. */
 let completionContextRef: YamlCompletionContext | null = null;
 let validationIssuesRef: BundleIssue[] = [];
@@ -59,6 +66,7 @@ $: if (browser && containerEl && !editor) {
 	void ensureEditor();
 }
 
+$: editor?.updateOptions({ readOnly });
 $: completionContextRef = completionContext;
 $: validationIssuesRef = validationIssues;
 $: if (!completionContext) {
@@ -284,6 +292,32 @@ function registerYamlHover() {
 	});
 }
 
+/** Offer each issue's one-click fix as a quick fix (lightbulb / Ctrl+.) on its line. */
+function registerQuickFixes(commandId: string | null) {
+	if (!monacoApi || !commandId) return;
+	codeActionDisposable?.dispose();
+	codeActionDisposable = monacoApi.languages.registerCodeActionProvider('yaml', {
+		provideCodeActions: (model, range) => {
+			if (editor?.getModel() !== model) return { actions: [], dispose() {} };
+			const actions = validationIssuesRef
+				.filter(
+					(issue) =>
+						issue.suggestedFix &&
+						issue.line !== undefined &&
+						issue.line >= range.startLineNumber &&
+						issue.line <= range.endLineNumber
+				)
+				.map((issue) => ({
+					title: `Fix: ${issue.message.length > 70 ? `${issue.message.slice(0, 67)}…` : issue.message}`,
+					kind: 'quickfix',
+					isPreferred: true,
+					command: { id: commandId, title: 'Apply fix', arguments: [issue.id] }
+				}));
+			return { actions, dispose() {} };
+		}
+	});
+}
+
 async function ensureEditor() {
 	if (!browser || !containerEl) return;
 	if (editor) return;
@@ -304,6 +338,7 @@ async function ensureEditor() {
 
 	editor = monacoApi.editor.create(mountEl, {
 		value: normalizeYamlLineEndings(value),
+		readOnly,
 		language: 'yaml',
 		theme: monacoTheme(),
 		automaticLayout: true,
@@ -381,6 +416,11 @@ async function ensureEditor() {
 		onValidate?.();
 		dispatch('validate');
 	});
+	editor.addCommand(monacoApi.KeyCode.F8, () => onNavigateIssue?.(1));
+	editor.addCommand(monacoApi.KeyMod.Shift | monacoApi.KeyCode.F8, () => onNavigateIssue?.(-1));
+	registerQuickFixes(
+		editor.addCommand(0, (_accessor: unknown, issueId: string) => onQuickFix?.(issueId))
+	);
 
 	updatePathBreadcrumb();
 	updateValidationMarkers();
@@ -478,6 +518,8 @@ onDestroy(() => {
 	hoverDisposable = null;
 	cursorDisposable?.dispose();
 	cursorDisposable = null;
+	codeActionDisposable?.dispose();
+	codeActionDisposable = null;
 	editor?.dispose();
 	editor = null;
 });

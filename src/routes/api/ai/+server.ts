@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
 import {
 	ACTION_MAX_TOKENS,
 	promptCompare,
@@ -12,20 +13,20 @@ import {
 	promptFixYamlSyntax,
 	promptSpecSearch,
 	promptValidate,
+	FIX_PROMPT_VERSION,
 	type FixIssueContext
 } from '$lib/ai/actionPrompts';
-import { parseFixResponse } from '$lib/ai/parseFixResponse';
+import { buildFixInput, spliceFixedExcerpt, type FixInput } from '$lib/ai/fixInput';
+import { runVerifiedFix } from '$lib/ai/runFix';
+import { schemaHintsForField, verifyFix, verifyMigrationFix } from '$lib/ai/verifyFix';
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import {
 	buildCacheKey,
-	buildFixCacheKey,
-	buildMigrationFixCacheKey,
 	buildReleaseCacheKey,
+	buildVerifiedFixCacheKey,
+	FIX_CACHE_TTL_SECONDS,
 	getCachedAiResponse,
 	getCachedAiResponseWithFallback,
-	hashDocYamlDigest,
-	hashFixCacheDigest,
-	hashMigrationFixDigest,
 	isCacheableAction,
 	isDeterministicCacheAction,
 	parseExamples,
@@ -51,13 +52,12 @@ import {
 import {
 	runWorkersAIMessages,
 	workersAIErrorResponse,
-	FIX_AI_MODEL,
 	FIX_AI_REQUEST_TIMEOUT_MS,
-	selectFixMaxTokens,
-	selectFixModel,
-	WORKERS_AI_MODEL
+	fixMaxTokensForOutput,
+	modelForTier,
+	resolveAiModels,
+	selectFixModel
 } from '$lib/ai/runWorkersAI';
-import { extractYamlIssueExcerpt } from '$lib/validate-bundle/yamlIssueExcerpt';
 import { MAX_YAML_INPUT_BYTES } from '$lib/yaml/inputLimits';
 
 const VALID_ACTIONS = [
@@ -80,6 +80,12 @@ const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_USER_YAML_CHARS = MAX_YAML_INPUT_BYTES;
 const MAX_FIELD_CHARS = 1024;
 const MAX_FIX_ISSUES = 100;
+
+/**
+ * LLM actions with no UI that only cost quota: `validate` (uncached, large prompts) duplicates the
+ * browser validator, and `compare` works from truncated schemas while the diff engine is exact.
+ */
+const DISABLED_ACTIONS = new Set<string>(['validate', 'compare']);
 
 const DETERMINISTIC_SEED = 42;
 const DETERMINISTIC_TEMPERATURE = 0;
@@ -189,8 +195,25 @@ function str(value: unknown): string {
 	return typeof value === 'string' ? value.trim() : '';
 }
 
+/** One structured line per AI call, readable in Workers Logs (fix success rate, latency, retries). */
+function logAiEvent(event: Record<string, unknown>): void {
+	console.log(JSON.stringify({ evt: 'ai', ...event }));
+}
+
 export const POST: RequestHandler = async ({ request, platform, url }) => {
+	// Browsers always send these on POST; refuse calls from other sites' pages. Scripts that
+	// send no Origin (warm-cache) are still allowed — rate limiting is done at the Cloudflare edge.
+	const fetchSite = request.headers.get('sec-fetch-site');
+	const origin = request.headers.get('origin');
+	if (
+		(fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') ||
+		(origin && origin !== url.origin)
+	) {
+		return json({ error: 'Cross-site requests are not allowed.' }, { status: 403 });
+	}
+
 	const ai = platform?.env?.AI;
+	const models = resolveAiModels(privateEnv);
 
 	if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) {
 		return json({ error: 'Request body too large' }, { status: 413 });
@@ -255,6 +278,10 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			{ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` },
 			{ status: 400 }
 		);
+	}
+
+	if (DISABLED_ACTIONS.has(action)) {
+		return json({ error: `The ${action} action is not available.` }, { status: 404 });
 	}
 
 	if (action === 'field' && !field) {
@@ -366,133 +393,152 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			);
 		}
 
-		const fixKind = kind || RELEASE_CACHE_KIND;
-		const docDigest = hashDocYamlDigest(userYaml);
-		const issueIdsDigest = hashMigrationFixDigest(
-			migrationIssues.map(
-				(issue) =>
-					`${issue.issueKind ?? ''}|${issue.fieldPath ?? ''}|${hashFixCacheDigest(issue.message, issue.fieldPath, issue.issueKind)}`
-			)
-		);
-
-		const fixCacheKey = isMigrationBatch
-			? buildMigrationFixCacheKey({
-					release,
-					kind: fixKind,
-					group,
-					docDigest,
-					issueIdsDigest
-				})
-			: fixKind && fixKind !== RELEASE_CACHE_KIND
-				? buildFixCacheKey({
-						release,
-						kind: fixKind,
-						group,
-						fieldPath: primaryIssue.fieldPath,
-						issueKind: primaryIssue.issueKind,
-						docDigest,
-						messageDigest: hashFixCacheDigest(
-							primaryIssue.message,
-							primaryIssue.fieldPath,
-							primaryIssue.issueKind
-						)
-					})
-				: null;
-
-		if (fixCacheKey && kv) {
-			const cached = await getCachedAiResponse(kv, fixCacheKey);
-			if (cached?.fixedYaml) {
-				return json({
-					answer: cached.answer,
-					release,
-					kind: kind || undefined,
-					action: 'fix',
-					explanation: cached.explanation,
-					fixedYaml: cached.fixedYaml,
-					fixable: cached.fixable,
-					cached: true
-				});
-			}
-		}
-
 		const schema = kind
 			? await loadAiSchema(release, kind, originFetch, group, version)
 			: null;
 
-		const excerpt =
-			!isMigrationBatch && primaryIssue.excerptYaml && !primaryIssue.excerptIsFullDocument
-				? { excerpt: primaryIssue.excerptYaml, isFullDocument: false }
-				: !isMigrationBatch
-					? extractYamlIssueExcerpt(userYaml, primaryIssue.fieldPath)
-					: null;
+		// Single-issue fixes: short docs go in full, long ones as an excerpt that is spliced back.
+		const input: FixInput = isMigrationBatch
+			? { mode: 'full', doc: userYaml.trim() }
+			: buildFixInput(userYaml, primaryIssue.fieldPath);
+		// Allowed values / types come from the CRD schema, not from the client.
+		const issueForPrompt: FixIssueContext = schema
+			? { ...primaryIssue, ...schemaHintsForField(schema.specSchema, primaryIssue.fieldPath) }
+			: primaryIssue;
 
 		const prompt = schema
 			? isMigrationBatch
-				? promptFixYamlMigration(release, kind, schema, userYaml, migrationIssues)
-				: promptFixYaml(release, kind, schema, userYaml, primaryIssue, {
-						excerptYaml: excerpt?.isFullDocument ? undefined : excerpt?.excerpt
-					})
-			: promptFixYamlSyntax(release, userYaml, primaryIssue);
+				? promptFixYamlMigration(release, kind, schema, input.doc, migrationIssues)
+				: promptFixYaml(
+						release,
+						kind,
+						schema,
+						input.doc,
+						issueForPrompt,
+						input.mode === 'excerpt'
+							? {
+									excerpt: {
+										text: input.excerpt,
+										startLine: input.startLine,
+										endLine: input.endLine,
+										totalLines: input.totalLines
+									}
+								}
+							: undefined
+					)
+			: promptFixYamlSyntax(release, input.doc, primaryIssue);
 
-		const fixModelOptions = {
-			batched: isMigrationBatch,
-			relocationHint: primaryIssue.relocationHint,
-			migrationContext: primaryIssue.migrationContext,
-			fieldPath: primaryIssue.fieldPath
-		};
+		const initialModel = modelForTier(
+			selectFixModel(primaryIssue.issueKind, {
+				batched: isMigrationBatch,
+				relocationHint: primaryIssue.relocationHint,
+				migrationContext: primaryIssue.migrationContext,
+				fieldPath: primaryIssue.fieldPath
+			}),
+			models
+		);
+		const fixCacheKey = await buildVerifiedFixCacheKey({
+			release,
+			promptVersion: FIX_PROMPT_VERSION,
+			model: initialModel,
+			system: prompt.system,
+			user: prompt.user
+		});
+
+		const cached = await getCachedAiResponse(kv, fixCacheKey);
+		if (cached?.fixedYaml) {
+			logAiEvent({ action, release, kind, cached: true, verified: true });
+			return json({
+				answer: cached.answer,
+				release,
+				kind: kind || undefined,
+				action: 'fix',
+				explanation: cached.explanation,
+				fixedYaml: cached.fixedYaml,
+				fixable: true,
+				verified: true,
+				cached: true
+			});
+		}
+
+		const expectedOutput = input.mode === 'excerpt' ? input.excerpt : input.doc;
+		const maxTokens = fixMaxTokensForOutput(expectedOutput, primaryIssue.issueKind, {
+			batched: isMigrationBatch
+		});
+		const startedAt = Date.now();
 
 		try {
-			const initialModel = selectFixModel(primaryIssue.issueKind, fixModelOptions);
-			const runFix = (model: string) =>
-				runWorkersAIMessages(
-					ai!,
-					[
-						{ role: 'system', content: prompt.system },
-						{ role: 'user', content: prompt.user }
-					],
-					{
+			const result = await runVerifiedFix({
+				prompt,
+				models,
+				initialModel,
+				run: (model, messages) =>
+					runWorkersAIMessages(ai!, messages, {
 						model,
-						maxTokens: selectFixMaxTokens(primaryIssue.issueKind, {
-							batched: isMigrationBatch
-						}),
+						maxTokens,
 						temperature: DETERMINISTIC_TEMPERATURE,
 						seed: DETERMINISTIC_SEED,
 						timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS
-					}
-				);
+					}),
+				toFullDocument: (fixedYaml) =>
+					input.mode === 'excerpt' ? spliceFixedExcerpt(input, fixedYaml) : fixedYaml,
+				verify: (fixedDoc) =>
+					isMigrationBatch
+						? verifyMigrationFix({ originalDoc: input.doc, fixedDoc, issues: migrationIssues })
+						: verifyFix({
+								originalDoc: input.doc,
+								fixedDoc,
+								issue: issueForPrompt,
+								specSchema: schema?.specSchema
+							})
+			});
 
-			let answer = await runFix(initialModel);
-			let parsed = parseFixResponse(answer);
+			logAiEvent({
+				action,
+				release,
+				kind,
+				cached: false,
+				verified: result.verified,
+				attempts: result.attempts,
+				model: result.model,
+				mode: input.mode,
+				issueKind: primaryIssue.issueKind,
+				rejectReason: result.rejectReason,
+				ms: Date.now() - startedAt
+			});
 
-			if (
-				initialModel === WORKERS_AI_MODEL &&
-				(!parsed.fixable || !parsed.fixedYaml)
-			) {
-				answer = await runFix(FIX_AI_MODEL);
-				parsed = parseFixResponse(answer);
+			// Only verified fixes are shared through the cache; a KV error never fails the request.
+			if (result.verified && result.fixedYaml && kv) {
+				const write = putCachedAiResponse(
+					kv,
+					fixCacheKey,
+					{
+						answer: result.answer,
+						release,
+						kind: kind || RELEASE_CACHE_KIND,
+						action: 'fix',
+						explanation: result.explanation,
+						fixedYaml: result.fixedYaml,
+						fixable: true
+					},
+					{ expirationTtl: FIX_CACHE_TTL_SECONDS }
+				).catch((err) => console.error('AI fix cache write failed:', err));
+				platform?.context?.waitUntil(write);
 			}
-			const responsePayload = {
-				answer,
+
+			return json({
+				answer: result.answer,
 				release,
 				kind: kind || undefined,
 				action: 'fix' as const,
-				explanation: parsed.explanation,
-				fixedYaml: parsed.fixedYaml,
-				fixable: parsed.fixable,
+				explanation: result.explanation,
+				fixedYaml: result.fixedYaml,
+				fixable: result.fixable,
+				verified: result.verified,
+				attempts: result.attempts,
+				model: result.model,
 				cached: false
-			};
-			if (fixCacheKey && kv && parsed.fixable && parsed.fixedYaml) {
-				await putCachedAiResponse(kv, fixCacheKey, {
-					answer,
-					release,
-					kind: fixKind,
-					action: 'fix',
-					explanation: parsed.explanation,
-					fixedYaml: parsed.fixedYaml,
-					fixable: parsed.fixable
-				});
-			}
-			return json(responsePayload);
+			});
 		} catch (err) {
 			console.error('Workers AI fix error:', err);
 			const reason = llmFallbackReason(err);
@@ -656,6 +702,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				{ role: 'user', content: prompt.user }
 			],
 			{
+				model: models.default,
 				maxTokens: ACTION_MAX_TOKENS[action] ?? 512,
 				temperature: DETERMINISTIC_TEMPERATURE,
 				seed: DETERMINISTIC_SEED

@@ -45,6 +45,25 @@ export function hasActiveApiVersion(versions: CrdVersions[] | null | undefined):
 }
 
 /** Pick the latest non-deprecated K8s apiVersion (v1 > v1beta1 > v1alpha1). Returns '' if none. */
+/**
+ * Schema version to validate a document against: the version it declares when the release
+ * has it (deprecated or not), otherwise the latest active version.
+ */
+export function schemaVersionForDocument(
+	resourceEntry: VersionSource,
+	declaredVersion: string | undefined
+): string {
+	const versions = Array.isArray(resourceEntry)
+		? resourceEntry
+		: Array.isArray(resourceEntry?.versions)
+			? (resourceEntry.versions as CrdVersions[])
+			: [];
+	if (declaredVersion && versions.some((v) => v?.name === declaredVersion)) {
+		return declaredVersion;
+	}
+	return pickLatestApiVersion(versions);
+}
+
 export function pickLatestApiVersion(versions: CrdVersions[] | null | undefined): string {
 	const list = Array.isArray(versions) ? versions : [];
 	const nonDeprecated = list.filter((v) => v?.name && !v?.deprecated);

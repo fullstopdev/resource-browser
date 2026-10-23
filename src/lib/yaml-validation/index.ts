@@ -1,6 +1,6 @@
 import type { ErrorObject } from 'ajv';
 import { findManifestEntry } from '$lib/manifest/lookup';
-import { getLatestVersion } from '$lib/versions';
+import { schemaVersionForDocument } from '$lib/versions';
 import { buildSummary } from './formatErrors';
 import { parseDocuments } from './parseDocuments';
 import { scanInvalidBooleanLiterals } from './scanSource';
@@ -117,8 +117,7 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 		const [group, version] = parts;
 		const resourceEntry = findManifestEntry(manifest, kind, group);
 		if (!resourceEntry) continue;
-		const latestVersion = getLatestVersion(resourceEntry);
-		const schemaVersion = latestVersion;
+		const schemaVersion = schemaVersionForDocument(resourceEntry, version);
 		if (schemaVersion) {
 			schemaPaths.push(schemaPath(releaseFolder, resourceEntry.name, schemaVersion));
 		}
@@ -161,7 +160,7 @@ export async function validateYamlInput(options: ValidateYamlOptions): Promise<V
 				? `✓ Successfully validated ${docs.length} Nokia EDA CRD documents`
 				: '✓ Valid Nokia EDA CRD configuration';
 		const successEntry: EnrichedError = {
-			message: `${successMsg} (release: ${releaseLabel}, latest schema per CRD)`,
+			message: `${successMsg} (release: ${releaseLabel}, declared schema version per CRD)`,
 			instancePath: '',
 			schemaPath: '',
 			keyword: 'success',

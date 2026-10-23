@@ -48,9 +48,7 @@ flowchart LR
    `resolveAskTargets`, `classifyQuestionIntent` and `eval/goldenQuestions` are only reached from
    tests and the embed scripts. The `CRD_INDEX` / `DOCS_INDEX` bindings are declared but unused by
    any request.
-3. **LLM actions without a UI.** `explain`, `field`, `example`, `compare`, `spec-search` and
-   `validate` on `/api/ai` are only called by `warm-cache.ts` (or nothing). They are reachable
-   publicly and can spend AI quota.
+3. **LLM actions without a UI.** `explain`, `example` and `spec-search` are only called by `warm-cache.ts` (or nothing); `field` now powers Explain → More detail; `validate` and `compare` are disabled.
 4. **`/api/openapi-proxy` has no caller** in the app. It is hardened (origin allowlist, no
    redirects, size limit) but is still a public relay to the configured EDA API.
 5. **Redirect routes with dead bodies.** `/[name]/[version]/+page.svelte`, `/spec-search-auto/+page.svelte`
@@ -97,6 +95,19 @@ flowchart LR
 18. CRD pages live at query URLs (`/?release&crd&version`). Clean path URLs would be friendlier,
     but the current `/<crd>/<version>` paths 307-redirect to the query form, so they can't be the
     canonical today.
+
+## Resolved (Validate YAML & AI work, 2026-10-23, not yet deployed)
+
+- AI Fix excerpt bug: long documents are sent as an excerpt and **spliced back on the server**; short ones whole.
+- AI output is **verified on the server** (parse, minimal-edit guard, issue resolved), retried once on the 70B model with the reason, and only verified fixes are cached (SHA-256 prompt key, 30-day TTL, non-blocking KV write). Closes the cache-poisoning hole.
+- Token budget sized from the document; parser tolerant of CRLF / `yml` / missing fence; models overridable via env; one structured log line per AI call; `npm run eval:fix` with 20 cases.
+- `validate` and `compare` LLM actions disabled; same-origin check on `/api/ai`.
+- Validation uses the **declared apiVersion's** schema; stale results can't overwrite newer ones; AI Fix can't overwrite newer edits; issue ids unique per run.
+- Formats (int32, int64, ipv4, date-time, uri, Go duration), list-type set/map uniqueness, CEL rules as info hints, duplicate resources in a bundle, readable messages for every Ajv keyword, anyOf/oneOf noise collapsed.
+- Fix-all loop: tried issues not re-sent, failures counted, fixes kept only if the issue disappears, Cancel button, client timeout.
+- Editor: share link, autosaved draft, download/open/drag-drop, undoable fixes, quick-fix lightbulb, F8 navigation, Info filter, Explain (schema + optional AI), Insert example from schema; schema fetch de-duplication and 404 caching.
+
+Still open from this area: namespace rule for cluster-scoped kinds (static data has no CRD `scope`), cross-document reference checks (26.8.2 schemas carry no reference annotations), validation in a Web Worker for very large bundles, rate limiting (needs a custom domain for WAF rules).
 
 ## Recommendations (by priority)
 

@@ -1,25 +1,46 @@
 ---
 title: Validate YAML
-description: Check EDA manifests against the real CRD schemas of a release, then fix errors by hand, automatically or with AI.
+description: Check EDA manifests against the real CRD schemas of a release, understand each error, and fix it by hand, automatically or with AI.
 section: Guide
 order: 4
 ---
 
 **Validate YAML** (`/validate-yaml`) checks your EDA resource manifests against the CRD schemas of
-the release you choose, in an editor with inline errors, completions and hover help.
+the release you choose, in an editor with inline errors, completions, hover help and quick fixes.
 
 ![Validate YAML](/docs/images/validate-yaml.png)
 
 ## Using it
 
 1. Pick the **target release** your manifests are for.
-2. Paste or type YAML. Several documents separated by `---` are validated together.
-3. Errors and warnings appear as you type (about half a second after you stop), underlined in the
-   editor and listed below it.
-4. Fix issues one by one with **Fix**, preview an AI suggestion, or run **AI Fix** on everything.
-5. Use **view schema** on a resource to open its CRD window.
+2. Paste or type YAML, **open a file**, or **drop a `.yaml` file** on the editor. Several documents
+   separated by `---` are validated together. Input is limited to **512 KiB**.
+3. Errors, warnings and hints appear as you type (about half a second after you stop), underlined in
+   the editor and listed with filters: **All**, **Errors**, **Warnings**, **Info**.
+4. Fix issues one by one, from the editor's lightbulb, or all at once with **AI Fix**.
 
-Input is limited to **512 KiB**.
+Your text is **saved in this browser** as you type. When you come back, the page restores it and
+offers **Start fresh**. Nothing is uploaded.
+
+### Toolbar
+
+| Button          | What it does                                                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Load example    | Replaces the editor with a small valid bundle                                                                                     |
+| Copy            | Copies the YAML                                                                                                                   |
+| Copy share link | Copies a link that **contains** the YAML (compressed in the URL); opening it loads the same text and release                      |
+| Download        | Saves the YAML as `eda-manifests.yaml`                                                                                            |
+| Open file       | Loads a `.yaml` file (you can also drop it on the editor)                                                                         |
+| Insert example… | Appends a minimal manifest for any kind of the release: required fields only, defaults and placeholders filled in from the schema |
+
+### Keyboard
+
+| Keys                                           | Action                                     |
+| ---------------------------------------------- | ------------------------------------------ |
+| <kbd>Ctrl</kbd>+<kbd>Enter</kbd>               | Validate now                               |
+| <kbd>F8</kbd> / <kbd>Shift</kbd>+<kbd>F8</kbd> | Next / previous issue                      |
+| <kbd>Ctrl</kbd>+<kbd>.</kbd>                   | Quick fix for the issue on this line       |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd>                   | Undo — including fixes applied by the tool |
 
 ## What gets checked
 
@@ -27,65 +48,85 @@ Input is limited to **512 KiB**.
 flowchart LR
   Y["Your YAML"] --> P["1. Parse every document"]
   P --> K["2. Kubernetes rules"]
-  K --> S["3. Look up kind + group in the release"]
+  K --> S["3. Find the CRD and the declared version"]
   S --> J["4. JSON Schema validation"]
-  J --> X["5. Extra checks"]
-  X --> R["Errors, warnings, info"]
+  J --> X["5. Kubernetes schema extras"]
+  X --> B["6. Bundle rules"]
+  B --> R["Errors, warnings, info"]
 ```
 
 1. **Parsing**: YAML syntax errors, with line numbers.
 2. **Kubernetes rules**: `apiVersion` format, resource names (DNS subdomain and label rules), label
    keys and values.
 3. **Schema lookup**: the document's `kind` and API group are matched to a CRD in the selected
-   release. Unknown kinds are reported.
-4. **Schema validation**: the document is validated against the CRD's OpenAPI v3 schema (types,
-   required fields, enums, patterns, ranges).
-5. **Extra checks**: unknown fields that the schema doesn't define, and unquoted booleans that
-   aren't lowercase (`True`, `FALSE`): write `true` or `false`.
+   release, and the **version the document declares** is used. A deprecated version is still
+   checked against its own schema, with a deprecation warning.
+4. **Schema validation**: types, required fields, enums, patterns, ranges, lengths and formats
+   (`ipv4`, `date-time`, `uri`, `int32`, and Kubernetes `duration` such as `30s` or `1h30m`).
+   Messages name the field, the value found and the rule, for example
+   `spec.vlan is 5000; it must be <= 4094`.
+5. **Kubernetes schema extras**:
+   - unknown fields the schema doesn't define (with rename or relocate suggestions);
+   - duplicate items in `set` lists and duplicate keys in `map` lists (`x-kubernetes-list-type`);
+   - CEL rules (`x-kubernetes-validations`) are **shown as Info hints** — the cluster enforces them,
+     this page doesn't evaluate them;
+   - booleans that aren't lowercase (`True`, `FALSE`).
+6. **Bundle rules**: the same resource (kind, namespace, name) defined twice, and duplicates that
+   use different `apiVersion`s.
 
-Schemas are downloaded once and cached, together with their compiled validators, so revalidating
-is fast.
+`status` is validated only for documents without `spec` (for example exported state). When both are
+present, a warning explains that `status` is written by the controller.
+
+Schemas are downloaded once and cached with their compiled validators, so revalidating is fast.
+
+## Understanding an issue
+
+Each issue on a `spec` field has an **Explain** button. It shows, straight from the CRD schema and
+at no cost:
+
+- the field's **type** and format, whether it is **required**, **allowed values**, **default**,
+  range, length or pattern, and its description;
+- for a field that doesn't exist, the **fields allowed at that level**.
+
+**More detail (AI)** asks Workers AI for a plain-language explanation of the field. Answers are
+cached, so a second request for the same field is instant.
 
 ## Fixing issues
 
-| Option                     | What it does                                                                                         | Uses AI? |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- | -------- |
-| **Fix** on an issue        | Applies a known correction: rename a misspelled field, move a field to the right place, fix a format | No       |
-| **AI preview** on an issue | Asks the AI for a fix for that issue and shows a side-by-side diff before you apply it               | Yes      |
-| **AI Fix** (all issues)    | Runs deterministic fixes first, then AI for what's left, then shows a review you can revert          | Partly   |
+| Option                                | What it does                                                                                            | Uses AI? |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------- |
+| **Fix** on an issue, or the lightbulb | Applies a known correction: rename a misspelled field, move a field, set an allowed value, fix a format | No       |
+| **AI preview** on an issue            | Shows an AI fix as a side-by-side diff before you apply it                                              | Yes      |
+| **AI Fix** (all issues)               | Deterministic fixes first, AI only for what's left, then a before/after review you can revert           | Partly   |
 
-AI Fix works in phases, and uses AI only when simple rules can't solve a problem:
+Every applied fix can be undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
+
+### How AI Fix works
 
 ```mermaid
 sequenceDiagram
-  participant E as Editor
+  participant E as Editor (read-only while fixing)
   participant D as Deterministic fixer
-  participant A as /api/ai (Workers AI)
-  participant K as KV cache
-  E->>D: Up to 3 rule-based passes (revalidate after each)
+  participant A as /api/ai
+  E->>D: Up to 3 rule-based passes, revalidating after each
   alt YAML still doesn't parse
-    E->>A: Syntax fix request
-    A-->>E: Fixed YAML
-    E->>D: Rule-based pass again
+    E->>A: Syntax fix
+    A-->>E: Verified YAML
   end
-  loop Up to 5 AI passes, max 12 fixes per document
-    E->>A: Fix request for remaining issues
-    A->>K: Look up cached answer
-    alt Cache hit
-      K-->>A: Cached fix
-    else Cache miss
-      A->>A: Llama 3.1 8B (70B for complex cases)
-      A->>K: Store the fix
-    end
-    A-->>E: Fixed YAML
-    E->>D: Revalidate and rule-based fixes
+  loop Until clean, up to 5 passes and 12 attempts per document
+    E->>A: Fix the next issue not tried yet
+    A-->>E: Verified fix, or "not fixable"
+    E->>E: Revalidate, keep the fix only if that issue is gone
   end
-  E->>E: Show before/after review (revert possible)
+  E->>E: Before/after review (revert possible)
 ```
 
-> [!WARNING]
-> AI fixes are suggestions. Always review the before/after view, especially for values like IP
-> addresses, names and references that the AI can't verify.
+- The server **checks every AI answer before returning it** (see [AI & caching](ai.md)), so you only
+  receive fixes that pass validation for the reported issue.
+- An issue the AI couldn't fix is **not sent again**; a fix that doesn't remove its issue is rolled
+  back.
+- The editor is **read-only while fixing**. **Cancel** stops the run and keeps the fixes made so far.
 
-Identical requests (same document and same issue) are answered from a cache, so repeating a fix is
-instant. If the AI can't produce a valid fix, the issue stays listed for you to fix by hand.
+> [!WARNING]
+> AI fixes are suggestions. Always review the before/after view, especially values like IP
+> addresses, names and references that the AI can't verify against your cluster.

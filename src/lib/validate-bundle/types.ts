@@ -5,7 +5,7 @@ export type IssueSeverity = 'error' | 'warning' | 'info';
 export type IssueCategory = 'schema' | 'eda' | 'kubernetes';
 
 /** Sub-type for EDA manifest rules not covered by CRD schema validation. */
-export type EdaIssueRule = never;
+export type EdaIssueRule = 'duplicate-resource' | 'apiversion-mismatch';
 
 /** Sub-type for standard Kubernetes manifest requirements. */
 export type K8sIssueRule =

@@ -1,5 +1,5 @@
 import { findManifestEntry, findManifestEntryCaseInsensitive } from '$lib/manifest/lookup';
-import { getLatestVersion } from '$lib/versions';
+import { schemaVersionForDocument } from '$lib/versions';
 import { schemaPath, fetchSchemas, type SchemaSections } from '$lib/yaml-validation/schemaCache';
 import type { ManifestEntry } from '$lib/yaml-validation/types';
 import type { BundleResource } from './types';
@@ -14,14 +14,14 @@ export type YamlCompletionContext = {
 /** Schema cache key for a bundle resource (exported for tests and fingerprinting). */
 export function schemaKeyForResource(
 	ctx: Pick<YamlCompletionContext, 'manifest' | 'releaseFolder'>,
-	resource: Pick<BundleResource, 'kind' | 'group'>
+	resource: Pick<BundleResource, 'kind' | 'group'> & Partial<Pick<BundleResource, 'version'>>
 ): string | null {
 	if (!resource.kind || !resource.group) return null;
 	const entry =
 		findManifestEntry(ctx.manifest, resource.kind, resource.group) ??
 		findManifestEntryCaseInsensitive(ctx.manifest, resource.kind, resource.group);
 	if (!entry) return null;
-	const version = getLatestVersion(entry);
+	const version = schemaVersionForDocument(entry, resource.version);
 	if (!version) return null;
 	return schemaPath(ctx.releaseFolder, entry.name, version);
 }

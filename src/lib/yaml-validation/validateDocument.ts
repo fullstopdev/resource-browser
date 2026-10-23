@@ -17,7 +17,7 @@ import {
 	collectMissingRequiredFields,
 	formatRequiredFieldMessage
 } from '$lib/schema/requiredFields';
-import { formatValueConstraintError } from './formatSchemaError';
+import { collapseCompositeErrors, formatAjvError } from './formatSchemaError';
 import { formatVersionLabel } from './formatErrors';
 import { formatLocationInfo, getFieldLocationInfo } from './parseDocuments';
 import { suggestFixFromAjvError } from '$lib/validate-bundle/schemaSuggestedFix';
@@ -39,9 +39,24 @@ function docPrefix(index: number, total: number) {
 	return total > 1 ? `[Doc ${index + 1}] ` : '';
 }
 
-function ajvReportsRequired(errors: ErrorObject[] | null | undefined, instancePath: string): boolean {
+/**
+ * True when Ajv already reported this missing field. Ajv reports `required` on the parent object
+ * (instancePath of the parent, missingProperty = field), while the supplemental scan uses the
+ * field's own path — compare both forms so the same field isn't listed twice.
+ */
+function ajvReportsRequired(
+	errors: ErrorObject[] | null | undefined,
+	instancePath: string,
+	field?: string
+): boolean {
+	const parentPath = instancePath.replace(/\/[^/]*$/, '');
 	return (errors || []).some(
-		(err) => err.keyword === 'required' && err.instancePath === instancePath
+		(err) =>
+			err.keyword === 'required' &&
+			(err.instancePath === instancePath ||
+				(field !== undefined &&
+					err.instancePath === parentPath &&
+					String(err.params?.missingProperty ?? '') === field))
 	);
 }
 
@@ -61,7 +76,7 @@ function enrichRequiredFieldErrors(
 ): EnrichedError[] {
 	const enriched: EnrichedError[] = [];
 	for (const item of missing) {
-		if (ajvReportsRequired(ctx.ajvErrors, item.instancePath)) continue;
+		if (ajvReportsRequired(ctx.ajvErrors, item.instancePath, item.field)) continue;
 		const fieldLocationInfo = getFieldLocationInfo(
 			ctx.doc.rawText,
 			ctx.doc.startLine,
@@ -439,7 +454,8 @@ export function validateDocument(ctx: ValidateDocContext): {
 					);
 					valid = false;
 				} else {
-					const schemaVersion = latestVersion;
+					// matchedVersionEntry exists here, so validate against the version the document declares.
+					const schemaVersion = version;
 					schemaKey = `/${ctx.releaseFolder}/${resourceEntry.name}/${schemaVersion}.yaml`;
 					schemaSections = schemas.get(schemaKey);
 
@@ -494,7 +510,7 @@ export function validateDocument(ctx: ValidateDocContext): {
 		const ajvSpecErrors = specValidator.errors || [];
 		if (!specValid) {
 			valid = false;
-			const docErrors = ajvSpecErrors.map((err) => {
+			const docErrors = collapseCompositeErrors(ajvSpecErrors).map((err) => {
 				let message = err.message || 'validation error';
 				if (err.keyword === 'required') {
 					const missingProperty = String(err.params?.missingProperty || '');
@@ -503,10 +519,10 @@ export function validateDocument(ctx: ValidateDocContext): {
 					message = fieldPath
 						? formatRequiredFieldMessage(`spec.${fieldPath}`)
 						: message;
-				} else if (err.keyword === 'enum' || err.keyword === 'const') {
+				} else {
 					const pointerPath = err.instancePath.replace(/^\//, '').replace(/\//g, '.');
 					const fieldLabel = pointerPath ? `spec.${pointerPath}` : 'spec';
-					message = formatValueConstraintError(err, parsedYaml.spec, fieldLabel);
+					message = formatAjvError(err, parsedYaml.spec, fieldLabel);
 				}
 				const fieldLocationInfo = getFieldLoc(`/spec${err.instancePath}`);
 				const lineMatch = fieldLocationInfo.match(/Line\s+(\d+)/i);
@@ -585,17 +601,21 @@ export function validateDocument(ctx: ValidateDocContext): {
 		}
 	}
 
-	if (parsedYaml.status && status) {
+	// With spec present, status is controller-owned; k8sRules already warns ("spec-with-status"),
+	// so validating it would only add noise. Status-only documents are still checked.
+	if (parsedYaml.status && status && !parsedYaml.spec) {
 		const validatorKey = `${schemaKey}::status`;
 		const statusValidator = ctx.getStatusValidator(validatorKey, status);
 		if (!statusValidator(parsedYaml.status)) {
-			const statusErrors = (statusValidator.errors || []).map((err) => {
+			const statusErrors = collapseCompositeErrors(statusValidator.errors || []).map((err) => {
 				const fieldLocationInfo = getFieldLoc(`/status${err.instancePath}`);
 				const lineMatch = fieldLocationInfo.match(/Line\s+(\d+)/i);
+				const pointerPath = err.instancePath.replace(/^\//, '').replace(/\//g, '.');
+				const fieldLabel = pointerPath ? `status.${pointerPath}` : 'status';
 				return enrichError(
 					{
 						...err,
-						message: `${prefix}status${err.instancePath}: ${err.message}${fieldLocationInfo}`,
+						message: `${prefix}${formatAjvError(err, parsedYaml.status, fieldLabel)}${fieldLocationInfo}`,
 						instancePath: `/status${err.instancePath}`,
 						keyword: 'warning',
 						resourceLink

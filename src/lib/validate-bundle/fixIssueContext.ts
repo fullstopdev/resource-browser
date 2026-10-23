@@ -240,3 +240,30 @@ export async function buildFixIssueContext(
 
 	return context;
 }
+
+/**
+ * The same issue, as a plain AI request: used when a one-click fix exists but could not be applied
+ * to the document. Without this, the server would answer "use the one-click fix" (422) and the
+ * issue could never be fixed.
+ */
+export function withoutDeterministicHints<
+	T extends {
+		renameHint?: unknown;
+		relocationHint?: unknown;
+		suggestedFix?: unknown;
+		deterministicFixAvailable?: boolean;
+		issueKind?: FixIssueContext['issueKind'];
+	}
+>(payload: T): T {
+	const {
+		renameHint: _rename,
+		relocationHint: _relocate,
+		suggestedFix: _fix,
+		...rest
+	} = payload;
+	return {
+		...rest,
+		deterministicFixAvailable: false,
+		issueKind: payload.issueKind === 'misspelledField' ? 'unknownField' : payload.issueKind
+	} as T;
+}

@@ -251,7 +251,7 @@ export type FixIssueContext = {
 	relocationHint?: { from: string; to: string };
 	migrationContext?: string;
 	relatedIssues?: string[];
-	/** Client-provided YAML excerpt; server prefers over server-side extraction. */
+	/** Sent by older clients; ignored — the server picks the excerpt itself (src/lib/ai/fixInput.ts). */
 	excerptYaml?: string;
 	excerptIsFullDocument?: boolean;
 };
@@ -390,18 +390,31 @@ function minimalFixRulesFor(issue: FixIssueContext): string[] {
 	return MINIMAL_FIX_RULES;
 }
 
+/** Bump when fix prompts change so cached fixes from older prompts are not reused. */
+export const FIX_PROMPT_VERSION = 3;
+
+/** A window of a long document: raw lines [startLine, endLine) (0-based), indentation kept. */
+export type FixExcerpt = { text: string; startLine: number; endLine: number; totalLines: number };
+
 export function promptFixYaml(
 	release: string,
 	kind: string,
 	schema: AiSchemaPayload,
 	docYaml: string,
 	issue: FixIssueContext,
-	options?: { excerptYaml?: string }
+	options?: { excerpt?: FixExcerpt }
 ): ActionPrompt {
-	const yamlForPrompt = options?.excerptYaml ?? docYaml;
-	const excerptNote = options?.excerptYaml
-		? '\n- The YAML excerpt is for context only; FIXED_YAML must be the complete corrected document.'
+	const excerpt = options?.excerpt;
+	const yamlForPrompt = excerpt?.text ?? docYaml;
+	const yamlHeading = excerpt
+		? `CURRENT YAML (lines ${excerpt.startLine + 1}-${excerpt.endLine} of a ${excerpt.totalLines}-line document; only these lines are shown):`
+		: 'CURRENT YAML:';
+	const excerptNote = excerpt
+		? `\n- You only see lines ${excerpt.startLine + 1}-${excerpt.endLine}. FIXED_YAML must contain ONLY the corrected version of exactly these lines, with the same indentation. Do not add a header, comments, or lines from outside this range.`
 		: '';
+	const fixedYamlPlaceholder = excerpt
+		? `(corrected lines ${excerpt.startLine + 1}-${excerpt.endLine} only — required when FIXABLE: yes)`
+		: '(full corrected document — required when FIXABLE: yes)';
 	const issueLines = [
 		issue.issueKind ? `Issue type: ${issue.issueKind}` : null,
 		`Message: ${issue.message}`,
@@ -434,7 +447,7 @@ export function promptFixYaml(
 VALIDATION ISSUE:
 ${issueLines}
 
-CURRENT YAML:
+${yamlHeading}
 \`\`\`yaml
 ${yamlForPrompt}
 \`\`\`
@@ -454,9 +467,15 @@ EXPLANATION: one short paragraph describing what you changed or why it is not fi
 
 FIXED_YAML:
 \`\`\`yaml
-(full corrected document — required when FIXABLE: yes)
+${fixedYamlPlaceholder}
 \`\`\``
 	};
+}
+
+/** Follow-up message when a fix failed server-side verification; the model gets one more try. */
+export function fixRetryMessage(reason: string): string {
+	return `Your previous answer was rejected by the validator: ${reason}
+Return a corrected answer in exactly the same output format (FIXABLE, EXPLANATION, FIXED_YAML). Keep the edit minimal.`;
 }
 
 export function promptFixYamlMigration(

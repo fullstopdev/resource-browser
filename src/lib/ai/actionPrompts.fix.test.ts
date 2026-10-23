@@ -194,18 +194,34 @@ describe('promptFixYaml', () => {
 		expect(scoped).not.toContain('parentObjectSchema');
 	});
 
-	it('uses YAML excerpt for single-issue fixes when provided', () => {
+	it('asks for the full document when the full document is sent', () => {
 		const fullDoc = `apiVersion: example/v1\nkind: Test\nmetadata:\n  name: x\nspec:\n  os: bad\n  other: true`;
-		const excerpt = 'spec:\n  os: bad';
 		const prompt = promptFixYaml('26.4.2', 'Fabric', schema, fullDoc, {
 			message: 'invalid enum',
 			fieldPath: 'spec.os',
 			issueKind: 'enum'
-		}, { excerptYaml: excerpt });
+		});
 
-		expect(prompt.user).toContain(excerpt);
-		expect(prompt.user).not.toContain('other: true');
-		expect(prompt.user).toContain('excerpt is for context only');
+		expect(prompt.user).toContain('other: true');
+		expect(prompt.user).toContain('full corrected document');
+		expect(prompt.user).not.toContain('only these lines are shown');
+	});
+
+	it('asks for only the excerpt lines when an excerpt of a long document is sent', () => {
+		const prompt = promptFixYaml(
+			'26.4.2',
+			'Fabric',
+			schema,
+			'ignored when an excerpt is given',
+			{ message: 'invalid enum', fieldPath: 'spec.os', issueKind: 'enum' },
+			{ excerpt: { text: '  os: bad', startLine: 240, endLine: 241, totalLines: 400 } }
+		);
+
+		expect(prompt.user).toContain('lines 241-241 of a 400-line document');
+		expect(prompt.user).toContain('ONLY the corrected version of exactly these lines');
+		expect(prompt.user).toContain('(corrected lines 241-241 only');
+		expect(prompt.user).not.toContain('full corrected document');
+		expect(prompt.user).not.toContain('ignored when an excerpt is given');
 	});
 
 	it('migration prompt lists all issues and uses full document YAML', () => {

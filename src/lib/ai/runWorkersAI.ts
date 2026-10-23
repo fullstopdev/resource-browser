@@ -223,3 +223,39 @@ export function selectFixMaxTokens(
 	if (issueKind === 'unknownField') return 1536;
 	return FIX_AI_MAX_TOKENS;
 }
+
+/** Upper bound for fix output, whatever the input size. */
+export const FIX_AI_MAX_OUTPUT_TOKENS = 4096;
+
+/**
+ * Max tokens for a fix whose answer echoes `expectedOutput` (the full document or the excerpt):
+ * roughly 1.3× its token count plus room for the explanation, never below the per-kind floor.
+ * A fixed 768-token budget truncated full-document answers for longer manifests.
+ */
+export function fixMaxTokensForOutput(
+	expectedOutput: string,
+	issueKind?: string,
+	options?: { batched?: boolean }
+): number {
+	const estimatedTokens = Math.ceil(expectedOutput.length / 3.2);
+	const sized = Math.ceil(estimatedTokens * 1.3) + 256;
+	return Math.min(
+		FIX_AI_MAX_OUTPUT_TOKENS,
+		Math.max(selectFixMaxTokens(issueKind, options), sized)
+	);
+}
+
+export type AiModels = { default: string; fix: string };
+
+/** Model ids, overridable per deployment with `AI_MODEL_DEFAULT` / `AI_MODEL_FIX`. */
+export function resolveAiModels(env: Record<string, string | undefined>): AiModels {
+	return {
+		default: env.AI_MODEL_DEFAULT?.trim() || WORKERS_AI_MODEL,
+		fix: env.AI_MODEL_FIX?.trim() || FIX_AI_MODEL
+	};
+}
+
+/** Map selectFixModel's choice (small vs large tier) onto the configured models. */
+export function modelForTier(selected: string, models: AiModels): string {
+	return selected === FIX_AI_MODEL ? models.fix : models.default;
+}

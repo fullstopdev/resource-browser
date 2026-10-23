@@ -38,7 +38,8 @@
 		"deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"deploy:cloudflare:only": "npm run prune:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"deploy:cloudflare:lean": "PUBLIC_ASK_AI_ENABLED=false PUBLIC_FIX_AI_ENABLED=false npm run build:cloudflare && node scripts/deploy-cloudflare-lean.mjs",
-		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser"
+		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
+		"eval:fix": "tsx --tsconfig tsconfig.scripts.json scripts/eval-fix.ts"
 	},
 	"dependencies": {
 		"@xyflow/svelte": "^1.7.0",

@@ -201,10 +201,37 @@ export async function getCachedAiResponse(
 export async function putCachedAiResponse(
 	kv: KVNamespace | undefined,
 	key: string,
-	payload: AiCachePayload
+	payload: AiCachePayload,
+	options?: { expirationTtl?: number }
 ): Promise<void> {
 	if (!kv) return;
-	await kv.put(key, JSON.stringify(payload));
+	await kv.put(key, JSON.stringify(payload), options);
+}
+
+/** Verified AI fixes expire so model or prompt improvements reach users. */
+export const FIX_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+async function sha256Hex(text: string): Promise<string> {
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Key for a verified fix: a hash of everything that shaped the answer (prompt version, model,
+ * full prompt). Client-supplied hints are part of the prompt, so a crafted request can only ever
+ * populate its own key, never the entry other users read.
+ */
+export async function buildVerifiedFixCacheKey(params: {
+	release: string;
+	promptVersion: number;
+	model: string;
+	system: string;
+	user: string;
+}): Promise<string> {
+	const digest = await sha256Hex(
+		JSON.stringify([params.promptVersion, params.model, params.system, params.user])
+	);
+	return `ai:v3:fix:${params.release}:${digest}`;
 }
 
 /** Parse fenced yaml blocks from an example action response. */

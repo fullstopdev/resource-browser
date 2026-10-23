@@ -49,13 +49,23 @@ export type AiActionResult = {
 	examples?: string[];
 	fixable?: boolean;
 	fixedYaml?: string;
+	/** Fix passed the server's validation before being returned. */
+	verified?: boolean;
 	explanation?: string;
 	error?: string;
+	/** Request was cancelled by the user. */
+	aborted?: boolean;
 	llmFallback?: boolean;
 	fallbackReason?: 'quota' | 'llm_error';
 };
 
+/** Slightly longer than the server's worst case (one model call, plus one retry on timeout). */
+export const AI_CLIENT_TIMEOUT_MS = 130_000;
+
 function friendlyError(status: number, message?: string): string {
+	if (status === 413) return 'The YAML is too large for an AI request (limit 512 KB).';
+	if (status === 422) return message ?? 'Use the one-click Fix for this issue instead of AI.';
+	if (status === 429) return 'Too many AI requests — wait a moment and try again.';
 	if (status === 503) {
 		return message ?? 'Workers AI is temporarily unavailable.';
 	}
@@ -69,15 +79,23 @@ function friendlyError(status: number, message?: string): string {
 	return message ?? `Request failed (${status}). Please try again.`;
 }
 
-export async function askAI(params: AskAIActionParams): Promise<AiActionResult> {
+export async function askAI(
+	params: AskAIActionParams,
+	options?: { signal?: AbortSignal; timeoutMs?: number }
+): Promise<AiActionResult> {
+	const timeout = AbortSignal.timeout(options?.timeoutMs ?? AI_CLIENT_TIMEOUT_MS);
+	const signal = options?.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
 	let response: Response;
 	try {
 		response = await fetch('/api/ai', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(params)
+			body: JSON.stringify(params),
+			signal
 		});
 	} catch {
+		if (options?.signal?.aborted) return { answer: '', error: 'Cancelled.', aborted: true };
+		if (timeout.aborted) return { answer: '', error: friendlyError(504) };
 		return { answer: '', error: friendlyError(0) };
 	}
 
@@ -112,17 +130,20 @@ export const fixYAML = (
 	release: string,
 	userYaml: string,
 	issue: FixIssuePayload,
-	opts?: { kind?: string; group?: string; issues?: FixIssuePayload[] }
+	opts?: { kind?: string; group?: string; issues?: FixIssuePayload[]; signal?: AbortSignal }
 ) =>
-	askAI({
-		release,
-		kind: opts?.kind,
-		group: opts?.group,
-		action: 'fix',
-		userYaml,
-		issue,
-		...(opts?.issues && opts.issues.length > 1 ? { issues: opts.issues } : {})
-	});
+	askAI(
+		{
+			release,
+			kind: opts?.kind,
+			group: opts?.group,
+			action: 'fix',
+			userYaml,
+			issue,
+			...(opts?.issues && opts.issues.length > 1 ? { issues: opts.issues } : {})
+		},
+		{ signal: opts?.signal }
+	);
 
 export const generateExample = (release: string, kind: string, group?: string) =>
 	askAI({ release, kind, group, action: 'example' });

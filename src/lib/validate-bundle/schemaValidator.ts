@@ -1,5 +1,6 @@
 import { findManifestEntry } from '$lib/manifest/lookup';
-import { getLatestVersion } from '$lib/versions';
+import { schemaVersionForDocument } from '$lib/versions';
+import { checkStructuralRules } from '$lib/yaml-validation/listTypeRules';
 import { schemaPath, fetchSchemas } from '$lib/yaml-validation/schemaCache';
 import { validateYamlInput } from '$lib/yaml-validation';
 import { findLineForYamlFieldPath } from '$lib/yaml-validation/yamlFieldPath';
@@ -260,16 +261,17 @@ export async function validateBundleSchema(
 	releaseLabel: string,
 	manifest: ManifestEntry[]
 ): Promise<BundleIssue[]> {
-	issueCounter = 0;
 	const issues: BundleIssue[] = [];
+	// Added after the relocate pass below, which must only see unknown-field issues.
+	const structuralIssues: BundleIssue[] = [];
 
 	const schemaPaths: string[] = [];
 	for (const res of resources) {
 		if (!res.kind || !res.group) continue;
 		const entry = findManifestEntry(manifest, res.kind, res.group);
 		if (!entry) continue;
-		const latest = getLatestVersion(entry);
-		if (latest) schemaPaths.push(schemaPath(releaseFolder, entry.name, latest));
+		const schemaVersion = schemaVersionForDocument(entry, res.version);
+		if (schemaVersion) schemaPaths.push(schemaPath(releaseFolder, entry.name, schemaVersion));
 	}
 
 	const schemas = await fetchSchemas(schemaPaths);
@@ -295,11 +297,27 @@ export async function validateBundleSchema(
 		if (!res.kind || !res.group) continue;
 		const entry = findManifestEntry(manifest, res.kind, res.group);
 		if (!entry) continue;
-		const latest = getLatestVersion(entry);
-		if (!latest) continue;
-		const key = schemaPath(releaseFolder, entry.name, latest);
+		const schemaVersion = schemaVersionForDocument(entry, res.version);
+		if (!schemaVersion) continue;
+		const key = schemaPath(releaseFolder, entry.name, schemaVersion);
 		const sections = schemas.get(key);
 		if (!sections?.spec || !res.data.spec) continue;
+		for (const finding of checkStructuralRules(res.data.spec, sections.spec)) {
+			// Line lookup can't follow list indices; point at the closest named field instead.
+			const locatable = finding.path.replace(/\.\d+(\..*)?$/, '');
+			const rel = findLineForYamlFieldPath(res.doc.rawText, locatable);
+			structuralIssues.push({
+				id: nextIssueId(),
+				severity: finding.severity,
+				category: 'schema',
+				message: finding.message,
+				resourceName: res.name,
+				resourceKind: res.kind,
+				docIndex: res.docIndex + 1,
+				line: rel !== undefined ? res.doc.startLine + rel + 1 : undefined,
+				fieldPath: finding.path
+			});
+		}
 		walkUnknownFields(
 			res.data.spec,
 			sections.spec,
@@ -328,5 +346,10 @@ export async function validateBundleSchema(
 		}
 	}
 
+	issues.push(...structuralIssues);
+	// IDs are numbered per run: the module counter is shared by overlapping async runs.
+	issues.forEach((issue, index) => {
+		issue.id = `schema-${index + 1}`;
+	});
 	return issues;
 }

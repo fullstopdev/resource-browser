@@ -16,8 +16,15 @@ function contextLinesForFieldPath(fieldPath: string, base = DEFAULT_CONTEXT_LINE
 export function extractYamlIssueExcerpt(
 	docYaml: string,
 	fieldPath?: string,
-	contextLines = DEFAULT_CONTEXT_LINES
-): { excerpt: string; isFullDocument: boolean } {
+	contextLines = DEFAULT_CONTEXT_LINES,
+	maxExcerptLines = MAX_EXCERPT_LINES
+): {
+	excerpt: string;
+	isFullDocument: boolean;
+	/** 0-based line range [startLine, endLine) of the excerpt within the trimmed document. */
+	startLine?: number;
+	endLine?: number;
+} {
 	const trimmed = docYaml.trim();
 	if (!trimmed || !fieldPath) {
 		return { excerpt: trimmed, isFullDocument: true };
@@ -47,9 +54,9 @@ export function extractYamlIssueExcerpt(
 		? `${header}\n${excerptLines.join('\n')}`
 		: excerptLines.join('\n');
 
-	if (excerptLines.length > MAX_EXCERPT_LINES) {
+	if (excerptLines.length > maxExcerptLines) {
 		return { excerpt: trimmed, isFullDocument: true };
 	}
 
-	return { excerpt, isFullDocument: false };
+	return { excerpt, isFullDocument: false, startLine: start, endLine: end };
 }

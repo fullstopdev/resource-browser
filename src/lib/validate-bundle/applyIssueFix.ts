@@ -46,7 +46,8 @@ function replaceLineValue(line: string, yamlKey: string, newValue: string): stri
 
 function replaceLineKey(line: string, oldKey: string, newKey: string): string | null {
 	const escaped = oldKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const match = line.match(new RegExp(`^(\\s*)(["']?)(${escaped})\\2(\\s*:)(.*)$`));
+	// The key may be the first field of a list item: `  - oldKey: value`.
+	const match = line.match(new RegExp(`^(\\s*(?:-\\s+)?)(["']?)(${escaped})\\2(\\s*:)(.*)$`));
 	if (!match) return null;
 	const [, indent, quote, , colon, rest] = match;
 	return `${indent}${quote}${newKey}${quote}${colon}${rest}`;
@@ -66,9 +67,11 @@ function parentFieldPath(fieldPath: string): string | undefined {
 }
 
 export function addFieldParentPath(issue: BundleIssue, fix: SuggestedFix): string | undefined {
-	return (
-		parentFieldPath(issue.fieldPath ?? '') ?? parentFieldPath(`spec.${String(fix.field)}`)
-	);
+	const fieldPath = issue.fieldPath?.replace(/^\//, '').replace(/\//g, '.');
+	// "x is required" issues point at the object that lacks the field (`spec.items.0`), not at
+	// the missing field itself; only strip the last segment when it is the field being added.
+	if (fieldPath && fieldPath.split('.').pop() !== String(fix.field)) return fieldPath;
+	return parentFieldPath(fieldPath ?? '') ?? parentFieldPath(`spec.${String(fix.field)}`);
 }
 
 function addFieldTargetPath(parentPath: string | undefined, field: string): string {
@@ -76,6 +79,37 @@ function addFieldTargetPath(parentPath: string | undefined, field: string): stri
 }
 
 /** Apply a structured fix to yamlInput, returning updated YAML or null when not applicable. */
+/**
+ * Line of the key a rename fix should change. The fix can hang off the misspelled key itself
+ * (`spec.overlay`), off the missing field it should become (`spec.overlays` is required), or off
+ * the parent object (`spec`); try each and only accept a line whose key really is `fromKey`.
+ */
+function findRenameKeyLine(
+	docText: string,
+	docLines: string[],
+	fieldPath: string | undefined,
+	fromKey: string,
+	toKey: string
+): number | undefined {
+	if (!fieldPath) return undefined;
+	const path = fieldPath.replace(/^\//, '').replace(/\//g, '.');
+	const segments = path.split('.').filter(Boolean);
+	const parent = segments.slice(0, -1).join('.');
+	const candidates = [
+		path,
+		segments[segments.length - 1] === toKey && parent ? `${parent}.${fromKey}` : null,
+		`${path}.${fromKey}`
+	];
+	for (const candidate of candidates) {
+		if (!candidate) continue;
+		const line = findLineForYamlFieldPath(docText, candidate);
+		if (line === undefined) continue;
+		const key = docLines[line]?.trim().replace(/^-\s*/, '').split(':')[0]?.trim();
+		if (key === fromKey) return line;
+	}
+	return undefined;
+}
+
 export function applySuggestedFix(yamlInput: string, issue: BundleIssue): string | null {
 	const fix = issue.suggestedFix;
 	if (!fix) return null;
@@ -123,7 +157,9 @@ export function applySuggestedFix(yamlInput: string, issue: BundleIssue): string
 
 	let relLine: number | undefined;
 
-	if (issue.fieldPath) {
+	if (fix.action === 'renameKey') {
+		relLine = findRenameKeyLine(doc.rawText, docLines, issue.fieldPath, String(fix.field), fix.value);
+	} else if (issue.fieldPath) {
 		relLine = findLineForYamlFieldPath(doc.rawText, issue.fieldPath);
 	}
 

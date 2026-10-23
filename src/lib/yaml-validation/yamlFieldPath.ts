@@ -1,72 +1,112 @@
-function lineIndent(line: string): number {
-	return line.match(/^(\s*)/)?.[1]?.length ?? 0;
-}
+type LineInfo = {
+	/** Leading spaces of the raw line. */
+	raw: number;
+	/** Column where the content starts (after `- ` for list item lines). */
+	content: number;
+	dash: boolean;
+	key: string | null;
+};
 
-function lineKey(line: string): string | null {
-	const match = line.match(/^\s*(["']?)([^"':\s]+)\1\s*:/);
+type Segment = { key: string } | { index: number };
+
+function lineKey(text: string): string | null {
+	const match = text.match(/^\s*(["']?)([^"':\s]+)\1\s*:/);
 	return match?.[2] ?? null;
 }
 
-function parseFieldPathSegments(fieldPath: string): string[] {
-	const segments: string[] = [];
-	for (const part of fieldPath.replace(/^\//, '').split('.')) {
+function describeLine(line: string): LineInfo | null {
+	if (!line.trim() || line.trim().startsWith('#')) return null;
+	const match = line.match(/^(\s*)(-\s+)?(.*)$/)!;
+	const raw = match[1]!.length;
+	const dash = Boolean(match[2]);
+	return { raw, dash, content: raw + (match[2]?.length ?? 0), key: lineKey(match[3] ?? '') };
+}
+
+/** `spec.items[0].name`, `spec.items.0.name` and `/spec/items/0/name` → key/index segments. */
+function parseFieldPathSegments(fieldPath: string): Segment[] {
+	const segments: Segment[] = [];
+	const normalized = fieldPath.replace(/^\//, '').replace(/\//g, '.');
+	for (const part of normalized.split('.')) {
 		if (!part) continue;
-		const arrayMatch = part.match(/^([^[]+)(?:\[\d+\])?$/);
-		if (arrayMatch?.[1]) segments.push(arrayMatch[1]);
+		if (/^\d+$/.test(part)) {
+			segments.push({ index: Number(part) });
+			continue;
+		}
+		const match = part.match(/^([^[]+)((?:\[\d+\])*)$/);
+		if (!match?.[1]) continue;
+		segments.push({ key: match[1] });
+		for (const index of match[2]!.matchAll(/\[(\d+)\]/g)) {
+			segments.push({ index: Number(index[1]) });
+		}
 	}
 	return segments;
 }
 
 /**
- * Find the document line for a dotted YAML field path (e.g. spec.spines.systemPoolIPV6).
- * Walks nested keys by indentation so duplicate key names at different paths resolve correctly.
+ * Find the document line for a YAML field path (e.g. `spec.spines.systemPoolIPV6`,
+ * `spec.overlays[0].enabled`). Walks nested keys and list items by indentation, so duplicate key
+ * names at different paths resolve correctly. Keys written on a list item's `- ` line count as
+ * the item's first field. Key matching is case-insensitive.
  */
 export function findLineForYamlFieldPath(docText: string, fieldPath: string): number | undefined {
 	const segments = parseFieldPathSegments(fieldPath);
 	if (segments.length === 0) return undefined;
 
-	const lines = docText.split('\n');
-	let searchFrom = 0;
-	let parentIndent = -1;
-	let foundLine: number | undefined;
+	const infos = docText.split('\n').map(describeLine);
+	/** Line indices of the current node's descendants (the whole document at the root). */
+	let scope = infos.flatMap((info, i) => (info ? [i] : []));
+	let found: number | undefined;
+
+	/** Lines under a key line: deeper lines, plus a compact list (`- `) at the key's own column. */
+	const blockUnderKey = (line: number): number[] => {
+		const { content } = infos[line]!;
+		const out: number[] = [];
+		for (let i = line + 1; i < infos.length; i++) {
+			const info = infos[i];
+			if (!info) continue;
+			if (info.raw < content || (info.raw === content && !info.dash)) break;
+			out.push(i);
+		}
+		return out;
+	};
+
+	/** A list item: its `- ` line plus the lines indented under it. */
+	const blockOfItem = (line: number): number[] => {
+		const { raw } = infos[line]!;
+		const out = [line];
+		for (let i = line + 1; i < infos.length; i++) {
+			const info = infos[i];
+			if (!info) continue;
+			if (info.raw <= raw) break;
+			out.push(i);
+		}
+		return out;
+	};
 
 	for (const segment of segments) {
-		let matchLine: number | undefined;
-		const segmentLower = segment.toLowerCase();
+		if (scope.length === 0) return undefined;
 
-		let minChildIndent = Number.POSITIVE_INFINITY;
-		if (parentIndent >= 0) {
-			for (let i = searchFrom; i < lines.length; i++) {
-				const line = lines[i];
-				if (!line.trim() || line.trim().startsWith('#')) continue;
-
-				const indent = lineIndent(line);
-				if (indent <= parentIndent) break;
-				if (indent < minChildIndent) minChildIndent = indent;
-			}
-			if (!Number.isFinite(minChildIndent)) return undefined;
+		if ('index' in segment) {
+			const dashLines = scope.filter((i) => infos[i]!.dash);
+			if (dashLines.length === 0) return undefined;
+			const itemIndent = Math.min(...dashLines.map((i) => infos[i]!.raw));
+			const item = dashLines.filter((i) => infos[i]!.raw === itemIndent)[segment.index];
+			if (item === undefined) return undefined;
+			found = item;
+			scope = blockOfItem(item);
+			continue;
 		}
 
-		for (let i = searchFrom; i < lines.length; i++) {
-			const line = lines[i];
-			if (!line.trim() || line.trim().startsWith('#')) continue;
-
-			const indent = lineIndent(line);
-			if (parentIndent >= 0 && indent <= parentIndent && i > searchFrom) break;
-
-			const key = lineKey(line);
-			if (!key || key.toLowerCase() !== segmentLower) continue;
-			if (parentIndent >= 0 && indent !== minChildIndent) continue;
-
-			matchLine = i;
-			parentIndent = indent;
-			searchFrom = i + 1;
-			break;
-		}
-
-		if (matchLine === undefined) return undefined;
-		foundLine = matchLine;
+		const wanted = segment.key.toLowerCase();
+		const level = Math.min(...scope.map((i) => infos[i]!.content));
+		const match = scope.find((i) => {
+			const info = infos[i]!;
+			return info.content === level && info.key?.toLowerCase() === wanted;
+		});
+		if (match === undefined) return undefined;
+		found = match;
+		scope = blockUnderKey(match);
 	}
 
-	return foundLine;
+	return found;
 }

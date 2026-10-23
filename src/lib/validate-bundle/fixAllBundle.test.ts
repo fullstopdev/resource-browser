@@ -959,3 +959,127 @@ describe('isAiUnavailableResult', () => {
 		expect(isAiUnavailableResult({ error: 'some other error' })).toBe(false);
 	});
 });
+
+describe('fixAllBundle AI loop safeguards', () => {
+	const base = (os: string, port: string) => `apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: lab
+  namespace: eda
+spec:
+  os: ${os}
+  port: ${port}`;
+	const osIssue: BundleIssue = {
+		id: 'os',
+		severity: 'error',
+		category: 'schema',
+		message: 'spec.os must be one of srl, sros',
+		docIndex: 1,
+		fieldPath: 'spec.os'
+	};
+	const portIssue: BundleIssue = {
+		id: 'port',
+		severity: 'error',
+		category: 'schema',
+		message: 'spec.port must be integer',
+		docIndex: 1,
+		fieldPath: 'spec.port'
+	};
+	/** Re-validation stub: reports each issue while its bad value is still in the YAML. */
+	const revalidate = async (yaml: string) => [
+		...(yaml.includes('os: bad') ? [osIssue] : []),
+		...(yaml.includes('port: "x"') ? [portIssue] : [])
+	];
+
+	it('does not send an issue the AI declined to the AI again in later passes', async () => {
+		const aiFix = vi.fn(async ({ issue, docYaml }: { issue: BundleIssue; docYaml: string }) =>
+			issue.id === 'port'
+				? { fixable: true, fixedYaml: docYaml.replace('port: "x"', 'port: 80') }
+				: { fixable: false }
+		);
+		const result = await fixAllBundle(base('bad', '"x"'), [osIssue, portIssue], {
+			releaseFolder: 'r',
+			manifest: [],
+			includeAi: true,
+			aiFix,
+			revalidateIssues: revalidate
+		});
+
+		expect(result.yaml).toContain('port: 80');
+		expect(result.aiFixCount).toBe(1);
+		expect(aiFix.mock.calls.filter(([p]) => p.issue.id === 'os')).toHaveLength(1);
+	});
+
+	it('rolls back an AI fix that does not resolve the issue', async () => {
+		const original = base('bad', '1');
+		const aiFix = vi.fn(async ({ docYaml }: { docYaml: string }) => ({
+			fixable: true,
+			fixedYaml: docYaml.replace('port: 1', 'port: 2')
+		}));
+		const result = await fixAllBundle(original, [osIssue], {
+			releaseFolder: 'r',
+			manifest: [],
+			includeAi: true,
+			aiFix,
+			revalidateIssues: revalidate
+		});
+
+		expect(result.aiFixCount).toBe(0);
+		expect(result.yaml).toBe(original);
+		expect(aiFix).toHaveBeenCalledTimes(1);
+	});
+
+	it('stops before calling the AI when cancelled', async () => {
+		const controller = new AbortController();
+		controller.abort();
+		const aiFix = vi.fn(async () => ({ fixable: false }));
+		const result = await fixAllBundle(base('bad', '1'), [osIssue], {
+			releaseFolder: 'r',
+			manifest: [],
+			includeAi: true,
+			aiFix,
+			revalidateIssues: revalidate,
+			signal: controller.signal
+		});
+
+		expect(result.aborted).toBe(true);
+		expect(aiFix).not.toHaveBeenCalled();
+	});
+});
+
+describe('fixAllBundle when a one-click fix cannot be applied', () => {
+	it('sends the issue to the AI without the unusable suggestion', async () => {
+		const yaml = `apiVersion: topologies.eda.nokia.com/v1
+kind: Topology
+metadata:
+  name: lab
+  namespace: eda
+spec:
+  os: bad`;
+		const issue: BundleIssue = {
+			id: 'x',
+			severity: 'error',
+			category: 'schema',
+			message: 'spec.os must be one of srl',
+			docIndex: 1,
+			fieldPath: 'spec.os',
+			// Points at a key that doesn't exist, so it can never apply.
+			suggestedFix: { action: 'renameKey', field: 'doesNotExist', value: 'os' }
+		};
+		const aiFix = vi.fn(async ({ docYaml }: { docYaml: string; issue: BundleIssue }) => ({
+			fixable: true,
+			fixedYaml: docYaml.replace('os: bad', 'os: srl')
+		}));
+		const result = await fixAllBundle(yaml, [issue], {
+			releaseFolder: 'r',
+			manifest: [],
+			includeAi: true,
+			aiFix,
+			revalidateIssues: async (y) => (y.includes('os: bad') ? [issue] : [])
+		});
+
+		expect(aiFix).toHaveBeenCalledTimes(1);
+		expect(aiFix.mock.calls[0]![0].issue.suggestedFix).toBeUndefined();
+		expect(result.yaml).toContain('os: srl');
+	});
+});

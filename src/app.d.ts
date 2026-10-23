@@ -15,6 +15,8 @@ declare global {
 				CRD_INDEX?: VectorizeIndex;
 				DOCS_INDEX?: VectorizeIndex;
 			};
+			/** Cloudflare execution context (waitUntil for background KV writes). */
+			context?: ExecutionContext;
 		}
 	}
 }

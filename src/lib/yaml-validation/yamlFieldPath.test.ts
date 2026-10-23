@@ -53,3 +53,32 @@ spec:
 		expect(findLineForYamlFieldPath(nestedOnly, 'spec.borderLeafs.systemPoolIPV6')).toBe(6);
 	});
 });
+
+describe('findLineForYamlFieldPath in lists', () => {
+	const doc = `spec:
+  enabled: true
+  overlays:
+    - enable: true
+      key: default
+    - enabled: false
+      key: second
+      nested:
+        name: x
+  compact:
+  - a: 1
+  - a: 2`;
+
+	it('resolves list items by index, with keys on the dash line or below it', () => {
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays[0].enable')).toBe(3);
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays.0.key')).toBe(4);
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays[1].key')).toBe(6);
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays[1].nested.name')).toBe(8);
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays[0]')).toBe(3);
+	});
+
+	it('handles compact lists and never crosses into the next item', () => {
+		expect(findLineForYamlFieldPath(doc, 'spec.compact[1].a')).toBe(11);
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays[0].nested')).toBeUndefined();
+		expect(findLineForYamlFieldPath(doc, 'spec.overlays[5]')).toBeUndefined();
+	});
+});
