@@ -14,6 +14,7 @@ const adapter =
 					'/_app/*',
 					'/fonts/*',
 					'/images/*',
+					'/docs/images/*',
 					'/releases/*',
 					'/resources/*',
 					'/openapi/*',
@@ -33,7 +34,16 @@ const adapter =
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter
+		adapter,
+		// Prerendered pages (docs, sitemap) build absolute canonical URLs from this origin;
+		// keep the default in sync with scripts/generate-sitemap.mjs.
+		prerender: {
+			origin: (
+				process.env.PUBLIC_SITE_URL ||
+				process.env.SITE_URL ||
+				'https://eda-resource-browser.pages.dev'
+			).replace(/\/$/, '')
+		}
 	}
 };
 

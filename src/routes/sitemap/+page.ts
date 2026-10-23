@@ -10,7 +10,8 @@ const staticPaths = [
 	'/comparison',
 	'/validate-yaml',
 	'/dependency-map',
-	'/release-changes'
+	'/release-changes',
+	'/docs'
 ];
 
 export const prerender = true;

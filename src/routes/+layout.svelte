@@ -23,7 +23,8 @@
 			'/release-changes',
 			'/release-notes',
 			'/validate-yaml',
-			'/dependency-map'
+			'/dependency-map',
+			'/docs'
 		];
 		if (noSidebarPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
 			return false;

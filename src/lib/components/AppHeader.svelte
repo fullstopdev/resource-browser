@@ -29,7 +29,7 @@
 	};
 
 	type NavGroup = {
-		id: 'crds' | 'openapi';
+		id: 'crds' | 'openapi' | 'help';
 		label: string;
 		items: NavItem[];
 	};
@@ -87,6 +87,17 @@
 					label: 'Comparison',
 					match: (path) => path.startsWith('/openapi-comparison'),
 					openApiAware: true
+				}
+			]
+		},
+		{
+			id: 'help',
+			label: 'Help',
+			items: [
+				{
+					href: '/docs',
+					label: 'Docs',
+					match: (path) => path === '/docs' || path.startsWith('/docs/')
 				}
 			]
 		}
@@ -172,7 +183,13 @@
 					aria-label={mobileNavOpen ? 'Close tools menu' : 'Open tools menu'}
 					on:click={toggleMobileNav}
 				>
-					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+					<svg
+						class="h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
 						{#if mobileNavOpen}
 							<path
 								stroke-linecap="round"
@@ -208,10 +225,7 @@
 						<span class="app-header-tools-sep" aria-hidden="true"></span>
 					{/if}
 
-					<section
-						class="app-header-tools-group"
-						aria-labelledby="app-header-tools-{group.id}"
-					>
+					<section class="app-header-tools-group" aria-labelledby="app-header-tools-{group.id}">
 						<span class="app-header-tools-group-label" id="app-header-tools-{group.id}">
 							{group.label}
 						</span>

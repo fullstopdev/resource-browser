@@ -1,10 +1,11 @@
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
 
-const siteUrl = (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || 'https://eda-resource-browser.pages.dev').replace(
-	/\/$/,
-	''
-);
+const siteUrl = (
+	process.env.PUBLIC_SITE_URL ||
+	process.env.SITE_URL ||
+	'https://eda-resource-browser.pages.dev'
+).replace(/\/$/, '');
 
 const staticRoutes = [
 	{ loc: '/', priority: '1.0' },
@@ -77,6 +78,19 @@ const crdRoutes = async () => {
 		});
 };
 
+/** One URL per docs page (src/lib/docs/pages/<slug>.md); `index` is served at /docs. */
+const docsRoutes = async () => {
+	const files = await fs.readdir('src/lib/docs/pages');
+	return files
+		.filter((file) => file.endsWith('.md'))
+		.map((file) => file.slice(0, -3))
+		.sort()
+		.map((slug) => ({
+			loc: slug === 'index' ? '/docs' : `/docs/${slug}`,
+			priority: slug === 'index' ? '0.7' : '0.5'
+		}));
+};
+
 const absoluteLoc = (loc) => `${siteUrl}${loc.startsWith('/') ? loc : `/${loc}`}`;
 
 const formatUrlset = (entries) =>
@@ -93,12 +107,14 @@ const formatUrlset = (entries) =>
 
 const main = async () => {
 	const now = new Date().toISOString().split('T')[0];
-	const entries = [...staticRoutes, ...(await crdRoutes())].map((route) => ({
-		loc: route.loc,
-		lastmod: now,
-		changefreq: 'monthly',
-		priority: route.priority
-	}));
+	const entries = [...staticRoutes, ...(await docsRoutes()), ...(await crdRoutes())].map(
+		(route) => ({
+			loc: route.loc,
+			lastmod: now,
+			changefreq: 'monthly',
+			priority: route.priority
+		})
+	);
 
 	const robots = [`User-agent: *`, `Allow: /`, `Sitemap: ${siteUrl}/sitemap.xml`, ``].join('\n');
 

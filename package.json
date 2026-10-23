@@ -45,6 +45,8 @@
 		"@xyflow/system": "^0.0.77",
 		"ajv": "^8.20.0",
 		"d3": "^7.9.0",
+		"marked": "18.1.1",
+		"mermaid": "12.2.0",
 		"monaco-editor": "^0.52.2",
 		"swagger-ui-dist": "^5.34.0"
 	},
@@ -71,7 +73,7 @@
 		"playwright": "^1.64.1",
 		"prettier": "^3.9.10",
 		"prettier-plugin-svelte": "^3.5.2",
-		"prettier-plugin-tailwindcss": "^0.6.14",
+		"prettier-plugin-tailwindcss": "^0.8.1",
 		"svelte": "^5.57.2",
 		"svelte-check": "^4.7.7",
 		"svelte-copy": "^2.0.0",

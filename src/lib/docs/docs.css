@@ -1,0 +1,255 @@
+/* Article typography for /docs. Rendered markdown has no utility classes, so style by element. */
+
+.docs-content {
+	color: rgb(51 65 85);
+	line-height: 1.7;
+	font-size: 0.95rem;
+}
+.dark .docs-content {
+	color: rgb(203 213 225);
+}
+
+.docs-content h2,
+.docs-content h3,
+.docs-content h4 {
+	position: relative;
+	color: rgb(15 23 42);
+	font-weight: 650;
+	/* Clear the sticky two-row app header when jumping to an anchor. */
+	scroll-margin-top: 7rem;
+}
+.dark .docs-content h2,
+.dark .docs-content h3,
+.dark .docs-content h4 {
+	color: rgb(241 245 249);
+}
+.docs-content h2 {
+	margin: 2.5rem 0 0.75rem;
+	padding-bottom: 0.35rem;
+	border-bottom: 1px solid rgb(226 232 240);
+	font-size: 1.4rem;
+}
+.dark .docs-content h2 {
+	border-color: rgb(51 65 85);
+}
+.docs-content h3 {
+	margin: 1.75rem 0 0.5rem;
+	font-size: 1.1rem;
+}
+.docs-content h4 {
+	margin: 1.25rem 0 0.4rem;
+	font-size: 1rem;
+}
+.docs-content .docs-anchor {
+	position: absolute;
+	left: -1.1rem;
+	opacity: 0;
+	color: rgb(8 145 178);
+	text-decoration: none;
+	transition: opacity 0.15s;
+}
+.docs-content h2:hover .docs-anchor,
+.docs-content h3:hover .docs-anchor,
+.docs-content h4:hover .docs-anchor {
+	opacity: 1;
+}
+
+.docs-content p,
+.docs-content ul,
+.docs-content ol {
+	margin: 0 0 1rem;
+}
+.docs-content ul {
+	list-style: disc;
+	padding-left: 1.4rem;
+}
+.docs-content ol {
+	list-style: decimal;
+	padding-left: 1.4rem;
+}
+.docs-content li {
+	margin: 0.25rem 0;
+}
+.docs-content li > ul,
+.docs-content li > ol {
+	margin: 0.25rem 0 0;
+}
+.docs-content strong {
+	color: rgb(15 23 42);
+	font-weight: 600;
+}
+.dark .docs-content strong {
+	color: rgb(241 245 249);
+}
+.docs-content a {
+	color: rgb(14 116 144);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.dark .docs-content a {
+	color: rgb(103 232 249);
+}
+.docs-content hr {
+	margin: 2rem 0;
+	border-color: rgb(226 232 240);
+}
+.dark .docs-content hr {
+	border-color: rgb(51 65 85);
+}
+.docs-content img {
+	margin: 1rem 0;
+	max-width: 100%;
+	border: 1px solid rgb(226 232 240);
+	border-radius: 0.5rem;
+}
+.dark .docs-content img {
+	border-color: rgb(51 65 85);
+}
+
+.docs-content :not(pre) > code {
+	padding: 0.1rem 0.35rem;
+	border: 1px solid rgb(226 232 240);
+	border-radius: 0.25rem;
+	background: rgb(241 245 249);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 0.85em;
+	overflow-wrap: anywhere;
+}
+.dark .docs-content :not(pre) > code {
+	border-color: rgb(51 65 85);
+	background: rgb(30 41 59);
+}
+.docs-content pre.docs-code {
+	margin: 0 0 1.25rem;
+	padding: 0.9rem 1rem;
+	overflow-x: auto;
+	border: 1px solid rgb(30 41 59);
+	border-radius: 0.5rem;
+	background: rgb(15 23 42);
+	color: rgb(226 232 240);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 0.8rem;
+	line-height: 1.55;
+}
+
+.docs-content pre.mermaid {
+	margin: 0 0 1.5rem;
+	padding: 1rem;
+	overflow-x: auto;
+	border: 1px solid rgb(226 232 240);
+	border-radius: 0.5rem;
+	background: rgb(255 255 255);
+	text-align: center;
+	font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	/* Source text shows only until Mermaid replaces it with an SVG. */
+	color: transparent;
+	font-size: 0.75rem;
+	white-space: pre;
+}
+.dark .docs-content pre.mermaid {
+	border-color: rgb(51 65 85);
+	background: rgb(15 23 42);
+}
+.docs-content pre.mermaid[data-processed='true'] {
+	color: inherit;
+}
+.docs-content pre.mermaid svg {
+	margin: 0 auto;
+	max-width: 100%;
+	height: auto;
+}
+
+.docs-content .docs-table-wrap {
+	margin: 0 0 1.25rem;
+	overflow-x: auto;
+	border: 1px solid rgb(226 232 240);
+	border-radius: 0.5rem;
+}
+.dark .docs-content .docs-table-wrap {
+	border-color: rgb(51 65 85);
+}
+.docs-content table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.85rem;
+}
+.docs-content th,
+.docs-content td {
+	padding: 0.5rem 0.75rem;
+	border-bottom: 1px solid rgb(226 232 240);
+	text-align: left;
+	vertical-align: top;
+}
+.dark .docs-content th,
+.dark .docs-content td {
+	border-color: rgb(51 65 85);
+}
+.docs-content th {
+	background: rgb(248 250 252);
+	color: rgb(51 65 85);
+	font-weight: 600;
+}
+.dark .docs-content th {
+	background: rgb(15 23 42 / 0.65);
+	color: rgb(203 213 225);
+}
+.docs-content tr:last-child td {
+	border-bottom: none;
+}
+
+.docs-content blockquote {
+	margin: 0 0 1.25rem;
+	padding: 0.75rem 1rem;
+	border-left: 4px solid rgb(148 163 184);
+	border-radius: 0 0.5rem 0.5rem 0;
+	background: rgb(248 250 252);
+}
+.dark .docs-content blockquote {
+	background: rgb(30 41 59 / 0.6);
+}
+.docs-content blockquote > :last-child {
+	margin-bottom: 0;
+}
+.docs-content .docs-callout-note {
+	border-color: rgb(14 165 233);
+	background: rgb(240 249 255);
+}
+.docs-content .docs-callout-tip {
+	border-color: rgb(16 185 129);
+	background: rgb(236 253 245);
+}
+.docs-content .docs-callout-warning {
+	border-color: rgb(245 158 11);
+	background: rgb(255 251 235);
+}
+.dark .docs-content .docs-callout-note {
+	background: rgb(8 47 73 / 0.5);
+}
+.dark .docs-content .docs-callout-tip {
+	background: rgb(2 44 34 / 0.5);
+}
+.dark .docs-content .docs-callout-warning {
+	background: rgb(69 26 3 / 0.5);
+}
+.docs-content .docs-callout-label {
+	margin-right: 0.35rem;
+}
+
+.docs-pager {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid rgb(226 232 240);
+	border-radius: 0.5rem;
+	color: rgb(15 23 42);
+	text-decoration: none;
+	transition: border-color 0.15s;
+}
+.docs-pager:hover {
+	border-color: rgb(6 182 212);
+}
+.dark .docs-pager {
+	border-color: rgb(51 65 85);
+	color: rgb(241 245 249);
+}

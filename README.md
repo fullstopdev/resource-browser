@@ -15,7 +15,7 @@
 
 Browse CRD catalogs across EDA releases, inspect OpenAPI schemas, validate YAML, compare versions, and visualize resource dependencies.
 
-[Live Demo](https://eda-resource-browser.pages.dev) · [Report an Issue](https://github.com/fullstopdev/resource-browser/issues) · [EDA Documentation](https://docs.eda.dev/)
+[Live Demo](https://eda-resource-browser.pages.dev) · [Documentation](https://eda-resource-browser.pages.dev/docs) · [Report an Issue](https://github.com/fullstopdev/resource-browser/issues) · [EDA Documentation](https://docs.eda.dev/)
 
 </div>
 
@@ -121,7 +121,7 @@ Auto-generated release notes highlight what changed between EDA versions — new
 
 ### Prerequisites
 
-- **Node.js** 20+
+- **Node.js** 24.22.1+ (pinned in `.node-version`)
 - **npm** or **pnpm**
 
 ### 1. Clone & Install
@@ -148,7 +148,16 @@ npm run build
 npm run preview
 ```
 
-The `prebuild` hook generates the sitemap and release notes automatically.
+`npm run build` runs the `prebuild` generators (sitemap, release notes, OpenAPI manifests, schema graphs) first.
+
+> [!WARNING]
+> `build:cloudflare` and the `deploy:cloudflare*` scripts call `vite build` directly and **skip** `prebuild`. Run `npm run build` (or the generators) and commit the generated files before deploying.
+
+---
+
+## Documentation
+
+Full user and developer documentation, with diagrams, is built into the site at **[/docs](https://eda-resource-browser.pages.dev/docs)**. The pages are markdown files in [`src/lib/docs/pages/`](src/lib/docs/pages/); add a file there to add a page.
 
 ---
 
@@ -219,7 +228,7 @@ resource-browser/
 2. Generate `manifest.json` for the release (see `static/get-crds-for-release.sh`)
 3. Add the release entry to `src/lib/releases.yaml`
 4. Optionally run `npm run build:dependency-graph` for the dependency map
-5. Rebuild — `prebuild` regenerates sitemap and release notes
+5. Rebuild with `npm run build` — `prebuild` regenerates sitemap and release notes
 
 ---
 
