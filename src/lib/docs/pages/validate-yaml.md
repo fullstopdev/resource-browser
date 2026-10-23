@@ -26,13 +26,13 @@ keep it.
 
 ### Toolbar
 
-| Button          | What it does                                                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Load example    | Replaces the editor with a small valid bundle                                                                                     |
-| Copy            | Copies the YAML                                                                                                                   |
-| Copy share link | Copies a link that **contains** the YAML (compressed in the URL); opening it loads the same text and release                      |
-| Download        | Saves the YAML as `eda-manifests.yaml`                                                                                            |
-| Insert example… | Appends a minimal manifest for any kind of the release: required fields only, defaults and placeholders filled in from the schema |
+| Button          | What it does                                                                                                                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Load example    | Replaces the editor with a small valid bundle                                                                                                                                                       |
+| Copy            | Copies the YAML                                                                                                                                                                                     |
+| Copy share link | Copies a link that **contains** the YAML (compressed in the URL); opening it loads the same text and release                                                                                        |
+| Download        | Saves the YAML as `eda-manifests.yaml`                                                                                                                                                              |
+| Insert example… | Appends a ready-made example for common kinds (Fabric, Interface, BridgeDomain, VirtualNetwork, BGP, routing policies, …), taken from the Nokia EDA documentation and validated against the release |
 
 ### Keyboard
 

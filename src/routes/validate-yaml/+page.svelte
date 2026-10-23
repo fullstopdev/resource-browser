@@ -46,7 +46,7 @@
 	import { buildShareUrl, encodeBundleForUrl } from '$lib/validate-bundle/shareBundle';
 	import { purgeLegacyDraft } from '$lib/validate-bundle/draftStorage';
 	import { explainIssueFromSchema, type IssueExplanation } from '$lib/validate-bundle/issueExplain';
-	import { buildSkeletonYaml } from '$lib/validate-bundle/schemaSkeleton';
+	import curatedExamples from '$lib/validate-bundle/curatedExamples.json';
 	import { compareReleaseValidation, type UpgradeReport } from '$lib/validate-bundle/upgradeCheck';
 	import { migrateDocumentText } from '$lib/validate-bundle/versionMigration';
 	import { withoutDeterministicHints } from '$lib/validate-bundle/fixIssueContext';
@@ -94,7 +94,7 @@
 	let fixSummaryTimer: ReturnType<typeof setTimeout> | null = null;
 	let validationGeneration = 0;
 	let issueFilter: 'all' | 'errors' | 'warnings' | 'info' = 'all';
-	let skeletonKind = '';
+	let exampleChoice = '';
 	/** Upgrade check: validate the same YAML against a newer release and compare. */
 	let upgradeTarget = '';
 	let upgradeReport: UpgradeReport | null = null;
@@ -345,28 +345,26 @@
 		else explainAiAnswer = response.answer;
 	}
 
-	/** Kinds offered by "Insert example": config CRDs of the selected release. */
-	$: skeletonKinds = manifestResources
-		.filter((r) => r.kind && r.group && !r.name.includes('states.'))
-		.sort((a, b) => a.kind!.localeCompare(b.kind!));
+	/** Curated examples whose kind exists in the selected release. */
+	$: exampleOptions = curatedExamples.examples.filter((e) =>
+		manifestResources.some((r) => r.kind === e.kind && r.group === e.group)
+	);
 
-	async function insertSkeleton(name: string) {
-		skeletonKind = '';
-		const entry = manifestResources.find((r) => r.name === name);
-		if (!release || !entry?.kind || !entry.group) return;
-		const version = getLatestVersion(entry);
-		const sections = version ? await fetchSchema(schemaPath(release.folder, entry.name, version)) : null;
-		if (!sections) {
-			showToast(`Could not load the ${entry.kind} schema.`);
-			return;
-		}
-		const skeleton = buildSkeletonYaml({
-			apiVersion: `${entry.group}/${version}`,
-			kind: entry.kind,
-			specSchema: sections.spec
-		});
-		setYamlInput(yamlInput.trim() ? `${yamlInput.trimEnd()}\n---\n${skeleton}` : skeleton);
-		showToast(`Inserted a minimal ${entry.kind} — fill in the empty values.`);
+	/**
+	 * Insert one of the curated examples (src/lib/validate-bundle/curatedExamples.json): real
+	 * manifests from the Nokia EDA documentation, validated against the release they were picked for.
+	 */
+	function insertExample(label: string) {
+		exampleChoice = '';
+		const example = curatedExamples.examples.find((e) => e.label === label);
+		if (!example) return;
+		const text = `# Example from the Nokia EDA documentation: ${example.source}\n${example.yaml}`;
+		setYamlInput(yamlInput.trim() ? `${yamlInput.trimEnd()}\n---\n${text}` : text);
+		showToast(
+			release && release.name !== curatedExamples.release
+				? `Inserted a ${example.kind} example (written for EDA ${curatedExamples.release}).`
+				: `Inserted a ${example.kind} example from the EDA documentation.`
+		);
 		void runValidation();
 	}
 
@@ -1644,18 +1642,18 @@
 						</button>
 
 
-						{#if skeletonKinds.length > 0}
+						{#if exampleOptions.length > 0}
 							<label class="validate-yaml-insert">
 								<span class="sr-only">Insert a minimal manifest for a kind</span>
 								<select
 									class="validate-yaml-insert__select"
-									bind:value={skeletonKind}
-									title="Insert a minimal manifest with the required fields of a kind"
-									on:change={() => skeletonKind && void insertSkeleton(skeletonKind)}
+									bind:value={exampleChoice}
+									title="Insert an example manifest from the Nokia EDA documentation"
+									on:change={() => exampleChoice && void insertExample(exampleChoice)}
 								>
 									<option value="">Insert example…</option>
-									{#each skeletonKinds as kindEntry (kindEntry.name)}
-										<option value={kindEntry.name}>{kindEntry.kind} ({kindEntry.group})</option>
+									{#each exampleOptions as example (example.label)}
+										<option value={example.label}>{example.label}</option>
 									{/each}
 								</select>
 							</label>

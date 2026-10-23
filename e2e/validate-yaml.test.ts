@@ -67,17 +67,19 @@ test('reports the enum error and explains the field from the schema', async ({ p
 	await expect(explain).toContainText('srl');
 });
 
-test('inserts a minimal manifest for a kind from its schema', async ({ page }) => {
+test('inserts a curated example from the EDA documentation', async ({ page }) => {
 	await openWithYaml(page, BAD_TOPONODE);
 	const picker = page.locator('.validate-yaml-insert__select');
-	await expect(
-		picker.locator('option', { hasText: 'Interface (interfaces.eda.nokia.com)' })
-	).toHaveCount(1, {
+	await expect(picker.locator('option', { hasText: 'ASPathSet' })).toHaveCount(1, {
 		timeout: 20_000
 	});
-	await picker.selectOption({ label: 'Interface (interfaces.eda.nokia.com)' });
-	await expect.poll(() => editorText(page)).toContain('kind: Interface');
-	await expect.poll(() => editorText(page)).toContain('my-interface');
+	// Only the curated kinds are offered, not every CRD of the release.
+	expect(await picker.locator('option').count()).toBeLessThan(31);
+	await picker.selectOption({ label: 'ASPathSet' });
+	await expect.poll(() => editorText(page)).toContain('Example from the Nokia EDA documentation');
+	await expect.poll(() => editorText(page)).toContain('kind: ASPathSet');
+	await expect.poll(() => editorText(page)).toContain('regexMode');
+	await expect.poll(() => editorText(page)).not.toContain('spec: {}');
 });
 
 test('share link round-trips the YAML', async ({ page, context, baseURL }) => {

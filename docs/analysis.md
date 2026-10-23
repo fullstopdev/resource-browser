@@ -105,7 +105,7 @@ flowchart LR
 - Validation uses the **declared apiVersion's** schema; stale results can't overwrite newer ones; AI Fix can't overwrite newer edits; issue ids unique per run.
 - Formats (int32, int64, ipv4, date-time, uri, Go duration), list-type set/map uniqueness, CEL rules as info hints, duplicate resources in a bundle, readable messages for every Ajv keyword, anyOf/oneOf noise collapsed.
 - Fix-all loop: tried issues not re-sent, failures counted, fixes kept only if the issue disappears, Cancel button, client timeout.
-- Editor: share link, autosaved draft, download/open/drag-drop, undoable fixes, quick-fix lightbulb, F8 navigation, Info filter, Explain (schema + optional AI), Insert example from schema; schema fetch de-duplication and 404 caching.
+- Editor: share link, download, undoable fixes, quick-fix lightbulb, F8 navigation, Info filter, Explain (schema + optional AI), Insert example (curated docs examples); schema fetch de-duplication and 404 caching. (Draft autosave and file upload were later removed for privacy; YAML is not kept in the browser.)
 
 Still open from this area: namespace rule for cluster-scoped kinds (static data has no CRD `scope`), cross-document reference checks (26.8.2 schemas carry no reference annotations), validation in a Web Worker for very large bundles, rate limiting (needs a custom domain for WAF rules).
 

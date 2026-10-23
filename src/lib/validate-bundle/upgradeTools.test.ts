@@ -3,7 +3,6 @@ import yaml from 'js-yaml';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fixAllBundle } from './fixAllBundle';
 import { validateBundle } from './index';
-import { buildSkeletonYaml } from './schemaSkeleton';
 import { compareReleaseValidation } from './upgradeCheck';
 import { migrateDocumentText, planScalarWraps } from './versionMigration';
 
@@ -99,14 +98,15 @@ describe('compareReleaseValidation', () => {
 	it('reports what breaks when the bundle moves to a newer release', async () => {
 		stubStaticFetch();
 		// Artifact v1 gains a required field (checksumEnabled) between 26.4.2 and 26.8.2.
-		const oldSpec = yaml.load(
-			await readFile('static/resources/26.4.2/artifacts.artifacts.eda.nokia.com/v1.yaml', 'utf8')
-		) as { schema: { openAPIV3Schema: { properties: { spec: unknown } } } };
-		const doc = buildSkeletonYaml({
-			apiVersion: 'artifacts.eda.nokia.com/v1',
-			kind: 'Artifact',
-			specSchema: oldSpec.schema.openAPIV3Schema.properties.spec
-		});
+		const doc = `apiVersion: artifacts.eda.nokia.com/v1
+kind: Artifact
+metadata:
+  name: my-artifact
+  namespace: eda
+spec:
+  repo: my-repo
+  filePath: images/srlinux.bin
+`;
 		const current = await validateOn('resources/26.4.2', 'EDA 26.4.2', doc);
 		const target = await validateOn(RELEASE, 'EDA 26.8.2', doc);
 		const report = compareReleaseValidation(current.issues, target.issues, {

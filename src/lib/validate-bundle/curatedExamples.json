@@ -1,0 +1,166 @@
+{
+	"release": "26.8.2",
+	"note": "Hand-picked examples from the Nokia EDA 26.8 documentation (docs pages and the docs AI search, see .claude/skills/eda-docs-ai-search), validated against the 26.8.2 CRD schemas (src/lib/validate-bundle/curatedExamples.test.ts).",
+	"examples": [
+		{
+			"label": "Fabric",
+			"group": "fabrics.eda.nokia.com",
+			"kind": "Fabric",
+			"apiVersion": "fabrics.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/apps/fabrics.eda.nokia.com/resources/fabric/",
+			"yaml": "apiVersion: fabrics.eda.nokia.com/v1\nkind: Fabric\nmetadata:\n  name: fabric\n  namespace: eda\nspec:\n  interSwitchLinks:\n    ipMTU: 8922\n    linkSelectors:\n      - eda.nokia.com/role = interSwitch\n    poolIPv4: ipv4-pool\n  leafs:\n    asnPool: asn-pool\n    leafNodeSelectors:\n      - eda.nokia.com/role = leaf\n  overlayProtocol:\n    bgp:\n      autonomousSystem: 65500\n      clusterID: 10.0.0.1\n      rrClientNodeSelectors:\n        - eda.nokia.com/role=leaf\n      rrNodeSelectors:\n        - eda.nokia.com/role=spine\n    protocol: IBGP\n  spines:\n    asnPool: asn-pool\n    spineNodeSelectors:\n      - eda.nokia.com/role = spine\n  systemPoolIPv4: systemipv4-pool\n  underlayProtocol:\n    bfd:\n      desiredMinTransmitIntMs: 1000\n      detectionMultiplier: 3\n      enabled: true\n      requiredMinEchoReceiveIntMs: 1000\n      requiredMinReceiveIntMs: 1000\n    bgp:\n      asnPool: asn-pool\n    protocols:\n      - OSPFv2\n"
+		},
+		{
+			"label": "Interface",
+			"group": "interfaces.eda.nokia.com",
+			"kind": "Interface",
+			"apiVersion": "interfaces.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/blog/bringing-style-to-eda-264/",
+			"yaml": "apiVersion: interfaces.eda.nokia.com/v1\nkind: Interface\nmetadata:\n  name: leaf-1-ethernet-1-1\n  namespace: eda\n  labels:\n    app: red\n    lldp: enable\nspec:\n  type: Interface\n  mtu: 2500\n  encapType: Dot1q\n  ethernet:\n    reloadDelayTimerSeconds: 5\n  members:\n    - node: leaf-1\n      interface: ethernet-1-1\n"
+		},
+		{
+			"label": "TopoNode",
+			"group": "core.eda.nokia.com",
+			"kind": "TopoNode",
+			"apiVersion": "core.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/user-guide/containerlab-integration/",
+			"yaml": "apiVersion: core.eda.nokia.com/v1\nkind: TopoNode\nmetadata:\n  name: clab-vlan-srl1\n  labels:\n    eda.nokia.com/security-profile: managed\n  namespace: eda\nspec:\n  nodeProfile: srlinux-clab-24.10.1\n  operatingSystem: srl\n  platform: 7220 IXR-D2L\n  version: 24.10.1\n  productionAddress:\n    ipv4: $(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' clab-vlan-srl1)\n"
+		},
+		{
+			"label": "TopoLink",
+			"group": "core.eda.nokia.com",
+			"kind": "TopoLink",
+			"apiVersion": "core.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/user-guide/network-topology/",
+			"yaml": "apiVersion: core.eda.nokia.com/v1\nkind: TopoLink\nmetadata:\n  labels:\n    eda.nokia.com/role: interSwitch\n    eda.nokia.com/source-link: leaf1-spine1-1\n  name: leaf1-spine1-1\n  namespace: eda\nspec:\n  links:\n    - local:\n        interface: ethernet-1-1\n        interfaceResource: leaf1-ethernet-1-1\n        node: leaf1\n      remote:\n        interface: ethernet-1-1\n        interfaceResource: spine1-ethernet-1-1\n        node: spine1\n      speed: 25G\n      type: interSwitch\nstatus:\n  members:\n    - interface: ethernet-1-1\n      node: leaf1\n      operationalState: up\n    - interface: ethernet-1-1\n      node: spine1\n      operationalState: up\n  operationalState: up\n"
+		},
+		{
+			"label": "BridgeDomain",
+			"group": "services.eda.nokia.com",
+			"kind": "BridgeDomain",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/bridgedomain/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: BridgeDomain\nmetadata:\n  name: stretched-l2\n  namespace: services\nspec:\n  encapOptions:\n    vxlan:\n      tunnelIndexPool: tunnel-index-pool\n      vniPool: vni-pool\n  eviPool: evi-pool\n  macLearning:\n    agingTimeSeconds: 300\n    enabled: true\n  type: EVPNVXLAN\n"
+		},
+		{
+			"label": "BridgeInterface",
+			"group": "services.eda.nokia.com",
+			"kind": "BridgeInterface",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/bridgeinterface/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: BridgeInterface\nmetadata:\n  namespace: services\n  name: hypervisor-11\nspec:\n  bridgeDomain: stretched-l2\n  vlanID: '123'\n  interface: dc1-leaf3-ethernet-1-1\n"
+		},
+		{
+			"label": "VLAN",
+			"group": "services.eda.nokia.com",
+			"kind": "VLAN",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/vlan/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: VLAN\nmetadata:\n  name: stretched-l2-vlan\n  namespace: services\nspec:\n  bridgeDomain: stretched-l2\n  interfaceSelectors:\n    - edge-type = compute\n    - edge-type = storage\n  vlanID: '100'\n"
+		},
+		{
+			"label": "Router",
+			"group": "services.eda.nokia.com",
+			"kind": "Router",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/router/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: Router\nmetadata:\n  namespace: services\n  name: my-router\nspec:\n  type: EVPNVXLAN\n  eviPool: evi-pool\n  bgp:\n    enabled: true\n    rapidWithdrawl: true\n    waitForFIBInstall: false\n    minWaitToAdvertiseSeconds: 0\n    ebgpPreference: 170\n    ibgpPreference: 170\n    ipv4Unicast:\n      enabled: true\n"
+		},
+		{
+			"label": "IRBInterface",
+			"group": "services.eda.nokia.com",
+			"kind": "IRBInterface",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/irbinterface/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: IRBInterface\nmetadata:\n  name: dhcp-domain-irb\n  namespace: eda\nspec:\n  bridgeDomain: dhcp-domain\n  evpnRouteAdvertisementType:\n    arpDynamic: false\n    arpStatic: false\n    ndDynamic: false\n    ndStatic: false\n  indexAllocation:\n    mode: GlobalPool\n  ipAddresses:\n    - ipv4Address:\n        anycast: true\n        ipPrefix: 192.168.0.1/24\n        primary: false\n    - ipv4Address:\n        anycast: false\n        ipPrefix: 192.168.0.11/24\n        primary: true\n      node: leaf1\n    - ipv4Address:\n        anycast: false\n        ipPrefix: 192.168.0.12/24\n        primary: true\n      node: leaf2\n  ipMTU: 1500\n  router: dhcp-router\n  virtualIPDiscovery: []\n"
+		},
+		{
+			"label": "RoutedInterface",
+			"group": "services.eda.nokia.com",
+			"kind": "RoutedInterface",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/routedinterface/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: RoutedInterface\nmetadata:\n  name: internet-gateway\n  namespace: scale-across\nspec:\n  interface: dc1-leaf-1-ethernet-1-8\n  ipMTU: 1500\n  router: compute-vrf\n  vlanID: '909'\n  vlanPool: vlan-pool\n"
+		},
+		{
+			"label": "VirtualNetwork",
+			"group": "services.eda.nokia.com",
+			"kind": "VirtualNetwork",
+			"apiVersion": "services.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/virtualnetwork/",
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: VirtualNetwork\nmetadata:\n  name: my-vnet\n  namespace: eda\nspec:\n  bridgeDomains:\n    - name: bd-compute\n      spec:\n        encapOptions:\n          vxlan:\n            tunnelIndexPool: tunnel-index-pool\n            vniPool: vni-pool\n        eviPool: evi-pool\n        macLearning:\n          agingTimeSeconds: 300\n          enabled: true\n        type: EVPNVXLAN\n    - name: bd-storage\n      spec:\n        encapOptions:\n          vxlan:\n            tunnelIndexPool: tunnel-index-pool\n            vniPool: vni-pool\n        eviPool: evi-pool\n        macLearning:\n          agingTimeSeconds: 300\n          enabled: true\n        type: EVPNVXLAN\n  irbInterfaces:\n    - name: compute-irb\n      spec:\n        bridgeDomain: bd-compute\n        evpnRouteAdvertisementType:\n          arpDynamic: true\n          arpStatic: true\n          ndDynamic: false\n          ndStatic: false\n        ipAddresses:\n          - ipv4Address:\n              anycast: true\n              ipPrefix: 10.0.100.1/24\n        ipMTU: 1500\n        router: vnet-router\n    - name: storage-irb\n      spec:\n        bridgeDomain: bd-storage\n        evpnRouteAdvertisementType:\n          arpDynamic: true\n          arpStatic: true\n          ndDynamic: false\n          ndStatic: false\n        ipAddresses:\n          - ipv4Address:\n              anycast: true\n              ipPrefix: 10.0.200.1/24\n        ipMTU: 1500\n        router: vnet-router\n  routers:\n    - name: vnet-router\n      spec:\n        encapOptions:\n          vxlan:\n            tunnelIndexPool: tunnel-index-pool\n            vniPool: vni-pool\n        eviPool: evi-pool\n        type: EVPNVXLAN\n  vlans:\n    - name: bd-compute-vlan100\n      spec:\n        bridgeDomain: bd-compute\n        interfaceSelectors:\n          - type = compute\n        vlanID: '100'\n    - name: bd-storage-vlan200\n      spec:\n        bridgeDomain: bd-storage\n        interfaceSelectors:\n          - type = storage\n        vlanID: '200'\n"
+		},
+		{
+			"label": "DefaultRouter",
+			"group": "routing.eda.nokia.com",
+			"kind": "DefaultRouter",
+			"apiVersion": "routing.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/apps/routing.eda.nokia.com/resources/defaultrouter/",
+			"yaml": "apiVersion: routing.eda.nokia.com/v1\nkind: DefaultRouter\nmetadata:\n  name: router-leaf-1\n  namespace: eda\nspec:\n  bgp:\n    autonomousSystem: 65500\n    ebgpPreference: 170\n    enabled: true\n    ibgpPreference: 170\n    l2VPNEVPN:\n      enabled: true\n      interASVPN: false\n      multipath:\n        allowMultipleAS: true\n        maxAllowedPaths: 64\n      rapidUpdate: true\n      retainAllRoutes: false\n    minWaitToAdvertiseSeconds: 0\n    rapidWithdrawl: false\n    waitForFibInstall: false\n  description: 'fabric role: leaf'\n  ecmp: 64\n  node: leaf-1\n  routerID: 11.0.0.2\n"
+		},
+		{
+			"label": "BGPGroup",
+			"group": "protocols.eda.nokia.com",
+			"kind": "BGPGroup",
+			"apiVersion": "protocols.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/protocols.eda.nokia.com/resources/bgpgroup/",
+			"yaml": "apiVersion: protocols.eda.nokia.com/v2\nkind: BGPGroup\nmetadata:\n  name: my-bgp-group\n  namespace: eda\nspec:\n  ipv4Unicast:\n    enabled: true\n  ipv6Unicast:\n    enabled: true\n  localAS:\n    autonomousSystem: 100\n  peerAS:\n    autonomousSystem: 100\n"
+		},
+		{
+			"label": "BGPPeer",
+			"group": "protocols.eda.nokia.com",
+			"kind": "BGPPeer",
+			"apiVersion": "protocols.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/protocols.eda.nokia.com/resources/bgppeer/",
+			"yaml": "apiVersion: protocols.eda.nokia.com/v2\nkind: BGPPeer\nmetadata:\n  name: my-bgp-peer-leaf1\n  namespace: eda\nspec:\n  group: my-bgp-group\n  interface: leaf-1-interface\n  interfaceKind: RoutedInterface\n  ipv4Unicast:\n    enabled: true\n  ipv6Unicast:\n    enabled: true\n  peerIP: 192.168.0.2\n"
+		},
+		{
+			"label": "PrefixSet",
+			"group": "routingpolicies.eda.nokia.com",
+			"kind": "PrefixSet",
+			"apiVersion": "routingpolicies.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/apps/routingpolicies.eda.nokia.com/resources/prefixset/",
+			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: PrefixSet\nmetadata:\n  namespace: eda\n  name: management-subnet\nspec:\n  prefixes:\n    - prefix: 10.10.10.0/24\n      exact: true\n"
+		},
+		{
+			"label": "ASPathSet",
+			"group": "routingpolicies.eda.nokia.com",
+			"kind": "ASPathSet",
+			"apiVersion": "routingpolicies.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/apps/routingpolicies.eda.nokia.com/resources/aspathset/",
+			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: ASPathSet\nmetadata:\n  name: leaf-asns\n  namespace: routingpolicies\nspec:\n  members:\n    - '^[100-109]'\n  regexMode: ASN\n"
+		},
+		{
+			"label": "Policy (routing)",
+			"group": "routingpolicies.eda.nokia.com",
+			"kind": "Policy",
+			"apiVersion": "routingpolicies.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/apps/routingpolicies.eda.nokia.com/resources/policy/",
+			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: Policy\nmetadata:\n  name: process-tagged-routes\n  namespace: routingpolicies\nspec:\n  defaultAction:\n    policyResult: Accept\n  statements:\n    - action:\n        policyResult: Reject\n      match:\n        tags:\n          tagSet: no-export\n      name: reject routes with no-export tag\n"
+		},
+		{
+			"label": "Configlet",
+			"group": "config.eda.nokia.com",
+			"kind": "Configlet",
+			"apiVersion": "config.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/apps/config.eda.nokia.com/resources/configlet/",
+			"yaml": "apiVersion: config.eda.nokia.com/v1\nkind: Configlet\nmetadata:\n  name: my-hostname\n  namespace: eda\nspec:\n  priority: 100\n  endpointSelectors:\n    - eda.nokia.com/role = leaf\n  operatingSystem: srl\n  version: 25.10.1\n  configs:\n    - operation: Create\n      path: .system.name\n      config: |-\n        {\n            \"host-name\": \"my-hostname-override\"\n        }\n"
+		},
+		{
+			"label": "IPAllocationPool",
+			"group": "core.eda.nokia.com",
+			"kind": "IPAllocationPool",
+			"apiVersion": "core.eda.nokia.com/v1",
+			"source": "https://docs.eda.dev/26.8/user-guide/allocation-pools/",
+			"yaml": "apiVersion: core.eda.nokia.com/v1\nkind: IPAllocationPool\nmetadata:\n  name: system-ip-pool\n  namespace: eda\nspec:\n  segments:\n    - subnet: 192.168.10.0/24\n"
+		},
+		{
+			"label": "IngressPolicy (QoS)",
+			"group": "qos.eda.nokia.com",
+			"kind": "IngressPolicy",
+			"apiVersion": "qos.eda.nokia.com/v2",
+			"source": "https://docs.eda.dev/26.8/apps/qos.eda.nokia.com/resources/ingresspolicy/",
+			"yaml": "apiVersion: qos.eda.nokia.com/v2\nkind: IngressPolicy\nmetadata:\n  name: my-ingress-policy\n  namespace: eda\nspec:\n  classifier:\n    entries:\n      - dscpPolicyEntry:\n          dropProbabilityLevel: Low\n          dscpValues:\n            - value: 0\n          forwardingClass: fc0\n        type: Auto\n      - dscpPolicyEntry:\n          dropProbabilityLevel: Low\n          dscpValues:\n            - value: 26\n          forwardingClass: fc3\n        type: Auto\n      - dscpPolicyEntry:\n          dropProbabilityLevel: Low\n          dscpValues:\n            - value: 48\n          forwardingClass: fc6\n        type: Auto\n  forwardingClassToQueueMapping:\n    - forwardingClasses:\n        - fc3\n      queue: pfc-3\n  queueManagement:\n    - pfcReservedBufferPercent: 10\n      queues:\n        - maximumBurstSizeBytes: 1024000\n          pfcPauseFramePriority: 3\n          queue: pfc-3\n"
+		}
+	]
+}

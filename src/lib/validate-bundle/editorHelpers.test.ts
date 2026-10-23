@@ -1,11 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import yaml from 'js-yaml';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { purgeLegacyDraft } from './draftStorage';
-import { validateBundle } from './index';
 import { explainIssueFromSchema } from './issueExplain';
 import { parseBundleResources } from './parser';
-import { buildSkeletonYaml } from './schemaSkeleton';
 
 const RELEASE_FOLDER = 'resources/26.8.2';
 
@@ -14,41 +12,6 @@ async function realSpecSchema(crd: string, version: string): Promise<unknown> {
 	const doc = yaml.load(text) as { schema: { openAPIV3Schema: { properties: { spec: unknown } } } };
 	return doc.schema.openAPIV3Schema.properties.spec;
 }
-
-describe('buildSkeletonYaml', () => {
-	afterEach(() => vi.unstubAllGlobals());
-
-	it.each([
-		['toponodes.core.eda.nokia.com', 'core.eda.nokia.com/v1', 'TopoNode'],
-		['interfaces.interfaces.eda.nokia.com', 'interfaces.eda.nokia.com/v1', 'Interface'],
-		['topologies.topologies.eda.nokia.com', 'topologies.eda.nokia.com/v1', 'Topology']
-	])('%s skeleton has every required field', async (crd, apiVersion, kind) => {
-		const specSchema = await realSpecSchema(crd, apiVersion.split('/')[1]!);
-		const skeleton = buildSkeletonYaml({ apiVersion, kind, specSchema });
-		expect(skeleton).toContain(`kind: ${kind}`);
-
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (input: RequestInfo | URL) => {
-				try {
-					return new Response(await readFile(`static${String(input)}`, 'utf8'));
-				} catch {
-					return new Response(null, { status: 404 });
-				}
-			})
-		);
-		const manifest = JSON.parse(await readFile(`static/${RELEASE_FOLDER}/manifest.json`, 'utf8'));
-		const result = await validateBundle({
-			yamlInput: skeleton,
-			releaseFolder: RELEASE_FOLDER,
-			releaseLabel: 'EDA 26.8.2',
-			manifest
-		});
-		expect(result.issues.filter((i) => /is required|Missing required/i.test(i.message))).toEqual(
-			[]
-		);
-	});
-});
 
 describe('explainIssueFromSchema', () => {
 	it('lists type, allowed values and default, or the allowed fields for unknown ones', async () => {

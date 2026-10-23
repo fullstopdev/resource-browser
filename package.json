@@ -40,7 +40,8 @@
 		"deploy:cloudflare:lean": "PUBLIC_ASK_AI_ENABLED=false PUBLIC_FIX_AI_ENABLED=false npm run build:cloudflare && node scripts/deploy-cloudflare-lean.mjs",
 		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"eval:fix": "tsx --tsconfig tsconfig.scripts.json scripts/eval-fix.ts",
-		"generate:all": "npm run generate:sitemap && npm run generate:release-notes -- --skip-unchanged && npm run generate:openapi-manifest -- --all && npm run build:schema-graph -- --all"
+		"generate:all": "npm run generate:sitemap && npm run generate:release-notes -- --skip-unchanged && npm run generate:openapi-manifest -- --all && npm run build:schema-graph -- --all",
+		"validate:yaml": "tsx --tsconfig tsconfig.scripts.json scripts/validate-yaml.ts"
 	},
 	"dependencies": {
 		"@xyflow/svelte": "^1.7.0",
