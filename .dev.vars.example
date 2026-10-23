@@ -3,3 +3,6 @@
 # (or `wrangler login`), not via this file — never commit real tokens.
 #
 # CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+
+# Bearer token for GET /api/cache-status?summary=true (summary is disabled when unset).
+# CACHE_STATUS_TOKEN=change_me

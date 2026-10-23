@@ -81,7 +81,8 @@ export function renderSimpleMarkdown(text: string): string {
 		'<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>'
 	);
 	s = s.replace(
-		/\[([^\]]+)\]\((\/[^)\s]+)\)/g,
+		// `(?![/\\])` keeps protocol-relative `//host` links from posing as internal links.
+		/\[([^\]]+)\]\((\/(?![/\\])[^)\s]*)\)/g,
 		'<a href="$2" class="md-link md-link-internal">$1</a>'
 	);
 	s = s.replace(/^#### (.+)$/gm, '<h4 class="md-h4">$1</h4>');

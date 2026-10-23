@@ -58,6 +58,7 @@ import {
 	WORKERS_AI_MODEL
 } from '$lib/ai/runWorkersAI';
 import { extractYamlIssueExcerpt } from '$lib/validate-bundle/yamlIssueExcerpt';
+import { MAX_YAML_INPUT_BYTES } from '$lib/yaml/inputLimits';
 
 const VALID_ACTIONS = [
 	'explain',
@@ -73,6 +74,12 @@ const VALID_ACTIONS = [
 	'full-context'
 ] as const;
 type ValidAction = (typeof VALID_ACTIONS)[number];
+
+/** Upper bounds on untrusted input so a single request cannot inflate Workers AI prompt cost. */
+const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_USER_YAML_CHARS = MAX_YAML_INPUT_BYTES;
+const MAX_FIELD_CHARS = 1024;
+const MAX_FIX_ISSUES = 100;
 
 const DETERMINISTIC_SEED = 42;
 const DETERMINISTIC_TEMPERATURE = 0;
@@ -185,11 +192,25 @@ function str(value: unknown): string {
 export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const ai = platform?.env?.AI;
 
+	if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) {
+		return json({ error: 'Request body too large' }, { status: 413 });
+	}
+
 	let body: AiBody;
 	try {
-		body = await request.json();
+		const raw = await request.text();
+		if (raw.length > MAX_BODY_BYTES) {
+			return json({ error: 'Request body too large' }, { status: 413 });
+		}
+		body = JSON.parse(raw);
 	} catch {
 		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
+	if (!body || typeof body !== 'object') {
+		return json({ error: 'Invalid JSON body' }, { status: 400 });
+	}
+	if (Array.isArray(body.issues) && body.issues.length > MAX_FIX_ISSUES) {
+		return json({ error: `At most ${MAX_FIX_ISSUES} issues per request` }, { status: 400 });
 	}
 
 	const release = str(body.release);
@@ -207,6 +228,13 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	if (!release || !action) {
 		return json({ error: 'Missing required fields: release, action' }, { status: 400 });
+	}
+
+	if (userYaml.length > MAX_USER_YAML_CHARS) {
+		return json({ error: 'userYaml is too large' }, { status: 413 });
+	}
+	if ((field?.length ?? 0) > MAX_FIELD_CHARS) {
+		return json({ error: 'field is too long' }, { status: 400 });
 	}
 
 	if (action === RELEASE_DEPENDENCY_MAP_ACTION) {

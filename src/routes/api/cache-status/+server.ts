@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { ASK_WARM_ACTIONS, buildCacheKey, buildReleaseCacheKey } from '$lib/ai/kvCache';
 import { activeApiVersion, filterActiveManifest } from '$lib/manifest/activeCrds';
@@ -29,7 +30,7 @@ async function actionCached(
 	return !!val;
 }
 
-export const GET: RequestHandler = async ({ url, platform, fetch: originFetch }) => {
+export const GET: RequestHandler = async ({ url, request, platform, fetch: originFetch }) => {
 	const release = url.searchParams.get('release')?.trim();
 	const kind = url.searchParams.get('kind')?.trim();
 	const group = url.searchParams.get('group')?.trim();
@@ -49,6 +50,11 @@ export const GET: RequestHandler = async ({ url, platform, fetch: originFetch })
 	}
 
 	if (summary) {
+		// The summary scans ~3 KV reads per CRD (~900+ per call); keep it off the public surface.
+		const token = env.CACHE_STATUS_TOKEN;
+		if (!token || request.headers.get('authorization') !== `Bearer ${token}`) {
+			return json({ error: 'summary requires CACHE_STATUS_TOKEN' }, { status: 401 });
+		}
 		const folder = releaseFolder(release);
 		if (!folder) {
 			return json({ error: `Unknown release: ${release}` }, { status: 404 });
