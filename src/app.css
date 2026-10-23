@@ -2675,6 +2675,89 @@ html:not(.dark) .font-nokia-headline.font-extrabold {
 		color: #fca5a5;
 	}
 
+	/* Change list in the AI Fix / migration review panel. */
+	.fix-all-panel__changes {
+		margin: 0 0 0.75rem;
+		padding-left: 1.1rem;
+		list-style: disc;
+		font-size: 0.8rem;
+	}
+
+	/* Upgrade check report above the issue list. */
+	.validate-yaml-upgrade {
+		margin-bottom: 0.625rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid #c7d2fe;
+		border-radius: 0.5rem;
+		background: #eef2ff;
+		font-size: 0.75rem;
+		color: #1e1b4b;
+	}
+
+	.dark .validate-yaml-upgrade {
+		border-color: rgba(129, 140, 248, 0.35);
+		background: rgba(30, 27, 75, 0.45);
+		color: #e0e7ff;
+	}
+
+	.validate-yaml-upgrade__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.35rem 0.75rem;
+	}
+
+	.validate-yaml-upgrade__head .validate-yaml-issue-schema-link {
+		margin: 0 0 0 auto;
+	}
+
+	.validate-yaml-upgrade__count {
+		padding: 0.05rem 0.45rem;
+		border-radius: 999px;
+		background: rgba(99, 102, 241, 0.12);
+		font-weight: 600;
+	}
+
+	.validate-yaml-upgrade__count--bad {
+		background: rgba(220, 38, 38, 0.15);
+		color: #b91c1c;
+	}
+
+	.dark .validate-yaml-upgrade__count--bad {
+		color: #fca5a5;
+	}
+
+	.validate-yaml-upgrade__title {
+		margin: 0.5rem 0 0.2rem;
+		font-weight: 600;
+	}
+
+	.validate-yaml-upgrade__ok {
+		margin: 0.35rem 0 0;
+	}
+
+	.validate-yaml-upgrade__list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.validate-yaml-upgrade__list button {
+		display: flex;
+		gap: 0.4rem;
+		width: 100%;
+		padding: 0.2rem 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.validate-yaml-upgrade__list button:hover {
+		text-decoration: underline;
+	}
+
 	/* "Insert example…" kind picker in the editor toolbar. */
 	.validate-yaml-insert__select {
 		max-width: 11rem;

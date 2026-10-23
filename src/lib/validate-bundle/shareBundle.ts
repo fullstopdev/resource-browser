@@ -28,7 +28,8 @@ async function gzipBytes(input: Uint8Array): Promise<Uint8Array> {
 	if (typeof CompressionStream === 'undefined') {
 		throw new Error('Gzip is not supported in this environment');
 	}
-	const stream = new Blob([input]).stream().pipeThrough(new CompressionStream('gzip'));
+	// Copy into an ArrayBuffer-backed view: Blob rejects views over a SharedArrayBuffer.
+	const stream = new Blob([new Uint8Array(input)]).stream().pipeThrough(new CompressionStream('gzip'));
 	return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -36,7 +37,9 @@ async function gunzipBytes(input: Uint8Array): Promise<Uint8Array> {
 	if (typeof DecompressionStream === 'undefined') {
 		throw new Error('Gunzip is not supported in this environment');
 	}
-	const stream = new Blob([input]).stream().pipeThrough(new DecompressionStream('gzip'));
+	const stream = new Blob([new Uint8Array(input)])
+		.stream()
+		.pipeThrough(new DecompressionStream('gzip'));
 	return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 

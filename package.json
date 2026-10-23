@@ -8,7 +8,7 @@
 		"dev:ai": "PUBLIC_ASK_AI_ENABLED=true PUBLIC_FIX_AI_ENABLED=true npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare --ai AI --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
 		"build": "vite build",
 		"build:vercel": "ADAPTER=vercel vite build",
-		"build:cloudflare": "node scripts/guard-static-dev-artifacts.mjs && PUBLIC_FIX_AI_ENABLED=true ADAPTER=cloudflare vite build && node scripts/prune-cloudflare-output.mjs",
+		"build:cloudflare": "node scripts/guard-static-dev-artifacts.mjs && npm run generate:all && PUBLIC_FIX_AI_ENABLED=true ADAPTER=cloudflare vite build && node scripts/prune-cloudflare-output.mjs",
 		"prune:cloudflare": "node scripts/prune-cloudflare-output.mjs",
 		"preview:cloudflare": "npm run prune:cloudflare && wrangler pages dev .svelte-kit/cloudflare --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
 		"preview": "vite preview --host 0.0.0.0 --strictPort",
@@ -34,12 +34,13 @@
 		"build:schema-graph": "tsx --tsconfig tsconfig.scripts.json scripts/build-schema-graph.ts",
 		"sync:openapi": "./static/sync-openapi.sh",
 		"generate:openapi-manifest": "tsx --tsconfig tsconfig.scripts.json scripts/generate-openapi-manifest.ts",
-		"prebuild": "npm run generate:sitemap && npm run generate:release-notes -- --skip-unchanged && npm run generate:openapi-manifest -- --all && npm run build:schema-graph -- --all",
+		"prebuild": "npm run generate:all",
 		"deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"deploy:cloudflare:only": "npm run prune:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"deploy:cloudflare:lean": "PUBLIC_ASK_AI_ENABLED=false PUBLIC_FIX_AI_ENABLED=false npm run build:cloudflare && node scripts/deploy-cloudflare-lean.mjs",
 		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
-		"eval:fix": "tsx --tsconfig tsconfig.scripts.json scripts/eval-fix.ts"
+		"eval:fix": "tsx --tsconfig tsconfig.scripts.json scripts/eval-fix.ts",
+		"generate:all": "npm run generate:sitemap && npm run generate:release-notes -- --skip-unchanged && npm run generate:openapi-manifest -- --all && npm run build:schema-graph -- --all"
 	},
 	"dependencies": {
 		"@xyflow/svelte": "^1.7.0",

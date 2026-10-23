@@ -28,13 +28,15 @@ async function openWithYaml(page: Page, yaml: string) {
 	await page.goto('/validate-yaml');
 	await expect(page.locator('.monaco-editor')).toBeVisible({ timeout: 30_000 });
 	await page.evaluate((text) => navigator.clipboard.writeText(text), yaml);
-	await page.locator('.monaco-editor .view-lines').click();
+	await page.locator('#validate-yaml-panel-editor .monaco-editor .view-lines').click();
 	await page.keyboard.press('ControlOrMeta+a');
 	await page.keyboard.press('ControlOrMeta+v');
 }
 
 const editorText = async (page: Page) =>
-	(await page.locator('.monaco-editor .view-lines').innerText()).replace(/\u00a0/g, ' ');
+	(
+		await page.locator('#validate-yaml-panel-editor .monaco-editor .view-lines').innerText()
+	).replace(/\u00a0/g, ' ');
 
 test('does not keep the YAML in the browser between visits', async ({ page }) => {
 	// A draft saved by the old autosave feature must be deleted, not restored.
@@ -97,7 +99,7 @@ test('Info filter and F8 navigation are available', async ({ page }) => {
 	await expect(page.locator('.validate-yaml-issue-msg').first()).toBeVisible({ timeout: 20_000 });
 	await expect(page.getByRole('tab', { name: 'Info' })).toBeVisible();
 
-	await page.locator('.monaco-editor .view-lines').click();
+	await page.locator('#validate-yaml-panel-editor .monaco-editor .view-lines').click();
 	await page.keyboard.press('F8');
 	await expect(
 		page
@@ -117,7 +119,43 @@ test('an applied fix can be undone with Ctrl+Z', async ({ page }) => {
 		.click({ timeout: 20_000 });
 	await expect.poll(() => editorText(page)).toContain('operatingSystem: srl');
 
-	await page.locator('.monaco-editor .view-lines').click();
+	await page.locator('#validate-yaml-panel-editor .monaco-editor .view-lines').click();
 	await page.keyboard.press('ControlOrMeta+z');
 	await expect.poll(() => editorText(page)).toContain('operatingSystem: SRL');
+});
+
+const BRIDGE_DOMAIN_V1 = `apiVersion: services.eda.nokia.com/v1
+kind: BridgeDomain
+metadata:
+  name: bd-blue
+  namespace: eda
+spec:
+  type: EVPNVXLAN
+  macLearning: true
+`;
+
+test('migrates a deprecated document to the latest version', async ({ page }) => {
+	await openWithYaml(page, BRIDGE_DOMAIN_V1);
+	const migrate = page.getByRole('button', { name: 'Migrate to v2' });
+	await migrate.click({ timeout: 20_000 });
+
+	await expect.poll(() => editorText(page)).toContain('apiVersion: services.eda.nokia.com/v2');
+	await expect.poll(() => editorText(page)).toContain('enabled: true');
+	const review = page.getByRole('dialog');
+	await expect(review).toContainText('Migrated to v2');
+	await expect(review).toContainText('spec.macLearning → spec.macLearning.enabled');
+});
+
+test('upgrade check compares the YAML with a newer release', async ({ page }) => {
+	await openWithYaml(page, BAD_TOPONODE.replace('operatingSystem: SRL', 'operatingSystem: srl'));
+	await page.locator('#validation-release').selectOption('26.4.2');
+	await page.locator('#validation-upgrade').selectOption('26.8.2');
+
+	const panel = page.locator('.validate-yaml-upgrade');
+	await expect(panel).toContainText('Upgrade check: EDA 26.4.2 → EDA 26.8.2', { timeout: 20_000 });
+	await expect(panel).toContainText('breaking');
+
+	await panel.getByRole('button', { name: /Switch to/ }).click();
+	await expect(page.locator('#validation-release')).toHaveValue('26.8.2');
+	await expect(panel).toHaveCount(0);
 });

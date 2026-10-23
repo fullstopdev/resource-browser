@@ -27,16 +27,16 @@ credentials).
 | Command                    | What it does                                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `npm run build`            | Runs `prebuild` generators, then `vite build`                                                        |
-| `npm run build:cloudflare` | Cleans dev artifacts, `vite build` with the Cloudflare adapter and AI Fix on, then prunes the output |
+| `npm run build:cloudflare` | Cleans dev artifacts, runs the generators, `vite build` with the Cloudflare adapter, then prunes |
 | `npm run build:vercel`     | Same app with the Vercel adapter                                                                     |
 | `npm run check`            | `svelte-check` type checking                                                                         |
 | `npm run lint`             | Prettier + ESLint                                                                                    |
 
-> [!WARNING]
-> npm runs `prebuild` only before `npm run build`. `build:cloudflare` and the `deploy:cloudflare*`
-> scripts call `vite build` directly, so they **don't** regenerate the sitemap, release notes,
-> OpenAPI manifests or schema graphs. Run `npm run build` (or the generators) and commit the
-> results before deploying.
+> [!NOTE]
+> `npm run build` and `npm run build:cloudflare` (used by every `deploy:cloudflare*` script that
+> builds) both run `npm run generate:all` first: sitemap, release notes, OpenAPI manifests and
+> schema graphs. The generated files change on every build (dates); commit them with your change.
+> `deploy:cloudflare:only` deploys an existing build without regenerating.
 
 ## Deploying
 

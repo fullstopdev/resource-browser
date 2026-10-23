@@ -116,7 +116,11 @@ describe('filterSwaggerTaggedOperations', () => {
 			}
 		]);
 
-		const result = filterSwaggerTaggedOperations(taggedOps, 'eql') as {
+		// The test double only implements what the filter uses, not Swagger's full Immutable API.
+		const result = filterSwaggerTaggedOperations(
+			taggedOps as unknown as Parameters<typeof filterSwaggerTaggedOperations>[0],
+			'eql'
+		) as unknown as {
 			filter: (predicate: (tagObj: { get: (k: string) => { size: number } }) => boolean) => unknown[];
 		};
 		const kept = result.filter((tagObj) => tagObj.get('operations').size > 0);

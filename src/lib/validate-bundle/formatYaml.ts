@@ -518,6 +518,8 @@ function buildFixItemLabel(kind: FixKind, count: number, examples: string[]): st
 			return count === 1
 				? `Coerced string: ${examples[0]}`
 				: `Coerced ${count} values to strings`;
+		case 'structuralFix':
+			return count === 1 ? `Fixed structure: ${examples[0]}` : `Fixed ${count} structures`;
 	}
 }
 

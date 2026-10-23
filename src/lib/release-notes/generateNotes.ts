@@ -83,7 +83,11 @@ async function findNewlyDeprecated(
 
 	const grouped = new Map<
 		string,
-		{ resource: ManifestResource; versions: RawDeprecatedVersion[] }
+		{
+			resource: ManifestResource;
+			versions: RawDeprecatedVersion[];
+			newlyPromotedApiVersion?: string;
+		}
 	>();
 
 	for (const resource of targetManifest) {

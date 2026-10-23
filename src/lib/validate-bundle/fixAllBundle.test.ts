@@ -444,6 +444,8 @@ spec: {}`
 	it('does not call AI for parse errors when includeAi is false', async () => {
 		const aiFix = vi.fn(async () => ({ fixable: true, fixedYaml: 'kind: Topology\n' }));
 		const result = await fixAllBundle('kind: [broken', [], {
+			releaseFolder: 'r',
+			manifest: [],
 			aiFix,
 			includeAi: false
 		});

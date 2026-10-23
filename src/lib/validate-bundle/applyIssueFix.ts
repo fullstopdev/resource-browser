@@ -179,7 +179,7 @@ export function applySuggestedFix(yamlInput: string, issue: BundleIssue): string
 			const pointer = fieldPathToPointer(issue.fieldPath);
 			if (!pointer) return null;
 			relLine = findLineForPointerInDoc(doc.rawText, pointer);
-		} else if (fix.action !== 'renameKey') {
+		} else {
 			relLine = findLineForPointerInDoc(doc.rawText, fieldToPointer(fix.field as SuggestedFixField));
 		}
 	}

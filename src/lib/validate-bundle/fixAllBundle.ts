@@ -125,6 +125,8 @@ function formatFixChangeLabel(fix: FixReport): string {
 			return `Fixed boolean: ${change}`;
 		case 'stringCoercion':
 			return `Coerced string: ${change}`;
+		case 'structuralFix':
+			return `Fixed structure: ${change}`;
 	}
 }
 

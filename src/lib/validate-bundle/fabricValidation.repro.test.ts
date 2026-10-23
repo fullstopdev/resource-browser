@@ -429,7 +429,7 @@ spec:
 				fieldPath: 'spec.underlayProtocol.protocols'
 			},
 			specSchema,
-			loadStaticYaml(yaml).spec
+			(loadStaticYaml(yaml) as { spec?: unknown }).spec
 		);
 		expect(requiredFix).toMatchObject({
 			action: 'renameKey',

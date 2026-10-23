@@ -109,6 +109,13 @@ flowchart LR
 
 Still open from this area: namespace rule for cluster-scoped kinds (static data has no CRD `scope`), cross-document reference checks (26.8.2 schemas carry no reference annotations), validation in a Web Worker for very large bundles, rate limiting (needs a custom domain for WAF rules).
 
+## Resolved (roadmap items 2, 3, 6, 7 — 2026-10-23)
+
+- CI added (`.github/workflows/ci.yml`): type check, unit tests, audit, end-to-end. The 3 data-dependent tests were fixed (counts read from the committed graph, flowsampling spec moved to 26.8.2, wildcard "any EDA resource" references skipped) and the 14 svelte-check errors cleared: 0 errors, all unit tests green.
+- `build:cloudflare` runs `generate:all`, so deploys can't ship stale generated data.
+- Upgrade check in Validate YAML: validate against a newer release and list what breaks.
+- "Migrate to vN" for deprecated versions: apiVersion rewrite, scalar→object wraps, regular fixes, review.
+
 ## Recommendations (by priority)
 
 | #   | Action                                                                                                | Effort | Benefit                             |

@@ -47,6 +47,8 @@
 	import { purgeLegacyDraft } from '$lib/validate-bundle/draftStorage';
 	import { explainIssueFromSchema, type IssueExplanation } from '$lib/validate-bundle/issueExplain';
 	import { buildSkeletonYaml } from '$lib/validate-bundle/schemaSkeleton';
+	import { compareReleaseValidation, type UpgradeReport } from '$lib/validate-bundle/upgradeCheck';
+	import { migrateDocumentText } from '$lib/validate-bundle/versionMigration';
 	import { withoutDeterministicHints } from '$lib/validate-bundle/fixIssueContext';
 	import { fetchSchema, schemaPath } from '$lib/yaml-validation/schemaCache';
 	import { fixAiEnabled } from '$lib/featureFlags';
@@ -93,6 +95,10 @@
 	let validationGeneration = 0;
 	let issueFilter: 'all' | 'errors' | 'warnings' | 'info' = 'all';
 	let skeletonKind = '';
+	/** Upgrade check: validate the same YAML against a newer release and compare. */
+	let upgradeTarget = '';
+	let upgradeReport: UpgradeReport | null = null;
+	let upgradeChecking = false;
 	/** Issue whose schema explanation is open, and its optional AI answer. */
 	let explainIssueId: string | null = null;
 	let explainAiAnswer = '';
@@ -120,6 +126,7 @@
 	let fixAllReviewBefore = '';
 	let fixAllReviewAfter = '';
 	let fixAllReviewChanges: FixAllChange[] = [];
+	let fixAllReviewTitle: string | undefined = undefined;
 	let yamlCompletionContext: YamlCompletionContext | null = null;
 	let completionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 	let completionSchemaFetchSerial = 0;
@@ -363,6 +370,130 @@
 		void runValidation();
 	}
 
+	// Releases are listed newest first: upgrade targets are the ones before the selected release.
+	$: upgradeOptions = release
+		? releasesConfig.releases.slice(
+				0,
+				releasesConfig.releases.findIndex((r) => r.name === release?.name)
+			)
+		: [];
+	$: if (upgradeTarget && !upgradeOptions.some((r) => r.name === upgradeTarget)) {
+		upgradeTarget = '';
+		upgradeReport = null;
+	}
+
+	async function runUpgradeCheck() {
+		const target = releasesConfig.releases.find((r) => r.name === upgradeTarget);
+		if (!target || !release || !result || !yamlInput.trim()) {
+			upgradeReport = null;
+			return;
+		}
+		const snapshot = yamlInput;
+		const currentIssues = result.issues;
+		const from = release.label;
+		upgradeChecking = true;
+		try {
+			const manifest = (await fetchManifest(target.folder, manifestCache)) || [];
+			const targetResult = await validateBundle({
+				yamlInput: snapshot,
+				releaseFolder: target.folder,
+				releaseLabel: target.label,
+				manifest
+			});
+			// Drop the answer if the text or the target changed while checking.
+			if (yamlInput !== snapshot || upgradeTarget !== target.name) return;
+			upgradeReport = compareReleaseValidation(currentIssues, targetResult.issues, {
+				from,
+				to: target.label
+			});
+		} finally {
+			upgradeChecking = false;
+		}
+	}
+
+	function switchToUpgradeTarget() {
+		if (!upgradeTarget) return;
+		releaseName = upgradeTarget;
+		upgradeTarget = '';
+		upgradeReport = null;
+		void runValidation();
+	}
+
+	/** "group/vN" from a deprecation issue ("… is deprecated … Latest version is 'group/vN'"). */
+	function deprecationTarget(issue: BundleIssue): string | null {
+		return /is deprecated for kind '[^']+'\. Latest version is '([^']+)'/.exec(issue.message)?.[1] ?? null;
+	}
+
+	/**
+	 * Move a deprecated document to the latest version: rewrite apiVersion and wrap scalars that
+	 * became objects (text edits, formatting kept), then run the regular one-click fixes against the
+	 * new schema and show the before/after review. Whatever is left stays listed for AI Fix.
+	 */
+	async function migrateDeprecatedDocument(issue: BundleIssue, event: MouseEvent) {
+		event.stopPropagation();
+		const target = deprecationTarget(issue);
+		const docIndex = issue.docIndex ?? 1;
+		const resource = result?.resources.find((r) => r.docIndex + 1 === docIndex);
+		const docYaml = extractDocumentYaml(yamlInput, docIndex);
+		const entry = manifestResources.find((r) => r.kind === resource?.kind && r.group === resource?.group);
+		const toVersion = target?.split('/')[1];
+		if (!release || !target || !docYaml || !entry || !toVersion) {
+			showToast('Could not prepare the migration for this document.');
+			return;
+		}
+		const sections = await fetchSchema(schemaPath(release.folder, entry.name, toVersion));
+		if (!sections) {
+			showToast(`Could not load the ${toVersion} schema.`);
+			return;
+		}
+
+		const before = yamlInput;
+		const migrated = migrateDocumentText(docYaml, {
+			toApiVersion: target,
+			targetSpecSchema: sections.spec
+		});
+		const bundle = replaceDocumentInBundle(before, docIndex, migrated.yaml);
+		if (!bundle) {
+			showToast('Could not apply the migration.');
+			return;
+		}
+
+		isFixingAll = true;
+		try {
+			const formatOptions = await getFormatOptions();
+			const fixed = await fixAllBundle(bundle, await revalidateFixIssues(bundle), {
+				...formatOptions,
+				includeAi: false,
+				revalidateIssues: revalidateFixIssues,
+				resolveDocIndex: resolveIssueDocIndex,
+				resolveIdentity: (item, doc) => resolveFixIdentity(item, doc)
+			});
+			if (yamlInput !== before) return;
+			const after = fixed.ok ? fixed.yaml : bundle;
+			setYamlInput(after);
+			fixAllReviewBefore = before;
+			fixAllReviewAfter = after;
+			fixAllReviewTitle = `Migrated to ${toVersion}`;
+			fixAllReviewChanges = [
+				...migrated.changes.map((label) => ({ source: 'suggested' as const, label, docIndex })),
+				...(fixed.ok ? fixed.changes : [])
+			];
+			fixAllReviewOpen = true;
+			const left = fixed.ok ? fixed.remainingErrors + fixed.remainingWarnings : 0;
+			const review = migrated.unresolved.length
+				? ` Review ${migrated.unresolved.join(', ')} (changed shape).`
+				: '';
+			showToast(
+				left > 0
+					? `Migrated to ${toVersion}. ${left} issue(s) left — try AI Fix.${review}`
+					: `Migrated to ${toVersion}.${review}`
+			);
+			void runValidation();
+		} finally {
+			isFixingAll = false;
+		}
+	}
+
 	async function getFormatOptions() {
 		if (manifestResources.length) {
 			return { releaseFolder: release!.folder, manifest: manifestResources };
@@ -525,6 +656,7 @@
 					return;
 				}
 				setYamlInput(fixResult.yaml);
+				fixAllReviewTitle = undefined;
 				fixAllReviewBefore = fixResult.beforeYaml;
 				fixAllReviewAfter = fixResult.afterYaml;
 				fixAllReviewChanges = fixResult.changes;
@@ -828,6 +960,7 @@
 			if (generation !== validationGeneration) return;
 			result = nextResult;
 			void refreshCompletionContext();
+			if (upgradeTarget) void runUpgradeCheck();
 		} catch (error) {
 			if (generation !== validationGeneration) return;
 			const message = error instanceof Error ? error.message : String(error);
@@ -1315,6 +1448,26 @@
 						</select>
 					</div>
 
+					{#if upgradeOptions.length > 0}
+						<div class="validate-yaml-release-field">
+							<label for="validation-upgrade" class="validate-yaml-release-field__label">
+								Upgrade check
+							</label>
+							<select
+								id="validation-upgrade"
+								bind:value={upgradeTarget}
+								on:change={() => void runUpgradeCheck()}
+								class="spec-search-select validate-yaml-topbar__release"
+								aria-label="Check this YAML against a newer release"
+							>
+								<option value="">Off</option>
+								{#each upgradeOptions as r}
+									<option value={r.name}>{r.label}</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+
 					<div class="validate-yaml-action-bar__primary">
 						<button
 							type="button"
@@ -1647,6 +1800,52 @@
 						aria-hidden={!isSplitWorkspace && activeView !== 'diagnostics'}
 					>
 						<div class="validate-yaml-issues-header">
+							{#if upgradeTarget && (upgradeReport || upgradeChecking)}
+								<section class="validate-yaml-upgrade" aria-label="Upgrade check">
+									{#if upgradeReport}
+										<header class="validate-yaml-upgrade__head">
+											<strong>Upgrade check: {upgradeReport.from} → {upgradeReport.to}</strong>
+											<span
+												class="validate-yaml-upgrade__count"
+												class:validate-yaml-upgrade__count--bad={upgradeReport.breaking.length > 0}
+											>
+												{upgradeReport.breaking.length} breaking
+											</span>
+											<span class="validate-yaml-upgrade__count">
+												{upgradeReport.newWarnings.length} new warning{upgradeReport.newWarnings.length === 1 ? '' : 's'}
+											</span>
+											<span class="validate-yaml-upgrade__count">
+												{upgradeReport.resolved.length} fixed by upgrading
+											</span>
+											<button type="button" class="validate-yaml-issue-schema-link" on:click={switchToUpgradeTarget}>
+												Switch to {upgradeReport.to}
+											</button>
+										</header>
+										{#if upgradeReport.breaking.length === 0 && upgradeReport.newWarnings.length === 0}
+											<p class="validate-yaml-upgrade__ok">
+												Nothing new breaks on {upgradeReport.to}.
+											</p>
+										{/if}
+										{#each [{ title: 'Breaks on the target release', items: upgradeReport.breaking }, { title: 'New warnings', items: upgradeReport.newWarnings }] as group (group.title)}
+											{#if group.items.length > 0}
+												<p class="validate-yaml-upgrade__title">{group.title}</p>
+												<ul class="validate-yaml-upgrade__list">
+													{#each group.items as item (item.id)}
+														<li>
+															<button type="button" on:click={() => jumpToIssue(item)}>
+																{#if item.line}<span class="validate-yaml-issue-line">L{item.line}</span>{/if}
+																{item.message}
+															</button>
+														</li>
+													{/each}
+												</ul>
+											{/if}
+										{/each}
+									{:else}
+										<p class="validate-yaml-upgrade__ok">Checking against the target release…</p>
+									{/if}
+								</section>
+							{/if}
 							{#if displayIssues.length > 0}
 								<div class="validate-yaml-issues-filters validate-yaml-issues-filters--diagnostics">
 									<div class="validate-yaml-filter-tabs" role="tablist" aria-label="Filter issues">
@@ -1866,6 +2065,17 @@
 															{/if}
 														</button>
 														<div class="validate-yaml-issue__actions">
+															{#if deprecationTarget(issue)}
+																<button
+																	type="button"
+																	class="validate-yaml-issue-fix-link"
+																	disabled={isFixingAll}
+																	title="Rewrite apiVersion and move fields to the new schema, then review the changes"
+																	on:click={(e) => migrateDeprecatedDocument(issue, e)}
+																>
+																	Migrate to {deprecationTarget(issue)?.split('/')[1]}
+																</button>
+															{/if}
 															{#if issueFixAvailable(issue)}
 																<button
 																	type="button"
@@ -1986,6 +2196,7 @@
 	beforeYaml={fixAllReviewBefore}
 	afterYaml={fixAllReviewAfter}
 	changes={fixAllReviewChanges}
+	title={fixAllReviewTitle}
 	onClose={closeFixAllReview}
 	onRevert={handleRevertFixAll}
 />

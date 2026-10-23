@@ -207,7 +207,9 @@ const EXTERNAL_REFERENCE_PATTERNS: RegExp[] = [
 	/\bauthsecretref\b/i,
 	/\bsecret to use when pulling\b/i,
 	/\bcertmanager issuer\b/i,
-	/\bgit hash or tag\b/i
+	/\bgit hash or tag\b/i,
+	// Wildcard references ("Reference to any EDA Resource") name no specific kind to link to.
+	/\breference to any (?:eda )?resource\b/i
 ];
 
 /** Field-path hints when kind name is ambiguous (e.g. Interface). */

@@ -9,9 +9,11 @@
 		changes: FixAllChange[];
 		onClose: () => void;
 		onRevert: () => void;
+		/** Heading; defaults to the AI Fix wording. */
+		title?: string;
 	}
 
-	let { open, beforeYaml, afterYaml, changes, onClose, onRevert }: Props = $props();
+	let { open, beforeYaml, afterYaml, changes, onClose, onRevert, title }: Props = $props();
 
 	function handleBackdropClick(event: MouseEvent) {
 		if (event.target === event.currentTarget) onClose();
@@ -37,7 +39,7 @@
 			<header class="fix-all-panel__header">
 				<div>
 					<h2 id="fix-all-title" class="fix-all-panel__title">
-						AI Fix — {changeCount} change{changeCount === 1 ? '' : 's'} applied
+						{title ?? 'AI Fix'} — {changeCount} change{changeCount === 1 ? '' : 's'} applied
 					</h2>
 					<p class="fix-all-panel__subtitle">Review what changed before keeping or reverting.</p>
 				</div>
@@ -47,6 +49,13 @@
 			</header>
 
 			<div class="fix-all-panel__body">
+				{#if changes.length > 0}
+					<ul class="fix-all-panel__changes">
+						{#each changes as change, i (i)}
+							<li>{change.label}</li>
+						{/each}
+					</ul>
+				{/if}
 				<section class="fix-all-panel__diff-section">
 					<h3 class="fix-all-panel__section-title">Before / After</h3>
 					{#key beforeYaml}

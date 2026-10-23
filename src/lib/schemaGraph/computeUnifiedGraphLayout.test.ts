@@ -594,7 +594,7 @@ describe('computeUnifiedGraphLayout', () => {
 	it('listSchemaRootOptions filters platform DTOs for flowsampling when show-all is off', () => {
 		const flowSpecPath = path.join(
 			process.cwd(),
-			'static/openapi/26.4.3/apps/flowsampling.eda.nokia.com/v1alpha1/flowsampling.json'
+			'static/openapi/26.8.2/apps/flowsampling.eda.nokia.com/v1alpha1/flowsampling.json'
 		);
 		const flowSpec = JSON.parse(fs.readFileSync(flowSpecPath, 'utf8')) as Record<
 			string,

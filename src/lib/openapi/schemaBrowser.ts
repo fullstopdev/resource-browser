@@ -779,7 +779,8 @@ function buildSingleSchemaEntry(
 		description: entryDescription(schema),
 		properties: eagerProperties ? buildPropertyTree(spec, name, schema, options) : [],
 		presentation,
-		crdCatalogHref: presentation.kind && options.crdCatalogLinks?.get(presentation.kind),
+		crdCatalogHref:
+			(presentation.kind && options.crdCatalogLinks?.get(presentation.kind)) || undefined,
 		extensions,
 		edaExtension: edaExtension ?? undefined
 	};

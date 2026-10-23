@@ -22,6 +22,17 @@ flowchart LR
   T --> E
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on pull requests:
+
+| Job                           | Steps                                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Type check, unit tests, audit | `npm ci`, `npm run check`, server unit tests, `npm audit --audit-level=high`                                            |
+| End-to-end                    | Build, Chromium, Playwright (`e2e/docs.test.ts`, `e2e/validate-yaml.test.ts`); the report is uploaded when a test fails |
+
+Node.js comes from `.node-version`. Workers AI is never called in CI.
+
 ## Running tests
 
 ```bash

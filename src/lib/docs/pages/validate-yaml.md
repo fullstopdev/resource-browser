@@ -80,6 +80,42 @@ present, a warning explains that `status` is written by the controller.
 
 Schemas are downloaded once and cached with their compiled validators, so revalidating is fast.
 
+## Upgrade check
+
+Planning an EDA upgrade? Pick a newer release in **Upgrade check** (next to the release picker). The
+page validates the same YAML against that release too and shows:
+
+- **Breaks on the target release** — errors only the newer release reports: removed or renamed
+  fields, new required fields, changed types or enums, removed or deprecated API versions;
+- **New warnings** on the target release;
+- how many current issues the upgrade **fixes**.
+
+Click an item to jump to its line, or **Switch to …** to validate against the target from now on.
+The comparison is exact because it uses the target release's real schemas, not a summary of
+release notes.
+
+```mermaid
+flowchart LR
+  Y["Your YAML"] --> A["Validate on current release"]
+  Y --> B["Validate on target release"]
+  A --> C["Compare issues by document, field and message"]
+  B --> C
+  C --> R["Breaking, new warnings, fixed by upgrading"]
+```
+
+## Migrating a deprecated version
+
+When a document uses a deprecated `apiVersion`, its issue has a **Migrate to vN** button. It:
+
+1. rewrites `apiVersion` to the latest version;
+2. wraps values that became objects in the new schema — for example BridgeDomain
+   `macLearning: true` becomes `macLearning: { enabled: true }` — keeping your formatting and
+   comments;
+3. runs the regular one-click fixes (renames, moved fields) against the new schema;
+4. shows a before/after review you can keep or revert.
+
+Anything that still needs a decision stays in the issue list, where **AI Fix** can take over.
+
 ## Understanding an issue
 
 Each issue on a `spec` field has an **Explain** button. It shows, straight from the CRD schema and

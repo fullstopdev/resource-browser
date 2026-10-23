@@ -20,7 +20,8 @@ export type SuggestedFix = {
 	field: SuggestedFixField | string;
 	value: string;
 	line?: number;
-	action?: 'setValue' | 'renameKey';
+	/** Same actions as validate-bundle's SuggestedFix, so fixes flow between the two layers. */
+	action?: 'setValue' | 'renameKey' | 'addField' | 'relocateField';
 };
 
 export type EnrichedError = ErrorObject & {

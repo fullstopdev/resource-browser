@@ -16,7 +16,11 @@ function topologyCtx(): YamlCompletionContext {
 		resolve(process.cwd(), 'static/resources/26.4.2/topologies.topologies.eda.nokia.com/v1.yaml'),
 		'utf8'
 	);
-	const spec = loadStaticYaml(text).schema?.openAPIV3Schema?.properties?.spec;
+	const spec = (
+		loadStaticYaml(text) as {
+			schema?: { openAPIV3Schema?: { properties?: { spec?: unknown } } };
+		}
+	).schema?.openAPIV3Schema?.properties?.spec;
 	const yaml = `apiVersion: topologies.eda.nokia.com/v1
 kind: Topology
 metadata:

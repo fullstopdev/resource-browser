@@ -148,10 +148,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` runs the `prebuild` generators (sitemap, release notes, OpenAPI manifests, schema graphs) first.
-
-> [!WARNING]
-> `build:cloudflare` and the `deploy:cloudflare*` scripts call `vite build` directly and **skip** `prebuild`. Run `npm run build` (or the generators) and commit the generated files before deploying.
+`npm run build` and `npm run build:cloudflare` both run `npm run generate:all` first (sitemap, release notes, OpenAPI manifests, schema graphs), so a deploy never ships stale generated data. Commit the regenerated files with your change.
 
 ---
 
