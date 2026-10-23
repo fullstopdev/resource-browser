@@ -7,7 +7,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "accountingpolicystates.aaa.eda.nokia.com",
@@ -17,7 +18,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "aggregateroutes.protocols.eda.nokia.com",
@@ -32,7 +34,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "alarmdefinitions.core.eda.nokia.com",
@@ -42,7 +45,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "alarmoverlays.topologies.eda.nokia.com",
@@ -56,7 +60,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "alarmpolicies.core.eda.nokia.com",
@@ -66,7 +71,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "alarms.core.eda.nokia.com",
@@ -76,7 +82,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "allocations.netbox.eda.nokia.com",
@@ -87,7 +94,8 @@
         "name": "v1alpha1",
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "analyzealarms.interfaces.eda.nokia.com",
@@ -177,7 +185,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "associationpolicies.microsegmentation.eda.nokia.com",
@@ -187,7 +196,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "associationpolicystates.microsegmentation.eda.nokia.com",
@@ -222,7 +232,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "authenticationpolicystates.aaa.eda.nokia.com",
@@ -232,7 +243,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "backends.aifabrics.eda.nokia.com",
@@ -247,7 +259,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "backendstates.aifabrics.eda.nokia.com",
@@ -276,7 +289,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bannerstates.siteinfo.eda.nokia.com",
@@ -320,7 +334,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bgpgroupstates.protocols.eda.nokia.com",
@@ -349,7 +364,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bgppeerstates.protocols.eda.nokia.com",
@@ -373,7 +389,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "branches.core.eda.nokia.com",
@@ -383,7 +400,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "breakouts.interfaces.eda.nokia.com",
@@ -398,7 +416,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bridgedomaindeployments.services.eda.nokia.com",
@@ -423,7 +442,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bridgedomaininterconnectstates.services.eda.nokia.com",
@@ -448,7 +468,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bridgedomainstates.services.eda.nokia.com",
@@ -477,7 +498,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "bridgeinterfacestates.services.eda.nokia.com",
@@ -501,7 +523,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "certificatechecks.certcheck.eda.nokia.com",
@@ -511,7 +534,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "chassis.components.eda.nokia.com",
@@ -526,7 +550,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "checkdefaultbgppeerss.protocols.eda.nokia.com",
@@ -565,7 +590,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clienttables.core.eda.nokia.com",
@@ -575,7 +601,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "cliplugins.environment.eda.nokia.com",
@@ -599,7 +626,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterdestinations.remotewrite.eda.nokia.com",
@@ -614,7 +642,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterdestinations.snmp.eda.nokia.com",
@@ -624,7 +653,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterdiscoveries.components.eda.nokia.com",
@@ -650,7 +680,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterexports.nats.eda.nokia.com",
@@ -665,7 +696,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterexports.remotewrite.eda.nokia.com",
@@ -680,7 +712,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustergithubactions.github.eda.nokia.com",
@@ -690,7 +723,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustergithubinstances.github.eda.nokia.com",
@@ -700,7 +734,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustergithubissues.github.eda.nokia.com",
@@ -710,7 +745,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustergitlabinstances.gitlab.eda.nokia.com",
@@ -720,7 +756,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustergitlabissues.gitlab.eda.nokia.com",
@@ -730,7 +767,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustergitlabpipelines.gitlab.eda.nokia.com",
@@ -740,7 +778,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterincidents.snow.eda.nokia.com",
@@ -751,7 +790,8 @@
         "name": "v1alpha1",
         "appVersion": "v3.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterinstances.snow.eda.nokia.com",
@@ -762,7 +802,8 @@
         "name": "v1alpha1",
         "appVersion": "v3.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustermetricexports.otlp.eda.nokia.com",
@@ -773,7 +814,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusternotifiers.notifiers.eda.nokia.com",
@@ -784,7 +826,8 @@
         "name": "v1",
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterpagers.pagers.eda.nokia.com",
@@ -795,7 +838,8 @@
         "name": "v1alpha1",
         "appVersion": "v3.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterproducers.kafka.eda.nokia.com",
@@ -810,7 +854,8 @@
         "deprecated": true,
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterproviders.core.eda.nokia.com",
@@ -820,7 +865,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterproviders.notifiers.eda.nokia.com",
@@ -831,7 +877,8 @@
         "name": "v1",
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterpublishers.nats.eda.nokia.com",
@@ -846,7 +893,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterreceivers.otlp.eda.nokia.com",
@@ -857,7 +905,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterroles.core.eda.nokia.com",
@@ -867,7 +916,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterservers.influxdb.eda.nokia.com",
@@ -878,7 +928,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustersimlinks.core.eda.nokia.com",
@@ -888,7 +939,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clusterstandardouts.stdout.eda.nokia.com",
@@ -898,7 +950,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustersubscribers.natsimporter.eda.nokia.com",
@@ -908,7 +961,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustertopolinks.core.eda.nokia.com",
@@ -918,7 +972,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "clustertopolinkstates.topologies.eda.nokia.com",
@@ -938,7 +993,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "communitysetdeployments.routingpolicies.eda.nokia.com",
@@ -968,7 +1024,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "components.components.eda.nokia.com",
@@ -983,7 +1040,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "configlets.config.eda.nokia.com",
@@ -998,7 +1056,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "configletstates.config.eda.nokia.com",
@@ -1027,7 +1086,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "connectinterfaces.connect.eda.nokia.com",
@@ -1042,7 +1102,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "connectpluginactionables.connect.eda.nokia.com",
@@ -1057,7 +1118,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "connectpluginheartbeats.connect.eda.nokia.com",
@@ -1087,7 +1149,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "consumers.kafkaimporter.eda.nokia.com",
@@ -1097,7 +1160,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "controlmodules.components.eda.nokia.com",
@@ -1112,7 +1176,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "controlplanefilters.filters.eda.nokia.com",
@@ -1127,7 +1192,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "cpuoverlays.components.eda.nokia.com",
@@ -1187,7 +1253,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultbgpgroupdeployments.protocols.eda.nokia.com",
@@ -1217,7 +1284,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultbgppeers.protocols.eda.nokia.com",
@@ -1232,7 +1300,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultinterfaces.routing.eda.nokia.com",
@@ -1247,7 +1316,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultinterfacestates.routing.eda.nokia.com",
@@ -1281,7 +1351,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultisisinterfaces.protocols.eda.nokia.com",
@@ -1291,7 +1362,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultldpinterfaces.mpls.eda.nokia.com",
@@ -1301,7 +1373,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultldprouterdeployments.mpls.eda.nokia.com",
@@ -1321,7 +1394,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultloopbackinterfaces.routing.eda.nokia.com",
@@ -1331,7 +1405,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultloopbackinterfacestates.routing.eda.nokia.com",
@@ -1355,7 +1430,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultospfareadeployments.protocols.eda.nokia.com",
@@ -1383,7 +1459,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultospfinstancedeployments.protocols.eda.nokia.com",
@@ -1411,7 +1488,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultospfinterfaces.protocols.eda.nokia.com",
@@ -1425,7 +1503,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultroutereflectorclients.protocols.eda.nokia.com",
@@ -1440,7 +1519,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultroutereflectors.protocols.eda.nokia.com",
@@ -1455,7 +1535,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultrouters.routing.eda.nokia.com",
@@ -1470,7 +1551,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "defaultrouterstates.routing.eda.nokia.com",
@@ -1499,7 +1581,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "deployimagepipelines.os.eda.nokia.com",
@@ -1544,7 +1627,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "destinations.remotewrite.eda.nokia.com",
@@ -1559,7 +1643,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "destinations.snmp.eda.nokia.com",
@@ -1569,7 +1654,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "deviationactions.core.eda.nokia.com",
@@ -1579,7 +1665,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "deviationoverlays.topologies.eda.nokia.com",
@@ -1594,7 +1681,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "deviations.core.eda.nokia.com",
@@ -1604,7 +1692,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "dhcprelays.services.eda.nokia.com",
@@ -1619,7 +1708,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "discoveries.components.eda.nokia.com",
@@ -1672,7 +1762,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "dnsclients.siteinfo.eda.nokia.com",
@@ -1682,7 +1773,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "dnsclientstates.siteinfo.eda.nokia.com",
@@ -1692,7 +1784,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "drains.routing.eda.nokia.com",
@@ -1707,7 +1800,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "drainstates.routing.eda.nokia.com",
@@ -1731,7 +1825,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "edgepings.services.eda.nokia.com",
@@ -1761,7 +1856,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "engineconfigs.core.eda.nokia.com",
@@ -1782,7 +1878,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "exports.nats.eda.nokia.com",
@@ -1797,7 +1894,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "exports.prom.eda.nokia.com",
@@ -1808,7 +1906,8 @@
         "name": "v1alpha1",
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "exports.remotewrite.eda.nokia.com",
@@ -1823,7 +1922,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "fabricmodules.components.eda.nokia.com",
@@ -1838,7 +1938,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "fabrics.fabrics.eda.nokia.com",
@@ -1853,7 +1954,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "fabricstates.fabrics.eda.nokia.com",
@@ -1892,7 +1994,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "filterdeployments.filters.eda.nokia.com",
@@ -1922,7 +2025,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "forwardingclasss.qos.eda.nokia.com",
@@ -1937,7 +2041,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ftpservers.management.eda.nokia.com",
@@ -1951,7 +2056,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ftpserverstates.management.eda.nokia.com",
@@ -1975,7 +2081,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "githubinstances.github.eda.nokia.com",
@@ -1985,7 +2092,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "githubissues.github.eda.nokia.com",
@@ -1995,7 +2103,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "gitlabinstances.gitlab.eda.nokia.com",
@@ -2005,7 +2114,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "gitlabissues.gitlab.eda.nokia.com",
@@ -2015,7 +2125,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "gitlabpipelines.gitlab.eda.nokia.com",
@@ -2025,7 +2136,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "globalconfigs.core.eda.nokia.com",
@@ -2055,7 +2167,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "grouptagstates.microsegmentation.eda.nokia.com",
@@ -2079,7 +2192,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "grpcserverstates.management.eda.nokia.com",
@@ -2103,7 +2217,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "httpservers.management.eda.nokia.com",
@@ -2117,7 +2232,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "httpserverstates.management.eda.nokia.com",
@@ -2142,7 +2258,8 @@
         "name": "v1alpha1",
         "appVersion": "v3.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "indexallocationpools.core.eda.nokia.com",
@@ -2152,7 +2269,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ingresspolicys.qos.eda.nokia.com",
@@ -2167,7 +2285,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "inits.bootstrap.eda.nokia.com",
@@ -2181,7 +2300,8 @@
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "instances.netbox.eda.nokia.com",
@@ -2192,7 +2312,8 @@
         "name": "v1alpha1",
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "instances.snow.eda.nokia.com",
@@ -2203,7 +2324,8 @@
         "name": "v1alpha1",
         "appVersion": "v3.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "interfacemodules.components.eda.nokia.com",
@@ -2218,7 +2340,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "interfaces.interfaces.eda.nokia.com",
@@ -2233,7 +2356,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "interfacestates.interfaces.eda.nokia.com",
@@ -2257,7 +2381,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ipinsubnetallocationpools.core.eda.nokia.com",
@@ -2267,7 +2392,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "irbinterfaces.services.eda.nokia.com",
@@ -2282,7 +2408,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "irbinterfacestates.services.eda.nokia.com",
@@ -2316,7 +2443,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "isisinstancestates.protocols.eda.nokia.com",
@@ -2336,7 +2464,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "isisinterfacestates.protocols.eda.nokia.com",
@@ -2376,7 +2505,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "islstates.fabrics.eda.nokia.com",
@@ -2400,7 +2530,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "keychaindeployments.security.eda.nokia.com",
@@ -2415,7 +2546,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "keychains.security.eda.nokia.com",
@@ -2430,7 +2562,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "labelblockdeployments.mpls.eda.nokia.com",
@@ -2450,7 +2583,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ldpinterfacestates.mpls.eda.nokia.com",
@@ -2480,7 +2614,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "lldpoverlays.topologies.eda.nokia.com",
@@ -2495,7 +2630,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "loadimages.os.eda.nokia.com",
@@ -2529,7 +2665,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "logs.logging.eda.nokia.com",
@@ -2539,7 +2676,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "logstates.logging.eda.nokia.com",
@@ -2563,7 +2701,8 @@
         "name": "v1alpha1",
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "managementrouterstates.bootstrap.eda.nokia.com",
@@ -2596,7 +2735,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "mcpprompttemplates.ai.core.eda.nokia.com",
@@ -2606,7 +2746,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "mcpresourcedefinitions.ai.core.eda.nokia.com",
@@ -2616,7 +2757,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "mcpsettings.ai.core.eda.nokia.com",
@@ -2626,7 +2768,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "mcptooldefinitions.ai.core.eda.nokia.com",
@@ -2636,7 +2779,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "memoryoverlays.components.eda.nokia.com",
@@ -2662,7 +2806,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "microsegmentationpolicies.microsegmentation.eda.nokia.com",
@@ -2672,7 +2817,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "microsegmentationpolicystates.microsegmentation.eda.nokia.com",
@@ -2727,7 +2873,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "mirrorstates.oam.eda.nokia.com",
@@ -2770,7 +2917,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "monitorstates.components.eda.nokia.com",
@@ -2804,7 +2952,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "networktopologies.topologies.eda.nokia.com",
@@ -2868,7 +3017,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "nodeprofiles.core.eda.nokia.com",
@@ -2878,7 +3028,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "nodesecurityprofiles.core.eda.nokia.com",
@@ -2888,7 +3039,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "nodeusers.core.eda.nokia.com",
@@ -2898,7 +3050,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "nodeuserstates.aaa.eda.nokia.com",
@@ -2922,7 +3075,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "notifiers.notifiers.eda.nokia.com",
@@ -2933,7 +3087,8 @@
         "name": "v1",
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "nsxedamanagedbridgedomains.nsx.eda.nokia.com",
@@ -2943,7 +3098,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "nsxplugininstances.nsx.eda.nokia.com",
@@ -2957,7 +3113,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "ntpclients.timing.eda.nokia.com",
@@ -2972,7 +3129,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ntpclientstates.timing.eda.nokia.com",
@@ -2996,7 +3154,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "nutanixplugininstances.nutanix.eda.nokia.com",
@@ -3010,7 +3169,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "openstackclientproviderinstances.openstack-client-provider.eda.nokia.com",
@@ -3020,7 +3180,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "ospfareadeployments.protocols.eda.nokia.com",
@@ -3048,7 +3209,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ospfareastates.protocols.eda.nokia.com",
@@ -3090,7 +3252,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ospfinstancestates.protocols.eda.nokia.com",
@@ -3118,7 +3281,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "ospfinterfacestates.protocols.eda.nokia.com",
@@ -3143,7 +3307,8 @@
         "name": "v1alpha1",
         "appVersion": "v3.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "pings.oam.eda.nokia.com",
@@ -3168,7 +3333,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "pipelineruns.core.eda.nokia.com",
@@ -3213,7 +3379,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "policydeployments.qos.eda.nokia.com",
@@ -3228,7 +3395,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "policydeployments.routingpolicies.eda.nokia.com",
@@ -3258,7 +3426,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "powersupplies.components.eda.nokia.com",
@@ -3273,7 +3442,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "prefixsetdeployments.filters.eda.nokia.com",
@@ -3308,7 +3478,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "prefixsets.routingpolicies.eda.nokia.com",
@@ -3323,7 +3494,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "producers.kafka.eda.nokia.com",
@@ -3338,7 +3510,8 @@
         "deprecated": true,
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "providers.ai.core.eda.nokia.com",
@@ -3348,7 +3521,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "providers.notifiers.eda.nokia.com",
@@ -3359,7 +3533,8 @@
         "name": "v1",
         "appVersion": "v4.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "publishers.nats.eda.nokia.com",
@@ -3374,7 +3549,8 @@
         "deprecated": true,
         "appVersion": "v2.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "queues.qos.eda.nokia.com",
@@ -3389,7 +3565,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "reboots.components.eda.nokia.com",
@@ -3410,7 +3587,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "registries.appstore.eda.nokia.com",
@@ -3420,7 +3598,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "roles.core.eda.nokia.com",
@@ -3430,7 +3609,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "rotatecertificates.bootstrap.eda.nokia.com",
@@ -3455,7 +3635,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "routedinterfacestates.services.eda.nokia.com",
@@ -3514,7 +3695,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "routereflectorclientstates.protocols.eda.nokia.com",
@@ -3543,7 +3725,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "routereflectorstates.protocols.eda.nokia.com",
@@ -3567,7 +3750,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "routerinterconnectstates.services.eda.nokia.com",
@@ -3592,7 +3776,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "routerstates.services.eda.nokia.com",
@@ -3650,7 +3835,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "satellites.bootstrap.eda.nokia.com",
@@ -3660,7 +3846,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "satellitestates.bootstrap.eda.nokia.com",
@@ -3680,7 +3867,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "servergroupstates.aaa.eda.nokia.com",
@@ -3690,7 +3878,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "servers.influxdb.eda.nokia.com",
@@ -3701,7 +3890,8 @@
         "name": "v1alpha1",
         "appVersion": "v1.0.0"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "setupenvs.environment.eda.nokia.com",
@@ -3726,7 +3916,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "sflowstates.flowsampling.eda.nokia.com",
@@ -3756,7 +3947,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "simlinks.core.eda.nokia.com",
@@ -3766,7 +3958,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "simnodes.core.eda.nokia.com",
@@ -3776,7 +3969,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "slashcommands.discord.eda.nokia.com",
@@ -3786,7 +3980,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "snmpservers.management.eda.nokia.com",
@@ -3796,7 +3991,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "snmpserverstates.management.eda.nokia.com",
@@ -3806,7 +4002,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "sources.logging.eda.nokia.com",
@@ -3816,7 +4013,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "sshservers.management.eda.nokia.com",
@@ -3830,7 +4028,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "sshserverstates.management.eda.nokia.com",
@@ -3854,7 +4053,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "stateconfigs.services.eda.nokia.com",
@@ -3884,7 +4084,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "subnetallocationpools.core.eda.nokia.com",
@@ -3894,7 +4095,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "subscribers.natsimporter.eda.nokia.com",
@@ -3904,7 +4106,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "systeminterfaces.routing.eda.nokia.com",
@@ -3919,7 +4122,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "systeminterfacestates.routing.eda.nokia.com",
@@ -3947,7 +4151,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "systemloadbalancerstates.siteinfo.eda.nokia.com",
@@ -4003,7 +4208,8 @@
         "name": "v1alpha1",
         "deprecated": true
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "targetnodes.core.eda.nokia.com",
@@ -4043,7 +4249,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "thresholds.platformmetrics.eda.nokia.com",
@@ -4063,7 +4270,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "topobreakouts.core.eda.nokia.com",
@@ -4073,7 +4281,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "topolinkmonitors.topologies.eda.nokia.com",
@@ -4098,7 +4307,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "topolinkstates.topologies.eda.nokia.com",
@@ -4127,7 +4337,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "topologygroupings.topologies.eda.nokia.com",
@@ -4142,7 +4353,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "toponodes.core.eda.nokia.com",
@@ -4152,7 +4364,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "traceroutes.oam.eda.nokia.com",
@@ -4177,7 +4390,8 @@
         "deprecated": true,
         "appVersion": "v4.0.1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "transactionpipelinerunners.core.eda.nokia.com",
@@ -4217,7 +4431,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "udpproxies.core.eda.nokia.com",
@@ -4227,7 +4442,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "userdeployments.aaa.eda.nokia.com",
@@ -4267,7 +4483,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "virtualnetworkstates.services.eda.nokia.com",
@@ -4296,7 +4513,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "vlanstates.services.eda.nokia.com",
@@ -4320,7 +4538,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "vmwareplugininstances.vmware.eda.nokia.com",
@@ -4334,7 +4553,8 @@
       {
         "name": "v2"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "volumechecks.certcheck.eda.nokia.com",
@@ -4344,7 +4564,8 @@
       {
         "name": "v1alpha1"
       }
-    ]
+    ],
+    "scope": "Namespaced"
   },
   {
     "name": "volumeoverlays.components.eda.nokia.com",
@@ -4379,7 +4600,8 @@
       {
         "name": "v1"
       }
-    ]
+    ],
+    "scope": "Cluster"
   },
   {
     "name": "workflows.core.eda.nokia.com",

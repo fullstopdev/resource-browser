@@ -34,11 +34,6 @@ flowchart TB
     A3 --> A4["Release names resolved from a fixed list, path segments validated"]
     A4 --> A5["Fixes verified before they are returned or cached"]
   end
-  subgraph PX["POST /api/openapi-proxy"]
-    P1["Body at most 5 MB"] --> P2["Target origin must be the one configured EDA API"]
-    P2 --> P3["Redirects not followed"]
-    P3 --> P4["Host, cookie and hop-by-hop headers dropped, generic errors"]
-  end
   subgraph CS["GET /api/cache-status"]
     C1["Per-CRD lookups: a few KV reads"] --> C2["Full summary requires a bearer token"]
   end
@@ -49,8 +44,8 @@ flowchart TB
   it directly, so add a Cloudflare rate-limiting rule (below).
 - **Shared cache integrity.** AI fixes are cached under a hash of the full prompt and only after
   server-side verification, so one client can't plant a bad fix that others receive.
-- **No server-side request forgery.** The proxy only talks to one configured origin and never
-  follows redirects, so it can't be bounced to internal addresses.
+- **No outbound proxy.** The site has no endpoint that forwards requests to other hosts, so it
+  can't be used to reach internal addresses (an earlier unused proxy route was removed).
 - **Cache summary.** `?summary=true` scans every CRD of a release (hundreds of KV reads). It is
   disabled unless the `CACHE_STATUS_TOKEN` secret is set, and then requires
   `Authorization: Bearer …`.

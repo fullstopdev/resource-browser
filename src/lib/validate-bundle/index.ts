@@ -1,6 +1,22 @@
 import { parseBundleResources } from './parser';
 import { validateBundleSchema } from './schemaValidator';
 import { validateEdaRules } from './edaRules';
+import { checkBundleReferences } from './bundleReferences';
+import type { DependencyGraph } from '$lib/dependency-map/types';
+
+/** Precomputed dependency graph per release folder (for reference checks); null when missing. */
+const graphCache = new Map<string, Promise<DependencyGraph | null>>();
+
+function loadDependencyGraph(releaseFolder: string): Promise<DependencyGraph | null> {
+	let pending = graphCache.get(releaseFolder);
+	if (!pending) {
+		pending = fetch(`/${releaseFolder}/dependency-graph.json`)
+			.then((res) => (res.ok ? (res.json() as Promise<DependencyGraph>) : null))
+			.catch(() => null);
+		graphCache.set(releaseFolder, pending);
+	}
+	return pending;
+}
 import { isK8sStructuralSchemaIssue, validateK8sRules } from './k8sRules';
 import type {
 	BundleIssue,
@@ -129,11 +145,14 @@ export async function validateBundle(options: ValidateBundleOptions): Promise<Bu
 		};
 	}
 
-	const k8sIssues = validateK8sRules(resources);
+	const k8sIssues = validateK8sRules(resources, manifest);
 	const schemaIssues = (
 		await validateBundleSchema(yamlInput, resources, releaseFolder, releaseLabel, manifest)
 	).filter((issue) => !isK8sStructuralSchemaIssue(issue));
-	const edaIssues = validateEdaRules(resources);
+	const edaIssues = [
+		...validateEdaRules(resources),
+		...checkBundleReferences(resources, manifest, await loadDependencyGraph(releaseFolder))
+	];
 
 	const issues = [...parseIssues, ...k8sIssues, ...schemaIssues, ...edaIssues];
 	const summary = buildSummary(issues, resources.length);

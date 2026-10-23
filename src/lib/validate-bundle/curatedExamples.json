@@ -23,8 +23,8 @@
 			"group": "core.eda.nokia.com",
 			"kind": "TopoNode",
 			"apiVersion": "core.eda.nokia.com/v1",
-			"source": "https://docs.eda.dev/26.8/user-guide/containerlab-integration/",
-			"yaml": "apiVersion: core.eda.nokia.com/v1\nkind: TopoNode\nmetadata:\n  name: clab-vlan-srl1\n  labels:\n    eda.nokia.com/security-profile: managed\n  namespace: eda\nspec:\n  nodeProfile: srlinux-clab-24.10.1\n  operatingSystem: srl\n  platform: 7220 IXR-D2L\n  version: 24.10.1\n  productionAddress:\n    ipv4: $(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' clab-vlan-srl1)\n"
+			"source": "https://docs.eda.dev/26.8/user-guide/network-topology/",
+			"yaml": "apiVersion: core.eda.nokia.com/v1\nkind: TopoNode\nmetadata:\n  name: leaf1\n  labels:\n    eda.nokia.com/security-profile: managed\n    eda.nokia.com/role: leaf\n  namespace: eda\nspec:\n  nodeProfile: srlinux-ghcr-26.7.1\n  operatingSystem: srl\n  platform: 7220 IXR-D3L\n  version: 26.7.1\n  productionAddress:\n    ipv4: 192.168.1.101\n  npp:\n    mode: normal\n"
 		},
 		{
 			"label": "TopoLink",
@@ -40,7 +40,7 @@
 			"kind": "BridgeDomain",
 			"apiVersion": "services.eda.nokia.com/v2",
 			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/bridgedomain/",
-			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: BridgeDomain\nmetadata:\n  name: stretched-l2\n  namespace: services\nspec:\n  encapOptions:\n    vxlan:\n      tunnelIndexPool: tunnel-index-pool\n      vniPool: vni-pool\n  eviPool: evi-pool\n  macLearning:\n    agingTimeSeconds: 300\n    enabled: true\n  type: EVPNVXLAN\n"
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: BridgeDomain\nmetadata:\n  name: stretched-l2\n  namespace: eda\nspec:\n  encapOptions:\n    vxlan:\n      tunnelIndexPool: tunnel-index-pool\n      vniPool: vni-pool\n  eviPool: evi-pool\n  macLearning:\n    agingTimeSeconds: 300\n    enabled: true\n  type: EVPNVXLAN\n"
 		},
 		{
 			"label": "BridgeInterface",
@@ -48,7 +48,7 @@
 			"kind": "BridgeInterface",
 			"apiVersion": "services.eda.nokia.com/v2",
 			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/bridgeinterface/",
-			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: BridgeInterface\nmetadata:\n  namespace: services\n  name: hypervisor-11\nspec:\n  bridgeDomain: stretched-l2\n  vlanID: '123'\n  interface: dc1-leaf3-ethernet-1-1\n"
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: BridgeInterface\nmetadata:\n  namespace: eda\n  name: hypervisor-11\nspec:\n  bridgeDomain: stretched-l2\n  vlanID: '123'\n  interface: dc1-leaf3-ethernet-1-1\n"
 		},
 		{
 			"label": "VLAN",
@@ -56,7 +56,7 @@
 			"kind": "VLAN",
 			"apiVersion": "services.eda.nokia.com/v2",
 			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/vlan/",
-			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: VLAN\nmetadata:\n  name: stretched-l2-vlan\n  namespace: services\nspec:\n  bridgeDomain: stretched-l2\n  interfaceSelectors:\n    - edge-type = compute\n    - edge-type = storage\n  vlanID: '100'\n"
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: VLAN\nmetadata:\n  name: stretched-l2-vlan\n  namespace: eda\nspec:\n  bridgeDomain: stretched-l2\n  interfaceSelectors:\n    - edge-type = compute\n    - edge-type = storage\n  vlanID: '100'\n"
 		},
 		{
 			"label": "Router",
@@ -64,7 +64,7 @@
 			"kind": "Router",
 			"apiVersion": "services.eda.nokia.com/v2",
 			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/router/",
-			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: Router\nmetadata:\n  namespace: services\n  name: my-router\nspec:\n  type: EVPNVXLAN\n  eviPool: evi-pool\n  bgp:\n    enabled: true\n    rapidWithdrawl: true\n    waitForFIBInstall: false\n    minWaitToAdvertiseSeconds: 0\n    ebgpPreference: 170\n    ibgpPreference: 170\n    ipv4Unicast:\n      enabled: true\n"
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: Router\nmetadata:\n  namespace: eda\n  name: my-router\nspec:\n  type: EVPNVXLAN\n  eviPool: evi-pool\n  bgp:\n    enabled: true\n    rapidWithdrawl: true\n    waitForFIBInstall: false\n    minWaitToAdvertiseSeconds: 0\n    ebgpPreference: 170\n    ibgpPreference: 170\n    ipv4Unicast:\n      enabled: true\n"
 		},
 		{
 			"label": "IRBInterface",
@@ -80,7 +80,7 @@
 			"kind": "RoutedInterface",
 			"apiVersion": "services.eda.nokia.com/v2",
 			"source": "https://docs.eda.dev/26.8/apps/services.eda.nokia.com/resources/routedinterface/",
-			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: RoutedInterface\nmetadata:\n  name: internet-gateway\n  namespace: scale-across\nspec:\n  interface: dc1-leaf-1-ethernet-1-8\n  ipMTU: 1500\n  router: compute-vrf\n  vlanID: '909'\n  vlanPool: vlan-pool\n"
+			"yaml": "apiVersion: services.eda.nokia.com/v2\nkind: RoutedInterface\nmetadata:\n  name: internet-gateway\n  namespace: eda\nspec:\n  interface: dc1-leaf-1-ethernet-1-8\n  ipMTU: 1500\n  router: compute-vrf\n  vlanID: '909'\n  vlanPool: vlan-pool\n"
 		},
 		{
 			"label": "VirtualNetwork",
@@ -128,7 +128,7 @@
 			"kind": "ASPathSet",
 			"apiVersion": "routingpolicies.eda.nokia.com/v1",
 			"source": "https://docs.eda.dev/26.8/apps/routingpolicies.eda.nokia.com/resources/aspathset/",
-			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: ASPathSet\nmetadata:\n  name: leaf-asns\n  namespace: routingpolicies\nspec:\n  members:\n    - '^[100-109]'\n  regexMode: ASN\n"
+			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: ASPathSet\nmetadata:\n  name: leaf-asns\n  namespace: eda\nspec:\n  members:\n    - '^[100-109]'\n  regexMode: ASN\n"
 		},
 		{
 			"label": "Policy (routing)",
@@ -136,7 +136,7 @@
 			"kind": "Policy",
 			"apiVersion": "routingpolicies.eda.nokia.com/v1",
 			"source": "https://docs.eda.dev/26.8/apps/routingpolicies.eda.nokia.com/resources/policy/",
-			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: Policy\nmetadata:\n  name: process-tagged-routes\n  namespace: routingpolicies\nspec:\n  defaultAction:\n    policyResult: Accept\n  statements:\n    - action:\n        policyResult: Reject\n      match:\n        tags:\n          tagSet: no-export\n      name: reject routes with no-export tag\n"
+			"yaml": "apiVersion: routingpolicies.eda.nokia.com/v1\nkind: Policy\nmetadata:\n  name: process-tagged-routes\n  namespace: eda\nspec:\n  defaultAction:\n    policyResult: Accept\n  statements:\n    - action:\n        policyResult: Reject\n      match:\n        tags:\n          tagSet: no-export\n      name: reject routes with no-export tag\n"
 		},
 		{
 			"label": "Configlet",

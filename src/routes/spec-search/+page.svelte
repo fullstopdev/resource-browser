@@ -4,7 +4,6 @@
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
-    // AnimatedBackground is dynamically imported/rendered by the layout; avoid importing here to keep it lazy
     import AppHeader from '$lib/components/AppHeader.svelte';
     import PageCredits from '$lib/components/PageCredits.svelte';
     import ResourceModal from '$lib/components/ResourceModal.svelte';

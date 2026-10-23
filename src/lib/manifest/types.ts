@@ -4,4 +4,6 @@ export type ManifestResource = {
 	kind?: string;
 	group?: string;
 	versions?: { name: string; deprecated?: boolean; appVersion?: string }[];
+	/** From the release's OpenAPI paths (scripts/build-crd-scopes.ts); absent when unknown. */
+	scope?: 'Namespaced' | 'Cluster';
 };

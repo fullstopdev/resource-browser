@@ -12,8 +12,6 @@ declare global {
 			env: {
 				AI: Ai;
 				AI_CACHE?: KVNamespace;
-				CRD_INDEX?: VectorizeIndex;
-				DOCS_INDEX?: VectorizeIndex;
 			};
 			/** Cloudflare execution context (waitUntil for background KV writes). */
 			context?: ExecutionContext;

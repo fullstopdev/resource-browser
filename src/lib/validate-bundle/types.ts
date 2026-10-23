@@ -5,7 +5,7 @@ export type IssueSeverity = 'error' | 'warning' | 'info';
 export type IssueCategory = 'schema' | 'eda' | 'kubernetes';
 
 /** Sub-type for EDA manifest rules not covered by CRD schema validation. */
-export type EdaIssueRule = 'duplicate-resource' | 'apiversion-mismatch';
+export type EdaIssueRule = 'duplicate-resource' | 'apiversion-mismatch' | 'missing-reference';
 
 /** Sub-type for standard Kubernetes manifest requirements. */
 export type K8sIssueRule =
@@ -21,7 +21,8 @@ export type K8sIssueRule =
 	| 'invalid-label-key'
 	| 'invalid-label-value'
 	| 'invalid-annotation-key'
-	| 'spec-with-status';
+	| 'spec-with-status'
+	| 'cluster-scoped-namespace';
 
 export type SuggestedFixField = 'apiVersion' | 'kind' | 'metadata.name' | 'metadata.namespace';
 

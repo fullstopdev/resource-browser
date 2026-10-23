@@ -144,10 +144,9 @@ model or a prompt.
 | Variable                | Effect                                                         |
 | ----------------------- | -------------------------------------------------------------- |
 | `PUBLIC_FIX_AI_ENABLED` | `false` disables AI features (UI and endpoint). On by default. |
-| `PUBLIC_ASK_AI_ENABLED` | Reserved for an Ask-AI panel; currently unused.                |
 
-The **lean** deploy (`npm run deploy:cloudflare:lean`) turns both off and deploys without any
-AI, KV or Vectorize bindings.
+The **lean** deploy (`npm run deploy:cloudflare:lean`) turns it off and deploys without the AI
+and KV bindings.
 
 ## Warming the cache
 

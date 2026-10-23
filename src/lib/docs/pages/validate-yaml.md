@@ -58,7 +58,8 @@ flowchart LR
 
 1. **Parsing**: YAML syntax errors, with line numbers.
 2. **Kubernetes rules**: `apiVersion` format, resource names (DNS subdomain and label rules), label
-   keys and values.
+   keys and values, and `metadata.namespace` — required for namespaced kinds; for cluster-scoped
+   kinds (Topology, Cluster… kinds, …) a namespace is flagged as ignored.
 3. **Schema lookup**: the document's `kind` and API group are matched to a CRD in the selected
    release, and the **version the document declares** is used. A deprecated version is still
    checked against its own schema, with a deprecation warning.
@@ -72,8 +73,12 @@ flowchart LR
    - CEL rules (`x-kubernetes-validations`) are **shown as Info hints** — the cluster enforces them,
      this page doesn't evaluate them;
    - booleans that aren't lowercase (`True`, `FALSE`).
-6. **Bundle rules**: the same resource (kind, namespace, name) defined twice, and duplicates that
-   use different `apiVersion`s.
+6. **Bundle rules**: the same resource (kind, namespace, name) defined twice, duplicates that
+   use different `apiVersion`s, and **references to resources that aren't in the bundle** — for
+   example a BridgeInterface whose `spec.bridgeDomain` names a BridgeDomain the bundle doesn't
+   define. These are **Info** notes (the resource may already exist in the cluster); namespaces are
+   taken into account, and only fields the release's dependency graph knows to hold a resource
+   name are checked.
 
 `status` is validated only for documents without `spec` (for example exported state). When both are
 present, a warning explains that `status` is written by the controller.

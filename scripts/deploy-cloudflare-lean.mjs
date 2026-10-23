@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Deploy Cloudflare Pages without Workers AI / Vectorize / KV bindings.
+ * Deploy Cloudflare Pages without Workers AI / KV bindings.
  * Restores wrangler.toml after deploy (success or failure).
  */
 import { spawnSync } from 'node:child_process';

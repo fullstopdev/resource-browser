@@ -1,4 +1,6 @@
+import { findManifestEntry } from '$lib/manifest/lookup';
 import { findLineForPointerInDoc } from '$lib/yaml-validation/parseDocuments';
+import type { ManifestEntry } from '$lib/yaml-validation/types';
 import type { BundleIssue, BundleResource, K8sIssueRule } from './types';
 
 let issueCounter = 0;
@@ -163,7 +165,10 @@ function validateLabelMap(
 	}
 }
 
-export function validateK8sDocument(res: BundleResource): BundleIssue[] {
+export function validateK8sDocument(
+	res: BundleResource,
+	scope?: ManifestEntry['scope']
+): BundleIssue[] {
 	const issues: BundleIssue[] = [];
 	const data = res.data;
 
@@ -275,11 +280,23 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 		}
 
 		const namespace = meta.namespace;
-		if (
+		const namespaceMissing =
 			namespace === undefined ||
 			namespace === null ||
-			(typeof namespace === 'string' && namespace.trim() === '')
-		) {
+			(typeof namespace === 'string' && namespace.trim() === '');
+		if (scope === 'Cluster') {
+			// Cluster-scoped kinds have no namespace; Kubernetes ignores one if it is set.
+			if (!namespaceMissing) {
+				pushIssue(
+					issues,
+					res,
+					'cluster-scoped-namespace',
+					'warning',
+					`${res.kind || 'Resource'} is cluster-scoped — metadata.namespace is ignored and can be removed`,
+					'metadata.namespace'
+				);
+			}
+		} else if (namespaceMissing) {
 			pushIssue(
 				issues,
 				res,
@@ -362,9 +379,17 @@ export function validateK8sDocument(res: BundleResource): BundleIssue[] {
 	return issues;
 }
 
-export function validateK8sRules(resources: BundleResource[]): BundleIssue[] {
+export function validateK8sRules(
+	resources: BundleResource[],
+	manifest: ManifestEntry[] = []
+): BundleIssue[] {
 	issueCounter = 0;
-	return resources.flatMap((res) => validateK8sDocument(res));
+	return resources.flatMap((res) =>
+		validateK8sDocument(
+			res,
+			res.kind && res.group ? findManifestEntry(manifest, res.kind, res.group)?.scope : undefined
+		)
+	);
 }
 
 /** Schema issues that duplicate k8sRules structural checks — CRD resolution errors are kept. */

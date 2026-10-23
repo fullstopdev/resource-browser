@@ -18,6 +18,25 @@ describe('curated Insert example manifests', () => {
 		}
 	});
 
+	// Schema validation alone accepts junk in free-text fields (a docs shell snippet passed it).
+	it.each(curated.examples.map((e) => [e.label, e]))(
+		'%s is a clean, copy-ready manifest',
+		(_, example) => {
+			const junk: Array<[string, RegExp]> = [
+				['shell substitution', /\$\(|\$\{|`/],
+				['shell command', /\b(?:sudo|docker|kubectl|curl)\b/],
+				['template', /\{\{|\}\}/],
+				['placeholder', /<[A-Za-z][^>]*>/],
+				['lab-specific name', /\bclab\b|containerlab/i]
+			];
+			for (const [what, pattern] of junk) {
+				expect(example.yaml, `${example.label} contains a ${what}`).not.toMatch(pattern);
+			}
+			expect(example.yaml).toMatch(/^ {2}namespace: eda$/m);
+			expect(example.yaml.startsWith('apiVersion:')).toBe(true);
+		}
+	);
+
 	it.each(curated.examples.map((e) => [e.label, e]))(
 		'%s validates without errors on its release',
 		async (_, example) => {

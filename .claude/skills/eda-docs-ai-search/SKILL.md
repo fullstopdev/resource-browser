@@ -30,7 +30,10 @@ the QoS kinds are `IngressPolicy`, `EgressPolicy`, `Queue`, …).
    `major.minor` (release `26.8.2` → `26.8`).
 2. Find the assistant: `find` "AI search sparkle button in the header" (fallback: take a
    screenshot and click the ✦ icon left of the theme toggle). Click it.
-3. Type one question and send it. For an example manifest, use this wording:
+3. **Confirm the panel is open before typing** (wait ~3 s, take a screenshot, click inside the
+   "Ask me a question about Nokia EDA" box). Typing too early sends the text to the site's normal
+   search box, and Return opens a search result instead of asking the assistant.
+   Type one question and send it. For an example manifest, use this wording:
 
    > Give one complete, valid example YAML manifest for the `<Kind>` resource
    > (`apiVersion: <group>/<version>`) in Nokia EDA `<docs version>`, with the fields a network
@@ -82,6 +85,18 @@ npm run validate:yaml -- --release 26.8.2 /path/to/example.yaml
 - **Errors:** fix obvious mistakes yourself from the CRD schema (wrong enum case, missing required
   field, wrong type) and re-validate, or ask the AI search a follow-up. Never add an example that
   still has errors.
+
+## Content rules (schema validation isn't enough)
+
+Validation accepts any string in free-text fields, so also check the YAML by eye. Reject or fix:
+
+- shell or template syntax: `$(…)`, `${…}`, backticks, `{{ … }}`, `sudo`, `docker`, `kubectl`;
+- placeholders such as `<node-name>`;
+- lab-specific names (`clab-…`, containerlab hosts);
+- namespaces other than `eda` — set `metadata.namespace: eda`.
+
+Docs pages often embed manifests inside shell heredocs; take the YAML, not the shell around it.
+`curatedExamples.test.ts` enforces these rules.
 
 ## Adding it to Validate YAML → Insert example
 

@@ -55,6 +55,7 @@ flowchart TB
 | OpenAPI manifest   | `npm run generate:openapi-manifest -- --all`   | `static/openapi/{release}/manifest.json`; updates `src/lib/openapi-releases.yaml`            | `prebuild`                  |
 | Schema graphs      | `npm run build:schema-graph -- --all`          | `schema-graph.json`, `api-graph.json` next to each spec                                      | `prebuild`                  |
 | Sitemap            | `npm run generate:sitemap`                     | `static/sitemap.xml`, `static/robots.txt`                                                    | `prebuild`                  |
+| CRD scope          | `npm run build:crd-scopes`                     | `scope` (Namespaced / Cluster) in each `manifest.json`, from the OpenAPI paths               | `generate:all`              |
 | Dependency audit   | `RELEASE={release} npm run audit:dependencies` | `dependency-audit.json` / `.md` report                                                       | Manual                      |
 
 `sync-release.sh` accepts `--dry-run`, `--backfill-only` and `--skip-*` flags to run parts of the

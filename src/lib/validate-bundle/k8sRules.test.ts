@@ -227,3 +227,40 @@ describe('tryFixDnsLabel', () => {
 		expect(tryFixDnsLabel('__my--ns__')).toBe('my-ns');
 	});
 });
+
+describe('namespace rule and CRD scope', () => {
+	const doc = (namespaceLine: string) =>
+		`apiVersion: topologies.eda.nokia.com/v1\nkind: Topology\nmetadata:\n  name: t\n${namespaceLine}spec: {}\n`;
+	const manifest = [
+		{
+			name: 'topologies.topologies.eda.nokia.com',
+			kind: 'Topology',
+			group: 'topologies.eda.nokia.com',
+			scope: 'Cluster' as const
+		}
+	];
+
+	it('does not require a namespace on cluster-scoped kinds, and warns when one is set', () => {
+		const without = parseBundleResources(doc(''));
+		const withNs = parseBundleResources(doc('  namespace: eda\n'));
+		if (!without.ok || !withNs.ok) throw new Error('parse failed');
+
+		expect(validateK8sRules(without.resources, manifest)).toEqual([]);
+		const issues = validateK8sRules(withNs.resources, manifest);
+		expect(issues).toHaveLength(1);
+		expect(issues[0]).toMatchObject({ rule: 'cluster-scoped-namespace', severity: 'warning' });
+	});
+
+	it('still requires a namespace when the scope is unknown or namespaced', () => {
+		const without = parseBundleResources(doc(''));
+		if (!without.ok) throw new Error('parse failed');
+		expect(validateK8sRules(without.resources).map((i) => i.rule)).toContain(
+			'required-metadata-namespace'
+		);
+		expect(
+			validateK8sRules(without.resources, [{ ...manifest[0]!, scope: 'Namespaced' }]).map(
+				(i) => i.rule
+			)
+		).toContain('required-metadata-namespace');
+	});
+});

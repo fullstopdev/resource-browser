@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { crdJsonLd, type CrdSeoSummary } from '$lib/seo/crdSummary';
 	import { derived, writable } from 'svelte/store';
 import { onMount, onDestroy } from 'svelte';
 import { browser } from '$app/environment';
@@ -10,7 +11,6 @@ import {
 	loadVersionsForResource as loadManifestResourceVersions
 } from '$lib/manifest';
 
-// AnimatedBackground is provided by the layout and imported dynamically there to improve LCP
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import HomepageWelcome from '$lib/components/HomepageWelcome.svelte';
 	import BrowseCatalog from '$lib/components/BrowseCatalog.svelte';
@@ -118,7 +118,11 @@ import {
 	$: seoTitle = seoCrd
 		? `${seoCrd}${seoParams.version ? ` ${seoParams.version}` : ''} CRD · Nokia EDA ${seoRelease} | EDA Resource Browser`
 		: 'EDA Resource Browser';
-	$: seoDescription = seoCrd
+	// Server-rendered summary from +page.ts (SSR only): the CRD's own description and fields.
+	$: crdSeo = ($page.data.crdSeo ?? null) as CrdSeoSummary | null;
+	$: seoDescription = crdSeo?.description
+		? `${crdSeo.kind} ${crdSeo.version} (Nokia EDA ${crdSeo.release}): ${crdSeo.description}`
+		: seoCrd
 		? `Schema reference for the ${seoCrd} custom resource${seoParams.version ? ` (${seoParams.version})` : ''} in Nokia EDA ${seoRelease}: spec and status fields, required properties, version comparison and YAML validation.`
 		: 'Browse Nokia EDA Custom Resource Definitions (CRDs), compare versions, and validate resource YAML in a single searchable interface.';
 	$: canonicalHref = new URL(
@@ -486,6 +490,10 @@ import {
 	<meta name="description" content={seoDescription} />
 	<meta name="robots" content="index, follow" />
 	<link rel="canonical" href={canonicalHref} />
+	{#if crdSeo}
+		<!-- Structured data for search engines; "<" is escaped in crdJsonLd. -->
+		{@html `<script type="application/ld+json">${crdJsonLd(crdSeo, canonicalHref)}</script>`}
+	{/if}
 </svelte:head>
 
 <div

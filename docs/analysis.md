@@ -116,6 +116,14 @@ Still open from this area: namespace rule for cluster-scoped kinds (static data 
 - Upgrade check in Validate YAML: validate against a newer release and list what breaks.
 - "Migrate to vN" for deprecated versions: apiVersion rewrite, scalar→object wraps, regular fixes, review.
 
+## Resolved (roadmap items 4, 5, 8, 13)
+
+- Dead code removed (~8,700 lines + the 1.2 MB embedding manifest): Ask-AI panels and store, RAG retrieval/chunking, embed scripts and Vectorize bindings, the unused `/api/openapi-proxy`, redirect-only page bodies, unused UI components, empty route folders. Found by an import-reachability check from every route and script.
+- CRD scope recorded in `manifest.json` from the OpenAPI paths (`npm run build:crd-scopes`, part of `generate:all`): cluster-scoped kinds no longer require a namespace, and a namespace on them is flagged as ignored.
+- Missing prerequisites: references (from the dependency graph) to resources that aren't in the bundle are reported as Info notes, namespace-aware.
+- SEO: the catalog page server-renders each CRD's real description and schema.org JSON-LD.
+- Curated Insert example: content-quality test (no shell/templates/placeholders/lab names, namespace eda); broken TopoNode replaced via the docs AI search.
+
 ## Recommendations (by priority)
 
 | #   | Action                                                                                                | Effort | Benefit                             |

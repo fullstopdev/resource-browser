@@ -3,7 +3,6 @@ export const EXAMPLE_BUNDLE_YAML = `apiVersion: topologies.eda.nokia.com/v1
 kind: Topology
 metadata:
   name: lab-topology
-  namespace: eda
 spec:
   enabled: true
   uiName: Lab Topology

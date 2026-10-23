@@ -57,7 +57,6 @@ flowchart TB
 | ------------------------- | ------------------------------------------------------------------------------- |
 | `POST /api/ai`            | AI actions, mainly the YAML fix (see [AI & caching](ai.md))                     |
 | `GET /api/cache-status`   | Reports whether AI answers are cached for a CRD; the full summary needs a token |
-| `POST /api/openapi-proxy` | Forwards requests to one allowed EDA API origin (CORS bypass)                   |
 | `/google…html`            | Search Console verification                                                     |
 | `/index.xml`              | Redirect to `/sitemap.xml`                                                      |
 
@@ -69,7 +68,6 @@ Declared in `wrangler.toml`:
 | ------------------------- | ------------ | --------------------------------------- |
 | `AI`                      | Workers AI   | LLM calls for AI Fix                    |
 | `AI_CACHE`                | KV namespace | Caching AI and deterministic answers    |
-| `CRD_INDEX`, `DOCS_INDEX` | Vectorize    | Embeddings (not used by any page today) |
 
 The `nodejs_compat` compatibility flag is enabled.
 

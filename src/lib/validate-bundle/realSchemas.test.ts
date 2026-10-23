@@ -57,7 +57,8 @@ describe('one-click fixes for misspelled keys (real 26.8.2 schemas, no AI)', () 
 	afterEach(() => vi.unstubAllGlobals());
 
 	const topology = (spec: string) =>
-		`apiVersion: topologies.eda.nokia.com/v1\nkind: Topology\nmetadata:\n  name: lab-topology\n  namespace: eda\nspec:\n${spec}`;
+		// Topology is cluster-scoped: no metadata.namespace.
+		`apiVersion: topologies.eda.nokia.com/v1\nkind: Topology\nmetadata:\n  name: lab-topology\nspec:\n${spec}`;
 
 	const cases: Array<[string, string, string]> = [
 		[

@@ -54,7 +54,7 @@ flowchart LR
 | ------------------------ | ------------------------------------------------------------------------------ |
 | `deploy:cloudflare`      | Build for Cloudflare and deploy                                                |
 | `deploy:cloudflare:only` | Prune and deploy an existing build                                             |
-| `deploy:cloudflare:lean` | Deploy without AI, KV or Vectorize (swaps in `wrangler.lean.toml` temporarily) |
+| `deploy:cloudflare:lean` | Deploy without the AI and KV bindings (swaps in `wrangler.lean.toml` temporarily) |
 
 Wrangler needs a Cloudflare API token in `CLOUDFLARE_API_TOKEN`. Behind a corporate proxy, set
 `HTTPS_PROXY` as well. Never commit tokens: local secrets go in `.dev.vars` (git-ignored); see

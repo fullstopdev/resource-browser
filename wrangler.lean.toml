@@ -1,4 +1,4 @@
-# Cloudflare Pages — lean deploy (no Workers AI, Vectorize, or KV).
+# Cloudflare Pages — lean deploy (no Workers AI or KV).
 # Use: npm run deploy:cloudflare:lean
 name = "eda-resource-browser"
 compatibility_date = "2025-06-01"

@@ -23,7 +23,7 @@ export const MAX_LEGACY_CONTEXT_CHARS = 8000;
 /** ~18k input tokens for @cf/meta/llama-3.3-70b-instruct-fp8-fast (24k window, reserve ~4k output). */
 export const MAX_TOTAL_CONTEXT_CHARS = 72_000;
 
-/** Rich-context fallback when Vectorize returns no/insufficient chunks. */
+/** Rich-context budget for AI prompts built from cached schema context. */
 export const TRIMMED_FALLBACK_CHAR_LIMIT = 4_000;
 
 /** Metadata-only target header when RAG chunks are sufficient. */
