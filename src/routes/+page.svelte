@@ -110,6 +110,22 @@ import {
 		: null;
 	// Filter out CRDs that match the status filter and exclude 'states' CRDs from UI
 
+	// SEO tags come from the URL so the server-rendered HTML already names the CRD; the
+	// canonical keeps only catalog params so UI state never splits a CRD into several URLs.
+	$: seoParams = parseCatalogParams($page.url.searchParams);
+	$: seoCrd = resourceInfo?.kind || seoParams.crd || selectedResource || '';
+	$: seoRelease = seoParams.release || defaultRelease.name;
+	$: seoTitle = seoCrd
+		? `${seoCrd}${seoParams.version ? ` ${seoParams.version}` : ''} CRD · Nokia EDA ${seoRelease} | EDA Resource Browser`
+		: 'EDA Resource Browser';
+	$: seoDescription = seoCrd
+		? `Schema reference for the ${seoCrd} custom resource${seoParams.version ? ` (${seoParams.version})` : ''} in Nokia EDA ${seoRelease}: spec and status fields, required properties, version comparison and YAML validation.`
+		: 'Browse Nokia EDA Custom Resource Definitions (CRDs), compare versions, and validate resource YAML in a single searchable interface.';
+	$: canonicalHref = new URL(
+		buildCatalogPath({ release: seoParams.release, crd: seoParams.crd, version: seoParams.version }),
+		$page.url.origin
+	).href;
+
 	$: resourceInfo = resourceData
 		? {
 				kind: resourceData.spec?.names?.kind || '',
@@ -466,17 +482,10 @@ import {
 </script>
 
 <svelte:head>
-	<title
-		>EDA Resource Browser{selectedResource
-			? ` | ${resourceInfo?.kind || selectedResource}`
-			: ''}</title
-	>
-	<meta
-		name="description"
-		content="Browse Nokia EDA Custom Resource Definitions (CRDs), compare versions, and validate resource YAML in a single searchable interface."
-	/>
+	<title>{seoTitle}</title>
+	<meta name="description" content={seoDescription} />
 	<meta name="robots" content="index, follow" />
-	<link rel="canonical" href="{$page.url.href}" />
+	<link rel="canonical" href={canonicalHref} />
 </svelte:head>
 
 <div

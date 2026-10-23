@@ -18,7 +18,6 @@ const adapter =
 					'/resources/*',
 					'/openapi/*',
 					'/release-notes/*',
-					'/google795c3198bb040340.html',
 					'/robots.txt',
 					'/sitemap.xml'
 				]
