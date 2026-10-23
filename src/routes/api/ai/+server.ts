@@ -195,6 +195,14 @@ function str(value: unknown): string {
 	return typeof value === 'string' ? value.trim() : '';
 }
 
+/** Version part of the document's `apiVersion`, when it belongs to `group` (or no group is known). */
+function declaredVersionForGroup(yaml: string, group: string | undefined): string | undefined {
+	const apiVersion = /^apiVersion:\s*["']?([^\s"'#]+)/m.exec(yaml)?.[1];
+	const [docGroup, docVersion] = apiVersion?.split('/') ?? [];
+	if (!docVersion || (group && docGroup !== group)) return undefined;
+	return docVersion;
+}
+
 /** One structured line per AI call, readable in Workers Logs (fix success rate, latency, retries). */
 function logAiEvent(event: Record<string, unknown>): void {
 	console.log(JSON.stringify({ evt: 'ai', ...event }));
@@ -393,9 +401,19 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			);
 		}
 
-		const schema = kind
-			? await loadAiSchema(release, kind, originFetch, group, version)
+		// Fix against the schema of the apiVersion the document declares (like the browser
+		// validator does); the latest schema would "fix" toward a version the user isn't on.
+		const fixVersion = version ?? declaredVersionForGroup(userYaml, group);
+		const loadedSchema = kind
+			? ((fixVersion
+					? await loadAiSchema(release, kind, originFetch, group, fixVersion, {
+							allowDeprecated: true
+						})
+					: null) ?? (await loadAiSchema(release, kind, originFetch, group)))
 			: null;
+		// Deprecation is reported to the user separately; flagging it in a fix prompt invites the
+		// model to "upgrade" apiVersion, which the minimal-edit guard then rejects.
+		const schema = loadedSchema ? { ...loadedSchema, deprecated: false } : null;
 
 		// Single-issue fixes: short docs go in full, long ones as an excerpt that is spliced back.
 		const input: FixInput = isMigrationBatch

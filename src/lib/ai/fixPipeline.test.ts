@@ -272,3 +272,38 @@ describe('fix cache key and budgets', () => {
 		expect(modelForTier(WORKERS_AI_MODEL, models)).toBe(WORKERS_AI_MODEL);
 	});
 });
+
+describe('loadAiSchema for fixes', () => {
+	it('loads a deprecated declared version only when allowed', async () => {
+		const { readFile } = await import('node:fs/promises');
+		const { loadAiSchema } = await import('./loadAiSchema');
+		const fetcher = (async (input: RequestInfo | URL) => {
+			try {
+				return new Response(await readFile(`static${String(input)}`, 'utf8'));
+			} catch {
+				return new Response(null, { status: 404 });
+			}
+		}) as typeof fetch;
+
+		// services.eda.nokia.com/v1 BridgeDomain is deprecated in 26.8.2 (v2 is current).
+		expect(
+			await loadAiSchema('26.8.2', 'BridgeDomain', fetcher, 'services.eda.nokia.com', 'v1')
+		).toBeNull();
+		const v1 = await loadAiSchema(
+			'26.8.2',
+			'BridgeDomain',
+			fetcher,
+			'services.eda.nokia.com',
+			'v1',
+			{
+				allowDeprecated: true
+			}
+		);
+		expect(v1?.version).toBe('v1');
+		expect(v1?.deprecated).toBe(true);
+		expect(
+			(v1?.specSchema as { properties: Record<string, { type?: string }> }).properties.macLearning
+				?.type
+		).toBe('boolean');
+	});
+});

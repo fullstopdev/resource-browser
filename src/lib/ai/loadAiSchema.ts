@@ -67,7 +67,9 @@ export async function loadAiSchema(
 	kind: string,
 	fetcher: typeof fetch = fetch,
 	group?: string,
-	version?: string
+	version?: string,
+	/** Fixes must use the schema of the version the document declares, even a deprecated one. */
+	options?: { allowDeprecated?: boolean }
 ): Promise<AiSchemaPayload | null> {
 	const releaseFolder = resolveReleaseFolder(release);
 	if (!releaseFolder) return null;
@@ -83,13 +85,13 @@ export async function loadAiSchema(
 	if (!resolvedVersion) return null;
 
 	const versionMeta = entry.versions?.find((v) => v.name === resolvedVersion);
-	if (!versionMeta || versionMeta.deprecated) return null;
+	if (!versionMeta || (versionMeta.deprecated && !options?.allowDeprecated)) return null;
 
 	const targetPath = schemaPath(safeFolder, entry.name, resolvedVersion);
 	const targetSchema = await fetchSchema(targetPath, fetcher);
 	if (!targetSchema) return null;
 
-	const deprecated = false;
+	const deprecated = versionMeta.deprecated === true;
 
 	return formatSchemaPayload(
 		entry.kind ?? kind,
