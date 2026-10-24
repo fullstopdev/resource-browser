@@ -17,6 +17,30 @@
 	const workflowCount = $derived(
 		apps.reduce((n, a) => n + a.sections.filter((s) => s.type === 'workflow').length, 0)
 	);
+
+	// Filter the directory: an API whose name or group matches shows all its resources; otherwise
+	// only the matching resources are listed.
+	let filter = $state('');
+	const q = $derived(filter.trim().toLowerCase());
+	const shownApps = $derived(
+		apps
+			.map((api) => {
+				if (!q || `${api.title} ${api.group}`.toLowerCase().includes(q)) return api;
+				return { ...api, sections: api.sections.filter((s) => s.title.toLowerCase().includes(q)) };
+			})
+			.filter((api) => api.sections.length > 0)
+	);
+	const shownPlatform = $derived(
+		platform
+			? !q || 'platform core'.includes(q)
+				? platform.sections
+				: platform.sections.filter((s) => s.title.toLowerCase().includes(q))
+			: []
+	);
+	const shownCount = $derived(shownApps.reduce((n, a) => n + a.sections.length, 0));
+
+	/** `aaa.eda.nokia.com` → `aaa` */
+	const shortGroup = (group: string) => group.replace(/\.eda\.nokia\.com$/, '');
 </script>
 
 <div class="overview">
@@ -31,40 +55,52 @@
 		</div>
 	</header>
 
-	<section class="howto" aria-labelledby="howto-h">
-		<h2 id="howto-h" class="sr-only">How to call the API</h2>
+	<dl class="basics">
 		<div>
-			<h3>Paths</h3>
-			<p>
-				Resources live under <code>/apps/&lt;group&gt;/&lt;version&gt;</code>, workflows under
-				<code>/workflows/v1/&lt;group&gt;/&lt;version&gt;</code>, and the platform under
-				<code>/core</code>.
-			</p>
+			<dt>Base path</dt>
+			<dd>
+				<code>/apps/&lt;group&gt;/&lt;version&gt;</code> · workflows <code>/workflows/v1/…</code> ·
+				platform <code>/core</code>
+			</dd>
 		</div>
 		<div>
-			<h3>Authentication</h3>
-			<p>
-				Send <code>Authorization: Bearer $TOKEN</code> with every request. Endpoints marked
-				<b>Public</b> need no token.
-			</p>
+			<dt>Auth</dt>
+			<dd><code>Authorization: Bearer $TOKEN</code></dd>
 		</div>
 		<div>
-			<h3>Namespaces</h3>
-			<p>
-				Most resources are namespaced: <code>…/namespaces/eda/bridgedomains</code>. Lists without
-				<code>/namespaces/…</code> cover all namespaces.
-			</p>
+			<dt>Namespaces</dt>
+			<dd><code>…/namespaces/eda/bridgedomains</code>; without it, all namespaces</dd>
 		</div>
-	</section>
+	</dl>
 
-	{#if platform}
+	<div class="filter">
+		<label for="api-dir-filter" class="sr-only">Filter APIs and resources</label>
+		<svg viewBox="0 0 24 24" aria-hidden="true"
+			><path d="M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" /></svg
+		>
+		<input
+			id="api-dir-filter"
+			type="search"
+			placeholder="Filter {index.apis.length} APIs and {resourceCount + workflowCount} resources"
+			autocomplete="off"
+			spellcheck="false"
+			bind:value={filter}
+		/>
+		{#if q}
+			<span class="filter-count" aria-live="polite"
+				>{shownApps.length} APIs · {shownCount + shownPlatform.length} matches</span
+			>
+		{/if}
+	</div>
+
+	{#if shownPlatform.length && platform}
 		<section aria-labelledby="platform-h">
 			<div class="sec-head">
 				<h2 id="platform-h">Platform API</h2>
 				<span>/core · {platform.operationCount} endpoints</span>
 			</div>
 			<ul class="links">
-				{#each platform.sections as s (s.key)}
+				{#each shownPlatform as s (s.key)}
 					<li>
 						<a href={href(platform.id, s.key)}>
 							<span>{s.title}</span><span class="link-count">{s.actions}</span>
@@ -78,31 +114,41 @@
 	<section aria-labelledby="apps-h">
 		<div class="sec-head">
 			<h2 id="apps-h">Application APIs</h2>
-			<span>{apps.length} APIs</span>
+			<span>{apps.length} APIs · every resource and workflow</span>
 		</div>
-		<ul class="grid">
-			{#each apps as api (api.id)}
-				{@const names = api.sections.map((s) => s.title)}
-				<li>
-					<a class="card" href={href(api.id)}>
-						<span class="card-title">{api.title}</span>
-						<span class="card-meta">{api.group}/{api.version}</span>
-						<span class="card-kinds"
-							>{names.slice(0, 6).join(', ')}{names.length > 6
-								? ` +${names.length - 6} more`
-								: ''}</span
-						>
-					</a>
-				</li>
-			{/each}
-		</ul>
+		{#if shownApps.length}
+			<ul class="dir">
+				{#each shownApps as api (api.id)}
+					<li class="dir-row">
+						<div class="dir-api">
+							<a class="dir-title" href={href(api.id)}>{api.title}</a>
+							<span class="dir-meta">{shortGroup(api.group)}/{api.version}</span>
+						</div>
+						<ul class="dir-kinds" aria-label="{api.title} resources">
+							{#each api.sections as s (s.key)}
+								<li>
+									<a href={href(api.id, s.key)} class:is-workflow={s.type === 'workflow'}
+										>{s.title}{#if s.type === 'workflow'}<span class="wf">workflow</span>{/if}</a
+									>
+								</li>
+							{/each}
+						</ul>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="empty">
+				Nothing matches "{filter.trim()}".
+				<button type="button" onclick={() => (filter = '')}>Clear the filter</button>
+			</p>
+		{/if}
 	</section>
 </div>
 
 <style>
 	.overview {
 		display: grid;
-		gap: 1.75rem;
+		gap: 1.5rem;
 		padding-bottom: 2rem;
 		min-width: 0;
 	}
@@ -140,41 +186,81 @@
 		font: 500 0.72rem var(--rb-font-mono);
 	}
 
-	.howto {
+	.basics {
 		display: grid;
-		gap: 0.75rem;
-	}
-
-	@media (min-width: 720px) {
-		.howto {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-	}
-
-	.howto div {
-		padding: 0.875rem 1rem;
+		gap: 0.375rem 1.5rem;
+		margin: 0;
+		padding: 0.75rem 1rem;
 		border: 1px solid var(--rb-line);
 		border-radius: 0.625rem;
 		background: var(--rb-surface);
+		font-size: 0.82rem;
 	}
 
-	.howto h3 {
-		margin: 0 0 0.25rem;
-		font-size: 0.875rem;
-		color: var(--rb-ink);
+	.basics div {
+		display: grid;
+		grid-template-columns: 6.5rem minmax(0, 1fr);
+		gap: 0.75rem;
+		align-items: baseline;
 	}
 
-	.howto p {
-		margin: 0;
-		font-size: 0.84rem;
-		line-height: 1.5;
+	.basics dt {
+		font: 600 0.66rem var(--rb-font-mono);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		color: var(--rb-ink-3);
 	}
 
-	.howto code {
+	.basics dd {
+		margin: 0;
+		color: var(--rb-ink-3);
+		overflow-wrap: anywhere;
+	}
+
+	.basics code {
 		font: 0.78rem var(--rb-font-mono);
 		color: var(--rb-ink);
-		overflow-wrap: anywhere;
+	}
+
+	.filter {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.filter svg {
+		position: absolute;
+		left: 0.75rem;
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: var(--rb-ink-3);
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		pointer-events: none;
+	}
+
+	.filter input {
+		width: 100%;
+		height: 2.625rem;
+		padding: 0 10rem 0 2.375rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		font: 0.9rem var(--rb-font);
+	}
+
+	.filter input:focus {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
+	}
+
+	.filter-count {
+		position: absolute;
+		right: 0.75rem;
+		font: 0.72rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
 	}
 
 	.sec-head {
@@ -235,75 +321,115 @@
 		color: var(--rb-ink-3);
 	}
 
-	.grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 0.625rem;
+	/* Directory: one row per API, every resource listed. */
+	.dir {
 		margin: 0;
 		padding: 0;
 		list-style: none;
-	}
-
-	@media (min-width: 640px) {
-		.grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-
-	@media (min-width: 1100px) {
-		.grid {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-	}
-
-	.grid li {
-		display: flex;
-	}
-
-	.card {
-		display: grid;
-		align-content: start;
-		gap: 0.25rem;
-		width: 100%;
-		padding: 0.8125rem 0.875rem;
 		border: 1px solid var(--rb-line);
 		border-radius: 0.625rem;
 		background: var(--rb-surface);
-		color: inherit;
-		text-decoration: none;
-		transition: border-color 0.15s;
+		overflow: hidden;
 	}
 
-	.card:hover {
-		border-color: var(--rb-signal);
+	.dir-row {
+		display: grid;
+		gap: 0.375rem 1.25rem;
+		padding: 0.75rem 1rem;
 	}
 
-	.card:focus-visible {
-		outline: 2px solid var(--rb-signal);
-		outline-offset: 1px;
+	.dir-row + .dir-row {
+		border-top: 1px solid var(--rb-line);
 	}
 
-	.card-title {
+	@media (min-width: 760px) {
+		.dir-row {
+			grid-template-columns: 13rem minmax(0, 1fr);
+		}
+	}
+
+	.dir-api {
+		display: grid;
+		align-content: start;
+		gap: 0.0625rem;
+		min-width: 0;
+	}
+
+	.dir-title {
 		font-weight: 600;
-		font-size: 0.92rem;
+		font-size: 0.9rem;
 		color: var(--rb-ink);
+		text-decoration: none;
 	}
 
-	.card-meta {
+	.dir-title:hover {
+		color: var(--rb-signal);
+	}
+
+	.dir-meta {
 		font: 0.72rem var(--rb-font-mono);
 		color: var(--rb-ink-3);
 		overflow-wrap: anywhere;
 	}
 
-	.card-kinds {
-		font-size: 0.8rem;
-		line-height: 1.45;
-		color: var(--rb-ink-2);
+	.dir-kinds {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem 0.375rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
-	@media (prefers-reduced-motion: reduce) {
-		.card {
-			transition: none;
-		}
+	.dir-kinds a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.1875rem 0.5rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.3125rem;
+		background: var(--rb-bg);
+		color: var(--rb-ink-2);
+		font: 500 0.78rem var(--rb-font-mono);
+		text-decoration: none;
+	}
+
+	.dir-kinds a:hover {
+		border-color: var(--rb-signal);
+		color: var(--rb-signal);
+	}
+
+	.dir-kinds a.is-workflow {
+		border-style: dashed;
+	}
+
+	.wf {
+		font: 600 0.58rem var(--rb-font-mono);
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--rb-ink-3);
+	}
+
+	.dir a:focus-visible,
+	.empty button:focus-visible {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
+	}
+
+	.empty {
+		margin: 0;
+		padding: 1.5rem 0;
+		color: var(--rb-ink-3);
+		font-size: 0.9rem;
+	}
+
+	.empty button {
+		margin-left: 0.5rem;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--rb-signal);
+		font: 600 0.9rem var(--rb-font);
+		cursor: pointer;
 	}
 </style>

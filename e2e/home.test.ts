@@ -8,22 +8,40 @@ test.beforeEach(async ({ page }) => {
 	);
 });
 
-test('homepage shows real counts, the schema example and release trains', async ({ page }) => {
+test('homepage shows real counts, the schema example and release lines', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1 })).toContainText(
 		'Every Nokia EDA resource schema'
 	);
-	await expect(page.locator('.rb-sub')).toContainText(
-		/Browse\s+\d{3}\s+CRDs\s+across\s+\d+\s+API\s+groups/
-	);
+	await expect(page.locator('.rb-stats')).toContainText(/CRDs\s*\d{3}\b/);
 	const specimen = page.getByRole('complementary', { name: /Example schema: BridgeDomain/ });
 	await expect(specimen).toContainText('macLearning.');
 	await expect(specimen).toContainText('integer');
-	await expect(page.locator('.rb-train')).toHaveCount(2);
+	// The latest patch of the four newest release lines, newest on the left.
+	const lines = page.getByRole('list', { name: 'Release lines, newest first' }).locator('.rb-line');
+	await expect(lines).toHaveCount(4);
+	await expect(lines.first()).toContainText('26.8.2');
+	await expect(lines.nth(1)).toContainText('26.4.3');
+	await expect(lines.first()).toContainText(/vs 26\.4\s*\+\d+/);
 	await expect(page.locator('.rb-rail-note')).toContainText(
 		/added \d+, changed \d+ and removed \d+ CRDs/
 	);
 	await expect(page.locator('.rb-tool')).toHaveCount(8);
+});
+
+test('older releases are in the More releases menu', async ({ page }) => {
+	await page.goto('/');
+	const more = page.getByRole('button', { name: /More releases/ });
+	await more.click();
+	const menu = page.locator('#rb-more-menu');
+	await expect(menu).toContainText('25.4.2');
+	await expect(menu).not.toContainText('26.8.2');
+	await page.keyboard.press('Escape');
+	await expect(menu).toBeHidden();
+	await expect(more).toBeFocused();
+	await more.click();
+	await menu.getByRole('button', { name: /^26\.4\.1/ }).click();
+	await expect(page).toHaveURL(/release=26\.4\.1/);
 });
 
 test('menus open with the keyboard and close with Escape', async ({ page }) => {

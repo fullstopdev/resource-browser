@@ -116,8 +116,10 @@ one definition. The design reference, with before and after screenshots, is in `
 
 Menus open on click or with the Down arrow, arrows move between links, Escape closes. On phones a
 menu button opens the same groups as a sheet. The homepage shows live counts from the manifest, a
-schema example read from the selected release, the release trains with the latest change summary
-(from `static/release-notes/index.json`), and one tile per tool.
+schema example read from the selected release, one card per release line (the latest patch of the
+four newest lines, newest on the left, with the CRDs each line added, changed and removed, from
+`static/release-notes/index.json`), a _More releases_ menu with every other release
+(`src/lib/releaseLines.ts`), and one row per tool.
 
 ## Project layout
 

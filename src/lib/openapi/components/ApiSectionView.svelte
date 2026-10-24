@@ -129,8 +129,8 @@
 								aria-controls="api-action-panel"
 								onclick={() => choose(action)}
 							>
-								<span class="act-label" title={action.label}>{action.label}</span>
 								<OpenApiMethodBadge method={action.operation.method} compact />
+								<span class="act-label" title={action.label}>{action.label}</span>
 								<span class="act-path" title={action.operation.path}
 									>{#each pathParts(shortPath(action.operation.path)) as part}{#if part.param}<em
 												>{part.text}</em
@@ -248,7 +248,7 @@
 
 	@container (min-width: 60rem) {
 		.work {
-			grid-template-columns: 16.5rem minmax(0, 1fr);
+			grid-template-columns: 19rem minmax(0, 1fr);
 			gap: 2rem;
 		}
 
@@ -260,6 +260,10 @@
 
 	.actions {
 		min-width: 0;
+		padding: 0.5rem 0.375rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.625rem;
+		background: var(--rb-surface);
 	}
 
 	.group {
@@ -272,7 +276,7 @@
 	}
 
 	.group:first-child {
-		margin-top: 0;
+		margin-top: 0.25rem;
 	}
 
 	.actions ul {
@@ -285,11 +289,11 @@
 
 	.act {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-columns: 3.75rem minmax(0, 1fr);
 		align-items: center;
-		gap: 0.0625rem 0.5rem;
+		gap: 0 0.625rem;
 		width: 100%;
-		padding: 0.4375rem 0.625rem;
+		padding: 0.375rem 0.625rem;
 		border: 0;
 		border-radius: 0.4375rem;
 		background: none;
@@ -314,6 +318,7 @@
 
 	.act[aria-current='true'] .act-label {
 		color: var(--rb-signal);
+		font-weight: 600;
 	}
 
 	.act-label {
@@ -322,14 +327,18 @@
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
-		font-weight: 600;
-		font-size: 0.875rem;
+		font-weight: 500;
+		font-size: 0.86rem;
 		line-height: 1.3;
 		color: var(--rb-ink);
 	}
 
+	.act > :global(:first-child) {
+		justify-self: start;
+	}
+
 	.act-path {
-		grid-column: 1 / -1;
+		grid-column: 2;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

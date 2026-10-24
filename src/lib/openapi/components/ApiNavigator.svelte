@@ -57,6 +57,13 @@
 		expanded = { ...expanded, [id]: !isOpen(id) };
 	}
 
+	const allOpen = $derived(apps.length > 0 && apps.every((a) => isOpen(a.id)));
+
+	function toggleAll() {
+		const open = !allOpen;
+		expanded = Object.fromEntries(apps.map((a) => [a.id, open]));
+	}
+
 	function searchKeydown(event: KeyboardEvent) {
 		if (event.key === 'ArrowDown' && hits.length) {
 			event.preventDefault();
@@ -161,7 +168,12 @@
 		</ul>
 	{/if}
 
-	<p class="heading">Applications <span class="count">{apps.length}</span></p>
+	<div class="heading">
+		<span>Applications <span class="count">{apps.length}</span></span>
+		<button type="button" class="expand-all" onclick={toggleAll}
+			>{allOpen ? 'Collapse all' : 'Expand all'}</button
+		>
+	</div>
 	<ul class="list">
 		{#each apps as api (api.id)}
 			<li class="api">
@@ -172,7 +184,8 @@
 					aria-controls="api-{api.id}"
 					onclick={() => toggle(api.id)}
 				>
-					<span>{api.title}</span>
+					<span class="api-name">{api.title}</span>
+					<span class="count">{api.sections.length}</span>
 					<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
 				</button>
 				{#if isOpen(api.id)}
@@ -316,6 +329,7 @@
 
 	.heading {
 		display: flex;
+		align-items: baseline;
 		justify-content: space-between;
 		margin: 0.75rem 0.5rem 0.125rem;
 		font: 600 0.66rem var(--rb-font-mono);
@@ -371,8 +385,12 @@
 	}
 
 	.api-toggle {
-		font-weight: 600;
+		font-weight: 500;
 		color: var(--rb-ink);
+	}
+
+	.api-toggle[aria-expanded='true'] {
+		font-weight: 600;
 	}
 
 	.api-toggle svg {
@@ -387,6 +405,26 @@
 
 	.api-toggle[aria-expanded='true'] svg {
 		transform: rotate(90deg);
+	}
+
+	.expand-all {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--rb-signal);
+		font: 600 0.66rem var(--rb-font-mono);
+		letter-spacing: 0.04em;
+		text-transform: none;
+		cursor: pointer;
+	}
+
+	.expand-all:hover {
+		text-decoration: underline;
+	}
+
+	.api-name {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.count {

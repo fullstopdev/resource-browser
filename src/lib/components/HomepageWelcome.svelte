@@ -13,6 +13,7 @@
 	import { fetchSchema, schemaPath } from '$lib/yaml-validation/schemaCache';
 	import { fetchReleaseNotesIndex } from '$lib/release-notes/loadStatic';
 	import openapiReleasesYaml from '$lib/openapi-releases.yaml?raw';
+	import { splitReleaseLines } from '$lib/releaseLines';
 	import type { Writable } from 'svelte/store';
 
 	type ReleaseGroup = {
@@ -31,6 +32,31 @@
 
 	$: openApiReleaseName = resolveOpenApiReleaseName(openApiReleases, $selectedRelease.name);
 	$: allReleases = groupedReleases.flatMap((g) => g.releases);
+	$: ({ featured: featuredLines, more: moreLines } = splitReleaseLines(allReleases, 4));
+	$: moreCount = moreLines.reduce((n, l) => n + l.releases.length, 0);
+	$: selectedInMore = moreLines.some((l) =>
+		l.releases.some((r) => r.name === $selectedRelease.name)
+	);
+
+	/* ---------- "More releases" menu ---------- */
+	let moreOpen = false;
+	let moreEl: HTMLElement;
+
+	function pickRelease(release: EdaRelease) {
+		moreOpen = false;
+		void onBrowseRelease(release);
+	}
+
+	function windowClick(event: MouseEvent) {
+		if (moreOpen && moreEl && !event.composedPath().includes(moreEl)) moreOpen = false;
+	}
+
+	function moreKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && moreOpen) {
+			moreOpen = false;
+			moreEl.querySelector<HTMLElement>('.rb-more-btn')?.focus();
+		}
+	}
 	$: crdCount = $crdMetaStore.length;
 	$: groupCount = new Set($crdMetaStore.map((r) => r.group ?? r.name.split('.').slice(1).join('.')))
 		.size;
@@ -197,11 +223,34 @@
 	};
 	let latestChange: ChangeSummary | null = null;
 	let unchangedSince: string | null = null;
+	/** CRD changes that arrived with each release, keyed by the release it went to. */
+	let changesTo: Record<string, ChangeSummary> = {};
+
+	/** What a release line brought, compared with the line before it (its first patch's entry). */
+	function lineChange(
+		releases: EdaRelease[],
+		changesTo: Record<string, ChangeSummary>
+	): ChangeSummary | null {
+		const first = releases[releases.length - 1];
+		return first ? (changesTo[first.name] ?? null) : null;
+	}
 
 	onMount(async () => {
 		const index = await fetchReleaseNotesIndex().catch(() => null);
 		if (!index) return;
 		const entries = index.entries;
+		changesTo = Object.fromEntries(
+			entries.map((e) => [
+				e.toVer,
+				{
+					from: e.fromVer,
+					to: e.toVer,
+					added: e.summary?.added ?? 0,
+					modified: e.summary?.modified ?? 0,
+					removed: e.summary?.removed ?? 0
+				}
+			])
+		);
 		const first = entries[0];
 		const changed = entries.find(
 			(e) => (e.summary?.added ?? 0) + (e.summary?.modified ?? 0) + (e.summary?.removed ?? 0) > 0
@@ -326,187 +375,286 @@
 	}
 </script>
 
+<svelte:window on:click={windowClick} on:keydown={moreKeydown} />
+
 <div class="rb-home page-shell min-h-full">
 	<AppHeader />
 
 	<main class="rb-home-main">
-		<section class="rb-hero" aria-labelledby="hero-heading">
-			<div class="rb-hero-copy">
-				<p class="rb-eyebrow">
-					<span class="rb-dot" aria-hidden="true"></span>
-					EDA {$selectedRelease.name}{$selectedRelease.default ? ' · latest release' : ''}
-				</p>
-				<h1 id="hero-heading">Every Nokia EDA resource schema, <em>by release.</em></h1>
-				<p class="rb-sub">
-					Browse <b>{crdCount || '350+'}</b> CRDs{#if groupCount}&nbsp;across <b>{groupCount}</b> API
-						groups{/if}, see what changed between <b>{allReleases.length}</b> releases, and check your
-					manifests before you apply them.
-				</p>
-
-				<div class="rb-search">
-					<label for="homepage-search" class="sr-only">Search CRDs</label>
-					<svg viewBox="0 0 24 24" aria-hidden="true"
-						><path d="M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" /></svg
-					>
-					<input
-						id="homepage-search"
-						type="search"
-						bind:value={heroSearch}
-						on:focus={() => (searchFocused = true)}
-						on:blur={closeSearchResults}
-						on:keydown={handleSearchKeydown}
-						placeholder="Search {crdCount || ''} CRDs by kind or group"
-						autocomplete="off"
-						aria-controls={showSearchResults ? 'homepage-search-results' : undefined}
-						aria-expanded={showSearchResults}
-						role="combobox"
-						aria-autocomplete="list"
-					/>
-					{#if showSearchResults}
-						<ul id="homepage-search-results" role="listbox" class="rb-results">
-							{#if filteredResources.length === 0}
-								<li class="rb-results-empty">
-									No CRD matches "{heroSearch}". Try Spec Search for fields.
-								</li>
-							{:else}
-								{#each filteredResources as resource, i}
-									<li role="option" aria-selected={i === highlightedIndex}>
-										<button
-											type="button"
-											class:is-active={i === highlightedIndex}
-											on:mousedown|preventDefault={() => pickResource(resource)}
-										>
-											<span class="rb-result-kind">
-												{resource.kind || shortName(resource.name)}
-												{#if isDeprecated(resource)}<span class="rb-tag-deprecated">Deprecated</span
-													>{/if}
-											</span>
-											<span class="rb-result-group">{groupName(resource.name)}</span>
-											{#if resource.versions.length > 0}
-												<span class="rb-result-version">{getLatestVersion(resource)}</span>
-											{/if}
-										</button>
-									</li>
-								{/each}
-							{/if}
-						</ul>
-					{/if}
-				</div>
-
-				<div class="rb-chips">
-					<span class="rb-chips-label">Popular</span>
-					{#each POPULAR as kind}
-						<button type="button" class="rb-chip" on:click={() => pickPopular(kind)}>{kind}</button>
-					{/each}
-				</div>
-			</div>
-
-			<aside class="rb-specimen" aria-label="Example schema: {SPECIMEN.kind}">
-				<div class="rb-specimen-head">
-					<div>
-						<p class="rb-specimen-kind">{SPECIMEN.kind}</p>
-						<p class="rb-specimen-gv">{SPECIMEN.group}/{specimenVersion} · Namespaced</p>
-					</div>
-					<span class="rb-specimen-tag">Spec</span>
-				</div>
-				<ul class="rb-fields">
-					{#each specimenFields as field (field.path + field.leaf)}
-						<li>
-							<span class="rb-field-key"
-								><span class="rb-field-path">{field.path}</span><b>{field.leaf}</b
-								>{#if field.required}<span class="rb-field-req" title="Required">&nbsp;*</span
-									>{/if}</span
-							>
-							<span class="rb-field-type">{field.type}</span>
-							{#if field.meta}<span class="rb-field-meta">{field.meta}</span>{/if}
-						</li>
-					{/each}
-				</ul>
-				<div class="rb-specimen-foot">
-					<span>One of {crdCount || 'the'} CRDs in {$selectedRelease.name}</span>
-					<button type="button" on:click={() => pickPopular(SPECIMEN.kind)}>Open schema →</button>
-				</div>
-			</aside>
-		</section>
-
-		<section class="rb-band" aria-labelledby="releases-heading">
-			<div class="rb-band-head">
-				<h2 id="releases-heading">Releases</h2>
-				<a href="/release-changes">All release changes →</a>
-			</div>
-			<div class="rb-rail">
-				{#each groupedReleases as group (group.label)}
-					<div class="rb-train">
-						<span class="rb-train-label">{group.label}</span>
-						<ol class="rb-stops" aria-label="{group.label} releases, oldest first">
-							{#each [...group.releases].reverse() as release (release.name)}
-								{@const isSelected = $selectedRelease.name === release.name}
-								<li>
-									<button
-										type="button"
-										class="rb-stop"
-										aria-current={isSelected ? 'true' : undefined}
-										on:click={() => onBrowseRelease(release)}
-									>
-										{release.name}
-										{#if release.default}<span class="rb-tag-latest">Latest</span>{/if}
-									</button>
-								</li>
-							{/each}
-						</ol>
-					</div>
-				{/each}
-				{#if latestChange}
-					<p class="rb-rail-note">
-						Latest changes: <b>{latestChange.from} → {latestChange.to}</b> added
-						<span class="rb-delta rb-delta--add">{latestChange.added}</span>, changed
-						<span class="rb-delta rb-delta--mod">{latestChange.modified}</span> and removed
-						<span class="rb-delta rb-delta--rem">{latestChange.removed}</span>
-						CRDs.{#if unchangedSince}&nbsp;{unchangedSince}
-							has no CRD schema changes.{/if}
+		<div class="rb-hero-band">
+			<section class="rb-hero rb-wrap" aria-labelledby="hero-heading">
+				<div class="rb-hero-copy">
+					<p class="rb-eyebrow">
+						<span class="rb-dot" aria-hidden="true"></span>
+						EDA {$selectedRelease.name}{$selectedRelease.default ? ' · latest release' : ''}
 					</p>
-				{/if}
+					<h1 id="hero-heading">Every Nokia EDA resource schema, <em>by release.</em></h1>
+					<p class="rb-sub">
+						Browse every CRD with its fields and versions, see what changed between releases, and
+						check your manifests before you apply them.
+					</p>
+					<dl class="rb-stats">
+						<div>
+							<dt>CRDs</dt>
+							<dd>{crdCount || '350+'}</dd>
+						</div>
+						<div>
+							<dt>API groups</dt>
+							<dd>{groupCount || '50+'}</dd>
+						</div>
+						<div>
+							<dt>Releases</dt>
+							<dd>{allReleases.length}</dd>
+						</div>
+						<div>
+							<dt>Release lines</dt>
+							<dd>
+								{featuredLines.length +
+									moreLines.filter((l) => !featuredLines.some((f) => f.line === l.line)).length}
+							</dd>
+						</div>
+					</dl>
+
+					<div class="rb-search">
+						<label for="homepage-search" class="sr-only">Search CRDs</label>
+						<svg viewBox="0 0 24 24" aria-hidden="true"
+							><path d="M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" /></svg
+						>
+						<input
+							id="homepage-search"
+							type="search"
+							bind:value={heroSearch}
+							on:focus={() => (searchFocused = true)}
+							on:blur={closeSearchResults}
+							on:keydown={handleSearchKeydown}
+							placeholder="Search {crdCount || ''} CRDs by kind or group"
+							autocomplete="off"
+							aria-controls={showSearchResults ? 'homepage-search-results' : undefined}
+							aria-expanded={showSearchResults}
+							role="combobox"
+							aria-autocomplete="list"
+						/>
+						{#if showSearchResults}
+							<ul id="homepage-search-results" role="listbox" class="rb-results">
+								{#if filteredResources.length === 0}
+									<li class="rb-results-empty">
+										No CRD matches "{heroSearch}". Try Spec Search for fields.
+									</li>
+								{:else}
+									{#each filteredResources as resource, i}
+										<li role="option" aria-selected={i === highlightedIndex}>
+											<button
+												type="button"
+												class:is-active={i === highlightedIndex}
+												on:mousedown|preventDefault={() => pickResource(resource)}
+											>
+												<span class="rb-result-kind">
+													{resource.kind || shortName(resource.name)}
+													{#if isDeprecated(resource)}<span class="rb-tag-deprecated"
+															>Deprecated</span
+														>{/if}
+												</span>
+												<span class="rb-result-group">{groupName(resource.name)}</span>
+												{#if resource.versions.length > 0}
+													<span class="rb-result-version">{getLatestVersion(resource)}</span>
+												{/if}
+											</button>
+										</li>
+									{/each}
+								{/if}
+							</ul>
+						{/if}
+					</div>
+
+					<div class="rb-chips">
+						<span class="rb-chips-label">Popular</span>
+						{#each POPULAR as kind}
+							<button type="button" class="rb-chip" on:click={() => pickPopular(kind)}
+								>{kind}</button
+							>
+						{/each}
+					</div>
+				</div>
+
+				<aside class="rb-specimen" aria-label="Example schema: {SPECIMEN.kind}">
+					<div class="rb-specimen-head">
+						<div>
+							<p class="rb-specimen-kind">{SPECIMEN.kind}</p>
+							<p class="rb-specimen-gv">{SPECIMEN.group}/{specimenVersion} · Namespaced</p>
+						</div>
+						<span class="rb-specimen-tag">Spec</span>
+					</div>
+					<ul class="rb-fields">
+						{#each specimenFields as field (field.path + field.leaf)}
+							<li>
+								<span class="rb-field-key"
+									><span class="rb-field-path">{field.path}</span><b>{field.leaf}</b
+									>{#if field.required}<span class="rb-field-req" title="Required">&nbsp;*</span
+										>{/if}</span
+								>
+								<span class="rb-field-type">{field.type}</span>
+								{#if field.meta}<span class="rb-field-meta">{field.meta}</span>{/if}
+							</li>
+						{/each}
+					</ul>
+					<div class="rb-specimen-foot">
+						<span>One of {crdCount || 'the'} CRDs in {$selectedRelease.name}</span>
+						<button type="button" on:click={() => pickPopular(SPECIMEN.kind)}>Open schema →</button>
+					</div>
+				</aside>
+			</section>
+		</div>
+
+		<section class="rb-band rb-wrap" aria-labelledby="releases-heading">
+			<div class="rb-band-head">
+				<div>
+					<h2 id="releases-heading">Releases</h2>
+					<p class="rb-band-sub">
+						The latest patch of each release line. Pick one to browse its CRDs.
+					</p>
+				</div>
+				<div class="rb-band-actions">
+					{#if moreCount > 0}
+						<div class="rb-more" bind:this={moreEl}>
+							<button
+								type="button"
+								class="rb-more-btn"
+								class:is-current={selectedInMore}
+								aria-expanded={moreOpen}
+								aria-controls="rb-more-menu"
+								on:click={() => (moreOpen = !moreOpen)}
+							>
+								{selectedInMore ? `Viewing ${$selectedRelease.name}` : 'More releases'}
+								<span class="rb-more-count">{moreCount}</span>
+								<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" /></svg>
+							</button>
+							{#if moreOpen}
+								<div id="rb-more-menu" class="rb-more-menu">
+									{#each moreLines as line (line.line)}
+										<p class="rb-more-line">EDA {line.line}</p>
+										<ul>
+											{#each line.releases as release (release.name)}
+												<li>
+													<button
+														type="button"
+														aria-current={$selectedRelease.name === release.name
+															? 'true'
+															: undefined}
+														on:click={() => pickRelease(release)}
+													>
+														<span>{release.name}</span>
+														{#if changesTo[release.name]}
+															{@const c = changesTo[release.name]}
+															<span class="rb-more-delta"
+																>{c.added + c.modified + c.removed
+																	? `${c.added + c.modified + c.removed} CRD changes`
+																	: 'No CRD changes'}</span
+															>
+														{/if}
+													</button>
+												</li>
+											{/each}
+										</ul>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/if}
+					<a class="rb-band-link" href="/release-changes">All release changes →</a>
+				</div>
 			</div>
+			<ol class="rb-lines" aria-label="Release lines, newest first">
+				{#each featuredLines as line (line.line)}
+					{@const latest = line.releases[0]}
+					{@const delta = lineChange(line.releases, changesTo)}
+					{@const isSelected = line.releases.some((r) => r.name === $selectedRelease.name)}
+					<li>
+						<button
+							type="button"
+							class="rb-line"
+							aria-current={$selectedRelease.name === latest.name ? 'true' : undefined}
+							class:is-selected={isSelected}
+							on:click={() => onBrowseRelease(latest)}
+						>
+							<span class="rb-line-top">
+								<span class="rb-line-name">EDA {line.line}</span>
+								{#if latest.default}<span class="rb-tag-latest">Latest</span>{/if}
+							</span>
+							<span class="rb-line-version">{latest.name}</span>
+							<span class="rb-line-meta">
+								{line.releases.length}
+								{line.releases.length === 1
+									? 'patch'
+									: 'patches'}{#if isSelected && $selectedRelease.name !== latest.name}&nbsp;·
+									viewing {$selectedRelease.name}{/if}
+							</span>
+							<span class="rb-line-delta">
+								{#if delta}
+									<span class="rb-line-from">vs {delta.from.split('.').slice(0, 2).join('.')}</span>
+									<span class="rb-delta rb-delta--add" title="New CRDs">+{delta.added}</span>
+									<span class="rb-delta rb-delta--mod" title="Changed CRDs">~{delta.modified}</span>
+									<span class="rb-delta rb-delta--rem" title="Removed CRDs">−{delta.removed}</span>
+								{:else}
+									<span class="rb-line-from">First release line</span>
+								{/if}
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ol>
+			{#if latestChange}
+				<p class="rb-rail-note">
+					Latest CRD changes: <b>{latestChange.from} → {latestChange.to}</b> added
+					<span class="rb-delta rb-delta--add">{latestChange.added}</span>, changed
+					<span class="rb-delta rb-delta--mod">{latestChange.modified}</span> and removed
+					<span class="rb-delta rb-delta--rem">{latestChange.removed}</span>
+					CRDs.{#if unchangedSince}&nbsp;{unchangedSince}
+						has no CRD schema changes.{/if}
+				</p>
+			{/if}
 		</section>
 
-		<section class="rb-band" aria-labelledby="tools-heading">
-			<div class="rb-band-head"><h2 id="tools-heading">Tools</h2></div>
+		<section class="rb-band rb-wrap" aria-labelledby="tools-heading">
+			<div class="rb-band-head">
+				<div>
+					<h2 id="tools-heading">Tools</h2>
+					<p class="rb-band-sub">Everything works on EDA {$selectedRelease.name}.</p>
+				</div>
+			</div>
 			<ul class="rb-tools">
 				{#each tools as tool (tool.id)}
 					{@const href = toolHref(tool.id, $selectedRelease.name)}
 					<li>
-						{#if href}
-							<a class="rb-tool" class:is-primary={tool.primary} {href}>
-								<span class="rb-tool-icon" aria-hidden="true"
-									><svg viewBox="0 0 24 24"><path d={tool.icon} /></svg></span
-								>
-								<span class="rb-tool-label">{tool.label}</span>
-								<span class="rb-tool-desc">{tool.description}</span>
-								<span class="rb-tool-fact"
-									>{toolFact(tool.id, crdCount, groupCount, latestChange)}</span
-								>
-							</a>
-						{:else}
-							<button
-								type="button"
-								class="rb-tool"
-								on:click={() => onBrowseRelease($selectedRelease)}
+						<svelte:element
+							this={href ? 'a' : 'button'}
+							{href}
+							type={href ? undefined : 'button'}
+							role={href ? undefined : 'button'}
+							class="rb-tool"
+							class:is-primary={tool.primary}
+							on:click={href ? undefined : () => onBrowseRelease($selectedRelease)}
+						>
+							<span class="rb-tool-icon" aria-hidden="true"
+								><svg viewBox="0 0 24 24"><path d={tool.icon} /></svg></span
 							>
-								<span class="rb-tool-icon" aria-hidden="true"
-									><svg viewBox="0 0 24 24"><path d={tool.icon} /></svg></span
+							<span class="rb-tool-text">
+								<span class="rb-tool-label"
+									>{tool.label}{#if tool.primary}<span class="rb-tool-tag">Most used</span
+										>{/if}</span
 								>
-								<span class="rb-tool-label">{tool.label}</span>
 								<span class="rb-tool-desc">{tool.description}</span>
-								<span class="rb-tool-fact"
-									>{toolFact(tool.id, crdCount, groupCount, latestChange)}</span
-								>
-							</button>
-						{/if}
+							</span>
+							<span class="rb-tool-fact"
+								>{toolFact(tool.id, crdCount, groupCount, latestChange)}</span
+							>
+							<svg class="rb-tool-go" viewBox="0 0 12 12" aria-hidden="true"
+								><path d="M4.5 3 7.5 6 4.5 9" /></svg
+							>
+						</svelte:element>
 					</li>
 				{/each}
 			</ul>
 		</section>
-
 	</main>
 </div>
 
@@ -516,17 +664,35 @@
 		color: var(--rb-ink);
 		font-family: var(--rb-font);
 	}
-	.rb-home-main {
+	.rb-wrap {
 		max-width: 80rem;
 		margin: 0 auto;
-		padding: 0 max(1rem, env(safe-area-inset-right, 0px)) 2rem
-			max(1rem, env(safe-area-inset-left, 0px));
+		padding-left: max(1rem, env(safe-area-inset-left, 0px));
+		padding-right: max(1rem, env(safe-area-inset-right, 0px));
 	}
 	@media (min-width: 1024px) {
-		.rb-home-main {
+		.rb-wrap {
 			padding-left: 2.5rem;
 			padding-right: 2.5rem;
 		}
+	}
+	.rb-home-main {
+		padding-bottom: 2rem;
+	}
+	.rb-hero-band {
+		position: relative;
+		margin-bottom: 2.25rem;
+		background: var(--rb-surface);
+		border-bottom: 1px solid var(--rb-line);
+	}
+	.rb-hero-band::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background-image: radial-gradient(var(--rb-line-strong) 1px, transparent 1.2px);
+		background-size: 22px 22px;
+		mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent 80%);
 	}
 	h1,
 	h2 {
@@ -536,16 +702,19 @@
 
 	/* hero */
 	.rb-hero {
+		position: relative;
 		display: grid;
 		gap: 2rem;
-		padding: 2rem 0 2.25rem;
+		padding-top: 2rem;
+		padding-bottom: 2.25rem;
 		align-items: center;
 	}
 	@media (min-width: 960px) {
 		.rb-hero {
 			grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
 			gap: 2.5rem;
-			padding: 3rem 0 2.5rem;
+			padding-top: 3rem;
+			padding-bottom: 2.75rem;
 		}
 	}
 	.rb-hero-copy {
@@ -586,10 +755,30 @@
 		line-height: 1.55;
 		color: var(--rb-ink-2);
 	}
-	.rb-sub b {
-		font-family: var(--rb-font-mono);
-		font-weight: 600;
-		font-size: 0.94em;
+	.rb-stats {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem 1.75rem;
+		margin: 1.25rem 0 0;
+	}
+	.rb-stats div {
+		display: flex;
+		flex-direction: column-reverse;
+		gap: 0.125rem;
+		padding-left: 0.75rem;
+		border-left: 2px solid var(--rb-line-strong);
+	}
+	.rb-stats div:first-child {
+		border-left-color: var(--rb-signal);
+	}
+	.rb-stats dt {
+		font-size: 0.75rem;
+		color: var(--rb-ink-3);
+	}
+	.rb-stats dd {
+		margin: 0;
+		font: 700 1.25rem/1.1 var(--rb-font-mono);
+		font-variant-numeric: tabular-nums;
 		color: var(--rb-ink);
 	}
 	.rb-search {
@@ -818,10 +1007,11 @@
 	}
 	.rb-band-head {
 		display: flex;
-		align-items: baseline;
+		flex-wrap: wrap;
+		align-items: flex-end;
 		justify-content: space-between;
 		gap: 0.75rem;
-		margin-bottom: 0.75rem;
+		margin-bottom: 1rem;
 	}
 	.rb-band-head h2 {
 		font-family: var(--rb-font-display);
@@ -829,85 +1019,199 @@
 		font-weight: 700;
 		color: var(--rb-ink);
 	}
-	.rb-band-head a {
+	.rb-band-sub {
+		margin: 0.25rem 0 0;
+		font-size: 0.85rem;
+		color: var(--rb-ink-3);
+	}
+	.rb-band-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 1rem;
+	}
+
+	/* release lines: newest first, one card per line */
+	.rb-lines {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.75rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	@media (min-width: 900px) {
+		.rb-lines {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+	.rb-lines li {
+		display: flex;
+	}
+	.rb-line {
+		position: relative;
+		display: grid;
+		gap: 0.25rem;
+		width: 100%;
+		padding: 0.875rem 1rem 0.8125rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.75rem;
+		background: var(--rb-surface);
+		color: inherit;
+		text-align: left;
+		font: inherit;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			box-shadow 0.15s;
+	}
+	.rb-line:hover {
+		border-color: var(--rb-signal);
+		box-shadow: 0 12px 28px -22px rgba(10, 30, 80, 0.5);
+	}
+	.rb-line.is-selected {
+		border-color: var(--rb-signal);
+		box-shadow: inset 0 3px 0 var(--rb-signal);
+	}
+	.rb-line-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+	.rb-line-name {
+		font: 600 0.72rem var(--rb-font-mono);
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--rb-ink-3);
+	}
+	.rb-line-version {
+		font: 700 1.45rem/1.15 var(--rb-font-mono);
+		letter-spacing: -0.02em;
+		color: var(--rb-ink);
+	}
+	.rb-line.is-selected .rb-line-version {
+		color: var(--rb-signal);
+	}
+	.rb-line-meta {
+		font-size: 0.78rem;
+		color: var(--rb-ink-3);
+	}
+	.rb-line-delta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.5rem;
+		margin-top: 0.375rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--rb-line);
+		font-size: 0.78rem;
+	}
+	.rb-line-from {
+		margin-right: auto;
+		color: var(--rb-ink-3);
+	}
+
+	/* "More releases" menu */
+	.rb-more {
+		position: relative;
+	}
+	.rb-more-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4375rem;
+		height: 2.125rem;
+		padding: 0 0.6875rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		font: 600 0.84rem var(--rb-font);
+		cursor: pointer;
+	}
+	.rb-more-btn:hover,
+	.rb-more-btn[aria-expanded='true'],
+	.rb-more-btn.is-current {
+		border-color: var(--rb-signal);
+		color: var(--rb-signal);
+	}
+	.rb-more-btn svg {
+		width: 0.75rem;
+		height: 0.75rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.6;
+	}
+	.rb-more-count {
+		padding: 0 0.3125rem;
+		border-radius: 0.25rem;
+		background: var(--rb-raised);
+		color: var(--rb-ink-2);
+		font: 500 0.72rem var(--rb-font-mono);
+	}
+	.rb-more-menu {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 0.375rem);
+		z-index: 30;
+		width: min(18rem, calc(100vw - 2rem));
+		max-height: 22rem;
+		overflow: auto;
+		padding: 0.375rem;
+		background: var(--rb-surface);
+		border: 1px solid var(--rb-line);
+		border-radius: 0.625rem;
+		box-shadow: var(--rb-shadow-pop);
+	}
+	.rb-more-line {
+		margin: 0.375rem 0.5rem 0.25rem;
+		font: 600 0.68rem var(--rb-font-mono);
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--rb-ink-3);
+	}
+	.rb-more-menu ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.rb-more-menu button {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0.4375rem 0.5rem;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		color: var(--rb-ink);
+		font: 600 0.86rem var(--rb-font-mono);
+		text-align: left;
+		cursor: pointer;
+	}
+	.rb-more-menu button:hover {
+		background: var(--rb-raised);
+	}
+	.rb-more-menu button[aria-current='true'] {
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+	}
+	.rb-more-delta {
+		font: 400 0.74rem var(--rb-font);
+		color: var(--rb-ink-3);
+	}
+	.rb-band-link {
 		font-size: 0.85rem;
 		font-weight: 600;
 		color: var(--rb-signal);
 		text-decoration: none;
 	}
-	.rb-rail {
-		display: grid;
-		gap: 0.75rem;
-		padding: 1rem 1.125rem;
-		background: var(--rb-surface);
-		border: 1px solid var(--rb-line);
-		border-radius: 0.75rem;
-	}
-	.rb-train {
-		display: grid;
-		gap: 0.25rem;
-		align-items: center;
-	}
-	@media (min-width: 640px) {
-		.rb-train {
-			grid-template-columns: 3.5rem minmax(0, 1fr);
-			gap: 0.75rem;
-		}
-	}
-	.rb-train-label {
-		font: 600 0.75rem var(--rb-font-mono);
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--rb-ink-3);
-	}
-	.rb-stops {
-		display: flex;
-		align-items: center;
-		margin: 0;
-		padding: 0.25rem 0.125rem;
-		list-style: none;
-		overflow-x: auto;
-	}
-	.rb-stops li {
-		display: flex;
-		align-items: center;
-		flex-shrink: 0;
-	}
-	.rb-stops li + li::before {
-		content: '';
-		width: 1.125rem;
-		height: 2px;
-		background: var(--rb-line-strong);
-	}
-	.rb-stop {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		min-height: 2rem;
-		padding: 0 0.6875rem;
-		border: 1px solid var(--rb-line);
-		border-radius: 999px;
-		background: var(--rb-bg);
-		color: var(--rb-ink-2);
-		font: 500 0.8rem var(--rb-font-mono);
-		cursor: pointer;
-	}
-	.rb-stop:hover {
-		border-color: var(--rb-signal);
-	}
-	.rb-stop[aria-current='true'] {
-		background: var(--rb-signal);
-		border-color: var(--rb-signal);
-		color: var(--rb-signal-ink);
-	}
-	.rb-stop[aria-current='true'] :global(.rb-tag-latest) {
-		background: color-mix(in srgb, var(--rb-signal-ink) 18%, transparent);
-		color: var(--rb-signal-ink);
+	.rb-band-link:hover {
+		text-decoration: underline;
 	}
 	.rb-rail-note {
-		margin: 0;
-		padding-top: 0.625rem;
-		border-top: 1px dashed var(--rb-line);
+		margin: 0.875rem 0 0;
 		font-size: 0.82rem;
 		color: var(--rb-ink-3);
 	}
@@ -930,56 +1234,63 @@
 		color: var(--rb-removed);
 	}
 
-	/* tools */
+	/* tools: one framed list, two columns on wide screens */
 	.rb-tools {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.75rem;
+		grid-template-columns: minmax(0, 1fr);
 		margin: 0;
 		padding: 0;
 		list-style: none;
+		background: var(--rb-surface);
+		border: 1px solid var(--rb-line);
+		border-radius: 0.75rem;
+		overflow: hidden;
 	}
-	@media (min-width: 900px) {
+	@media (min-width: 760px) {
 		.rb-tools {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		.rb-tools li:nth-child(odd) {
+			border-right: 1px solid var(--rb-line);
 		}
 	}
 	.rb-tools li {
 		display: flex;
+		border-bottom: 1px solid var(--rb-line);
+		margin-bottom: -1px;
 	}
 	.rb-tool {
 		display: grid;
-		align-content: start;
-		gap: 0.375rem;
+		grid-template-columns: auto minmax(0, 1fr) auto auto;
+		align-items: center;
+		gap: 0.875rem;
 		width: 100%;
-		padding: 1rem;
-		border: 1px solid var(--rb-line);
-		border-radius: 0.75rem;
-		background: var(--rb-surface);
+		padding: 0.9375rem 1.125rem;
+		border: 0;
+		background: none;
 		color: inherit;
 		text-align: left;
 		text-decoration: none;
 		font: inherit;
 		cursor: pointer;
-		transition:
-			border-color 0.15s,
-			transform 0.15s;
+		transition: background-color 0.15s;
 	}
 	.rb-tool:hover {
-		border-color: var(--rb-signal);
-		transform: translateY(-1px);
-	}
-	.rb-tool.is-primary {
-		background: var(--rb-signal-soft);
-		border-color: color-mix(in srgb, var(--rb-signal) 35%, var(--rb-line));
+		background: var(--rb-raised);
 	}
 	.rb-tool-icon {
 		display: grid;
 		place-items: center;
-		width: 2rem;
-		height: 2rem;
-		margin-bottom: 0.25rem;
+		width: 2.25rem;
+		height: 2.25rem;
 		border-radius: 0.5rem;
+		border: 1px solid var(--rb-line);
+		background: var(--rb-bg);
+		color: var(--rb-ink-2);
+	}
+	.rb-tool.is-primary .rb-tool-icon,
+	.rb-tool:hover .rb-tool-icon {
+		border-color: transparent;
 		background: var(--rb-signal-soft);
 		color: var(--rb-signal);
 	}
@@ -992,22 +1303,60 @@
 		stroke-linecap: round;
 		stroke-linejoin: round;
 	}
+	.rb-tool-text {
+		display: grid;
+		gap: 0.125rem;
+		min-width: 0;
+	}
 	.rb-tool-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-size: 0.92rem;
 		font-weight: 600;
 		color: var(--rb-ink);
 	}
+	.rb-tool-tag {
+		padding: 0.0625rem 0.375rem;
+		border-radius: 0.25rem;
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font: 600 0.62rem var(--rb-font-mono);
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
 	.rb-tool-desc {
 		font-size: 0.8rem;
-		line-height: 1.45;
+		line-height: 1.4;
 		color: var(--rb-ink-3);
 	}
 	.rb-tool-fact {
-		margin-top: 0.25rem;
 		font: 500 0.72rem var(--rb-font-mono);
-		color: var(--rb-ink-2);
+		color: var(--rb-ink-3);
+		text-align: right;
+		white-space: nowrap;
 	}
-	@media (max-width: 639px) {
+	.rb-tool-go {
+		width: 0.75rem;
+		height: 0.75rem;
+		fill: none;
+		stroke: var(--rb-ink-3);
+		stroke-width: 1.6;
+		transition: transform 0.15s;
+	}
+	.rb-tool:hover .rb-tool-go {
+		stroke: var(--rb-signal);
+		transform: translateX(2px);
+	}
+	@media (max-width: 1099px) {
+		.rb-tool-fact {
+			display: none;
+		}
+		.rb-tool {
+			grid-template-columns: auto minmax(0, 1fr) auto;
+		}
+	}
+	@media (max-width: 479px) {
 		.rb-tool-desc {
 			display: none;
 		}
@@ -1017,10 +1366,12 @@
 		outline-offset: 2px;
 	}
 	@media (prefers-reduced-motion: reduce) {
-		.rb-tool {
+		.rb-tool,
+		.rb-line,
+		.rb-tool-go {
 			transition: none;
 		}
-		.rb-tool:hover {
+		.rb-tool:hover .rb-tool-go {
 			transform: none;
 		}
 	}
