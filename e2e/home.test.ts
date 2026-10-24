@@ -52,9 +52,12 @@ test('release switcher changes the release in the URL', async ({ page }) => {
 test('"/" opens Jump to a CRD and Enter opens the CRD', async ({ page }) => {
 	await page.goto('/docs');
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-	await page.keyboard.press('/');
 	const input = page.getByRole('combobox', { name: 'CRD kind or group' });
-	await expect(input).toBeFocused();
+	// The docs page is prerendered: `/` only works once the page script has started.
+	await expect(async () => {
+		await page.keyboard.press('/');
+		await expect(input).toBeFocused({ timeout: 1_000 });
+	}).toPass({ timeout: 15_000 });
 	await input.fill('BridgeDomain');
 	await expect(page.locator('.rb-jump-results')).toContainText('BridgeDomain');
 	await page.keyboard.press('Enter');
