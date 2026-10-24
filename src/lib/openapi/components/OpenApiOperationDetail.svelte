@@ -6,7 +6,6 @@
 	import VendorExtensionsSection from '$lib/openapi/components/VendorExtensionsSection.svelte';
 	import {
 		formatOperationDescriptionParagraphs,
-		getOperationTagLabel,
 		groupMediaContentBySchema,
 		groupParametersByLocation,
 		isErrorResponseStatus,
@@ -20,23 +19,17 @@
 		operation: OpenApiOperation;
 		spec: Record<string, unknown>;
 		darkMode?: boolean;
-		onSchemaGraphNavigate?: (schemaName: string) => void;
-		/** Open Schema Graph on API map focused on this operation (not schema-deps). */
-		onShowInSchemaGraph?: (operation: OpenApiOperation) => void;
 	}
 
 	let {
 		operation,
 		spec,
-		darkMode = false,
-		onSchemaGraphNavigate,
-		onShowInSchemaGraph
+		darkMode = false
 	}: Props = $props();
 
 	let descriptionExpanded = $state(false);
 	let activeResponseTab = $state('');
 	let copiedPath = $state(false);
-	let copiedCurl = $state(false);
 	let copyPathTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const descriptionCollapsible = $derived(
@@ -52,8 +45,6 @@
 	const parameterGroups = $derived(groupParametersByLocation(operation.parameters));
 	const hasParameters = $derived(operation.parameters.length > 0);
 	const responseTabs = $derived(operation.responses);
-	const tagLabel = $derived(getOperationTagLabel(operation));
-	const showSchemaGraphLink = $derived(Boolean(onShowInSchemaGraph));
 
 	$effect(() => {
 		operation.id;
@@ -77,36 +68,6 @@
 		}, 1500);
 	}
 
-	/**
-	 * A curl starting point: method, bearer token unless the endpoint is public, required query
-	 * parameters as shell variables, and a JSON body header when the endpoint takes one.
-	 */
-	const curlCommand = $derived.by(() => {
-		const query = operation.parameters
-			.filter((p) => p.in === 'query' && p.required)
-			.map((p) => `${p.name}=$${p.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`)
-			.join('&');
-		const url = `https://$EDA_HOST${operation.path}${query ? `?${query}` : ''}`;
-		const lines = [`curl -X ${operation.method.toUpperCase()}`];
-		if (!operation.security.isPublic) lines.push(`  -H "Authorization: Bearer $TOKEN"`);
-		if (operation.requestBody) lines.push(`  -H "Content-Type: application/json" -d @body.json`);
-		lines.push(`  "${url}"`);
-		return lines.join(' \\\n');
-	});
-
-	async function handleCopyCurl() {
-		if (!(await copyToClipboard(curlCommand))) return;
-		copiedCurl = true;
-		setTimeout(() => (copiedCurl = false), 1500);
-	}
-
-	function handleSchemaRefClick(schemaName: string) {
-		onSchemaGraphNavigate?.(schemaName);
-	}
-
-	function handleShowInSchemaGraph() {
-		onShowInSchemaGraph?.(operation);
-	}
 </script>
 
 <article
@@ -115,29 +76,6 @@
 	id={operation.operationId || operation.id}
 >
 	<div class="openapi-operation__actions" role="toolbar" aria-label="Operation actions">
-		{#if showSchemaGraphLink}
-			<button
-				type="button"
-				class="openapi-operation__action openapi-operation__action--primary"
-				onclick={handleShowInSchemaGraph}
-			>
-				<svg
-					class="openapi-operation__action-icon"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-					aria-hidden="true"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M13 10V3L4 14h7v7l9-11h-7z"
-					/>
-				</svg>
-				Show in Schema Graph
-			</button>
-		{/if}
 		<button
 			type="button"
 			class="openapi-operation__action openapi-operation__action--secondary"
@@ -180,21 +118,9 @@
 				Copy path
 			{/if}
 		</button>
-		<button
-			type="button"
-			class="openapi-operation__action openapi-operation__action--secondary"
-			class:openapi-operation__action--copied={copiedCurl}
-			title={curlCommand}
-			onclick={() => void handleCopyCurl()}
-		>
-			{copiedCurl ? 'Copied' : 'Copy curl'}
-		</button>
 	</div>
 
 	<div class="openapi-operation__meta">
-		{#if tagLabel}
-			<span class="openapi-operation__chip">{tagLabel}</span>
-		{/if}
 		<span
 			class="openapi-operation__chip"
 			class:openapi-operation__chip--success={operation.security.isPublic}
@@ -325,19 +251,7 @@
 													</div>
 												{/if}
 												{#if param.schemaRef}
-													{#if onSchemaGraphNavigate}
-														<button
-															type="button"
-															class="openapi-operation__schema-chip"
-															onclick={() => handleSchemaRefClick(param.schemaRef!)}
-														>
-															{param.schemaRef}
-														</button>
-													{:else}
-														<span class="openapi-operation__schema-chip"
-															>{param.schemaRef}</span
-														>
-													{/if}
+													<span class="openapi-operation__schema-chip">{param.schemaRef}</span>
 												{/if}
 											</td>
 											<td>{param.required ? 'yes' : 'no'}</td>
@@ -369,9 +283,6 @@
 															schemaRef={param.schemaRef}
 															title={param.name}
 															{darkMode}
-															onSchemaRefClick={onSchemaGraphNavigate
-																? handleSchemaRefClick
-																: undefined}
 														/>
 													</details>
 												{/if}
@@ -415,7 +326,6 @@
 							hasEmptySchema={media.hasEmptySchema}
 							examples={media.examples}
 							{darkMode}
-							onSchemaRefClick={onSchemaGraphNavigate ? handleSchemaRefClick : undefined}
 						/>
 					</div>
 				{/each}
@@ -499,9 +409,6 @@
 										hasEmptySchema={media.hasEmptySchema}
 										examples={media.examples}
 										{darkMode}
-										onSchemaRefClick={onSchemaGraphNavigate
-											? handleSchemaRefClick
-											: undefined}
 									/>
 								</div>
 							{/each}
@@ -577,17 +484,7 @@
 		color: var(--oa-text, #e2e8f0);
 	}
 
-	.openapi-operation__action--primary {
-		border-color: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 40%, var(--oa-panel-border, #e2e8f0));
-		color: var(--oa-focus-ring, #2563eb);
-	}
 
-	.openapi-operation--dark .openapi-operation__action--primary {
-		border-color: color-mix(in srgb, var(--oa-focus-ring, #60a5fa) 45%, var(--oa-panel-border, #334155));
-		color: var(--oa-focus-ring, #60a5fa);
-	}
-
-	.openapi-operation__action--primary:hover,
 	.openapi-operation__action--secondary:hover {
 		border-color: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 50%, var(--oa-panel-border));
 		background: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 10%, var(--oa-section, var(--oa-panel)));
@@ -864,14 +761,7 @@
 		cursor: default;
 	}
 
-	button.openapi-operation__schema-chip {
-		cursor: pointer;
-		font-family: var(--oa-font-code, 'Fira Code', ui-monospace, monospace);
-	}
 
-	button.openapi-operation__schema-chip:hover {
-		background: color-mix(in srgb, var(--oa-link-ref, #4f46e5) 18%, transparent);
-	}
 
 	.openapi-operation__example {
 		margin-top: 0.25rem;

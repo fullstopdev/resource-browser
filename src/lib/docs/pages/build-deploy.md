@@ -35,7 +35,7 @@ credentials).
 > [!NOTE]
 > `npm run build` and `npm run build:cloudflare` (used by every `deploy:cloudflare*` script that
 > builds) both run `npm run generate:all` first: sitemap, release notes, OpenAPI manifests and
-> schema graphs. The generated files change on every build (dates); commit them with your change.
+> the API index. The generated files change on every build (dates); commit them with your change.
 > `deploy:cloudflare:only` deploys an existing build without regenerating.
 
 ## Deploying

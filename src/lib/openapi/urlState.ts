@@ -50,26 +50,13 @@ export function buildOpenApiCatalogPath(state: OpenApiCatalogUrlState): string {
 	return qs ? `/openapi?${qs}` : '/openapi';
 }
 
-/** Build an OpenAPI browser URL for a specific spec (query-param based). */
-export function buildOpenApiSpecPath(
-	specId: string,
-	release?: string,
-	tab?: 'paths' | 'schemaGraph' | 'schemas',
-	operationId?: string,
-	options?: { schema?: string; op?: string }
-): string {
+/** API reference URL for an API (spec id), optionally at an operation (`#operationId`). */
+export function buildOpenApiSpecPath(specId: string, release?: string, operationId?: string): string {
 	const params = new URLSearchParams();
 	if (release) params.set('release', release);
 	params.set('spec', specId);
-	// Legacy `schemas` tab redirects to Schema Graph (Schemas browser removed).
-	if (tab === 'schemaGraph' || tab === 'schemas') params.set('tab', 'schemaGraph');
-	const op = options?.op?.trim();
-	const schema = options?.schema?.trim();
-	if (op) params.set('op', op);
-	else if (schema) params.set('schema', schema);
-	const qs = params.toString();
 	const hash = operationId ? `#${operationId}` : '';
-	return `/openapi?${qs}${hash}`;
+	return `/openapi?${params.toString()}${hash}`;
 }
 
 /** Build a deep-link path under `/api-browser/<release>/<spec>#operationId`. */

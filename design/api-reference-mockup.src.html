@@ -1,0 +1,287 @@
+<title>EDA API Reference Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: design-review document around a live mock. The product is organised the way a network
+   engineer thinks: resource (BridgeDomain) → what can I do with it → exact request to send. */
+:root {
+  --doc-bg: #f5f7fa; --doc-fg: #172033; --doc-muted: #55617a; --doc-line: #dfe4ec; --doc-panel: #ffffff;
+  --doc-accent: #0050e6; --doc-warn: #a35200; --doc-warn-bg: #fff3e3;
+  --p-bg: #f7f9fc; --p-surface: #ffffff; --p-raised: #f0f3f8; --p-line: #e1e6ee; --p-line-strong: #c9d1de;
+  --p-ink: #111a2c; --p-ink-2: #3c4860; --p-ink-3: #56627a; --p-signal: #0050e6; --p-signal-ink: #fff; --p-signal-soft: #e7efff;
+  --p-ok: #0d7a4f; --p-ok-soft: #e3f5ec; --p-warn: #946200; --p-warn-soft: #fdf3dc; --p-code: #6b3fb8; --p-term: #0e1626; --p-term-ink: #d7e2f4;
+  --m-get: #1d5fd6; --m-get-bg: #e6eefc; --m-post: #0d7a4f; --m-post-bg: #e3f5ec; --m-put: #946200; --m-put-bg: #fdf3dc;
+  --m-patch: #6b3fb8; --m-patch-bg: #efe8fb; --m-delete: #b42318; --m-delete-bg: #fde7e5;
+  --font-ui: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --doc-bg: #0d121c; --doc-fg: #e6ebf4; --doc-muted: #9aa6bd; --doc-line: #243045; --doc-panel: #131a27; --doc-accent: #6ea0ff; --doc-warn: #ffb35c; --doc-warn-bg: #2b1e0d; color-scheme: dark; } }
+:root[data-theme="dark"] { --doc-bg: #0d121c; --doc-fg: #e6ebf4; --doc-muted: #9aa6bd; --doc-line: #243045; --doc-panel: #131a27; --doc-accent: #6ea0ff; --doc-warn: #ffb35c; --doc-warn-bg: #2b1e0d; color-scheme: dark; }
+.mock[data-mode="dark"] { --p-bg: #0b1220; --p-surface: #111a2b; --p-raised: #162136; --p-line: #213049; --p-line-strong: #2e4060; --p-ink: #e8eef8; --p-ink-2: #b9c4d8; --p-ink-3: #93a0b8;
+  --p-signal: #5b93ff; --p-signal-ink: #06101f; --p-signal-soft: #15284a; --p-ok: #4fd39a; --p-ok-soft: #0f2f22; --p-warn: #f2c14e; --p-warn-soft: #33270b; --p-code: #c4a6ff; --p-term: #060b14;
+  --m-get: #7aa7ff; --m-get-bg: #13254a; --m-post: #4fd39a; --m-post-bg: #0f2f22; --m-put: #f2c14e; --m-put-bg: #33270b; --m-patch: #c4a6ff; --m-patch-bg: #261a40; --m-delete: #ff8a80; --m-delete-bg: #3a1513; color-scheme: dark; }
+* { box-sizing: border-box; } [hidden] { display: none !important; }
+body { background: var(--doc-bg); color: var(--doc-fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; }
+.doc { max-width: 1320px; margin: 0 auto; display: grid; gap: 56px; } .read { max-width: 70ch; }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.2; } h1 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); letter-spacing: -0.015em; } h2 { font-size: 1.35rem; } p { margin: 0; }
+.eyebrow { font: 600 0.72rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--doc-accent); } .lede { color: var(--doc-muted); font-size: 1.05rem; }
+.stack { display: grid; gap: 14px; } .section-head { display: grid; gap: 8px; margin-bottom: 20px; }
+.before { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.shot { border: 1px solid var(--doc-line); border-radius: 10px; overflow: hidden; background: var(--doc-panel); margin: 0; } .shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { font-size: .8rem; color: var(--doc-muted); padding: 8px 12px; border-top: 1px solid var(--doc-line); }
+.issues { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; counter-reset: i; }
+.issues li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: .92rem; }
+.issues li::before { counter-increment: i; content: counter(i); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 .72rem/1 var(--font-mono); color: var(--doc-warn); background: var(--doc-warn-bg); }
+.stage-bar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--doc-line); border-radius: 8px; overflow: hidden; background: var(--doc-panel); }
+.seg button { font: 500 .82rem var(--font-ui); color: var(--doc-muted); background: none; border: 0; padding: 7px 14px; cursor: pointer; } .seg button[aria-pressed="true"] { background: var(--doc-fg); color: var(--doc-bg); }
+:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+.stage { overflow-x: auto; padding-bottom: 6px; }
+.frame { margin: 0 auto; border: 1px solid var(--doc-line); border-radius: 12px; overflow: hidden; background: var(--doc-panel); box-shadow: 0 18px 50px -24px rgba(16,30,60,.35); }
+.frame[data-device="desktop"] { width: 100%; min-width: 1180px; } .frame[data-device="mobile"] { width: 390px; }
+.chrome { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--doc-line); } .chrome i { width: 10px; height: 10px; border-radius: 50%; background: var(--doc-line); }
+.chrome span { margin-left: 10px; flex: 1; font: .75rem var(--font-mono); color: var(--doc-muted); background: var(--doc-bg); border-radius: 6px; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== product ===== */
+.mock { background: var(--p-bg); color: var(--p-ink); font-family: var(--font-ui); font-size: 14px; min-height: 820px; }
+.mock button { font-family: inherit; }
+.nav { display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 22px; background: var(--p-surface); border-bottom: 1px solid var(--p-line); }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: 14px; font-weight: 700; font-size: .92rem; white-space: nowrap; }
+.brand i { width: 26px; height: 26px; border-radius: 7px; background: conic-gradient(from 200deg, #e94b35, #f5a623, #3d7bd9, #6b3fb8, #e94b35); }
+.nav a { text-decoration: none; padding: 0 11px; height: 56px; display: inline-flex; align-items: center; color: var(--p-ink-2); font-weight: 500; font-size: .88rem; border-bottom: 2px solid transparent; } .nav a.on { color: var(--p-ink); border-bottom-color: var(--p-signal); }
+.nav-r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-surface); color: var(--p-ink); font: 600 .82rem var(--font-mono); }
+.latest { font: 600 .6rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; padding: 4px 6px; border-radius: 4px; color: var(--p-ok); background: var(--p-ok-soft); }
+.frame[data-device="mobile"] .nav { padding: 0 12px; } .frame[data-device="mobile"] .nav a, .frame[data-device="mobile"] .brand b { display: none; }
+
+.shell { display: grid; grid-template-columns: 272px minmax(0, 1fr); min-height: 764px; }
+.side { background: var(--p-surface); border-right: 1px solid var(--p-line); padding: 14px 12px; display: grid; gap: 12px; align-content: start; }
+.search { position: relative; } .search input { width: 100%; height: 38px; border: 1px solid var(--p-line-strong); border-radius: 8px; padding: 0 10px 0 32px; background: var(--p-surface); color: var(--p-ink); font: inherit; }
+.search svg { position: absolute; left: 10px; top: 11px; width: 16px; height: 16px; fill: none; stroke: var(--p-ink-3); stroke-width: 1.8; }
+.results { position: absolute; z-index: 9; left: 0; right: 0; top: 42px; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; box-shadow: 0 16px 40px -16px rgba(10,20,40,.4); padding: 6px; }
+.results button { width: 100%; display: flex; justify-content: space-between; gap: 8px; padding: 7px 8px; border: 0; border-radius: 6px; background: none; color: var(--p-ink); text-align: left; cursor: pointer; } .results button:hover { background: var(--p-raised); }
+.results small { font: .7rem var(--font-mono); color: var(--p-ink-3); }
+.tree-h { font: 600 .66rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); margin: 6px 6px 2px; }
+.tree { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.tree button { width: 100%; display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--p-ink-2); text-align: left; cursor: pointer; font-size: .86rem; }
+.tree button:hover { background: var(--p-raised); } .tree button[aria-current="page"] { background: var(--p-signal-soft); color: var(--p-signal); font-weight: 600; }
+.tree span.n { font: .72rem var(--font-mono); color: var(--p-ink-3); }
+.tree .api > button { font-weight: 600; color: var(--p-ink); } .tree .api > button .chev { color: var(--p-ink-3); font-size: .7rem; }
+.tree ul { list-style: none; margin: 2px 0 6px 10px; padding: 0 0 0 8px; border-left: 1px solid var(--p-line); display: grid; gap: 1px; }
+
+.main { min-width: 0; padding: 22px 28px 32px; }
+.crumb { font: 500 .74rem var(--font-mono); color: var(--p-ink-3); } .crumb b { color: var(--p-ink-2); font-weight: 500; }
+.title-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; justify-content: space-between; margin: 6px 0 14px; }
+.title-row h1 { font-size: 1.7rem; letter-spacing: -.02em; color: var(--p-ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .chip { font: 500 .72rem var(--font-mono); padding: 3px 8px; border-radius: 5px; background: var(--p-raised); color: var(--p-ink-2); border: 1px solid var(--p-line); }
+.links { display: flex; gap: 8px; } .lnk { height: 32px; padding: 0 11px; display: inline-flex; align-items: center; border: 1px solid var(--p-line-strong); border-radius: 7px; color: var(--p-ink); background: var(--p-surface); font-weight: 600; font-size: .82rem; text-decoration: none; }
+.lede-p { color: var(--p-ink-2); max-width: 75ch; margin-bottom: 18px; }
+
+/* overview */
+.callout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 26px; }
+.callout div { background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; padding: 14px; }
+.callout b { display: block; font-size: .86rem; margin-bottom: 4px; } .callout p { font-size: .82rem; color: var(--p-ink-3); } .callout code { font: .78rem var(--font-mono); color: var(--p-ink); }
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; margin: 6px 0 10px; } .sec-h h2 { font-size: 1.05rem; } .sec-h span { font: .74rem var(--font-mono); color: var(--p-ink-3); }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 24px; }
+.card { display: grid; gap: 6px; align-content: start; text-align: left; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; padding: 13px 14px; color: inherit; cursor: pointer; }
+.card:hover { border-color: var(--p-signal); } .card b { font-size: .92rem; } .card small { font: .72rem var(--font-mono); color: var(--p-ink-3); }
+.card .kinds { font-size: .8rem; color: var(--p-ink-2); line-height: 1.45; }
+
+/* resource view */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 20px; align-items: start; }
+.actions { border: 1px solid var(--p-line); border-radius: 10px; background: var(--p-surface); overflow: hidden; }
+.grp { font: 600 .66rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); padding: 10px 14px 6px; background: var(--p-raised); border-bottom: 1px solid var(--p-line); }
+.act { width: 100%; display: grid; grid-template-columns: 132px 60px minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 14px; border: 0; border-bottom: 1px solid var(--p-line); background: none; color: inherit; text-align: left; cursor: pointer; }
+.act:hover { background: var(--p-raised); } .act[aria-current="true"] { background: var(--p-signal-soft); box-shadow: inset 2px 0 0 var(--p-signal); }
+.act b { font-size: .86rem; font-weight: 600; } .act .path { font: .76rem var(--font-mono); color: var(--p-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .act .path em { font-style: normal; color: var(--p-code); }
+.mb { font: 700 .64rem/1 var(--font-mono); text-align: center; padding: 5px 0; border-radius: 5px; }
+.mb[data-m="GET"] { background: var(--m-get-bg); color: var(--m-get); } .mb[data-m="POST"] { background: var(--m-post-bg); color: var(--m-post); } .mb[data-m="PUT"] { background: var(--m-put-bg); color: var(--m-put); }
+.mb[data-m="PATCH"] { background: var(--m-patch-bg); color: var(--m-patch); } .mb[data-m="DELETE"] { background: var(--m-delete-bg); color: var(--m-delete); }
+.detail { position: sticky; top: 12px; border: 1px solid var(--p-line); border-radius: 10px; background: var(--p-surface); overflow: hidden; }
+.d-head { padding: 14px 16px 12px; border-bottom: 1px solid var(--p-line); display: grid; gap: 8px; }
+.d-head h3 { font-size: 1.05rem; } .d-path { display: flex; gap: 8px; align-items: center; } .d-path .mb { width: 56px; } .d-path code { font: 600 .84rem var(--font-mono); word-break: break-all; } .d-path code em { font-style: normal; color: var(--p-code); }
+.d-body { padding: 14px 16px 18px; display: grid; gap: 16px; }
+.d-body h4 { margin: 0 0 6px; font: 700 .7rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); }
+.term { position: relative; background: var(--p-term); color: var(--p-term-ink); border-radius: 8px; padding: 12px 14px; font: .76rem/1.65 var(--font-mono); white-space: pre; overflow-x: auto; }
+.term .copy { position: absolute; right: 8px; top: 8px; height: 26px; padding: 0 9px; border-radius: 6px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #d7e2f4; font: 600 .72rem var(--font-ui); cursor: pointer; }
+.term .c { color: #7f8ea8; } .term .k { color: #8fb4ff; } .term .s { color: #9fe0bf; }
+table { width: 100%; border-collapse: collapse; font-size: .8rem; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--p-line); vertical-align: top; }
+th { font: 600 .64rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--p-ink-3); } td code { font: 500 .78rem var(--font-mono); } .req { color: var(--m-delete); font: 600 .64rem var(--font-mono); }
+.status { display: flex; flex-wrap: wrap; gap: 6px; } .st { font: 600 .74rem var(--font-mono); padding: 3px 8px; border-radius: 5px; border: 1px solid var(--p-line); }
+.st.ok { color: var(--p-ok); } .st.bad { color: var(--m-delete); }
+.frame[data-device="mobile"] .shell { grid-template-columns: minmax(0, 1fr); } .frame[data-device="mobile"] .side { display: none; }
+.frame[data-device="mobile"] .main { padding: 16px 14px; } .frame[data-device="mobile"] .work, .frame[data-device="mobile"] .callout, .frame[data-device="mobile"] .grid { grid-template-columns: minmax(0, 1fr); }
+.frame[data-device="mobile"] .act { grid-template-columns: 56px minmax(0, 1fr); } .frame[data-device="mobile"] .act b { grid-column: 2; } .frame[data-device="mobile"] .act .mb { grid-row: 1 / span 2; } .frame[data-device="mobile"] .act .path { grid-column: 2; }
+.frame[data-device="mobile"] .detail { position: static; }
+.changes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.card2 { background: var(--doc-panel); border: 1px solid var(--doc-line); border-radius: 10px; padding: 20px; display: grid; gap: 10px; align-content: start; } .card2 ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .9rem; } .card2 code { font: .82em var(--font-mono); }
+@media (max-width: 860px) { .before, .changes { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<main class="doc">
+  <header class="read stack">
+    <p class="eyebrow">Design proposal · EDA API reference</p>
+    <h1>Find the resource, see what you can do, copy the request</h1>
+    <p class="lede">Network engineers come to the API reference with a resource in mind: "how do I create a BridgeDomain over the API?" This proposal drops the schema graph and organises all 56 EDA APIs around resources and actions, with a ready-to-run request for each.</p>
+  </header>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">Before</p><h2>Why the current explorer is still hard to use</h2></div>
+    <div class="before">
+      <figure class="shot"><img src="__NOW__" alt="Current API Explorer" width="1440" height="900"><figcaption>API Explorer today: Services API, 145 raw paths</figcaption></figure>
+      <ol class="issues">
+        <li><span><b>It speaks OpenAPI, not EDA.</b> 145 paths like <code>/apps/services.eda.nokia.com/v2/namespaces/{namespace}/bridgedomains/{name}/_revs</code> in one list, grouped under a tag called "apps".</span></li>
+        <li><span><b>You must know which API holds a resource.</b> BridgeDomain is in "Services", BGPPeer in "Protocols", Ping in "OAM". There is no search across APIs.</span></li>
+        <li><span><b>The same 7 to 9 endpoints repeat for every resource</b>, without saying what each one does (_revs, _targets, _topology).</span></li>
+        <li><span><b>No ready request.</b> You assemble the URL, the token header and a body yourself.</span></li>
+        <li><span><b>The schema graph</b> answers a question network engineers rarely ask and carries 38 MB of generated data.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">After</p><h2>Proposed API reference, working example</h2>
+      <p class="lede">Search "bgp" or "ping" in the sidebar, open a resource, pick an action. API names, resources, paths and parameters are real 26.8.2 data.</p></div>
+    <div class="stage-bar">
+      <div class="seg" role="group" aria-label="View"><button type="button" aria-pressed="false" data-view="overview">Overview</button><button type="button" aria-pressed="true" data-view="resource">Resource</button></div>
+      <div class="seg" role="group" aria-label="Device"><button type="button" aria-pressed="true" data-device="desktop">Desktop</button><button type="button" aria-pressed="false" data-device="mobile">Phone</button></div>
+      <div class="seg" role="group" aria-label="Example theme"><button type="button" aria-pressed="true" data-mode="light">Light</button><button type="button" aria-pressed="false" data-mode="dark">Dark</button></div>
+    </div>
+    <div class="stage"><div class="frame" id="frame" data-device="desktop">
+      <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span id="url">eda-resource-browser.pages.dev/openapi?release=26.8.2&amp;api=services.eda.nokia.com/v2&amp;resource=bridgedomains</span></div>
+      <div class="mock" id="mock" data-mode="light">
+        <nav class="nav" aria-label="Main"><span class="brand"><i aria-hidden="true"></i><b>EDA Resource Browser</b></span><a href="#x">CRDs ▾</a><a href="#x" class="on">API ▾</a><a href="#x">Docs</a><span class="nav-r"><span class="pill">26.8.2 <span class="latest">Latest</span></span></span></nav>
+        <div class="shell">
+          <aside class="side" aria-label="Browse the API">
+            <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"/></svg>
+              <input id="q" type="search" placeholder="Find a resource or API" aria-label="Find a resource or API" autocomplete="off"><div class="results" id="results" hidden></div></div>
+            <button class="lnk" type="button" id="go-overview" style="justify-content:flex-start">API overview</button>
+            <p class="tree-h">Platform</p>
+            <ul class="tree" id="platform"></ul>
+            <p class="tree-h">Applications</p>
+            <ul class="tree" id="apps"></ul>
+          </aside>
+          <div class="main" id="main"></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">Built</p><h2>The new API reference running on the real site</h2>
+      <p class="lede">Screenshots from the production build after the change.</p></div>
+    <div class="before">
+      <figure class="shot"><img src="__A_RES__" alt="BridgeDomain resource page with the Create action open" width="1440" height="900"><figcaption>Resource page: BridgeDomain, Create</figcaption></figure>
+      <div style="display:grid;gap:16px">
+        <figure class="shot"><img src="__A_OVER__" alt="API overview" width="1440" height="900"><figcaption>Overview</figcaption></figure>
+        <figure class="shot"><img src="__A_WF__" alt="Ping workflow page" width="1440" height="900"><figcaption>Workflow: Ping</figcaption></figure>
+        <figure class="shot"><img src="__A_DARK__" alt="Resource page in dark theme" width="1440" height="900"><figcaption>Dark theme</figcaption></figure>
+        <figure class="shot"><img src="__A_MOB__" alt="Resource page on a phone" width="390" height="844" style="max-width:220px;margin:0 auto"><figcaption>Phone, 390 px</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">What changes</p><h2>Implementation outline</h2></div>
+    <div class="changes">
+      <div class="card2"><h3>Explorer</h3><ul>
+        <li><b>Overview</b> landing: how to call the API (base path, bearer token, namespaces) and every API as a card with its resources.</li>
+        <li><b>Sidebar</b>: one search across all APIs and resources, the platform API sections, and each application API with its resources.</li>
+        <li><b>Resource page</b>: kind, API group, scope, link to the CRD schema, and an action table in plain words (List, Create, Get, Replace, Patch, Delete, History, Intent targets, Topology).</li>
+        <li><b>Action panel</b>: a curl you can paste (namespace <code>eda</code>, a name, the token as a variable, an example body), parameters, request and response schemas, status codes.</li>
+        <li><b>Schema graph removed</b>, with its code and 38 MB of generated graph files.</li>
+      </ul></div>
+      <div class="card2"><h3>Data and links</h3><ul>
+        <li>A small per-release index (<code>api-index.json</code>) built with the other generated data powers the overview and the search.</li>
+        <li>Resource names come from the CRD manifest, so the API reference and the CRD catalog use the same kinds and link to each other.</li>
+        <li>Old links keep working: <code>?spec=…</code> and <code>#operationId</code> open the matching resource and action.</li>
+        <li>Compare APIs keeps its layout and links into the new resource pages.</li>
+      </ul></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const PLATFORM = [["Query (EQL & NQL)",7],["Transactions",18],["Alarms",14],["Administration",54],["Cluster status",3],["Autocomplete",13],["Branches",7],["Topology",7],["Store",11]];
+  const APPS = [
+    ["Services","services.eda.nokia.com/v2",["BridgeDomain","BridgeInterface","VLAN","Router","IRBInterface","RoutedInterface","DHCPRelay","VirtualNetwork"]],
+    ["Protocols","protocols.eda.nokia.com/v2",["BGPGroup","BGPPeer","DefaultBGPGroup","DefaultBGPPeer","AggregateRoute","StaticRoute"]],
+    ["Fabrics","fabrics.eda.nokia.com/v1",["Fabric","ISL","FabricTopology","IslPing"]],
+    ["OAM","oam.eda.nokia.com/v1",["Ping","TraceRoute","TechSupport","Mirror","Threshold"]],
+    ["Interfaces","interfaces.eda.nokia.com/v1",["Interface","Breakout","CheckInterfaces"]],
+    ["Routing","routing.eda.nokia.com/v1",["DefaultRouter","DefaultInterface","SystemInterface","Drain"]],
+    ["Routing Policies","routingpolicies.eda.nokia.com/v1",["Policy","PrefixSet","ASPathSet","CommunitySet"]],
+    ["QoS","qos.eda.nokia.com/v2",["IngressPolicy","EgressPolicy","ForwardingClass","Queue"]]
+  ];
+  const ACTIONS = [
+    ["Read", [["List in namespace","GET","/apps/services.eda.nokia.com/v2/namespaces/{namespace}/bridgedomains"],["List in all namespaces","GET","/apps/services.eda.nokia.com/v2/bridgedomains"],["Get","GET","/apps/services.eda.nokia.com/v2/namespaces/{namespace}/bridgedomains/{name}"],["Revision history","GET",".../bridgedomains/{name}/_revs"],["Intent targets","GET",".../bridgedomains/{name}/_targets"],["Deleted instances","GET",".../bridgedomains/_deleted"]]],
+    ["Write", [["Create","POST","/apps/services.eda.nokia.com/v2/namespaces/{namespace}/bridgedomains"],["Replace","PUT",".../bridgedomains/{name}"],["Patch","PATCH",".../bridgedomains/{name}"],["Delete","DELETE",".../bridgedomains/{name}"],["Delete all in namespace","DELETE",".../namespaces/{namespace}/bridgedomains"]]],
+    ["Other", [["Topology","POST",".../bridgedomains/{name}/_topology"]]]
+  ];
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const hl = (p) => esc(p).replace(/\{[^}]+\}/g, (m) => `<em>${m}</em>`);
+  let view = "resource", action = "Create", resource = "BridgeDomain";
+
+  function tree() {
+    $("platform").innerHTML = PLATFORM.map(([n, c]) => `<li><button type="button">${n}<span class="n">${c}</span></button></li>`).join("");
+    $("apps").innerHTML = APPS.map(([n, id, kinds], i) => `<li class="api"><button type="button" aria-expanded="${i === 0}"><span>${n}</span><span class="chev">${i === 0 ? "▾" : "▸"}</span></button>${i === 0 ? `<ul>${kinds.map((k) => `<li><button type="button" data-kind="${k}" aria-current="${view === "resource" && k === resource ? "page" : "false"}">${k}</button></li>`).join("")}</ul>` : ""}</li>`).join("");
+  }
+  function curl(a) {
+    const m = a[1], body = m === "POST" || m === "PUT";
+    return `<span class="c"># ${esc(a[0])} — EDA 26.8.2</span>
+curl -X ${m} \\
+  -H <span class="s">"Authorization: Bearer $TOKEN"</span> \\${body ? `
+  -H <span class="s">"Content-Type: application/json"</span> \\
+  -d @bridgedomain.json \\` : ""}
+  <span class="s">"https://$EDA_HOST/apps/services.eda.nokia.com/v2/namespaces/eda/bridgedomains${/\{name\}/.test(a[2]) ? "/stretched-l2" : ""}"</span>${body ? `
+
+<span class="c"># bridgedomain.json</span>
+{ <span class="k">"apiVersion"</span>: <span class="s">"services.eda.nokia.com/v2"</span>, <span class="k">"kind"</span>: <span class="s">"BridgeDomain"</span>,
+  <span class="k">"metadata"</span>: { <span class="k">"name"</span>: <span class="s">"stretched-l2"</span>, <span class="k">"namespace"</span>: <span class="s">"eda"</span> },
+  <span class="k">"spec"</span>: { <span class="k">"type"</span>: <span class="s">"EVPNVXLAN"</span>, <span class="k">"eviPool"</span>: <span class="s">"evi-pool"</span> } }` : ""}`;
+  }
+  function renderResource() {
+    const all = ACTIONS.flatMap(([, a]) => a); const a = all.find((x) => x[0] === action) || all[0];
+    $("main").innerHTML = `<p class="crumb">API › Services › <b>${resource}</b></p>
+      <div class="title-row"><div><h1>${resource}</h1><div class="chips"><span class="chip">services.eda.nokia.com/v2</span><span class="chip">Namespaced</span><span class="chip">12 actions</span></div></div>
+      <div class="links"><a class="lnk" href="#x">CRD schema</a><a class="lnk" href="#x">Validate a manifest</a></div></div>
+      <p class="lede-p">Layer 2 virtual network: VNI, EVI, route targets and tunnel index allocation. Every action below is a REST call to the EDA API server.</p>
+      <div class="work"><div class="actions">${ACTIONS.map(([g, list]) => `<p class="grp">${g}</p>` + list.map(([n, m, p]) => `<button class="act" type="button" data-a="${n}" aria-current="${n === a[0]}"><b>${n}</b><span class="mb" data-m="${m}">${m}</span><span class="path">${hl(p)}</span></button>`).join("")).join("")}</div>
+      <section class="detail" aria-label="${esc(a[0])}"><div class="d-head"><h3>${a[0] === "Create" ? "Create a BridgeDomain" : esc(a[0])}</h3><div class="d-path"><span class="mb" data-m="${a[1]}">${a[1]}</span><code>${hl(a[2].startsWith("...") ? "/apps/services.eda.nokia.com/v2/namespaces/{namespace}/" + a[2].slice(4) : a[2])}</code></div></div>
+        <div class="d-body"><div class="term"><button class="copy" type="button">Copy</button>${curl(a)}</div>
+        <div><h4>Path parameters</h4><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>namespace</code> <span class="req">required</span></td><td><code>string</code></td><td>Namespace of the resource, for example <code>eda</code></td></tr>${/\{name\}/.test(a[2]) ? '<tr><td><code>name</code> <span class="req">required</span></td><td><code>string</code></td><td>Name of the BridgeDomain</td></tr>' : ""}</tbody></table></div>
+        <div><h4>Responses</h4><div class="status"><span class="st ok">${a[1] === "POST" ? "201 Created" : "200 OK"}</span><span class="st bad">400</span><span class="st bad">401</span><span class="st bad">404</span><span class="st">default</span></div></div></div></section></div>`;
+  }
+  function renderOverview() {
+    $("main").innerHTML = `<p class="crumb">API › <b>Overview</b></p><div class="title-row"><div><h1>EDA REST API · 26.8.2</h1><div class="chips"><span class="chip">56 APIs</span><span class="chip">2,026 endpoints</span><span class="chip">OpenAPI 3</span></div></div></div>
+      <div class="callout"><div><b>Base path</b><p>Application APIs live under <code>/apps/&lt;group&gt;/&lt;version&gt;</code>, workflows under <code>/workflows/v1</code>, the platform under <code>/core</code>.</p></div>
+      <div><b>Authentication</b><p>Send <code>Authorization: Bearer $TOKEN</code>. Endpoints marked Public need no token.</p></div>
+      <div><b>Namespaces</b><p>Most resources are namespaced: <code>/namespaces/eda/bridgedomains</code>. Cluster-wide lists drop the namespace.</p></div></div>
+      <div class="sec-h"><h2>Platform API</h2><span>/core · 126 paths</span></div>
+      <div class="grid">${PLATFORM.slice(0, 6).map(([n, c]) => `<button class="card" type="button"><b>${n}</b><small>${c} endpoints</small></button>`).join("")}</div>
+      <div class="sec-h"><h2>Application APIs</h2><span>${APPS.length} of 54 shown</span></div>
+      <div class="grid">${APPS.map(([n, id, k]) => `<button class="card" type="button" data-api="${n}"><b>${n}</b><small>${id}</small><span class="kinds">${k.slice(0, 5).join(", ")}${k.length > 5 ? "…" : ""}</span></button>`).join("")}</div>`;
+  }
+  function render() { tree(); view === "overview" ? renderOverview() : renderResource();
+    $("url").textContent = view === "overview" ? "eda-resource-browser.pages.dev/openapi?release=26.8.2" : `eda-resource-browser.pages.dev/openapi?release=26.8.2&api=services.eda.nokia.com/v2&resource=${resource.toLowerCase()}s`;
+    document.querySelectorAll("button[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === view))); }
+  $("main").addEventListener("click", (e) => { const a = e.target.closest(".act"); if (a) { action = a.dataset.a; render(); } if (e.target.closest(".card")) { view = "resource"; render(); } });
+  $("apps").addEventListener("click", (e) => { const b = e.target.closest("[data-kind]"); if (b) { resource = b.dataset.kind; view = "resource"; render(); } });
+  $("go-overview").addEventListener("click", () => { view = "overview"; render(); });
+  const INDEX = APPS.flatMap(([api, id, kinds]) => kinds.map((k) => [k, api]));
+  $("q").addEventListener("input", (e) => { const q = e.target.value.trim().toLowerCase(); const r = $("results");
+    if (!q) { r.hidden = true; return; } const hits = INDEX.filter(([k, a]) => (k + " " + a).toLowerCase().includes(q)).slice(0, 8);
+    r.innerHTML = hits.length ? hits.map(([k, a]) => `<button type="button" data-kind="${k}">${k}<small>${a}</small></button>`).join("") : `<p style="padding:8px;color:var(--p-ink-3)">No resource matches "${esc(q)}".</p>`; r.hidden = false; });
+  $("results").addEventListener("click", (e) => { const b = e.target.closest("[data-kind]"); if (!b) return; resource = b.dataset.kind; view = "resource"; $("results").hidden = true; $("q").value = ""; render(); });
+  document.querySelectorAll("button[data-view]").forEach((b) => b.addEventListener("click", () => { view = b.dataset.view; render(); }));
+  document.querySelectorAll("button[data-device]").forEach((b) => b.addEventListener("click", () => { document.querySelectorAll("button[data-device]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("frame").dataset.device = b.dataset.device; }));
+  const setMode = (m) => { $("mock").dataset.mode = m; document.querySelectorAll("button[data-mode]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m))); };
+  document.querySelectorAll("button[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  if (matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light") setMode("dark");
+  document.querySelectorAll('.mock a[href="#x"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
+  render();
+})();
+</script>

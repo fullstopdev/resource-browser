@@ -27,16 +27,16 @@
 		"warm:cache:llm": "WARM_ACTIONS=explain,example tsx --tsconfig tsconfig.scripts.json scripts/warm-cache.ts",
 		"audit:dependencies": "tsx --tsconfig tsconfig.scripts.json scripts/audit-dependency-corpus.ts",
 		"build:dependency-graph": "tsx --tsconfig tsconfig.scripts.json scripts/build-dependency-graph.ts",
-		"build:schema-graph": "tsx --tsconfig tsconfig.scripts.json scripts/build-schema-graph.ts",
 		"sync:openapi": "./static/sync-openapi.sh",
 		"generate:openapi-manifest": "tsx --tsconfig tsconfig.scripts.json scripts/generate-openapi-manifest.ts",
+		"build:openapi-index": "tsx --tsconfig tsconfig.scripts.json scripts/build-openapi-index.ts",
 		"prebuild": "npm run generate:all",
 		"deploy:cloudflare": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"deploy:cloudflare:only": "npm run prune:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"deploy:cloudflare:lean": "PUBLIC_FIX_AI_ENABLED=false npm run build:cloudflare && node scripts/deploy-cloudflare-lean.mjs",
 		"deploy:cloudflare:phase1": "npm run build:cloudflare && wrangler pages deploy .svelte-kit/cloudflare --project-name=eda-resource-browser",
 		"eval:fix": "tsx --tsconfig tsconfig.scripts.json scripts/eval-fix.ts",
-		"generate:all": "npm run build:crd-scopes && npm run generate:sitemap && npm run generate:release-notes -- --skip-unchanged && npm run generate:openapi-manifest -- --all && npm run build:schema-graph -- --all",
+		"generate:all": "npm run build:crd-scopes && npm run generate:sitemap && npm run generate:release-notes -- --skip-unchanged && npm run generate:openapi-manifest -- --all && npm run build:openapi-index",
 		"validate:yaml": "tsx --tsconfig tsconfig.scripts.json scripts/validate-yaml.ts",
 		"build:crd-scopes": "tsx --tsconfig tsconfig.scripts.json scripts/build-crd-scopes.ts"
 	},
@@ -47,8 +47,7 @@
 		"d3": "^7.9.0",
 		"marked": "18.1.1",
 		"mermaid": "12.2.0",
-		"monaco-editor": "^0.52.2",
-		"swagger-ui-dist": "^5.34.0"
+		"monaco-editor": "^0.52.2"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.14.0",

@@ -1,44 +1,37 @@
 ---
 title: API Explorer
-description: Browse the EDA REST API (OpenAPI) specs of each release, their operations, schemas and a schema graph.
+description: Find an EDA resource, see what you can do with it over the REST API, and copy a ready-to-run request.
 section: Guide
 order: 7
 ---
 
-The **API Explorer** (`/openapi`) shows the OpenAPI specifications published by EDA: the core API
-and one spec per application API group and version.
+The **API Explorer** (`/openapi`) is the EDA REST API reference for each release, organised the way
+you look things up: by resource (BridgeDomain, BGPPeer, Fabric…) and by what you can do with it.
 
 ## Using it
 
-The page has three parts:
+1. **Overview** (`/openapi`): how to call the API (paths, bearer token, namespaces), the platform
+   API's sections, and every application API with its resources.
+2. **Find a resource**: type in the sidebar search (for example `bgp` or `ping`) or open an API in
+   the sidebar. <kbd>/</kbd> focuses the search.
+3. **Resource page**: the kind, its API group and version, its scope, links to the CRD schema and to
+   Validate YAML, and its actions in plain words:
 
-- **Sidebar**: the API picker (core first, then the application APIs), a filter, method toggles
-  (GET, POST, PUT, PATCH, DELETE, each with its count) and the tag list. Clicking a tag scrolls to
-  it; the tag you're reading is highlighted. On phones the sidebar opens from **Filters and tags**.
-- **Endpoints**: every tag is listed open, with the method, the path (path parameters such as
-  `{namespace}` highlighted) and the summary. Public endpoints are marked.
-- **Endpoint panel**: click an endpoint (or press Enter on it) to open it beside the list, with
-  **Copy path**, **Copy curl**, **Show in Schema Graph**, parameters, request and response schemas,
-  examples and vendor extensions. On narrower screens it opens over the page; Escape closes it and
-  returns to the endpoint.
+   | Group | Actions                                                                                             |
+   | ----- | --------------------------------------------------------------------------------------------------- |
+   | Read  | List in namespace, List in all namespaces, Get, Revision history, Intent targets, Deleted instances |
+   | Write | Create, Replace, Patch, Delete, Delete all in namespace                                             |
+   | Run   | Workflows: Run, Submit input, Terminate (plus Logs and Artifacts under Read)                        |
+   | Other | Topology                                                                                            |
 
-The release comes from the header's release switcher. **Paths / Schema graph** switches the view:
+4. **Action panel**: a curl to paste (namespace `eda`, an example name, `$TOKEN` and `$EDA_HOST` as
+   shell variables, a JSON body file for writes), then the parameters, request body, responses and
+   examples from the OpenAPI spec. Arrow keys move between actions.
 
-- _API map_ mode: how paths and schemas connect.
-- _Schema dependencies_ mode: which schemas reference which.
-- A **fields list check** validates a list of field paths against a schema's leaf fields.
+The release comes from the header's release switcher and is kept when you switch.
 
-### Keyboard
-
-| Key                       | Action                    |
-| ------------------------- | ------------------------- |
-| <kbd>/</kbd>              | Focus the endpoint filter |
-| <kbd>↑</kbd> <kbd>↓</kbd> | Move between endpoints    |
-| <kbd>Enter</kbd>          | Open the endpoint         |
-| <kbd>Esc</kbd>            | Close the endpoint panel  |
-
-Links can point to an endpoint (`#operationId`), a tab (`tab=schemaGraph`) or a schema
-(`schema=...`).
+Links: `?spec=<api id>&section=<resource plural or platform section>`, and `#operationId` to open an
+action. Older links (`?spec=…#operationId`, `tab=schemaGraph`) still open the matching page.
 
 ## How it loads
 
@@ -47,19 +40,16 @@ sequenceDiagram
   participant U as You
   participant P as API Explorer
   participant S as Static files
-  U->>P: Choose release and spec
-  P->>S: GET /openapi/{release}/manifest.json (cached)
-  S-->>P: Spec list with titles, groups, path counts
-  P->>S: GET the spec JSON (core or apps/{group}/{version})
+  P->>S: GET /openapi/{release}/api-index.json and manifest.json
+  S-->>P: Every API with its resources, workflows and sections
+  P->>U: Overview, sidebar and search
+  U->>P: Open a resource
+  P->>S: GET that API's spec (core or apps/{group}/{version})
   S-->>P: OpenAPI document
-  P->>P: Clean the spec for display
-  P->>U: Paths and operations
-  opt Schema Graph tab
-    P->>S: GET api-graph.json next to the spec
-    S-->>P: Precomputed graph
-    P->>U: Layered graph layout
-  end
+  P->>P: Group operations into resources and actions (apiReference.ts)
+  P->>U: Actions, request and schemas
 ```
 
-Specs without any paths are hidden from the list. The graph layout orders each level to reduce
-crossing lines.
+`api-index.json` is built by `npm run build:openapi-index` (part of `generate:all`) with the same
+grouping code the page uses, so the overview and the resource pages always agree. Specs without any
+paths are left out.

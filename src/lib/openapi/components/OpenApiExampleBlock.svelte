@@ -109,7 +109,9 @@
 					<p class="oa-example__desc">{example.description}</p>
 				{/if}
 				{#if open}
-					<pre class="oa-example__pre"><code>{example.formatted}</code></pre>
+					<!-- Scrollable code must be reachable by keyboard (WCAG 2.1.1). -->
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+					<pre class="oa-example__pre" tabindex="0"><code>{example.formatted}</code></pre>
 				{:else if large}
 					<p class="oa-example__hint">
 						Large example ({example.size.toLocaleString()} chars) — expand to view

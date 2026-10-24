@@ -148,7 +148,7 @@ npm run build
 npm run preview
 ```
 
-`npm run build` and `npm run build:cloudflare` both run `npm run generate:all` first (sitemap, release notes, OpenAPI manifests, schema graphs), so a deploy never ships stale generated data. Commit the regenerated files with your change.
+`npm run build` and `npm run build:cloudflare` both run `npm run generate:all` first (sitemap, release notes, OpenAPI manifests, the API index), so a deploy never ships stale generated data. Commit the regenerated files with your change.
 
 ---
 

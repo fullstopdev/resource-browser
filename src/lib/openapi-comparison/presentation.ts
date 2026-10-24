@@ -441,12 +441,8 @@ export function buildOpenApiDiffSpecHref(
 	release: string,
 	options?: { operationId?: string; schema?: string }
 ): string {
-	if (options?.schema) {
-		return buildOpenApiSpecPath(specId, release, 'schemaGraph', undefined, {
-			schema: options.schema
-		});
-	}
-	return buildOpenApiSpecPath(specId, release, 'paths', options?.operationId);
+	// Schemas no longer have their own view: a schema link opens the API's reference.
+	return buildOpenApiSpecPath(specId, release, options?.schema ? undefined : options?.operationId);
 }
 
 export type OpenApiOpFieldRow = {

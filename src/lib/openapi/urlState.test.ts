@@ -45,25 +45,10 @@ describe('OpenAPI spec path encoding', () => {
 		expect(buildOpenApiSpecPath('core', '26.4.3')).toBe('/openapi?release=26.4.3&spec=core');
 	});
 
-	it('maps legacy schemas tab to schemaGraph', () => {
-		expect(buildOpenApiSpecPath('core', '26.4.3', 'schemas')).toBe(
-			'/openapi?release=26.4.3&spec=core&tab=schemaGraph'
+	it('adds an operation as the hash', () => {
+		expect(buildOpenApiSpecPath('core', '26.4.3', 'queryGetEqlQuery')).toBe(
+			'/openapi?release=26.4.3&spec=core#queryGetEqlQuery'
 		);
-	});
-
-	it('includes schemaGraph tab when requested', () => {
-		expect(buildOpenApiSpecPath('core', '26.4.3', 'schemaGraph')).toBe(
-			'/openapi?release=26.4.3&spec=core&tab=schemaGraph'
-		);
-	});
-
-	it('prefers op over schema for Schema Graph deep links', () => {
-		expect(
-			buildOpenApiSpecPath('core', '26.4.3', 'schemaGraph', undefined, {
-				op: 'query',
-				schema: 'QueryEqlParsed'
-			})
-		).toBe('/openapi?release=26.4.3&spec=core&tab=schemaGraph&op=query');
 	});
 
 	it('round-trips spec ids through route params', () => {

@@ -5,128 +5,128 @@ test.beforeEach(async ({ page }) => {
 	await page.route(/^https?:\/\/(?!localhost[:/]|127\.0\.0\.1[:/])/, (route) => route.abort());
 });
 
-const CORE = '/openapi?release=26.8.2&spec=core';
+const SERVICES = '/openapi?release=26.8.2&spec=services.eda.nokia.com/v2';
 
-async function openCore(page: Page, suffix = '') {
-	await page.goto(`${CORE}${suffix}`);
-	await expect(page.getByRole('heading', { level: 1 })).toContainText('API Server', {
+async function openBridgeDomain(page: Page) {
+	await page.goto(`${SERVICES}&section=bridgedomains`);
+	await expect(page.getByRole('heading', { level: 1, name: 'BridgeDomain' })).toBeVisible({
 		timeout: 15_000
 	});
-	await expect(page.locator('.oa-op').first()).toBeVisible({ timeout: 15_000 });
 }
 
-test.describe('API Explorer', () => {
-	test('defaults to the latest release and the core API', async ({ page }) => {
+test.describe('API reference', () => {
+	test('opens on the overview with every API', async ({ page }) => {
 		await page.goto('/openapi');
-		await expect(page).toHaveURL(/release=26\.8\.2/);
-		await expect(page).toHaveURL(/spec=core/);
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('API Server', {
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('EDA REST API · 26.8.2', {
 			timeout: 15_000
 		});
+		await expect(page.getByRole('heading', { name: 'Application APIs' })).toBeVisible();
+		await expect(page.locator('.card', { hasText: 'Services' })).toContainText('BridgeDomain');
 		await expect(
 			page.getByRole('button', { name: /^26\.8\.2 Latest, EDA release$/ })
 		).toBeVisible();
 	});
 
-	test('lists endpoints by tag, expanded, with method badges', async ({ page }) => {
-		await openCore(page);
-		const query = page.locator('[data-tag="coreQuery"]');
-		await expect(query.locator('.oa-op')).toHaveCount(7);
-		await expect(query).toContainText('/core/query/v1/eql');
-		await expect(page.locator('.oa-tags a', { hasText: 'Core Query' })).toBeVisible();
-	});
-
-	test('filter and method toggles narrow the list', async ({ page }) => {
-		await openCore(page);
-		await page.locator('#openapi-path-search').fill('queryGetEqlQueryAutoComplete');
-		await expect(page.locator('.oa-list__count')).toHaveText(/^1 of \d+ endpoints$/);
-		await expect(page.locator('.oa-op')).toContainText('/core/query/v1/eql/autocomplete');
-		await page.locator('#openapi-path-search').fill('');
-		await page.getByRole('button', { name: /^GET \d+/ }).click();
-		await expect(page.locator('.oa-op .openapi-method-badge--get')).toHaveCount(0);
-		await page.getByRole('button', { name: 'Clear filters' }).first().click();
-		await expect(page.locator('.oa-list__count')).toHaveText(/^\d+ endpoints$/);
-	});
-
-	test('"/" focuses the endpoint filter instead of the CRD jump', async ({ page }) => {
-		await openCore(page);
-		await page.locator('h1').click();
-		await page.keyboard.press('/');
-		await expect(page.locator('#openapi-path-search')).toBeFocused();
-		await expect(page.getByRole('dialog', { name: 'Jump to a CRD' })).toHaveCount(0);
-	});
-
-	test('keyboard opens an endpoint in the side panel and Escape returns focus', async ({
-		page
-	}) => {
-		await openCore(page);
-		await page.locator('.oa-op').first().focus();
-		await page.keyboard.press('ArrowDown');
-		const second = page.locator('.oa-op').nth(1);
-		await expect(second).toBeFocused();
-		await page.keyboard.press('Enter');
-		const detail = page.locator('#oa-detail');
-		await expect(detail).toBeVisible();
-		await expect(page).toHaveURL(/#\w/);
-		await page.keyboard.press('Escape');
-		await expect(detail).toHaveCount(0);
-		await expect(second).toBeFocused();
-	});
-
-	test('deep link opens the endpoint with examples and copy actions', async ({ page }) => {
-		await openCore(page, '#queryGetEqlQuery');
-		const detail = page.locator('#oa-detail');
-		await expect(detail.getByRole('heading', { level: 2 })).toContainText('/core/query/v1/eql');
-		await expect(detail).toContainText('queryGetEqlQuery');
-		await expect(detail.getByRole('button', { name: 'Copy curl' })).toBeVisible();
-		await expect(detail.getByRole('tab', { name: 'JSON' })).toBeVisible({ timeout: 15_000 });
-		// QueryResponse has no OpenAPI example — a synthesized payload still appears.
-		await expect(detail.locator('.oa-repr__pre')).toContainText('"data"', { timeout: 5_000 });
-	});
-
-	test('the API picker switches to an app API', async ({ page }) => {
-		await openCore(page);
-		await page.locator('.oa-side .openapi-apps-dropdown__trigger').click();
-		await page.locator('#openapi-apps-dropdown-filter').fill('AAA');
-		await page.getByRole('option', { name: /AAA/ }).first().click();
-		await expect(page).toHaveURL(/spec=aaa\.eda\.nokia\.com/);
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('AAA', { timeout: 15_000 });
-	});
-
-	test('schema graph tab shows the API map', async ({ page }) => {
-		await openCore(page);
-		await page.getByRole('tab', { name: 'Schema graph' }).click();
-		await expect(page).toHaveURL(/tab=schemaGraph/);
-		await expect(page.locator('.oa-schema-graph')).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByLabel('Schema graph view mode')).toHaveValue('api-map');
-		await expect(page.locator('.oa-schema-graph__flow')).toBeVisible({ timeout: 15_000 });
-	});
-
-	test('legacy schemas tab opens the schema graph', async ({ page }) => {
-		await page.goto(`${CORE}&tab=schemas&schema=AccessQuery`);
-		await expect(page).toHaveURL(/tab=schemaGraph/);
-		await expect(page.getByRole('tab', { name: 'Schema graph' })).toHaveAttribute(
-			'aria-selected',
-			'true'
-		);
-	});
-
-	test('header release switcher changes the OpenAPI release', async ({ page }) => {
-		await openCore(page);
-		await page.getByRole('button', { name: /EDA release$/ }).click();
-		await page.getByRole('link', { name: /^26\.4\.3/ }).click();
-		await expect(page).toHaveURL(/release=26\.4\.3/);
-		await expect(page.locator('.oa-chip', { hasText: 'EDA 26.4.3' })).toBeVisible({
+	test('search finds a resource across APIs', async ({ page }) => {
+		await page.goto('/openapi?release=26.8.2');
+		await page.getByRole('combobox', { name: 'Find a resource or API' }).fill('bgppeer');
+		await page.getByRole('option', { name: /^BGPPeer/ }).click();
+		await expect(page).toHaveURL(/spec=protocols\.eda\.nokia\.com%2Fv2&section=bgppeers/);
+		await expect(page.getByRole('heading', { level: 1, name: 'BGPPeer' })).toBeVisible({
 			timeout: 15_000
 		});
 	});
 
-	test('phone: filters and tags open from a button', async ({ page }) => {
+	test('a resource lists its actions in plain words with a ready curl', async ({ page }) => {
+		await openBridgeDomain(page);
+		const actions = page.locator('.act .act-label');
+		await expect(actions).toContainText([
+			'List in namespace',
+			'List in all namespaces',
+			'Get',
+			'Revision history'
+		]);
+		const panel = page.locator('#api-action-panel');
+		await expect(panel.getByRole('heading', { level: 2 })).toHaveText('Create a BridgeDomain');
+		await expect(panel.locator('pre[aria-label="Example request"]')).toContainText('curl -X POST');
+		await expect(panel.locator('pre[aria-label="Example request"]')).toContainText(
+			'/apps/services.eda.nokia.com/v2/namespaces/eda/bridgedomains'
+		);
+		await expect(page.getByRole('link', { name: 'CRD schema' })).toHaveAttribute(
+			'href',
+			/BridgeDomain/
+		);
+	});
+
+	test('choosing an action updates the panel and the link', async ({ page }) => {
+		await openBridgeDomain(page);
+		await page.getByRole('button', { name: /^Get GET/ }).click();
+		await expect(page).toHaveURL(/#readServicesEdaNokiaComV2NamespaceBridgedomains$/);
+		await expect(page.locator('#api-action-panel h2')).toHaveText('Get a BridgeDomain');
+		await expect(page.locator('#api-action-panel pre[aria-label="Example request"]')).toContainText(
+			'/bridgedomains/my-bridge-domain'
+		);
+	});
+
+	test('arrow keys move between actions', async ({ page }) => {
+		await openBridgeDomain(page);
+		const rows = page.locator('.act');
+		await rows.first().focus();
+		await page.keyboard.press('ArrowDown');
+		await expect(rows.nth(1)).toBeFocused();
+	});
+
+	test('old #operationId links open the matching action', async ({ page }) => {
+		await page.goto('/openapi?release=26.8.2&spec=core#queryGetEqlQuery');
+		await expect(page.getByRole('heading', { level: 1, name: 'Query (EQL & NQL)' })).toBeVisible({
+			timeout: 15_000
+		});
+		await expect(page.locator('#api-action-panel')).toContainText('/core/query/v1/eql');
+		await expect(page.locator('#api-action-panel pre[aria-label="Example request"]')).toContainText(
+			'query=$QUERY'
+		);
+	});
+
+	test('old schema graph links still open the API', async ({ page }) => {
+		await page.goto('/openapi?release=26.8.2&spec=core&tab=schemaGraph&schema=AccessQuery');
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByText('Schema graph')).toHaveCount(0);
+	});
+
+	test('workflows offer Run, logs and terminate', async ({ page }) => {
+		await page.goto('/openapi?release=26.8.2&spec=oam.eda.nokia.com/v1&section=pings');
+		await expect(page.getByRole('heading', { level: 1, name: 'Ping' })).toBeVisible({
+			timeout: 15_000
+		});
+		await expect(page.locator('#api-action-panel h2')).toHaveText('Run a Ping');
+		await expect(page.locator('.act .act-label')).toContainText(['Logs']);
+		await expect(page.locator('.act', { hasText: 'Terminate' })).toBeVisible();
+	});
+
+	test('"/" focuses the API search', async ({ page }) => {
+		await openBridgeDomain(page);
+		await page.locator('h1').click();
+		await page.keyboard.press('/');
+		await expect(page.getByRole('combobox', { name: 'Find a resource or API' })).toBeFocused();
+		await expect(page.getByRole('dialog', { name: 'Jump to a CRD' })).toHaveCount(0);
+	});
+
+	test('the header release switcher keeps the resource', async ({ page }) => {
+		await openBridgeDomain(page);
+		await page.getByRole('button', { name: /EDA release$/ }).click();
+		await page.getByRole('link', { name: /^26\.8\.1/ }).click();
+		await expect(page).toHaveURL(/release=26\.8\.1.*section=bridgedomains/);
+		await expect(page.getByRole('heading', { level: 1, name: 'BridgeDomain' })).toBeVisible({
+			timeout: 15_000
+		});
+	});
+
+	test('phone: the API list opens from a button', async ({ page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-		await openCore(page);
-		await expect(page.locator('.oa-side')).toBeHidden();
-		await page.getByRole('button', { name: 'Filters and tags' }).click();
-		await expect(page.locator('#openapi-path-search')).toBeVisible();
+		await openBridgeDomain(page);
+		await expect(page.locator('#api-nav')).toBeHidden();
+		await page.getByRole('button', { name: 'Browse APIs and resources' }).click();
+		await expect(page.getByRole('combobox', { name: 'Find a resource or API' })).toBeVisible();
 	});
 
 	test('legacy /api-browser redirects to /openapi', async ({ page }) => {

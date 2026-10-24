@@ -76,7 +76,9 @@
 				</div>
 
 				{#if showRaw[extension.key]}
-					<pre class="vendor-extensions__raw">{JSON.stringify(extension.raw, null, 2)}</pre>
+					<!-- Scrollable code must be reachable by keyboard (WCAG 2.1.1). -->
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+					<pre class="vendor-extensions__raw" tabindex="0">{JSON.stringify(extension.raw, null, 2)}</pre>
 				{:else if isEda && eda}
 					<div class="vendor-extensions__eda">
 						{#if eda.label.secondaryName || (propertyName && eda.label.title !== propertyName)}

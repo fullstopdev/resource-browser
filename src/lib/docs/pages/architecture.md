@@ -16,7 +16,7 @@ lifting.
 | UI         | Svelte 5, Tailwind CSS 4  | Pages and components                |
 | Framework  | SvelteKit 2, Vite 7       | Routing, SSR, prerendering, build   |
 | Editor     | Monaco                    | YAML editing in Validate YAML       |
-| Graphs     | @xyflow/svelte, d3        | Dependency map, schema graph        |
+| Graphs     | @xyflow/svelte, d3        | Dependency map                      |
 | Validation | Ajv, js-yaml              | JSON Schema validation of manifests |
 | Docs       | marked, Mermaid           | This documentation                  |
 | Hosting    | Cloudflare Pages + Worker | Static assets and server routes     |

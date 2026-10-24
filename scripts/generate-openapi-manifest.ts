@@ -14,7 +14,8 @@ import {
 
 const ROOT = process.cwd();
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options']);
-const GENERATED_GRAPH_FILES = new Set(['api-graph.json', 'schema-graph.json']);
+/** Generated files next to the specs (not specs themselves). */
+const GENERATED_FILES = new Set(['api-index.json']);
 const STATIC_OPENAPI = path.join(ROOT, 'static', 'openapi');
 const RELEASES_YAML = path.join(ROOT, 'src', 'lib', 'openapi-releases.yaml');
 
@@ -47,7 +48,7 @@ async function findSpecFiles(releaseDir: string): Promise<string[]> {
 				ent.isFile() &&
 				ent.name.endsWith('.json') &&
 				ent.name !== 'manifest.json' &&
-				!GENERATED_GRAPH_FILES.has(ent.name) &&
+				!GENERATED_FILES.has(ent.name) &&
 				!ent.name.startsWith('_')
 			) {
 				results.push(full);

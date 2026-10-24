@@ -189,7 +189,9 @@
 						{#if primaryExample.description && !primaryExample.synthesized}
 							<p class="oa-repr__code-desc">{primaryExample.description}</p>
 						{/if}
-						<pre class="oa-repr__pre"><code>{exampleBody}</code></pre>
+						<!-- Scrollable code must be reachable by keyboard (WCAG 2.1.1). -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<pre class="oa-repr__pre" tabindex="0"><code>{exampleBody}</code></pre>
 					</section>
 				{:else}
 					<p class="oa-repr__empty">No example available for this media type.</p>

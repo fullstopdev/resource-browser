@@ -34,8 +34,8 @@ flowchart TB
   SYNC --> SPECS["static/openapi/{release}/..."]
   SPECS --> OM["generate-openapi-manifest.ts"]
   OM --> OMJ["openapi manifest.json + openapi-releases.yaml"]
-  SPECS --> SG["build-schema-graph.ts"]
-  SG --> SGJ["schema-graph.json, api-graph.json"]
+  SPECS --> IDX["build-openapi-index.ts"]
+  IDX --> IDXJ["api-index.json"]
 
   MJ --> SM["generate-sitemap.mjs"]
   SM --> SMX["sitemap.xml, robots.txt"]
@@ -53,7 +53,7 @@ flowchart TB
 | Release notes      | `npm run generate:release-notes`               | `static/release-notes/{release}.json`, `index.json`, `bundle.json`                           | `prebuild` and sync-release |
 | OpenAPI sync       | `RELEASE={release} npm run sync:openapi`       | Raw discovery plus `core/` and `apps/{group}/{version}/` specs                               | Manual                      |
 | OpenAPI manifest   | `npm run generate:openapi-manifest -- --all`   | `static/openapi/{release}/manifest.json`; updates `src/lib/openapi-releases.yaml`            | `prebuild`                  |
-| Schema graphs      | `npm run build:schema-graph -- --all`          | `schema-graph.json`, `api-graph.json` next to each spec                                      | `prebuild`                  |
+| API index          | `npm run build:openapi-index`                  | `static/openapi/{release}/api-index.json`: each API's resources, workflows and sections      | `prebuild`                  |
 | Sitemap            | `npm run generate:sitemap`                     | `static/sitemap.xml`, `static/robots.txt`                                                    | `prebuild`                  |
 | CRD scope          | `npm run build:crd-scopes`                     | `scope` (Namespaced / Cluster) in each `manifest.json`, from the OpenAPI paths               | `generate:all`              |
 | Dependency audit   | `RELEASE={release} npm run audit:dependencies` | `dependency-audit.json` / `.md` report                                                       | Manual                      |

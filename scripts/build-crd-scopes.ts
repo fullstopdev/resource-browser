@@ -23,7 +23,7 @@ async function specFiles(dir: string): Promise<string[]> {
 		entries.map(async (e) => {
 			const full = path.join(dir, e.name);
 			if (e.isDirectory()) return specFiles(full);
-			return /\.json$/.test(e.name) && !/(graph|manifest|_discovery)/.test(e.name) ? [full] : [];
+			return /\.json$/.test(e.name) && !/(api-index|manifest|_discovery)/.test(e.name) ? [full] : [];
 		})
 	);
 	return nested.flat();

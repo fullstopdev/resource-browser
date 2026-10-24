@@ -61,7 +61,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  B["npm run build"] --> PRE["prebuild: sitemap, release notes, OpenAPI manifests, schema graphs"]
+  B["npm run build"] --> PRE["prebuild: sitemap, release notes, OpenAPI manifests, API index"]
   PRE --> V1["vite build"]
   BC["npm run build:cloudflare / deploy:cloudflare*"] --> V2["vite build"]
   V2 -.->|"prebuild skipped"| STALE["Generated files may be stale"]

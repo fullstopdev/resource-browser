@@ -24,7 +24,7 @@ you don't need an EDA cluster or an account.
 | **Validate YAML**   | Paste manifests and check them against the real schemas, then fix errors            | [Validate YAML](validate-yaml.md)     |
 | **Comparison**      | Diff all CRD schemas between any two releases and export a report                   | [CRD Comparison](comparison.md)       |
 | **Dependency Map**  | See which CRDs a resource depends on and which depend on it                         | [Dependency Map](dependency-map.md)   |
-| **API Explorer**    | Browse the EDA OpenAPI specs: paths, operations, schemas and a schema graph         | [API Explorer](api-explorer.md)       |
+| **API Explorer**    | Find a resource, see what you can do with it over the API, and copy the request     | [API Explorer](api-explorer.md)       |
 | **API Comparison**  | Diff the OpenAPI specs of two releases                                              | [API Comparison](api-comparison.md)   |
 
 ```mermaid

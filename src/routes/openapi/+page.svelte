@@ -2,579 +2,432 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { writable } from 'svelte/store';
 	import AppHeader from '$lib/components/AppHeader.svelte';
 	import PageCredits from '$lib/components/PageCredits.svelte';
-	import OpenApiAppsDropdown from '$lib/openapi/components/OpenApiAppsDropdown.svelte';
-	import OpenApiSpecPanel from '$lib/openapi/components/OpenApiSpecPanel.svelte';
+	import ApiNavigator from '$lib/openapi/components/ApiNavigator.svelte';
+	import ApiOverview from '$lib/openapi/components/ApiOverview.svelte';
+	import ApiSectionView from '$lib/openapi/components/ApiSectionView.svelte';
 	import {
 		fetchOpenApiManifest,
 		loadOpenApiSpec,
 		defaultOpenApiRelease,
 		resolveOpenApiRelease,
-		resolveOpenApiSpecId,
 		type OpenApiManifestEntry,
-		type OpenApiRelease,
 		type OpenApiReleasesConfig
 	} from '$lib/openapi';
-	import type { OpenApiDocView } from '$lib/openapi/swaggerUiConfig';
-	import { getOperationDeepLinkId, type OpenApiOperation } from '$lib/openapi/pathBrowser';
-	import { theme } from '$lib/theme';
+	import {
+		buildApiSections,
+		findAction,
+		type ApiAction,
+		type ApiIndex,
+		type ApiSection
+	} from '$lib/openapi/apiReference';
+	import { buildPathBrowserData } from '$lib/openapi/pathBrowser';
+	import { sanitizeSpecForDisplay } from '$lib/openapi/sanitizeSpecForDisplay';
 	import { setHeaderReleases, type HeaderReleaseOptions } from '$lib/headerReleases';
-	import { writable } from 'svelte/store';
+	import { buildCatalogCrdPath } from '$lib/urlState';
+	import { theme } from '$lib/theme';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 	import openapiReleasesYaml from '$lib/openapi-releases.yaml?raw';
+	import crdReleasesYaml from '$lib/releases.yaml?raw';
+	import type { ReleasesConfig } from '$lib/structure';
 
-	const releasesConfig = loadStaticYaml(openapiReleasesYaml) as OpenApiReleasesConfig;
-	const releases = releasesConfig.releases ?? [];
-	const initialRelease = defaultOpenApiRelease(releases);
-
-	let releaseName = $state(initialRelease?.name ?? '');
-	let selectedSpecId = $state('');
-	const release = $derived(
-		resolveOpenApiRelease(releases, releaseName, initialRelease ?? undefined)
+	const releases = (loadStaticYaml(openapiReleasesYaml) as OpenApiReleasesConfig).releases ?? [];
+	const crdReleaseNames = new Set(
+		((loadStaticYaml(crdReleasesYaml) as ReleasesConfig).releases ?? []).map((r) => r.name)
 	);
-	let manifest = $state<OpenApiManifestEntry[]>([]);
-	let spec = $state<Record<string, unknown> | null>(null);
-
-	let manifestLoading = $state(false);
-	/** False until the first manifest fetch for the current session settles. */
-	let manifestSettled = $state(false);
-	let specLoading = $state(false);
-	let manifestError = $state('');
-	let specError = $state('');
-	let manifestLoadGen = 0;
-	let specLoadGen = 0;
-
-	let viewerTab = $state<OpenApiDocView>('paths');
-	let highlightSchema = $state('');
-	let focusOperationId = $state('');
-
 	const darkMode = $derived($theme === 'dark');
 
-	/** The header's release switcher lists the OpenAPI releases on this page. */
+	// URL state: ?release=&spec=<api id>&section=<resource plural | platform tag>#<operationId>
+	const releaseName = $derived.by(() => {
+		const fromUrl = browser ? $page.url.searchParams.get('release') : null;
+		return fromUrl && releases.some((r) => r.name === fromUrl)
+			? fromUrl
+			: (defaultOpenApiRelease(releases)?.name ?? '');
+	});
+	const release = $derived(resolveOpenApiRelease(releases, releaseName));
+	const apiId = $derived(browser ? ($page.url.searchParams.get('spec') ?? '') : '');
+	const sectionParam = $derived(browser ? ($page.url.searchParams.get('section') ?? '') : '');
+	let hash = $state('');
+
+	$effect(() => {
+		if (!browser) return;
+		const read = () => (hash = decodeURIComponent(window.location.hash.slice(1)));
+		read();
+		window.addEventListener('hashchange', read);
+		return () => window.removeEventListener('hashchange', read);
+	});
+	// SvelteKit navigations don't fire hashchange.
+	$effect(() => {
+		$page.url;
+		if (browser) hash = decodeURIComponent(window.location.hash.slice(1));
+	});
+
+	function href(id: string, section?: string): string {
+		const params = new URLSearchParams();
+		if (releaseName) params.set('release', releaseName);
+		params.set('spec', id);
+		if (section) params.set('section', section);
+		return `/openapi?${params.toString()}`;
+	}
+	const overviewHref = $derived(`/openapi?release=${encodeURIComponent(releaseName)}`);
+
+	// The header's release switcher lists the OpenAPI releases and keeps the API and section.
 	const headerReleases = writable<HeaderReleaseOptions | null>(null);
 	setHeaderReleases(headerReleases);
 	$effect(() => {
-		const spec = selectedSpecId;
+		const id = apiId;
+		const sectionKey = sectionParam;
 		headerReleases.set({
 			releases,
 			current: releaseName,
-			href: (name) =>
-				`/openapi?release=${encodeURIComponent(name)}${spec ? `&spec=${encodeURIComponent(spec)}` : ''}`
+			href: (name) => {
+				const params = new URLSearchParams({ release: name });
+				if (id) params.set('spec', id);
+				if (sectionKey) params.set('section', sectionKey);
+				return `/openapi?${params.toString()}`;
+			}
 		});
 	});
 
-	function fixMalformedQueryUrl(): void {
-		const sp = $page.url.searchParams;
-		if (sp.get('release')) return;
-		const keys = [...sp.keys()];
-		if (keys.length !== 1 || !keys[0].includes('=')) return;
-		const embedded = new URLSearchParams(keys[0]);
-		if (!embedded.get('release')) return;
-		const qs = embedded.toString();
-		const targetUrl = `/openapi?${qs}`;
-		const currentUrl = `${$page.url.pathname}${$page.url.search}`;
-		if (targetUrl === currentUrl) return;
-		goto(targetUrl, { replaceState: true });
-	}
+	// Release data: the API index (overview, navigator, search) and the spec manifest (spec files).
+	let index = $state<ApiIndex | null>(null);
+	let manifest = $state<OpenApiManifestEntry[]>([]);
+	let loadError = $state('');
+	let indexGen = 0;
 
-	$effect(() => {
-		if (!browser) return;
-		fixMalformedQueryUrl();
-	});
-
-	$effect(() => {
-		if (!browser) return;
-		const fromUrl = $page.url.searchParams.get('release');
-		const specFromUrl = $page.url.searchParams.get('spec') ?? '';
-		const tabFromUrl = $page.url.searchParams.get('tab');
-		const schemaFromUrl = $page.url.searchParams.get('schema') ?? '';
-		const opFromUrl = $page.url.searchParams.get('op') ?? '';
-		const defaultRelease = defaultOpenApiRelease(releases);
-		const nextRelease =
-			fromUrl && releases.some((r) => r.name === fromUrl) ? fromUrl : (defaultRelease?.name ?? '');
-		// Guarded writes — unguarded assigns re-triggered effects and fought updateUrl/goto.
-		if (releaseName !== nextRelease) releaseName = nextRelease;
-		// Prefer URL spec when present; otherwise keep current selection so release
-		// changes can resolve against the new manifest without forcing an empty Apps pick.
-		if (specFromUrl && selectedSpecId !== specFromUrl) {
-			selectedSpecId = specFromUrl;
-		}
-		// Legacy `tab=schemas` → Schema Graph (with schema highlight) or Paths.
-		let nextTab: OpenApiDocView = 'paths';
-		if (tabFromUrl === 'schemas') {
-			nextTab = schemaFromUrl || opFromUrl ? 'schemaGraph' : 'paths';
-		} else if (tabFromUrl === 'schemaGraph') {
-			nextTab = 'schemaGraph';
-		}
-		if (viewerTab !== nextTab) viewerTab = nextTab;
-		// Operation focus (API map) wins over schema highlight (schema-deps).
-		const nextFocus = opFromUrl;
-		const nextHighlight = opFromUrl ? '' : schemaFromUrl;
-		if (focusOperationId !== nextFocus) focusOperationId = nextFocus;
-		if (highlightSchema !== nextHighlight) highlightSchema = nextHighlight;
-	});
-
-	$effect(() => {
-		if (!browser || !release) return;
-		void loadManifest(release);
-	});
-
-	$effect(() => {
-		if (!browser || !release || !selectedSpecId) {
-			spec = null;
-			specError = '';
-			specLoading = false;
-			return;
-		}
-
-		const gen = ++specLoadGen;
-
-		// Only wait while the manifest fetch is in flight. An empty manifest after load
-		// used to leave specLoading=true forever ("Loading specification…") while the
-		// process was still up — UI looked hung.
-		if (manifestLoading) {
-			specLoading = true;
-			specError = '';
-			spec = null;
-			return;
-		}
-
-		if (manifest.length === 0) {
-			spec = null;
-			specError =
-				manifestError ||
-				`No APIs available for this release. Run ./static/sync-openapi.sh ${release.name} first.`;
-			specLoading = false;
-			return;
-		}
-
-		const entry = manifest.find((e) => e.id === selectedSpecId);
-		if (!entry) {
-			spec = null;
-			specError = `API "${selectedSpecId}" not found in this release.`;
-			specLoading = false;
-			return;
-		}
-
-		specLoading = true;
-		specError = '';
-		spec = null;
-
-		void (async () => {
-			try {
-				const doc = await loadOpenApiSpec(release.folder, entry.file);
-				if (gen !== specLoadGen) return;
-				if (!doc) {
-					specError = `Failed to load spec file for ${entry.title}.`;
-				} else {
-					spec = doc;
-				}
-			} catch (err) {
-				if (gen !== specLoadGen) return;
-				specError =
-					err instanceof Error ? err.message : `Failed to load spec file for ${entry.title}.`;
-			} finally {
-				if (gen === specLoadGen) specLoading = false;
-			}
-		})();
-	});
-
-	async function loadManifest(rel: OpenApiRelease) {
-		const gen = ++manifestLoadGen;
-		manifestLoading = true;
-		manifestError = '';
+	async function loadRelease(folder: string) {
+		const gen = ++indexGen;
+		loadError = '';
+		index = null;
 		manifest = [];
 		try {
-			const data = await fetchOpenApiManifest(rel.folder);
-			if (gen !== manifestLoadGen) return;
-			if (!data) {
-				manifestError = `Could not load API manifest for ${rel.label}. Run ./static/sync-openapi.sh ${rel.name} first.`;
-				selectedSpecId = '';
-			} else {
-				manifest = data;
-				const preferred = selectedSpecId || $page.url.searchParams.get('spec') || '';
-				const resolved = resolveOpenApiSpecId(data, preferred);
-				if (selectedSpecId !== resolved) selectedSpecId = resolved;
-				updateUrl();
+			const [idx, man] = await Promise.all([
+				fetch(`/${folder}/api-index.json`).then((r) =>
+					r.ok ? (r.json() as Promise<ApiIndex>) : null
+				),
+				fetchOpenApiManifest(folder)
+			]);
+			if (gen !== indexGen) return;
+			if (!idx || !man) {
+				loadError = `The API list for EDA ${releaseName} didn't load.`;
+				return;
 			}
+			index = idx;
+			manifest = man;
+		} catch {
+			if (gen === indexGen) loadError = `The API list for EDA ${releaseName} didn't load.`;
+		}
+	}
+
+	$effect(() => {
+		if (browser && release) void loadRelease(release.folder);
+	});
+
+	// The selected API's spec, as resources and actions.
+	let sections = $state<ApiSection[]>([]);
+	let spec = $state<Record<string, unknown> | null>(null);
+	let specLoading = $state(false);
+	let specError = $state('');
+	let specGen = 0;
+
+	const apiEntry = $derived(index?.apis.find((a) => a.id === apiId) ?? null);
+
+	async function loadApi(id: string) {
+		const gen = ++specGen;
+		const entry = manifest.find((e) => e.id === id);
+		const api = index?.apis.find((a) => a.id === id);
+		sections = [];
+		spec = null;
+		specError = '';
+		if (!entry || !api || !release) {
+			specError = `There is no "${id}" API in EDA ${releaseName}.`;
+			return;
+		}
+		specLoading = true;
+		try {
+			const doc = await loadOpenApiSpec(release.folder, entry.file);
+			if (gen !== specGen) return;
+			if (!doc) {
+				specError = `The ${api.title} specification didn't load.`;
+				return;
+			}
+			const clean = sanitizeSpecForDisplay(doc);
+			const titles = new Map(api.sections.map((s) => [s.key, s.title]));
+			spec = clean;
+			sections = buildApiSections(
+				buildPathBrowserData(clean).tagGroups.flatMap((g) => g.operations),
+				{ kindFor: (plural) => titles.get(plural) }
+			);
+		} catch {
+			if (gen === specGen) specError = `The ${api.title} specification didn't load.`;
 		} finally {
-			if (gen === manifestLoadGen) {
-				manifestLoading = false;
-				manifestSettled = true;
-			}
+			if (gen === specGen) specLoading = false;
 		}
 	}
 
-	function updateUrl() {
+	$effect(() => {
 		if (!browser) return;
-		const params = new URLSearchParams();
-		if (releaseName) params.set('release', releaseName);
-		if (selectedSpecId) params.set('spec', selectedSpecId);
-		if (viewerTab === 'schemaGraph') params.set('tab', 'schemaGraph');
-		if (viewerTab === 'schemaGraph' && focusOperationId) {
-			params.set('op', focusOperationId);
-		} else if (highlightSchema && viewerTab === 'schemaGraph') {
-			params.set('schema', highlightSchema);
+		if (apiId && index && manifest.length) void loadApi(apiId);
+		else if (!apiId) {
+			sections = [];
+			spec = null;
+			specError = '';
 		}
-		const qs = params.toString();
-		const targetUrl = qs ? `/openapi?${qs}` : '/openapi';
-		const currentUrl = `${$page.url.pathname}${$page.url.search}`;
-		if (targetUrl === currentUrl) return;
-		goto(targetUrl, { replaceState: true, keepFocus: true });
-	}
-
-	function onViewerTabChange(tab: OpenApiDocView) {
-		viewerTab = tab;
-		if (tab === 'paths') {
-			highlightSchema = '';
-			focusOperationId = '';
-		}
-		updateUrl();
-	}
-
-	function onSchemaGraphNavigate(schemaName: string) {
-		highlightSchema = schemaName;
-		focusOperationId = '';
-		viewerTab = 'schemaGraph';
-		updateUrl();
-	}
-
-	function onShowInSchemaGraph(operation: OpenApiOperation) {
-		focusOperationId = getOperationDeepLinkId(operation);
-		highlightSchema = '';
-		viewerTab = 'schemaGraph';
-		updateUrl();
-	}
-
-	function onOperationNavigate(operationId: string) {
-		viewerTab = 'paths';
-		highlightSchema = '';
-		focusOperationId = '';
-		updateUrl();
-		if (browser && operationId) {
-			const base = `${window.location.pathname}${window.location.search}`;
-			window.location.hash = operationId;
-			history.replaceState(history.state, '', `${base}#${operationId}`);
-		}
-	}
-
-	function retry() {
-		if (release) void loadManifest(release);
-	}
-
-	function onSpecChange(specId: string) {
-		selectedSpecId = specId;
-		updateUrl();
-	}
-
-	const selectedEntry = $derived(manifest.find((e) => e.id === selectedSpecId) ?? null);
-
-	const apiGraphUrl = $derived.by(() => {
-		if (!release || !selectedEntry) return '';
-		const specDir = selectedEntry.file.split('/').slice(0, -1).join('/');
-		return `/${release.folder}/${specDir}/api-graph.json`;
 	});
 
-	const openApiVersionBadge = $derived.by(() => {
-		if (!spec) return '';
-		const v = typeof spec.openapi === 'string' ? spec.openapi : '';
-		if (!v) return '';
-		return `OAS ${v.split('.').slice(0, 2).join('.')}`;
+	/** `#operationId` wins (old links), then `section=`, then the API's first section. */
+	const deepLink = $derived(hash ? findAction(sections, hash) : null);
+	const section = $derived(
+		deepLink?.section ??
+			sections.find((s) => s.key === sectionParam) ??
+			sections.find((s) => s.type !== 'discovery') ??
+			null
+	);
+	const selected = $derived.by((): ApiAction | null => {
+		if (!section) return null;
+		if (deepLink && deepLink.section === section) return deepLink.action;
+		return (
+			section.actions.find((a) => a.key === 'create') ??
+			section.actions.find((a) => a.key === 'run') ??
+			section.actions[0] ??
+			null
+		);
 	});
 
-	const specVersionBadge = $derived.by(() => {
-		if (!spec) return '';
-		const info = spec.info;
-		if (!info || typeof info !== 'object' || Array.isArray(info)) return '';
-		const version = (info as Record<string, unknown>).version;
-		return typeof version === 'string' ? version : '';
-	});
+	function selectAction(action: ApiAction) {
+		const id = action.operation.operationId || action.operation.id;
+		const params = new URLSearchParams($page.url.searchParams);
+		if (section) params.set('section', section.key);
+		params.delete('tab');
+		void goto(`/openapi?${params.toString()}#${encodeURIComponent(id)}`, {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
+		hash = id;
+	}
 
-	const specInfoDescription = $derived.by(() => {
-		if (!spec) return '';
-		const info = spec.info;
-		if (!info || typeof info !== 'object' || Array.isArray(info)) return '';
-		const description = (info as Record<string, unknown>).description;
-		return typeof description === 'string' ? description.trim() : '';
-	});
+	const crdHref = $derived(
+		section?.type === 'resource' && crdReleaseNames.has(releaseName)
+			? buildCatalogCrdPath({ release: releaseName, kind: section.title })
+			: undefined
+	);
+	const validateHref = $derived(
+		section?.type === 'resource' && crdReleaseNames.has(releaseName)
+			? `/validate-yaml?release=${encodeURIComponent(releaseName)}`
+			: undefined
+	);
+
+	let navOpen = $state(false);
+
+	/** `/` focuses the API search (capture phase, ahead of the header's Jump to a CRD). */
+	function windowKeydown(event: KeyboardEvent) {
+		if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+		event.preventDefault();
+		navOpen = true;
+		queueMicrotask(() => document.getElementById('api-search')?.focus());
+	}
+
+	const pageTitle = $derived(
+		section && apiEntry
+			? `${section.title} · ${apiEntry.title} API`
+			: apiEntry
+				? `${apiEntry.title} API`
+				: 'API reference'
+	);
 </script>
 
+<svelte:window onkeydowncapture={windowKeydown} />
+
 <svelte:head>
-	<title
-		>{selectedEntry ? `${selectedEntry.title} · ` : ''}API Explorer | EDA Resource Browser</title
-	>
+	<title>{pageTitle} | EDA Resource Browser</title>
 	<meta
 		name="description"
-		content="Browse EDA API Server snapshots — core REST, Query & EQL, and application APIs by release."
+		content="Nokia EDA REST API reference by release: every resource and workflow, what you can do with it, and a ready-to-run request."
 	/>
 </svelte:head>
 
-{#snippet appsCatalog()}
-	<OpenApiAppsDropdown
-		{manifest}
-		{selectedSpecId}
-		{darkMode}
-		loading={manifestLoading}
-		{onSpecChange}
-	/>
-{/snippet}
-
-<div class="oa-page oa-root page-shell min-h-full">
+<div class="ref oa-root page-shell min-h-full">
 	<AppHeader fixed={false} />
 
-	<main class="oa-main">
-		{#if releases.length === 0}
-			<div class="oa-state" role="status">
-				<p class="oa-state__title">No API releases available</p>
-				<p>Sync specs with <code>./static/sync-openapi.sh &lt;release&gt;</code>.</p>
-			</div>
-		{:else}
-			<header class="oa-head">
-				<div class="oa-head__text">
-					<p class="oa-head__crumb">API <span aria-hidden="true">›</span> <b>Explorer</b></p>
-					<h1 class="oa-head__title">{selectedEntry?.title ?? 'API Explorer'}</h1>
-					{#if selectedEntry}
-						<div class="oa-head__chips">
-							<span class="oa-chip">{selectedEntry.id}</span>
-							{#if specVersionBadge}<span class="oa-chip">{specVersionBadge}</span>{/if}
-							{#if openApiVersionBadge}<span class="oa-chip">{openApiVersionBadge}</span>{/if}
-							<span class="oa-chip">{selectedEntry.pathCount} paths</span>
-							<span class="oa-chip">EDA {releaseName}</span>
-						</div>
-					{/if}
-					{#if specInfoDescription}
-						<p class="oa-head__desc" title={specInfoDescription}>{specInfoDescription}</p>
-					{/if}
-				</div>
-				{#if spec && selectedEntry}
-					<div class="oa-seg" role="tablist" aria-label="Reference view">
-						<button
-							type="button"
-							role="tab"
-							aria-selected={viewerTab === 'paths'}
-							onclick={() => viewerTab !== 'paths' && onViewerTabChange('paths')}>Paths</button
-						>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={viewerTab === 'schemaGraph'}
-							onclick={() => viewerTab !== 'schemaGraph' && onViewerTabChange('schemaGraph')}
-							>Schema graph</button
-						>
-					</div>
-				{/if}
-			</header>
+	<div class="ref-body">
+		<button
+			type="button"
+			class="nav-toggle"
+			aria-expanded={navOpen}
+			aria-controls="api-nav"
+			onclick={() => (navOpen = !navOpen)}
+		>
+			{navOpen ? 'Hide API list' : 'Browse APIs and resources'}
+		</button>
 
-			{#if manifestError}
-				<div class="oa-state oa-state--error" role="alert">
-					<p class="oa-state__title">The API list didn't load</p>
-					<p>{manifestError}</p>
-					<button type="button" class="oa-btn" onclick={retry}>Retry</button>
+		<aside id="api-nav" class="ref-nav" class:is-open={navOpen} aria-label="API list">
+			{#if index}
+				<ApiNavigator
+					{index}
+					{apiId}
+					sectionKey={section?.key ?? ''}
+					{href}
+					{overviewHref}
+					onNavigate={() => (navOpen = false)}
+				/>
+			{:else if !loadError}
+				<div class="skeleton" aria-busy="true" aria-label="Loading APIs">
+					{#each Array(10) as _, i (i)}<span></span>{/each}
 				</div>
-			{:else if !selectedSpecId && (!manifestSettled || manifestLoading)}
-				<div class="oa-skeleton" aria-busy="true" aria-label="Loading APIs">
+			{/if}
+		</aside>
+
+		<main class="ref-main">
+			{#if releases.length === 0}
+				<div class="state">
+					<p class="state-title">No API releases available</p>
+					<p>Sync specs with <code>./static/sync-openapi.sh &lt;release&gt;</code>.</p>
+				</div>
+			{:else if loadError}
+				<div class="state state--error" role="alert">
+					<p class="state-title">{loadError}</p>
+					<button type="button" class="btn" onclick={() => release && loadRelease(release.folder)}
+						>Retry</button
+					>
+				</div>
+			{:else if !index}
+				<div
+					class="skeleton skeleton--main"
+					aria-busy="true"
+					aria-label="Loading the API reference"
+				>
 					{#each Array(8) as _, i (i)}<span></span>{/each}
 				</div>
-			{:else if !selectedSpecId}
-				<div class="oa-state">
-					{#if manifest.length === 0}
-						<p class="oa-state__title">No APIs in EDA {releaseName}</p>
-						<p>Sync specs with <code>./static/sync-openapi.sh {releaseName}</code>.</p>
-					{:else}
-						<p class="oa-state__title">Pick an API to browse</p>
-						<div class="oa-state__apps">{@render appsCatalog()}</div>
-					{/if}
-				</div>
-			{:else if specLoading}
-				<div class="oa-skeleton" aria-busy="true" aria-label="Loading the API specification">
-					{#each Array(8) as _, i (i)}<span></span>{/each}
-				</div>
+			{:else if !apiId}
+				<ApiOverview {index} {href} />
 			{:else if specError}
-				<div class="oa-state oa-state--error" role="alert">
-					<p class="oa-state__title">This API didn't load</p>
-					<p>{specError}</p>
-					<button type="button" class="oa-btn" onclick={retry}>Retry</button>
+				<div class="state state--error" role="alert">
+					<p class="state-title">{specError}</p>
+					<a class="btn" href={overviewHref}>Back to the API overview</a>
 				</div>
-			{:else if spec && selectedEntry}
-				<OpenApiSpecPanel
+			{:else if specLoading || !spec || !section}
+				<div class="skeleton skeleton--main" aria-busy="true" aria-label="Loading the API">
+					{#each Array(8) as _, i (i)}<span></span>{/each}
+				</div>
+			{:else}
+				<ApiSectionView
+					{section}
+					apiTitle={apiEntry?.title ?? apiId}
 					{spec}
-					specId={selectedSpecId}
+					{selected}
+					onSelect={selectAction}
 					{darkMode}
-					bind:activeTab={viewerTab}
-					onTabChange={onViewerTabChange}
-					showTabs={false}
-					{highlightSchema}
-					{focusOperationId}
-					{onSchemaGraphNavigate}
-					{onShowInSchemaGraph}
-					{onOperationNavigate}
-					resourcesReleaseFolder={release ? `resources/${release.name}` : ''}
-					{apiGraphUrl}
-					{appsCatalog}
+					{crdHref}
+					{validateHref}
 				/>
 			{/if}
-		{/if}
-	</main>
+		</main>
+	</div>
 
 	<PageCredits />
 </div>
 
 <style>
-	.oa-page {
+	.ref {
 		background: var(--rb-bg);
 		color: var(--rb-ink);
 	}
 
-	.oa-main {
-		max-width: 96rem;
+	.ref-body {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0 2rem;
+		max-width: 100rem;
 		margin: 0 auto;
-		padding: 0 max(1rem, env(safe-area-inset-right, 0px)) 1rem
+		padding: 1.25rem max(1rem, env(safe-area-inset-right, 0px)) 1rem
 			max(1rem, env(safe-area-inset-left, 0px));
+		align-items: start;
 	}
 
-	@media (min-width: 1024px) {
-		.oa-main {
+	@media (min-width: 960px) {
+		.ref-body {
+			grid-template-columns: 17rem minmax(0, 1fr);
 			padding-left: 2rem;
 			padding-right: 2rem;
 		}
 	}
 
-	.oa-head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: 0.75rem 1.5rem;
-		padding: 1.25rem 0 1rem;
+	.nav-toggle {
+		justify-self: start;
+		min-height: 2.75rem;
 		margin-bottom: 1rem;
-		border-bottom: 1px solid var(--rb-line);
-	}
-
-	.oa-head__text {
-		min-width: 0;
-		flex: 1 1 32rem;
-	}
-
-	.oa-head__crumb {
-		margin: 0;
-		font: 500 0.75rem var(--rb-font-mono);
-		color: var(--rb-ink-3);
-	}
-
-	.oa-head__crumb b {
-		font-weight: 500;
-		color: var(--rb-ink-2);
-	}
-
-	.oa-head__title {
-		margin: 0.25rem 0 0.5rem;
-		font-family: var(--rb-font-display);
-		font-size: clamp(1.3rem, 2.4vw, 1.6rem);
-		font-weight: 700;
-		letter-spacing: -0.015em;
+		padding: 0 0.875rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
 		color: var(--rb-ink);
-		text-wrap: balance;
-	}
-
-	.oa-head__chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-	}
-
-	.oa-chip {
-		padding: 0.1875rem 0.5rem;
-		border: 1px solid var(--rb-line);
-		border-radius: 0.3125rem;
-		background: var(--rb-raised);
-		color: var(--rb-ink-2);
-		font: 500 0.72rem var(--rb-font-mono);
-	}
-
-	.oa-head__desc {
-		margin: 0.5rem 0 0;
-		max-width: 80ch;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: 0.86rem;
-		color: var(--rb-ink-3);
-	}
-
-	.oa-seg {
-		display: inline-flex;
-		gap: 0.125rem;
-		padding: 0.1875rem;
-		border: 1px solid var(--rb-line);
-		border-radius: 0.5625rem;
-		background: var(--rb-raised);
-	}
-
-	.oa-seg button {
-		padding: 0.4375rem 0.9375rem;
-		border: 0;
-		border-radius: 0.375rem;
-		background: none;
-		color: var(--rb-ink-3);
-		font: 600 0.85rem var(--rb-font);
+		font: 600 0.875rem var(--rb-font);
 		cursor: pointer;
 	}
 
-	.oa-seg button:hover {
-		color: var(--rb-ink);
+	.ref-nav {
+		display: none;
+		margin-bottom: 1.25rem;
 	}
 
-	.oa-seg button[aria-selected='true'] {
-		background: var(--rb-surface);
-		color: var(--rb-ink);
-		box-shadow: 0 1px 2px rgba(10, 20, 40, 0.12);
+	.ref-nav.is-open {
+		display: block;
 	}
 
-	.oa-seg button:focus-visible,
-	.oa-btn:focus-visible {
-		outline: 2px solid var(--rb-signal);
-		outline-offset: 1px;
+	@media (min-width: 960px) {
+		.nav-toggle {
+			display: none;
+		}
+
+		.ref-nav {
+			display: block;
+			position: sticky;
+			top: 4.75rem;
+			max-height: calc(100vh - 5.5rem);
+			overflow: auto;
+			margin-bottom: 0;
+			padding-right: 0.25rem;
+		}
 	}
 
-	.oa-state {
+	.ref-main {
+		min-width: 0;
+	}
+
+	.state {
 		display: grid;
-		justify-items: center;
+		justify-items: start;
 		gap: 0.5rem;
-		padding: 3rem 1rem;
-		text-align: center;
-		font-size: 0.9rem;
+		padding: 2rem 0;
 		color: var(--rb-ink-3);
 	}
 
-	.oa-state p {
+	.state p {
 		margin: 0;
 	}
 
-	.oa-state__title {
+	.state-title {
 		font-weight: 600;
 		font-size: 1rem;
 		color: var(--rb-ink);
 	}
 
-	.oa-state--error .oa-state__title {
+	.state--error .state-title {
 		color: var(--rb-removed);
 	}
 
-	.oa-state code {
+	.state code {
 		font: 0.82em var(--rb-font-mono);
-		padding: 0.1rem 0.35rem;
-		border-radius: 0.25rem;
-		background: var(--rb-raised);
 	}
 
-	.oa-state__apps {
-		width: min(100%, 22rem);
-		text-align: left;
-	}
-
-	.oa-btn {
-		margin-top: 0.25rem;
+	.btn {
+		display: inline-flex;
+		align-items: center;
 		height: 2.25rem;
 		padding: 0 0.875rem;
 		border: 1px solid var(--rb-line-strong);
@@ -582,35 +435,29 @@
 		background: var(--rb-surface);
 		color: var(--rb-ink);
 		font: 600 0.85rem var(--rb-font);
+		text-decoration: none;
 		cursor: pointer;
 	}
 
-	.oa-skeleton {
+	.btn:focus-visible,
+	.nav-toggle:focus-visible {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
+	}
+
+	.skeleton {
 		display: grid;
 		gap: 0.5rem;
-		padding: 0.5rem 0 2rem;
 	}
 
-	.oa-skeleton span {
-		height: 2.75rem;
-		border-radius: 0.5rem;
-		background: linear-gradient(90deg, var(--rb-raised), var(--rb-surface), var(--rb-raised));
-		background-size: 200% 100%;
-		animation: oa-shimmer 1.4s ease-in-out infinite;
+	.skeleton span {
+		height: 2rem;
+		border-radius: 0.375rem;
+		background: var(--rb-raised);
 	}
 
-	@keyframes oa-shimmer {
-		from {
-			background-position: 100% 0;
-		}
-		to {
-			background-position: -100% 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.oa-skeleton span {
-			animation: none;
-		}
+	.skeleton--main span {
+		height: 3rem;
+		border-radius: 0.625rem;
 	}
 </style>

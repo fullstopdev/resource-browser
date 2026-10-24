@@ -26,7 +26,7 @@ import {
 	type NodeType
 } from './types';
 
-import { walkSchema } from '../schemaGraph/walkSchema';
+import { walkSchema } from '../schema/walkSchema';
 
 export type CatalogEntry = {
 	id: string;
