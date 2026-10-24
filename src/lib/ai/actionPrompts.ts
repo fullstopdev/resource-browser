@@ -1,9 +1,6 @@
 import type { AiSchemaPayload } from './loadAiSchema';
 import { formatSchemaContextForLlm } from './formatAnswer';
-import {
-	schemaAtYamlPath,
-	schemaParentAtPath
-} from '$lib/validate-bundle/schemaNavigation';
+import { schemaAtYamlPath, schemaParentAtPath } from '$lib/validate-bundle/schemaNavigation';
 
 export type ActionPrompt = {
 	system: string;
@@ -55,8 +52,7 @@ export function buildFixScopedSchemaPrompt(
 ): string {
 	const segments = fieldPathToSpecSegments(issue.fieldPath);
 	const includeSpecAsParent =
-		segments.length === 1 &&
-		(issue.issueKind === 'unknownField' || issue.issueKind === 'type');
+		segments.length === 1 && (issue.issueKind === 'unknownField' || issue.issueKind === 'type');
 	const parentSchema =
 		schema.specSchema && segments.length > 1
 			? schemaParentAtPath(schema.specSchema, segments)
@@ -64,9 +60,7 @@ export function buildFixScopedSchemaPrompt(
 				? schema.specSchema
 				: null;
 	const leafSchema =
-		schema.specSchema && segments.length > 0
-			? schemaAtYamlPath(schema.specSchema, segments)
-			: null;
+		schema.specSchema && segments.length > 0 ? schemaAtYamlPath(schema.specSchema, segments) : null;
 
 	const scoped: Record<string, unknown> = {
 		apiVersion: schema.apiVersion,
@@ -149,7 +143,11 @@ ${truncated}
 \`\`\``;
 }
 
-export function promptExplain(release: string, kind: string, schema: AiSchemaPayload): ActionPrompt {
+export function promptExplain(
+	release: string,
+	kind: string,
+	schema: AiSchemaPayload
+): ActionPrompt {
 	return {
 		system: buildBasePrompt(release, kind, schema),
 		user: `Explain the "${kind}" resource (API group ${schema.group}) in Nokia EDA release ${release}.
@@ -239,7 +237,8 @@ export type FixIssueContext = {
 	line?: number;
 	severity?: string;
 	renameHint?: { from: string; to: string };
-	issueKind?: 'unknownField' | 'misspelledField' | 'enum' | 'type' | 'required' | 'syntax' | 'other';
+	issueKind?:
+		'unknownField' | 'misspelledField' | 'enum' | 'type' | 'required' | 'syntax' | 'other';
 	allowedSiblingKeys?: string[];
 	allowedValues?: string[];
 	expectedTypes?: string[];
@@ -325,14 +324,14 @@ function issueKindRules(issue: FixIssueContext): string[] {
 			break;
 		case 'enum':
 			if (issue.allowedValues?.length) {
-				rules.push(
-					`Allowed values (exact case required): ${issue.allowedValues.join(', ')}`
-				);
+				rules.push(`Allowed values (exact case required): ${issue.allowedValues.join(', ')}`);
 			}
 			rules.push(
 				'Change only the single invalid scalar value to a schema-valid enum value. Never expand a list to include all schema enum options.'
 			);
-			rules.push('Do not restructure the document or add enum values that were not in the original.');
+			rules.push(
+				'Do not restructure the document or add enum values that were not in the original.'
+			);
 			break;
 		case 'type':
 			if (issue.expectedTypes?.length) {
@@ -352,7 +351,9 @@ function issueKindRules(issue: FixIssueContext): string[] {
 			);
 			break;
 		case 'syntax':
-			rules.push('Fix only YAML syntax. Do not change semantic field values unless required for valid YAML.');
+			rules.push(
+				'Fix only YAML syntax. Do not change semantic field values unless required for valid YAML.'
+			);
 			break;
 	}
 	return rules;
@@ -391,10 +392,71 @@ function minimalFixRulesFor(issue: FixIssueContext): string[] {
 }
 
 /** Bump when fix prompts change so cached fixes from older prompts are not reused. */
-export const FIX_PROMPT_VERSION = 3;
+export const FIX_PROMPT_VERSION = 4;
 
 /** A window of a long document: raw lines [startLine, endLine) (0-based), indentation kept. */
 export type FixExcerpt = { text: string; startLine: number; endLine: number; totalLines: number };
+
+/** The issue block shared by the fix prompts. */
+export function fixIssueLines(issue: FixIssueContext): string {
+	return [
+		issue.issueKind ? `Issue type: ${issue.issueKind}` : null,
+		`Message: ${issue.message}`,
+		issue.fieldPath ? `Field: ${issue.fieldPath}` : null,
+		issue.line ? `Line: ${issue.line}` : null,
+		issue.severity ? `Severity: ${issue.severity}` : null,
+		issue.renameHint
+			? `Rename hint: replace YAML key "${issue.renameHint.from}" with "${issue.renameHint.to}" (keep the same value)`
+			: null,
+		issue.relocationHint
+			? `Relocation hint: move "${issue.relocationHint.from}" to "${issue.relocationHint.to}" (preserve value)`
+			: null,
+		issue.migrationContext ? `Migration: ${issue.migrationContext}` : null,
+		issue.relatedIssues?.length ? `Related issues: ${issue.relatedIssues.join('; ')}` : null,
+		issue.parentPathContext ? `Parent path context: ${issue.parentPathContext}` : null,
+		issue.allowedValues?.length ? `Schema allowed values: ${issue.allowedValues.join(', ')}` : null,
+		issue.expectedTypes?.length ? `Schema expected types: ${issue.expectedTypes.join(', ')}` : null
+	]
+		.filter(Boolean)
+		.join('\n');
+}
+
+/**
+ * One-line fix (enum, type, required, unknown field): the model returns a single CHANGE line that
+ * the server applies, instead of echoing the whole document. Far fewer output tokens.
+ */
+export function promptFixPatch(
+	release: string,
+	kind: string,
+	schema: AiSchemaPayload,
+	yamlForPrompt: string,
+	issue: FixIssueContext
+): ActionPrompt {
+	return {
+		system: buildFixScopedSchemaPrompt(release, kind, schema, issue),
+		user: `Resolve ONE validation issue in this "${kind}" manifest (EDA release ${release}) with ONE change.
+
+VALIDATION ISSUE:
+${fixIssueLines(issue)}
+
+YAML:
+\`\`\`yaml
+${yamlForPrompt}
+\`\`\`
+
+Rules:
+- Use only values and fields the schema allows. Never invent fields.
+- For a missing required field, pick the value the rest of the manifest implies; if you cannot tell, answer FIXABLE: no.
+- If the issue cannot be fixed safely without guessing, answer FIXABLE: no.
+
+Answer with exactly these three lines:
+FIXABLE: yes | no
+EXPLANATION: one short sentence
+CHANGE: SET <field path> = <value>   (or: DELETE <field path>)
+
+The field path is dotted from the document root, with list indexes as numbers, e.g. spec.links.0.speed. The value is a YAML scalar.`
+	};
+}
 
 export function promptFixYaml(
 	release: string,
@@ -415,28 +477,7 @@ export function promptFixYaml(
 	const fixedYamlPlaceholder = excerpt
 		? `(corrected lines ${excerpt.startLine + 1}-${excerpt.endLine} only — required when FIXABLE: yes)`
 		: '(full corrected document — required when FIXABLE: yes)';
-	const issueLines = [
-		issue.issueKind ? `Issue type: ${issue.issueKind}` : null,
-		`Message: ${issue.message}`,
-		issue.fieldPath ? `Field: ${issue.fieldPath}` : null,
-		issue.line ? `Line: ${issue.line}` : null,
-		issue.severity ? `Severity: ${issue.severity}` : null,
-		issue.renameHint
-			? `Rename hint: replace YAML key "${issue.renameHint.from}" with "${issue.renameHint.to}" (keep the same value)`
-			: null,
-		issue.relocationHint
-			? `Relocation hint: move "${issue.relocationHint.from}" to "${issue.relocationHint.to}" (preserve value)`
-			: null,
-		issue.migrationContext ? `Migration: ${issue.migrationContext}` : null,
-		issue.relatedIssues?.length ? `Related issues: ${issue.relatedIssues.join('; ')}` : null,
-		issue.parentPathContext ? `Parent path context: ${issue.parentPathContext}` : null,
-		issue.allowedValues?.length
-			? `Schema allowed values: ${issue.allowedValues.join(', ')}`
-			: null,
-		issue.expectedTypes?.length ? `Schema expected types: ${issue.expectedTypes.join(', ')}` : null
-	]
-		.filter(Boolean)
-		.join('\n');
+	const issueLines = fixIssueLines(issue);
 
 	const kindRules = issueKindRules(issue);
 
@@ -453,7 +494,9 @@ ${yamlForPrompt}
 \`\`\`
 
 Rules:
-${minimalFixRulesFor(issue).map((r) => `- ${r}`).join('\n')}${excerptNote}
+${minimalFixRulesFor(issue)
+	.map((r) => `- ${r}`)
+	.join('\n')}${excerptNote}
 - Use valid enum values and types from the schema only — never invent fields or values not in the schema.
 - If a Rename hint is provided, apply that rename exactly and leave all values under the renamed key unchanged.
 ${kindRules.map((r) => `- ${r}`).join('\n')}
@@ -475,7 +518,7 @@ ${fixedYamlPlaceholder}
 /** Follow-up message when a fix failed server-side verification; the model gets one more try. */
 export function fixRetryMessage(reason: string): string {
 	return `Your previous answer was rejected by the validator: ${reason}
-Return a corrected answer in exactly the same output format (FIXABLE, EXPLANATION, FIXED_YAML). Keep the edit minimal.`;
+Return a corrected answer in exactly the same output format as before. Keep the edit minimal.`;
 }
 
 export function promptFixYamlMigration(
@@ -536,10 +579,7 @@ export function promptFixYamlSyntax(
 	docYaml: string,
 	issue: FixIssueContext
 ): ActionPrompt {
-	const issueLines = [
-		`Message: ${issue.message}`,
-		issue.line ? `Line: ${issue.line}` : null
-	]
+	const issueLines = [`Message: ${issue.message}`, issue.line ? `Line: ${issue.line}` : null]
 		.filter(Boolean)
 		.join('\n');
 
@@ -582,7 +622,11 @@ FIXED_YAML:
 	};
 }
 
-export function promptExample(release: string, kind: string, schema: AiSchemaPayload): ActionPrompt {
+export function promptExample(
+	release: string,
+	kind: string,
+	schema: AiSchemaPayload
+): ActionPrompt {
 	return {
 		system: buildBasePrompt(release, kind, schema),
 		user: `Generate 3 distinct, valid YAML examples for the "${kind}" resource in Nokia EDA release ${release}.

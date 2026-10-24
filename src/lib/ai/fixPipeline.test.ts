@@ -105,14 +105,14 @@ describe('verifyFix', () => {
 	});
 
 	it('checks required and unknown-field issues', () => {
+		const required = { message: 'spec.name is required', fieldPath: 'spec.name', issueKind: 'required' as const };
 		expect(
-			verifyFix({
-				originalDoc: doc('  port: 1'),
-				fixedDoc: doc('  port: 1\n  name: ""'),
-				issue: { message: 'spec.name is required', fieldPath: 'spec.name', issueKind: 'required' },
-				specSchema
-			}).ok
+			verifyFix({ originalDoc: doc('  port: 1'), fixedDoc: doc('  port: 1\n  name: web'), issue: required, specSchema }).ok
 		).toBe(true);
+		// An empty value doesn't fill a required field.
+		expect(
+			verifyFix({ originalDoc: doc('  port: 1'), fixedDoc: doc('  port: 1\n  name: ""'), issue: required, specSchema }).ok
+		).toBe(false);
 		expect(
 			verifyFix({
 				originalDoc: doc('  port: 1\n  bogus: 2'),

@@ -56,6 +56,18 @@ export function isWorkersAINeuronLimitError(err: unknown): boolean {
 	return false;
 }
 
-export function workersAIQuotaHttpResponse(): { status: number; error: string } {
-	return { status: 503, error: WORKERS_AI_NEURON_LIMIT_MESSAGE };
+export const WORKERS_AI_RATE_LIMIT_MESSAGE =
+	'Workers AI is busy (too many requests). Try again in a minute.';
+
+/**
+ * 503 for a Workers AI 429: "daily limit" only when the free daily allocation is used up
+ * (error 4006); any other 429 is a short rate limit.
+ */
+export function workersAIQuotaHttpResponse(err?: unknown): { status: number; error: string } {
+	const text = err === undefined ? 'daily' : errorText(err).toLowerCase();
+	const daily = text.includes('daily') || text.includes('4006') || text.includes('neuron');
+	return {
+		status: 503,
+		error: daily ? WORKERS_AI_NEURON_LIMIT_MESSAGE : WORKERS_AI_RATE_LIMIT_MESSAGE
+	};
 }

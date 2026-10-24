@@ -13,6 +13,9 @@ on:
       only:
         description: Only cases whose id contains this text, or of this issue kind (enum, type, required, unknownField, syntax)
         required: false
+      release:
+        description: EDA release (empty = the latest one in src/lib/releases.yaml)
+        required: false
       min_pass:
         description: Minimum pass rate (0-1) for the job to succeed
         default: '0.85'
@@ -37,6 +40,7 @@ jobs:
           BASE_URL: ${{ inputs.base_url }}
           ONLY: ${{ inputs.only }}
           MIN_PASS: ${{ inputs.min_pass }}
+          RELEASE: ${{ inputs.release }}
         run: |
           case "$BASE_URL" in
             https://eda-resource-browser.pages.dev|https://*.eda-resource-browser.pages.dev) ;;
@@ -44,4 +48,5 @@ jobs:
           esac
           args=(--base-url "$BASE_URL" --min-pass "$MIN_PASS")
           if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          if [ -n "$RELEASE" ]; then args+=(--release "$RELEASE"); fi
           npm run eval:fix -- "${args[@]}"

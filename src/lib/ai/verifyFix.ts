@@ -9,7 +9,7 @@ import type { FixIssueContext } from './actionPrompts';
 export type FixVerdict = { ok: true } | { ok: false; reason: string };
 
 /** `spec.a.0.b`, `/spec/a/0/b` → ['spec', 'a', '0', 'b'] */
-function pathSegments(fieldPath: string): string[] {
+export function pathSegments(fieldPath: string): string[] {
 	return fieldPath
 		.replace(/^\//, '')
 		.replace(/\[(\d+)\]/g, '.$1')
@@ -19,7 +19,7 @@ function pathSegments(fieldPath: string): string[] {
 
 const isIndex = (segment: string) => /^\d+$/.test(segment);
 
-function valueAtPath(doc: unknown, segments: string[]): unknown {
+export function valueAtPath(doc: unknown, segments: string[]): unknown {
 	let current: unknown = doc;
 	for (const segment of segments) {
 		if (current === null || typeof current !== 'object') return undefined;
@@ -32,13 +32,13 @@ function valueAtPath(doc: unknown, segments: string[]): unknown {
 	return current;
 }
 
-function schemaEnum(node: unknown): unknown[] | null {
+export function schemaEnum(node: unknown): unknown[] | null {
 	if (!node || typeof node !== 'object') return null;
 	const values = (node as Record<string, unknown>).enum;
 	return Array.isArray(values) && values.length > 0 ? values : null;
 }
 
-function schemaTypes(node: unknown): string[] {
+export function schemaTypes(node: unknown): string[] {
 	if (!node || typeof node !== 'object') return [];
 	const o = node as Record<string, unknown>;
 	if (o['x-kubernetes-int-or-string'] === true) return ['integer', 'string'];
@@ -47,7 +47,7 @@ function schemaTypes(node: unknown): string[] {
 	return [];
 }
 
-function matchesType(value: unknown, type: string): boolean {
+export function matchesType(value: unknown, type: string): boolean {
 	switch (type) {
 		case 'string':
 			return typeof value === 'string';
@@ -148,10 +148,25 @@ export function verifyFix(params: {
 			}
 			return { ok: true };
 		}
-		case 'required':
-			return value === undefined
-				? { ok: false, reason: `${issue.fieldPath} is still missing.` }
-				: { ok: true };
+		case 'required': {
+			// The validator reports the parent ("spec.localAS") and names the field in the message.
+			const named = /([A-Za-z0-9_.]+) is required/.exec(issue.message)?.[1];
+			const fieldPath = named && named.startsWith(issue.fieldPath) ? named : issue.fieldPath;
+			const added = valueAtPath(fixed, pathSegments(fieldPath));
+			if (added === undefined || added === null || added === '') {
+				return { ok: false, reason: `${fieldPath} is still missing or empty.` };
+			}
+			const fieldNode = specSchema ? specSchemaAtPath(specSchema, fieldPath) : null;
+			const types = schemaTypes(fieldNode);
+			if (types.length && !types.some((t) => matchesType(added, t))) {
+				return { ok: false, reason: `${fieldPath} must be of type ${types.join(' or ')}.` };
+			}
+			const allowed = schemaEnum(fieldNode);
+			if (allowed && !allowed.some((v) => v === added)) {
+				return { ok: false, reason: `${fieldPath} must be one of: ${allowed.join(', ')}.` };
+			}
+			return { ok: true };
+		}
 		case 'unknownField':
 		case 'misspelledField':
 			return value !== undefined

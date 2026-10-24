@@ -8,6 +8,7 @@ import {
 	promptExample,
 	promptExplain,
 	promptField,
+	promptFixPatch,
 	promptFixYaml,
 	promptFixYamlMigration,
 	promptFixYamlSyntax,
@@ -18,7 +19,14 @@ import {
 } from '$lib/ai/actionPrompts';
 import { buildFixInput, spliceFixedExcerpt, type FixInput } from '$lib/ai/fixInput';
 import { runVerifiedFix } from '$lib/ai/runFix';
-import { schemaHintsForField, verifyFix, verifyMigrationFix } from '$lib/ai/verifyFix';
+import { tryRuleFix } from '$lib/ai/ruleFix';
+import { parsePatchAnswer } from '$lib/ai/fixPatch';
+import {
+	schemaHintsForField,
+	specSchemaAtPath,
+	verifyFix,
+	verifyMigrationFix
+} from '$lib/ai/verifyFix';
 import { loadAiSchema } from '$lib/ai/loadAiSchema';
 import {
 	buildCacheKey,
@@ -50,8 +58,10 @@ import {
 	llmFallbackReason
 } from '$lib/ai/fallbackAnswers';
 import {
+	estimateNeurons,
 	runWorkersAIMessages,
 	workersAIErrorResponse,
+	type AiUsage,
 	FIX_AI_REQUEST_TIMEOUT_MS,
 	fixMaxTokensForOutput,
 	modelForTier,
@@ -205,6 +215,17 @@ function declaredVersionForGroup(yaml: string, group: string | undefined): strin
 }
 
 /** One structured line per AI call, readable in Workers Logs (fix success rate, latency, retries). */
+/** A missing required field that takes one value (not a list or an object): fits a CHANGE line. */
+function requiredTargetIsScalar(specSchema: unknown, issue: FixIssueContext): boolean {
+	const named = /([A-Za-z0-9_.]+) is required/.exec(issue.message)?.[1];
+	const path =
+		named && issue.fieldPath && named.startsWith(issue.fieldPath) ? named : issue.fieldPath;
+	if (!path) return false;
+	const node = specSchemaAtPath(specSchema, path) as { type?: unknown } | null;
+	const type = Array.isArray(node?.type) ? node?.type[0] : node?.type;
+	return type === 'string' || type === 'integer' || type === 'number' || type === 'boolean';
+}
+
 function logAiEvent(event: Record<string, unknown>): void {
 	console.log(JSON.stringify({ evt: 'ai', ...event }));
 }
@@ -305,14 +326,20 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			return json({ error: 'userYaml is required for action=fix' }, { status: 400 });
 		}
 		if (migrationIssues.length === 0) {
-			return json({ error: 'issue.message or issues[] is required for action=fix' }, { status: 400 });
+			return json(
+				{ error: 'issue.message or issues[] is required for action=fix' },
+				{ status: 400 }
+			);
 		}
 	}
 	if (action === 'compare' && !compareRelease) {
 		return json({ error: 'compareRelease is required for action=compare' }, { status: 400 });
 	}
 	if (action === 'spec-search' && !field) {
-		return json({ error: 'field (search query) is required for action=spec-search' }, { status: 400 });
+		return json(
+			{ error: 'field (search query) is required for action=spec-search' },
+			{ status: 400 }
+		);
 	}
 
 	const needsAi = !isDeterministicCacheAction(action);
@@ -386,23 +413,6 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 		const primaryIssue = migrationIssues[0]!;
 
-		if (
-			!isMigrationBatch &&
-			(primaryIssue.renameHint ||
-				primaryIssue.relocationHint ||
-				primaryIssue.issueKind === 'misspelledField' ||
-				primaryIssue.deterministicFixAvailable)
-		) {
-			return json(
-				{
-					error:
-						'This issue has a deterministic schema fix (rename, relocate, clamp, or add field). Apply the one-click Fix instead of AI.',
-					fixable: false
-				},
-				{ status: 422 }
-			);
-		}
-
 		// Fix against the schema of the apiVersion the document declares (like the browser
 		// validator does); the latest schema would "fix" toward a version the user isn't on.
 		const fixVersion = version ?? declaredVersionForGroup(userYaml, group);
@@ -426,37 +436,122 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			? { ...primaryIssue, ...schemaHintsForField(schema.specSchema, primaryIssue.fieldPath) }
 			: primaryIssue;
 
-		const prompt = schema
-			? isMigrationBatch
-				? promptFixYamlMigration(release, kind, schema, input.doc, migrationIssues)
-				: promptFixYaml(
+		// Rules first: when the schema (or the YAML parser) decides the answer, no Workers AI call.
+		// Also when the browser has a one-click fix: the AI Fix button then simply works.
+		if (!isMigrationBatch) {
+			const rule = tryRuleFix(input.doc, issueForPrompt, schema?.specSchema);
+			const ruleIssue = {
+				...issueForPrompt,
+				suggestedFix: rule?.suggestedFix ?? issueForPrompt.suggestedFix
+			};
+			if (
+				rule &&
+				verifyFix({
+					originalDoc: input.doc,
+					fixedDoc: rule.fixedDoc,
+					issue: ruleIssue,
+					specSchema: schema?.specSchema
+				}).ok
+			) {
+				logAiEvent({
+					action,
+					release,
+					kind,
+					cached: false,
+					verified: true,
+					model: 'rules',
+					issueKind: primaryIssue.issueKind,
+					neurons: 0
+				});
+				return json({
+					answer: rule.explanation,
+					release,
+					kind: kind || undefined,
+					action: 'fix' as const,
+					explanation: rule.explanation,
+					fixedYaml: rule.fixedDoc,
+					fixable: true,
+					verified: true,
+					attempts: 0,
+					model: 'rules',
+					neurons: 0,
+					cached: false
+				});
+			}
+		}
+
+		// Only reached when the rules couldn't do the one-click fix themselves.
+		if (
+			!isMigrationBatch &&
+			(primaryIssue.renameHint ||
+				primaryIssue.relocationHint ||
+				primaryIssue.issueKind === 'misspelledField' ||
+				primaryIssue.deterministicFixAvailable)
+		) {
+			return json(
+				{
+					error:
+						'This issue has a deterministic schema fix (rename, relocate, clamp, or add field). Apply the one-click Fix instead of AI.',
+					fixable: false
+				},
+				{ status: 422 }
+			);
+		}
+
+		// One-field issues: the model answers with one CHANGE line (few output tokens), applied here.
+		const patchMode =
+			!!schema &&
+			!isMigrationBatch &&
+			!primaryIssue.relocationHint &&
+			!primaryIssue.migrationContext &&
+			['enum', 'type', 'required', 'unknownField', 'misspelledField'].includes(
+				primaryIssue.issueKind ?? ''
+			) &&
+			(primaryIssue.issueKind !== 'required' ||
+				requiredTargetIsScalar(schema.specSchema, primaryIssue));
+
+		const prompt =
+			schema && patchMode
+				? promptFixPatch(
 						release,
 						kind,
 						schema,
-						input.doc,
-						issueForPrompt,
-						input.mode === 'excerpt'
-							? {
-									excerpt: {
-										text: input.excerpt,
-										startLine: input.startLine,
-										endLine: input.endLine,
-										totalLines: input.totalLines
-									}
-								}
-							: undefined
+						input.mode === 'excerpt' ? input.excerpt : input.doc,
+						issueForPrompt
 					)
-			: promptFixYamlSyntax(release, input.doc, primaryIssue);
+				: schema
+					? isMigrationBatch
+						? promptFixYamlMigration(release, kind, schema, input.doc, migrationIssues)
+						: promptFixYaml(
+								release,
+								kind,
+								schema,
+								input.doc,
+								issueForPrompt,
+								input.mode === 'excerpt'
+									? {
+											excerpt: {
+												text: input.excerpt,
+												startLine: input.startLine,
+												endLine: input.endLine,
+												totalLines: input.totalLines
+											}
+										}
+									: undefined
+							)
+					: promptFixYamlSyntax(release, input.doc, primaryIssue);
 
-		const initialModel = modelForTier(
-			selectFixModel(primaryIssue.issueKind, {
-				batched: isMigrationBatch,
-				relocationHint: primaryIssue.relocationHint,
-				migrationContext: primaryIssue.migrationContext,
-				fieldPath: primaryIssue.fieldPath
-			}),
-			models
-		);
+		const initialModel = patchMode
+			? models.default
+			: modelForTier(
+					selectFixModel(primaryIssue.issueKind, {
+						batched: isMigrationBatch,
+						relocationHint: primaryIssue.relocationHint,
+						migrationContext: primaryIssue.migrationContext,
+						fieldPath: primaryIssue.fieldPath
+					}),
+					models
+				);
 		const fixCacheKey = await buildVerifiedFixCacheKey({
 			release,
 			promptVersion: FIX_PROMPT_VERSION,
@@ -466,7 +561,23 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		});
 
 		const cached = await getCachedAiResponse(kv, fixCacheKey);
-		if (cached?.fixedYaml) {
+		// A cached fix is re-checked with today's verification (free): an entry cached before a
+		// stricter check, or under an older schema, is ignored and recomputed.
+		const cachedStillValid =
+			!!cached?.fixedYaml &&
+			(isMigrationBatch
+				? verifyMigrationFix({
+						originalDoc: input.doc,
+						fixedDoc: cached.fixedYaml,
+						issues: migrationIssues
+					}).ok
+				: verifyFix({
+						originalDoc: input.doc,
+						fixedDoc: cached.fixedYaml,
+						issue: issueForPrompt,
+						specSchema: schema?.specSchema
+					}).ok);
+		if (cached?.fixedYaml && cachedStillValid) {
 			logAiEvent({ action, release, kind, cached: true, verified: true });
 			return json({
 				answer: cached.answer,
@@ -477,14 +588,18 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				fixedYaml: cached.fixedYaml,
 				fixable: true,
 				verified: true,
+				neurons: 0,
 				cached: true
 			});
 		}
 
 		const expectedOutput = input.mode === 'excerpt' ? input.excerpt : input.doc;
-		const maxTokens = fixMaxTokensForOutput(expectedOutput, primaryIssue.issueKind, {
-			batched: isMigrationBatch
-		});
+		const maxTokens = patchMode
+			? 160
+			: fixMaxTokensForOutput(expectedOutput, primaryIssue.issueKind, {
+					batched: isMigrationBatch
+				});
+		const usages: AiUsage[] = [];
 		const startedAt = Date.now();
 
 		try {
@@ -499,10 +614,17 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 						temperature: DETERMINISTIC_TEMPERATURE,
 						seed: DETERMINISTIC_SEED,
 						timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS,
-						gateway
+						gateway,
+						onUsage: (u) => usages.push(u)
 					}),
+				...(patchMode
+					? {
+							parse: (answer: string) => parsePatchAnswer(answer, input.doc),
+							retryModel: models.default
+						}
+					: {}),
 				toFullDocument: (fixedYaml) =>
-					input.mode === 'excerpt' ? spliceFixedExcerpt(input, fixedYaml) : fixedYaml,
+					!patchMode && input.mode === 'excerpt' ? spliceFixedExcerpt(input, fixedYaml) : fixedYaml,
 				verify: (fixedDoc) =>
 					isMigrationBatch
 						? verifyMigrationFix({ originalDoc: input.doc, fixedDoc, issues: migrationIssues })
@@ -525,6 +647,10 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				mode: input.mode,
 				issueKind: primaryIssue.issueKind,
 				rejectReason: result.rejectReason,
+				patchMode,
+				tokensIn: usages.reduce((n, u) => n + u.promptTokens, 0),
+				tokensOut: usages.reduce((n, u) => n + u.completionTokens, 0),
+				neurons: estimateNeurons(usages),
 				ms: Date.now() - startedAt
 			});
 
@@ -558,6 +684,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				verified: result.verified,
 				attempts: result.attempts,
 				model: result.model,
+				neurons: estimateNeurons(usages),
 				cached: false
 			});
 		} catch (err) {
@@ -604,9 +731,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		const cached = await cacheLookup();
 		if (cached) {
 			const response =
-				action === 'example' && cached.examples?.length
-					? pickRandomExample(cached)
-					: cached;
+				action === 'example' && cached.examples?.length ? pickRandomExample(cached) : cached;
 			return json({ ...response, cached: true });
 		}
 	}

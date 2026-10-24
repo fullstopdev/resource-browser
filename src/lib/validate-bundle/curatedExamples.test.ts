@@ -2,8 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import curated from './curatedExamples.json';
 import { validateBundle } from './index';
+import { latestReleaseName } from '$lib/latestRelease';
 
-const RELEASE_FOLDER = `resources/${curated.release}`;
+/** Checked against the latest release, so a new release that breaks an example fails CI. */
+const RELEASE = latestReleaseName();
+const RELEASE_FOLDER = `resources/${RELEASE}`;
 
 describe('curated Insert example manifests', () => {
 	afterEach(() => vi.unstubAllGlobals());
@@ -54,7 +57,7 @@ describe('curated Insert example manifests', () => {
 			const result = await validateBundle({
 				yamlInput: example.yaml,
 				releaseFolder: RELEASE_FOLDER,
-				releaseLabel: `EDA ${curated.release}`,
+				releaseLabel: `EDA ${RELEASE}`,
 				manifest
 			});
 			expect(result.issues.filter((i) => i.severity === 'error')).toEqual([]);

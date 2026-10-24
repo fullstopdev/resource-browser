@@ -1,8 +1,5 @@
 import { CRD_QA_SYSTEM_PROMPT } from './prompts';
-import {
-	isWorkersAINeuronLimitError,
-	workersAIQuotaHttpResponse
-} from './workersAIQuota';
+import { isWorkersAINeuronLimitError, workersAIQuotaHttpResponse } from './workersAIQuota';
 
 /** Default Workers AI model for lightweight `/api/ai` actions (explain, field, etc.). */
 export const WORKERS_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast' as const;
@@ -46,7 +43,42 @@ export type RunWorkersAIOptions = {
 	timeoutMs?: number;
 	/** Cloudflare AI Gateway id (logs, analytics, rate limits); omitted = call Workers AI directly. */
 	gateway?: string;
+	/** Called with the token counts Workers AI reports for this call. */
+	onUsage?: (usage: AiUsage) => void;
 };
+
+export type AiUsage = { model: string; promptTokens: number; completionTokens: number };
+
+/**
+ * Neurons per million tokens (input, output), from Cloudflare's Workers AI pricing. Used to
+ * report an estimate per fix; unknown models count as the 70B model, the most expensive we use.
+ */
+const NEURONS_PER_M: Record<string, [number, number]> = {
+	'@cf/meta/llama-3.1-8b-instruct-fast': [4119, 34868],
+	'@cf/meta/llama-3.1-8b-instruct': [25608, 75147],
+	'@cf/meta/llama-3.3-70b-instruct-fp8-fast': [26668, 204805]
+};
+
+export function estimateNeurons(usages: AiUsage[]): number {
+	let total = 0;
+	for (const u of usages) {
+		const [inRate, outRate] =
+			NEURONS_PER_M[u.model] ?? NEURONS_PER_M['@cf/meta/llama-3.3-70b-instruct-fp8-fast']!;
+		total += (u.promptTokens * inRate + u.completionTokens * outRate) / 1e6;
+	}
+	return Math.round(total * 10) / 10;
+}
+
+/** Token counts from a Workers AI result (`usage` on chat models), or zeros. */
+export function extractWorkersAIUsage(result: unknown, model: string): AiUsage {
+	const usage = (result as { usage?: Record<string, unknown> } | null)?.usage;
+	const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+	return {
+		model,
+		promptTokens: n(usage?.prompt_tokens),
+		completionTokens: n(usage?.completion_tokens)
+	};
+}
 
 export type AiMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -149,6 +181,7 @@ export async function runWorkersAIMessages(
 		),
 		timeoutMs
 	);
+	options.onUsage?.(extractWorkersAIUsage(result, model));
 	const answer = extractWorkersAIText(result);
 	if (!answer) {
 		throw new WorkersAIEmptyResponseError();
@@ -174,7 +207,7 @@ export async function runWorkersAI(
 
 export function workersAIErrorResponse(err: unknown): { status: number; error: string } {
 	if (isWorkersAINeuronLimitError(err)) {
-		return workersAIQuotaHttpResponse();
+		return workersAIQuotaHttpResponse(err);
 	}
 	if (err instanceof Error && err.message === 'Workers AI request timed out') {
 		return {
@@ -189,7 +222,10 @@ export function workersAIErrorResponse(err: unknown): { status: number; error: s
 /** Pick a Workers AI model for YAML fix — 8B for scoped/syntax fixes, 70B only when needed. */
 function specFieldDepth(fieldPath?: string): number {
 	if (!fieldPath) return 0;
-	return fieldPath.replace(/^spec\./, '').split('.').filter(Boolean).length;
+	return fieldPath
+		.replace(/^spec\./, '')
+		.split('.')
+		.filter(Boolean).length;
 }
 
 export function selectFixModel(
@@ -203,13 +239,8 @@ export function selectFixModel(
 ): string {
 	if (options?.batched) return FIX_AI_MODEL;
 	const depth = specFieldDepth(options?.fieldPath);
-	const needsLargeModel =
-		!!options?.relocationHint || !!options?.migrationContext || depth >= 3;
-	if (
-		issueKind === 'syntax' ||
-		issueKind === 'misspelledField' ||
-		issueKind === 'enum'
-	) {
+	const needsLargeModel = !!options?.relocationHint || !!options?.migrationContext || depth >= 3;
+	if (issueKind === 'syntax' || issueKind === 'misspelledField' || issueKind === 'enum') {
 		return WORKERS_AI_MODEL;
 	}
 	if (issueKind === 'type') {
@@ -222,10 +253,7 @@ export function selectFixModel(
 }
 
 /** Dynamic max output tokens by fix complexity. */
-export function selectFixMaxTokens(
-	issueKind?: string,
-	options?: { batched?: boolean }
-): number {
+export function selectFixMaxTokens(issueKind?: string, options?: { batched?: boolean }): number {
 	if (options?.batched) return 2048;
 	if (issueKind === 'enum' || issueKind === 'type' || issueKind === 'syntax') return 768;
 	if (issueKind === 'unknownField') return 1536;

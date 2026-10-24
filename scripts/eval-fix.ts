@@ -14,7 +14,56 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
-import { FIX_EVAL_CASES, FIX_EVAL_RELEASE, type FixEvalCase } from '../src/lib/ai/eval/fixCases';
+import { readFile } from 'node:fs/promises';
+import { FIX_EVAL_CASES, type FixEvalCase } from '../src/lib/ai/eval/fixCases';
+import { latestReleaseName } from '../src/lib/latestRelease';
+import { validateBundle } from '../src/lib/validate-bundle';
+import { inferIssueKind } from '../src/lib/validate-bundle/fixIssueContext';
+import type { BundleIssue } from '../src/lib/validate-bundle/types';
+
+/** Release to test: `--release`, else the latest one in src/lib/releases.yaml. */
+let RELEASE = '';
+
+/** Root-relative fetches (`/resources/…`) read the local static files, for the validator. */
+const networkFetch = globalThis.fetch;
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+	const url = String(input);
+	if (url.startsWith('/')) {
+		try {
+			return new Response(await readFile(`static${url}`, 'utf8'));
+		} catch {
+			return new Response(null, { status: 404 });
+		}
+	}
+	return networkFetch(input, init);
+}) as typeof fetch;
+
+/**
+ * The issue this case triggers in RELEASE, from the validator itself, so messages and allowed
+ * values follow each release. Null when the case's field is no longer invalid there.
+ */
+async function issueFor(
+	c: FixEvalCase
+): Promise<(Pick<BundleIssue, 'message' | 'fieldPath'> & { issueKind: string }) | null> {
+	if (c.issueKind === 'syntax') return { message: c.message, issueKind: 'syntax' };
+	const manifest = JSON.parse(await readFile(`static/resources/${RELEASE}/manifest.json`, 'utf8'));
+	const result = await validateBundle({
+		yamlInput: c.yaml,
+		releaseFolder: `resources/${RELEASE}`,
+		releaseLabel: `EDA ${RELEASE}`,
+		manifest
+	});
+	const issues = result.issues.filter((i) => i.severity !== 'info');
+	const hit =
+		issues.find((i) => i.fieldPath === c.fieldPath) ??
+		issues.find((i) => c.fieldPath && i.message.includes(c.fieldPath));
+	if (!hit) return null;
+	return {
+		message: hit.message.replace(/\s*\(Line \d+, column \d+\)$/, ''),
+		fieldPath: hit.fieldPath,
+		issueKind: inferIssueKind(hit) ?? c.issueKind
+	};
+}
 
 type CaseResult = {
 	id: string;
@@ -25,6 +74,8 @@ type CaseResult = {
 	attempts?: number;
 	model?: string;
 	ms: number;
+	/** Estimated Workers AI neurons for this request (0 for rules and cache hits). */
+	neurons?: number;
 	note: string;
 };
 
@@ -47,19 +98,34 @@ function argValue(name: string): string | undefined {
 
 async function runCase(baseUrl: string, c: FixEvalCase): Promise<CaseResult> {
 	const started = Date.now();
+	const issue = await issueFor(c);
+	if (!issue) {
+		return {
+			id: c.id,
+			ok: true,
+			status: 0,
+			verified: false,
+			cached: false,
+			ms: 0,
+			neurons: 0,
+			note: `skipped: not invalid in ${RELEASE}`
+		};
+	}
 	const res = await fetch(`${baseUrl}/api/ai`, {
 		method: 'POST',
 		headers: { 'content-type': 'application/json', origin: baseUrl },
+		// Two model attempts at most on the server (up to 120 s each).
+		signal: AbortSignal.timeout(260_000),
 		body: JSON.stringify({
-			release: FIX_EVAL_RELEASE,
+			release: RELEASE,
 			kind: c.kind,
 			group: c.group,
 			action: 'fix',
 			userYaml: c.yaml,
 			issue: {
-				message: c.message,
-				fieldPath: c.fieldPath,
-				issueKind: c.issueKind,
+				message: issue.message,
+				fieldPath: issue.fieldPath,
+				issueKind: issue.issueKind,
 				severity: 'error'
 			}
 		})
@@ -73,6 +139,7 @@ async function runCase(baseUrl: string, c: FixEvalCase): Promise<CaseResult> {
 		cached: body.cached === true,
 		attempts: typeof body.attempts === 'number' ? body.attempts : undefined,
 		model: typeof body.model === 'string' ? body.model : undefined,
+		neurons: typeof body.neurons === 'number' ? body.neurons : undefined,
 		ms
 	};
 
@@ -103,17 +170,17 @@ function writeStepSummary(baseUrl: string, results: CaseResult[], rate: number):
 	if (!file) return;
 	const rows = results.map(
 		(r) =>
-			`| ${r.ok ? '✅' : '❌'} | \`${r.id}\` | ${r.status} | ${r.ms} | ${r.cached ? 'cached' : (r.attempts ?? '?')} | ${r.note.replace(/\|/g, '\\|')} |`
+			`| ${r.ok ? '✅' : '❌'} | \`${r.id}\` | ${r.status} | ${r.ms} | ${r.cached ? 'cached' : r.model === 'rules' ? 'rules' : (r.attempts ?? '?')} | ${r.neurons ?? ''} | ${r.note.replace(/\|/g, '\\|')} |`
 	);
 	fs.appendFileSync(
 		file,
 		[
 			`## AI Fix eval — ${Math.round(rate * 100)}% (${results.filter((r) => r.ok).length}/${results.length})`,
 			'',
-			`Target: ${baseUrl}, release ${FIX_EVAL_RELEASE}`,
+			`Target: ${baseUrl}, release ${RELEASE}`,
 			'',
-			'| | Case | HTTP | ms | Tries | Note |',
-			'| --- | --- | --- | --- | --- | --- |',
+			'| | Case | HTTP | ms | Tries | Neurons | Note |',
+			'| --- | --- | --- | --- | --- | --- | --- |',
 			...rows,
 			''
 		].join('\n')
@@ -123,13 +190,12 @@ function writeStepSummary(baseUrl: string, results: CaseResult[], rate: number):
 async function main(): Promise<void> {
 	configureFetchDispatcher();
 	const baseUrl = (argValue('--base-url') ?? 'http://localhost:8788').replace(/\/$/, '');
+	RELEASE = argValue('--release') ?? latestReleaseName();
 	const only = argValue('--only');
 	const concurrency = Math.max(1, Number(process.env.EVAL_CONCURRENCY ?? 2));
 	const cases = FIX_EVAL_CASES.filter((c) => !only || c.id.includes(only) || c.issueKind === only);
 
-	console.log(
-		`AI Fix eval: ${cases.length} cases against ${baseUrl} (release ${FIX_EVAL_RELEASE})\n`
-	);
+	console.log(`AI Fix eval: ${cases.length} cases against ${baseUrl} (release ${RELEASE})\n`);
 	const results: CaseResult[] = [];
 	for (let i = 0; i < cases.length; i += concurrency) {
 		const batch = await Promise.all(
@@ -141,13 +207,14 @@ async function main(): Promise<void> {
 					verified: false,
 					cached: false,
 					ms: 0,
+					neurons: 0,
 					note: (err as Error).message
 				}))
 			)
 		);
 		for (const r of batch) {
 			console.log(
-				`${r.ok ? 'PASS' : 'FAIL'}  ${r.id.padEnd(38)} ${String(r.status).padStart(3)}  ${String(r.ms).padStart(6)}ms  ${r.cached ? 'cached' : `${r.attempts ?? '?'} try`}  ${r.note}`
+				`${r.ok ? 'PASS' : 'FAIL'}  ${r.id.padEnd(40)} ${String(r.status).padStart(3)}  ${String(r.ms).padStart(6)}ms  ${(r.cached ? 'cached' : r.model === 'rules' ? 'rules' : `${r.attempts ?? '?'} try`).padEnd(6)}  ${String(r.neurons ?? '?').padStart(5)} n  ${r.note}`
 			);
 		}
 		results.push(...batch);
@@ -157,9 +224,12 @@ async function main(): Promise<void> {
 	const fresh = results.filter((r) => !r.cached && r.status === 200);
 	const avgMs = fresh.length ? Math.round(fresh.reduce((s, r) => s + r.ms, 0) / fresh.length) : 0;
 	const retried = fresh.filter((r) => (r.attempts ?? 1) > 1).length;
+	const byRules = results.filter((r) => r.model === 'rules').length;
+	const neurons = results.reduce((n, r) => n + (r.neurons ?? 0), 0);
 	console.log(
 		`\n${passed}/${results.length} passed (${Math.round((passed / Math.max(1, results.length)) * 100)}%) · ` +
-			`${fresh.length} uncached, avg ${avgMs}ms, ${retried} needed a retry`
+			`${byRules} fixed by rules (0 neurons) · ${fresh.length} uncached, avg ${avgMs}ms, ${retried} needed a retry · ` +
+			`~${Math.round(neurons)} neurons in total`
 	);
 	const minPass = Number(argValue('--min-pass') ?? 1);
 	const rate = passed / Math.max(1, results.length);

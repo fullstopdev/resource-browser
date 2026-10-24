@@ -139,3 +139,13 @@ describe('AI Gateway', () => {
 		}
 	});
 });
+
+describe('quota errors', () => {
+	it('says "daily limit" only for the free daily allocation, otherwise "busy"', async () => {
+		const { workersAIErrorResponse } = await import('./runWorkersAI');
+		const daily = new Error('AiError: you have used up your daily free allocation of 10,000 neurons (4006)');
+		expect(workersAIErrorResponse(daily).error).toMatch(/daily limit/);
+		const busy = Object.assign(new Error('Too Many Requests'), { status: 429 });
+		expect(workersAIErrorResponse(busy).error).toMatch(/busy/);
+	});
+});

@@ -48,6 +48,9 @@ that pass verification are cached, in KV. Without the variable the app calls Wor
 
 ## A fix request, step by step
 
+Cheapest first: rules, then the cache, then the small model, and the large model only for
+whole-document fixes.
+
 ```mermaid
 sequenceDiagram
   participant B as Browser
@@ -56,26 +59,74 @@ sequenceDiagram
   participant L as Workers AI
   B->>W: POST action=fix, release, kind, userYaml, issue(s)
   W->>W: Same-origin check, size limits, required fields
-  alt A rule-based fix exists
+  alt The browser already has a one-click fix
     W-->>B: 422 (use the one-click Fix)
   else
-    W->>W: Short doc → send it whole, long doc → excerpt around the issue
-    W->>W: Allowed values and types taken from the CRD schema
-    W->>K: GET sha256(prompt version, model, prompt)
-    alt Cached (always a verified fix)
-      K-->>B: fix, cached=true
+    W->>W: Rule-based fix from the CRD schema (ruleFix.ts), then verify
+    alt Rules fixed it
+      W-->>B: fixedYaml, model=rules, 0 neurons
     else
-      W->>L: Attempt 1
-      W->>W: Parse, splice excerpt back, verify
-      opt Rejected or unparseable
-        W->>L: Attempt 2 on the fix model, with the rejection reason
-        W->>W: Parse, splice, verify
+      W->>K: GET sha256(prompt version, model, prompt)
+      alt Cached (always a verified fix)
+        K-->>B: fix, cached=true, 0 neurons
+      else One-field issue (enum, type, required, unknown field)
+        W->>L: Small model: answer with one CHANGE line
+        W->>W: Apply the change to the document, verify
+        opt Rejected
+          W->>L: Small model again, with the rejection reason
+        end
+      else Syntax, moves, migrations
+        W->>L: Small or large model: return the corrected document
+        opt Rejected
+          W->>L: Large model, with the rejection reason
+        end
       end
       W->>K: PUT only if verified (30-day TTL, in the background)
-      W-->>B: fixedYaml + verified, or fixable=false with the reason
+      W-->>B: fixedYaml + verified + neurons, or fixable=false with the reason
     end
   end
 ```
+
+### Rules before AI
+
+`src/lib/ai/ruleFix.ts` fixes what the schema decides, with no model call:
+
+| Issue         | Rule                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| Enum          | The one allowed value that matches by case or spelling (`SRL` → `srl`, `Global` → `GlobalPool`) |
+| Type          | Quoted numbers and booleans (`"9000"` → `9000`, `"yes"` → `true`, `AS65000` → `65000`)          |
+| Unknown field | Remove it with its block                                                                        |
+| Misspelled    | Rename to the field the validator names                                                         |
+| Required      | Add it when the schema gives a default or a single allowed value                                |
+
+Edits are line-based (`yamlLineEdit.ts`), so comments and formatting stay as written, and each
+result goes through the same verification as AI answers. On the 61 eval cases, rules fix 45,
+including the two YAML syntax errors (a missing colon, a misaligned line). Rule fixes keep working
+when the Workers AI daily allocation is used up.
+
+### One-line answers
+
+For enum, type, required and unknown-field issues the model doesn't echo the document: it answers
+`CHANGE: SET spec.links.0.speed = 25G` (or `DELETE <path>`), and the server applies it
+(`fixPatch.ts`). Output tokens cost about 8 times as much as input tokens, so this is most of the
+saving on the calls that still need a model. These fixes retry on the same small model; the 70B
+model (about 13 times the cost per call) is kept for syntax errors, moves and migrations.
+
+### Neurons
+
+Measured on the same 61-case run (October 2026), with Cloudflare's own counts:
+
+| Version                               | Model calls | 70B calls | Neurons              | Passed                      |
+| ------------------------------------- | ----------- | --------- | -------------------- | --------------------------- |
+| Before (whole-document answers)       | 69          | 23        | ~2,258               | 54/61                       |
+| Rules + one-line answers              | 24          | 2         | ~184                 | 54/61                       |
+| Plus syntax rules and the fixes above | about 16    | 0         | under 100 (estimate) | 56/61 with no AI quota left |
+
+The free Workers AI allocation is 10,000 neurons a day.
+
+Each fix response and log line carries `neurons`: an estimate from the token counts Workers AI
+reports and Cloudflare's per-model prices (`estimateNeurons` in `runWorkersAI.ts`). Rules and cache
+hits are 0.
 
 ### Long documents
 
@@ -134,31 +185,42 @@ The browser cancels requests when you press **Cancel** or close the AI panel, an
 ## Observability
 
 Every AI call writes one JSON log line (`{"evt":"ai", …}`) with the action, release, kind, cache
-hit, whether the fix was verified, attempts, model, excerpt or full mode, the reject reason and the
-latency. Read them in **Workers & Pages → your project → Logs** to track the fix success rate.
+hit, whether the fix was verified, attempts, model (`rules` when no model was called), one-line or
+document mode, tokens in and out, estimated neurons, the reject reason and the latency. Read them in **Workers & Pages → your project → Logs** to track the fix success rate.
 
 ## Measuring fix quality
 
-`src/lib/ai/eval/` holds 61 cases built on the 26.8.2 schemas, each with an independent check of the
-returned document:
+`src/lib/ai/eval/` holds 61 cases, each with an independent check of the returned document:
 
 - 20 hand-written ones (enum, type, required, unknown field, syntax, and a long document sent as an
   excerpt);
 - 41 made by breaking the curated docs.eda.dev examples (`fixCasesCurated.ts`): Fabric, BGP peers
   and groups, default routers, routing policy, services, topology, and multi-issue documents where
-  only the reported issue may change. A unit test checks that the validator reports exactly each
-  case's message and field path.
+  only the reported issue may change.
 
-Run them against any deployment:
+The eval runs on the **latest release** in `src/lib/releases.yaml` (or `--release`). It asks the
+validator which issue each case triggers in that release, so messages and allowed values follow
+each release without edits; a case that is no longer invalid is skipped.
 
 ```bash
 npm run eval:fix -- --base-url https://<preview>.eda-resource-browser.pages.dev --min-pass 0.85
 ```
 
-The report lists pass/fail per case, latency, cache hits and retries. Use it before changing a
-model or a prompt. On GitHub, **Actions → AI Fix eval → Run workflow** runs it against production
-or a preview URL and writes the table to the job summary. Uncached cases use Workers AI quota (a
-full uncached run is a sizeable share of the free daily allowance).
+The report lists pass/fail per case, latency, rules / cache / attempts, and neurons, with totals.
+
+### Every new release, automatically
+
+When a release is added (a push to `main` that changes `src/lib/releases.yaml` or
+`openapi-releases.yaml`):
+
+1. **CI** validates the curated Insert examples and the eval cases against the new latest release,
+   so a schema change that breaks them fails the build.
+2. **New release check** (`.github/workflows/new-release.yml`) waits until the release's data is
+   live on the site, then runs the eval on it and fails below an 80% pass rate. The job summary
+   shows the neurons it used.
+
+**Actions → AI Fix eval → Run workflow** runs it by hand against production or a preview, for any
+release.
 
 ## Feature flags
 

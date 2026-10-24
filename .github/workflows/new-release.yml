@@ -1,0 +1,55 @@
+name: New release check
+
+# Runs by itself when a release is added (src/lib/releases.yaml or openapi-releases.yaml changes on
+# main). The push already runs CI, which validates the curated examples and the eval cases against
+# the latest release. This job waits for the release's data to be live on the site, then runs the
+# AI Fix eval on it. Most cases are fixed by rules or come from the cache, so it uses few neurons.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/lib/releases.yaml
+      - src/lib/openapi-releases.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: new-release
+  cancel-in-progress: true
+
+jobs:
+  eval-latest-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SITE: https://eda-resource-browser.pages.dev
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Latest release
+        id: release
+        run: |
+          name=$(node -e "const y=require('js-yaml');const c=y.load(require('fs').readFileSync('src/lib/releases.yaml','utf8'));console.log((c.releases.find(r=>r.default)||c.releases[0]).name)")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Latest release: $name"
+      - name: Wait for the release to be live
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/resources/$RELEASE/manifest.json")
+            if [ "$code" = "200" ]; then echo "Release $RELEASE is live"; exit 0; fi
+            sleep 30
+          done
+          echo "Release $RELEASE is not live after 30 minutes" >&2
+          exit 1
+      - name: AI Fix eval on the new release
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: npm run eval:fix -- --base-url "$SITE" --release "$RELEASE" --min-pass 0.8

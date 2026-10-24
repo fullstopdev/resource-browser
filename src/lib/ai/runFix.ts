@@ -1,5 +1,5 @@
 import { fixRetryMessage, type ActionPrompt } from './actionPrompts';
-import { parseFixResponse } from './parseFixResponse';
+import { parseFixResponse, type ParsedFixResponse } from './parseFixResponse';
 import type { AiMessage, AiModels } from './runWorkersAI';
 import type { FixVerdict } from './verifyFix';
 
@@ -31,8 +31,17 @@ export async function runVerifiedFix(params: {
 	/** Turns the model's YAML into the full document (splices excerpt answers back in). */
 	toFullDocument: (fixedYaml: string) => string;
 	verify: (fixedDoc: string) => FixVerdict;
+	/** Answer parser; defaults to the FIXABLE / EXPLANATION / FIXED_YAML format. */
+	parse?: (answer: string) => ParsedFixResponse;
+	/**
+	 * Model for the second attempt. Defaults to the larger fix model; one-line fixes retry on the
+	 * same small model instead (the 70B model costs about 13 times as many neurons).
+	 */
+	retryModel?: string;
 }): Promise<VerifiedFixResult> {
 	const { prompt, models, initialModel, run, toFullDocument, verify } = params;
+	const parse = params.parse ?? parseFixResponse;
+	const retryModel = params.retryModel ?? models.fix;
 	const baseMessages: AiMessage[] = [
 		{ role: 'system', content: prompt.system },
 		{ role: 'user', content: prompt.user }
@@ -47,7 +56,7 @@ export async function runVerifiedFix(params: {
 	for (let attempt = 1; attempt <= 2; attempt++) {
 		attempts = attempt;
 		const answer = await run(model, messages);
-		const parsed = parseFixResponse(answer);
+		const parsed = parse(answer);
 		last = { answer, explanation: parsed.explanation };
 
 		if (parsed.fixable && parsed.fixedYaml) {
@@ -70,13 +79,21 @@ export async function runVerifiedFix(params: {
 				{ role: 'assistant', content: answer },
 				{ role: 'user', content: fixRetryMessage(verdict.reason) }
 			];
+		} else if (parsed.fixable && params.parse) {
+			// A one-line change that could not be placed in the document: say so and retry.
+			rejectReason = 'The CHANGE line could not be applied (check the field path).';
+			messages = [
+				...baseMessages,
+				{ role: 'assistant', content: answer },
+				{ role: 'user', content: fixRetryMessage(rejectReason) }
+			];
 		} else {
-			// Not fixable or unparseable: a declared "no" from the large model is final.
+			// Not fixable or unparseable: a declared "no" from the retry model is final.
 			rejectReason = parsed.fixable ? 'The answer had no YAML block.' : undefined;
-			if (model === models.fix) break;
+			if (model === retryModel) break;
 			messages = baseMessages;
 		}
-		model = models.fix;
+		model = retryModel;
 	}
 
 	return {
@@ -87,7 +104,7 @@ export async function runVerifiedFix(params: {
 		fixable: false,
 		verified: false,
 		attempts,
-		model: attempts > 1 ? models.fix : initialModel,
+		model: attempts > 1 ? retryModel : initialModel,
 		...(rejectReason ? { rejectReason } : {})
 	};
 }
