@@ -17,10 +17,10 @@ async function openBridgeDomain(page: Page) {
 test.describe('API reference', () => {
 	test('opens on the overview with every API', async ({ page }) => {
 		await page.goto('/openapi');
-		await expect(page.getByRole('heading', { level: 1 })).toContainText('EDA REST API · 26.8.2', {
+		await expect(page.getByRole('heading', { level: 1 })).toContainText(/EDA REST API\s*26\.8\.2/, {
 			timeout: 15_000
 		});
-		await expect(page.getByRole('heading', { name: 'Application APIs' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Routing and protocols' })).toBeVisible();
 		// Every resource is listed: Core has more than 30, none hidden behind "+N more".
 		const core = page.getByRole('list', { name: 'Core resources' });
 		await expect(core.getByRole('link')).toHaveCount(34);
@@ -42,13 +42,21 @@ test.describe('API reference', () => {
 		await expect(page.getByRole('list', { name: 'AAA resources' })).toBeVisible();
 	});
 
-	test('the sidebar expands every API at once', async ({ page }) => {
+	test('categories narrow the overview and the sidebar', async ({ page }) => {
 		await page.goto('/openapi?release=26.8.2');
+		const tabs = page.getByRole('navigation', { name: 'API categories' });
+		await tabs.getByRole('link', { name: /^Routing and protocols/ }).click();
+		await expect(page).toHaveURL(/category=routing/);
+		await expect(page.getByRole('heading', { level: 1 })).toContainText('Routing and protocols');
+		await expect(page.getByRole('list', { name: 'Protocols resources' })).toContainText('BGPPeer');
+		await expect(page.getByRole('list', { name: 'AAA resources' })).toHaveCount(0);
 		const nav = page.getByRole('navigation', { name: 'API reference' });
+		await expect(nav.getByRole('link', { name: /^Routing and protocols/ })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
 		await nav.getByRole('button', { name: 'Expand all' }).click();
-		await expect(nav.getByRole('link', { name: 'VmwarePluginInstance' })).toBeVisible();
-		await nav.getByRole('button', { name: 'Collapse all' }).click();
-		await expect(nav.getByRole('link', { name: 'VmwarePluginInstance' })).toHaveCount(0);
+		await expect(nav.getByRole('button', { name: /^Vmware Plugin Operator/ })).toBeVisible();
 	});
 
 	test('search finds a resource across APIs', async ({ page }) => {
@@ -84,7 +92,7 @@ test.describe('API reference', () => {
 
 	test('choosing an action updates the panel and the link', async ({ page }) => {
 		await openBridgeDomain(page);
-		await page.getByRole('button', { name: /^GET Get / }).click();
+		await page.getByRole('button', { name: /^GET Get$/ }).click();
 		await expect(page).toHaveURL(/#readServicesEdaNokiaComV2NamespaceBridgedomains$/);
 		await expect(page.locator('#api-action-panel h2')).toHaveText('Get a BridgeDomain');
 		await expect(page.locator('#api-action-panel pre[aria-label="Request example"]')).toContainText(

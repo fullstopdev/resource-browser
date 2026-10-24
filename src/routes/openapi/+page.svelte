@@ -49,6 +49,7 @@
 	const release = $derived(resolveOpenApiRelease(releases, releaseName));
 	const apiId = $derived(browser ? ($page.url.searchParams.get('spec') ?? '') : '');
 	const sectionParam = $derived(browser ? ($page.url.searchParams.get('section') ?? '') : '');
+	const categoryParam = $derived(browser ? ($page.url.searchParams.get('category') ?? '') : '');
 	let hash = $state('');
 
 	$effect(() => {
@@ -72,6 +73,9 @@
 		return `/openapi?${params.toString()}`;
 	}
 	const overviewHref = $derived(`/openapi?release=${encodeURIComponent(releaseName)}`);
+	function categoryHref(category: string): string {
+		return category ? `${overviewHref}&category=${encodeURIComponent(category)}` : overviewHref;
+	}
 
 	// The header's release switcher lists the OpenAPI releases and keeps the API and section.
 	const headerReleases = writable<HeaderReleaseOptions | null>(null);
@@ -273,6 +277,8 @@
 					sectionKey={section?.key ?? ''}
 					{href}
 					{overviewHref}
+					{categoryHref}
+					category={categoryParam}
 					onNavigate={() => (navOpen = false)}
 				/>
 			{:else if !loadError}
@@ -304,7 +310,7 @@
 					{#each Array(8) as _, i (i)}<span></span>{/each}
 				</div>
 			{:else if !apiId}
-				<ApiOverview {index} {href} />
+				<ApiOverview {index} {href} category={categoryParam} {categoryHref} />
 			{:else if specError}
 				<div class="state state--error" role="alert">
 					<p class="state-title">{specError}</p>

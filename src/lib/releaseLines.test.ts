@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { releaseLines, splitReleaseLines } from './releaseLines';
+import { releaseLines, splitByMajor, splitReleaseLines } from './releaseLines';
 
 const names = [
 	'25.4.2',
@@ -46,5 +46,16 @@ describe('splitReleaseLines', () => {
 		const { featured, more } = splitReleaseLines([{ name: '26.8.1' }]);
 		expect(featured).toHaveLength(1);
 		expect(more).toEqual([]);
+	});
+});
+
+describe('splitByMajor', () => {
+	it('shows the four newest releases of each major, the rest under more', () => {
+		const rows = splitByMajor([...releases, { name: '25.8.2' }]);
+		expect(rows.map((r) => r.major)).toEqual(['26', '25']);
+		expect(rows[0]!.shown.map((r) => r.name)).toEqual(['26.8.2', '26.8.1', '26.4.3', '26.4.2']);
+		expect(rows[0]!.more.map((r) => r.name)).toEqual(['26.4.1']);
+		expect(rows[1]!.shown.map((r) => r.name)).toEqual(['25.12.3', '25.12.1', '25.8.3', '25.8.2']);
+		expect(rows[1]!.more.map((r) => r.name)).toEqual(['25.8.1', '25.4.2']);
 	});
 });

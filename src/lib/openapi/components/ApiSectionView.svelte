@@ -47,14 +47,15 @@
 
 	/** Arrow keys move between actions. */
 	function listKeydown(event: KeyboardEvent) {
-		if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+		const next = event.key === 'ArrowDown' || event.key === 'ArrowRight';
+		if (!next && event.key !== 'ArrowUp' && event.key !== 'ArrowLeft') return;
 		const rows = Array.from(
 			(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('.act')
 		);
 		const i = rows.indexOf(document.activeElement as HTMLElement);
 		if (i < 0) return;
 		event.preventDefault();
-		rows[Math.max(0, Math.min(rows.length - 1, i + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+		rows[Math.max(0, Math.min(rows.length - 1, i + (next ? 1 : -1)))]?.focus();
 	}
 
 	/** Only the part of the path that tells actions apart: `bridgedomains/{name}/_revs`. */
@@ -64,13 +65,6 @@
 			if (i >= 0) return path.slice(i + 1);
 		}
 		return path.replace(/^\/core/, '');
-	}
-
-	function pathParts(path: string): Array<{ text: string; param: boolean }> {
-		return path
-			.split(/(\{[^}]+\})/)
-			.filter(Boolean)
-			.map((text) => ({ text, param: text.startsWith('{') }));
 	}
 
 	const typeLabel = $derived(
@@ -117,29 +111,27 @@
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<nav class="actions" aria-label="{section.title} actions" onkeydown={listKeydown}>
 			{#each grouped as g (g.group)}
-				<h2 class="group">{g.group}</h2>
-				<ul>
-					{#each g.actions as action (action.key)}
-						{@const current = selected?.key === action.key}
-						<li>
-							<button
-								type="button"
-								class="act"
-								aria-current={current ? 'true' : undefined}
-								aria-controls="api-action-panel"
-								onclick={() => choose(action)}
-							>
-								<OpenApiMethodBadge method={action.operation.method} compact />
-								<span class="act-label" title={action.label}>{action.label}</span>
-								<span class="act-path" title={action.operation.path}
-									>{#each pathParts(shortPath(action.operation.path)) as part}{#if part.param}<em
-												>{part.text}</em
-											>{:else}{part.text}{/if}{/each}</span
+				<div class="group-row">
+					<h2 class="group">{g.group}</h2>
+					<ul>
+						{#each g.actions as action (action.key)}
+							{@const current = selected?.key === action.key}
+							<li>
+								<button
+									type="button"
+									class="act"
+									title="{action.operation.method.toUpperCase()} {shortPath(action.operation.path)}"
+									aria-current={current ? 'true' : undefined}
+									aria-controls="api-action-panel"
+									onclick={() => choose(action)}
 								>
-							</button>
-						</li>
-					{/each}
-				</ul>
+									<OpenApiMethodBadge method={action.operation.method} compact />
+									<span class="act-label">{action.label}</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				</div>
 			{/each}
 		</nav>
 
@@ -238,117 +230,96 @@
 		outline-offset: 1px;
 	}
 
-	/* Action list | action detail, side by side once the page is wide enough. */
+	/* Actions as a bar of buttons above the detail, grouped Read / Write / Run. */
 	.work {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 1.5rem;
-		align-items: start;
-	}
-
-	@container (min-width: 60rem) {
-		.work {
-			grid-template-columns: 19rem minmax(0, 1fr);
-			gap: 2rem;
-		}
-
-		.actions {
-			position: sticky;
-			top: 4.75rem;
-		}
+		gap: 1.25rem;
 	}
 
 	.actions {
+		display: grid;
+		gap: 0.5rem;
 		min-width: 0;
-		padding: 0.5rem 0.375rem;
+		padding: 0.75rem 0.875rem;
 		border: 1px solid var(--rb-line);
-		border-radius: 0.625rem;
+		border-radius: 0.75rem;
 		background: var(--rb-surface);
 	}
 
+	.group-row {
+		display: grid;
+		gap: 0.375rem;
+		align-items: start;
+	}
+
+	@container (min-width: 40rem) {
+		.group-row {
+			grid-template-columns: 3.5rem minmax(0, 1fr);
+			gap: 0.75rem;
+		}
+
+		.group-row + .group-row {
+			padding-top: 0.5rem;
+			border-top: 1px solid var(--rb-line);
+		}
+	}
+
 	.group {
-		margin: 0.875rem 0 0.25rem;
-		padding: 0 0.625rem;
+		margin: 0;
+		padding-top: 0.4375rem;
 		font: 600 0.66rem var(--rb-font-mono);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--rb-ink-3);
 	}
 
-	.group:first-child {
-		margin-top: 0.25rem;
-	}
-
 	.actions ul {
-		display: grid;
-		gap: 1px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
 
 	.act {
-		display: grid;
-		grid-template-columns: 3.75rem minmax(0, 1fr);
+		display: inline-flex;
 		align-items: center;
-		gap: 0 0.625rem;
-		width: 100%;
-		padding: 0.375rem 0.625rem;
-		border: 0;
-		border-radius: 0.4375rem;
-		background: none;
-		color: inherit;
-		text-align: left;
+		gap: 0.5rem;
+		height: 2.125rem;
+		padding: 0 0.75rem 0 0.375rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.5rem;
+		background: var(--rb-bg);
+		color: var(--rb-ink);
 		font: inherit;
 		cursor: pointer;
 	}
 
 	.act:hover {
+		border-color: var(--rb-line-strong);
 		background: var(--rb-raised);
 	}
 
 	.act:focus-visible {
 		outline: 2px solid var(--rb-signal);
-		outline-offset: -2px;
+		outline-offset: 1px;
 	}
 
 	.act[aria-current='true'] {
+		border-color: var(--rb-signal);
 		background: var(--rb-signal-soft);
+		box-shadow: inset 0 0 0 1px var(--rb-signal);
+	}
+
+	.act-label {
+		font-weight: 600;
+		font-size: 0.84rem;
+		white-space: nowrap;
 	}
 
 	.act[aria-current='true'] .act-label {
 		color: var(--rb-signal);
-		font-weight: 600;
-	}
-
-	.act-label {
-		display: -webkit-box;
-		overflow: hidden;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		font-weight: 500;
-		font-size: 0.86rem;
-		line-height: 1.3;
-		color: var(--rb-ink);
-	}
-
-	.act > :global(:first-child) {
-		justify-self: start;
-	}
-
-	.act-path {
-		grid-column: 2;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font: 0.72rem var(--rb-font-mono);
-		color: var(--rb-ink-3);
-	}
-
-	.act-path em {
-		font-style: normal;
-		color: var(--rb-code);
 	}
 
 	.panel {

@@ -55,3 +55,26 @@ export function splitReleaseLines<R extends ReleaseLike>(
 	];
 	return { featured, more };
 }
+
+export type MajorRow<R extends ReleaseLike> = {
+	/** `26` */
+	major: string;
+	/** The newest `shown` releases of this major, newest first. */
+	shown: R[];
+	/** The rest, newest first. */
+	more: R[];
+};
+
+/** One row per major version (26, 25, …), newest first, with the newest `shown` releases each. */
+export function splitByMajor<R extends ReleaseLike>(releases: R[], shown = 4): MajorRow<R>[] {
+	const byMajor = new Map<string, R[]>();
+	for (const r of [...releases].sort(compareReleaseDesc)) {
+		const major = String(parts(r.name)[0] ?? 0);
+		byMajor.set(major, [...(byMajor.get(major) ?? []), r]);
+	}
+	return [...byMajor].map(([major, list]) => ({
+		major,
+		shown: list.slice(0, shown),
+		more: list.slice(shown)
+	}));
+}

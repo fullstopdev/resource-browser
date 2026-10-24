@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ApiIndex } from '$lib/openapi/apiReference';
+	import { apiCategory, groupApisByCategory } from '$lib/openapi/apiCategories';
 
 	interface Props {
 		index: ApiIndex | null;
@@ -8,17 +9,39 @@
 		/** Link for an API (and section); null section = the API's first section. */
 		href: (apiId: string, sectionKey?: string) => string;
 		overviewHref: string;
+		categoryHref: (category: string) => string;
+		/** Category shown on the overview, if any. */
+		category?: string;
 		onNavigate?: () => void;
 	}
 
-	let { index, apiId, sectionKey, href, overviewHref, onNavigate }: Props = $props();
+	let {
+		index,
+		apiId,
+		sectionKey,
+		href,
+		overviewHref,
+		categoryHref,
+		category = '',
+		onNavigate
+	}: Props = $props();
 
 	let query = $state('');
 	let activeHit = $state(0);
 	let expanded = $state<Record<string, boolean>>({});
 
-	const platform = $derived(index?.apis.find((a) => a.platform) ?? null);
-	const apps = $derived(index?.apis.filter((a) => !a.platform) ?? []);
+	const groups = $derived(groupApisByCategory(index?.apis ?? []));
+	const currentApi = $derived(index?.apis.find((a) => a.id === apiId) ?? null);
+	const currentCategory = $derived(currentApi ? apiCategory(currentApi) : category);
+	let catOpen = $state<Record<string, boolean>>({});
+
+	function isCatOpen(id: string): boolean {
+		return catOpen[id] ?? id === currentCategory;
+	}
+
+	function toggleCat(id: string) {
+		catOpen = { ...catOpen, [id]: !isCatOpen(id) };
+	}
 
 	type Hit = { apiId: string; apiTitle: string; key: string; title: string; type: string };
 	const hits = $derived.by((): Hit[] => {
@@ -57,11 +80,11 @@
 		expanded = { ...expanded, [id]: !isOpen(id) };
 	}
 
-	const allOpen = $derived(apps.length > 0 && apps.every((a) => isOpen(a.id)));
+	const allOpen = $derived(groups.length > 0 && groups.every((g) => isCatOpen(g.category.id)));
 
 	function toggleAll() {
 		const open = !allOpen;
-		expanded = Object.fromEntries(apps.map((a) => [a.id, open]));
+		catOpen = Object.fromEntries(groups.map((g) => [g.category.id, open]));
 	}
 
 	function searchKeydown(event: KeyboardEvent) {
@@ -135,71 +158,70 @@
 		onclick={onNavigate}>API overview</a
 	>
 
-	{#if platform}
-		<p class="heading">Platform</p>
-		<ul class="list">
-			<li class="api">
-				<button
-					type="button"
-					class="api-toggle"
-					aria-expanded={isOpen(platform.id)}
-					aria-controls="api-{platform.id}"
-					onclick={() => toggle(platform.id)}
-				>
-					<span>Platform API <span class="count">/core</span></span>
-					<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
-				</button>
-				{#if isOpen(platform.id)}
-					<ul class="sub" id="api-{platform.id}">
-						{#each platform.sections as s (s.key)}
-							<li>
-								<a
-									href={href(platform.id, s.key)}
-									aria-current={apiId === platform.id && sectionKey === s.key ? 'page' : undefined}
-									onclick={onNavigate}
-								>
-									<span>{s.title}</span><span class="count">{s.actions}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</li>
-		</ul>
-	{/if}
-
 	<div class="heading">
-		<span>Applications <span class="count">{apps.length}</span></span>
+		<span>Categories</span>
 		<button type="button" class="expand-all" onclick={toggleAll}
 			>{allOpen ? 'Collapse all' : 'Expand all'}</button
 		>
 	</div>
-	<ul class="list">
-		{#each apps as api (api.id)}
-			<li class="api">
-				<button
-					type="button"
-					class="api-toggle"
-					aria-expanded={isOpen(api.id)}
-					aria-controls="api-{api.id}"
-					onclick={() => toggle(api.id)}
-				>
-					<span class="api-name">{api.title}</span>
-					<span class="count">{api.sections.length}</span>
-					<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
-				</button>
-				{#if isOpen(api.id)}
-					<ul class="sub" id="api-{api.id}">
-						{#each api.sections as s (s.key)}
-							<li>
-								<a
-									href={href(api.id, s.key)}
-									aria-current={apiId === api.id && sectionKey === s.key ? 'page' : undefined}
-									onclick={onNavigate}
+	<ul class="cats">
+		{#each groups as g (g.category.id)}
+			{@const open = isCatOpen(g.category.id)}
+			<li class="cat" class:is-current={g.category.id === currentCategory}>
+				<div class="cat-row">
+					<button
+						type="button"
+						class="cat-toggle"
+						aria-expanded={open}
+						aria-controls="api-cat-{g.category.id}"
+						aria-label="{open ? 'Collapse' : 'Expand'} {g.category.title}"
+						onclick={() => toggleCat(g.category.id)}
+					>
+						<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+					</button>
+					<a
+						class="cat-link"
+						href={categoryHref(g.category.id)}
+						aria-current={!apiId && category === g.category.id ? 'page' : undefined}
+						onclick={onNavigate}
+					>
+						<span>{g.category.title}</span><span class="count">{g.apis.length}</span>
+					</a>
+				</div>
+				{#if open}
+					<ul class="list" id="api-cat-{g.category.id}">
+						{#each g.apis as api (api.id)}
+							<li class="api">
+								<button
+									type="button"
+									class="api-toggle"
+									aria-expanded={isOpen(api.id)}
+									aria-controls="api-{api.id}"
+									onclick={() => toggle(api.id)}
 								>
-									<span>{s.title}</span>
-									{#if s.type === 'workflow'}<span class="tag">workflow</span>{/if}
-								</a>
+									<span class="api-name">{api.platform ? 'Platform API' : api.title}</span>
+									<span class="count">{api.sections.length}</span>
+									<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+								</button>
+								{#if isOpen(api.id)}
+									<ul class="sub" id="api-{api.id}">
+										{#each api.sections as s (s.key)}
+											<li>
+												<a
+													href={href(api.id, s.key)}
+													aria-current={apiId === api.id && sectionKey === s.key
+														? 'page'
+														: undefined}
+													onclick={onNavigate}
+												>
+													<span>{s.title}</span>
+													{#if s.type === 'workflow'}<span class="tag">workflow</span
+														>{:else if api.platform}<span class="count">{s.actions}</span>{/if}
+												</a>
+											</li>
+										{/each}
+									</ul>
+								{/if}
 							</li>
 						{/each}
 					</ul>
@@ -338,6 +360,77 @@
 		color: var(--rb-ink-3);
 	}
 
+	.cats {
+		display: grid;
+		gap: 0.125rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.cat-row {
+		display: grid;
+		grid-template-columns: 1.75rem minmax(0, 1fr);
+		align-items: center;
+	}
+
+	.cat-toggle {
+		display: grid;
+		place-items: center;
+		width: 1.75rem;
+		height: 2.125rem;
+		padding: 0;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		cursor: pointer;
+	}
+
+	.cat-toggle:hover {
+		background: var(--rb-raised);
+	}
+
+	.cat-toggle svg {
+		width: 0.75rem;
+		height: 0.75rem;
+		fill: none;
+		stroke: var(--rb-ink-3);
+		stroke-width: 1.6;
+		transition: transform 0.15s;
+	}
+
+	.cat-toggle[aria-expanded='true'] svg {
+		transform: rotate(90deg);
+	}
+
+	.cat-link {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
+		min-height: 2.125rem;
+		padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+		border-radius: 0.375rem;
+		color: var(--rb-ink);
+		font: 600 0.88rem var(--rb-font);
+		text-decoration: none;
+	}
+
+	.cat-link:hover {
+		background: var(--rb-raised);
+	}
+
+	.cat-link[aria-current='page'] {
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+	}
+
+	.cat > .list {
+		margin: 0 0 0.375rem 0.875rem;
+		padding-left: 0.375rem;
+		border-left: 1px solid var(--rb-line);
+	}
+
 	.list,
 	.sub {
 		display: grid;
@@ -445,6 +538,7 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
+		.cat-toggle svg,
 		.api-toggle svg {
 			transition: none;
 		}

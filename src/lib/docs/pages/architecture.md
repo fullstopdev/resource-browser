@@ -115,11 +115,11 @@ one definition. The design reference, with before and after screenshots, is in `
 | Validate YAML    | Always-visible button                                                                                                          |
 
 Menus open on click or with the Down arrow, arrows move between links, Escape closes. On phones a
-menu button opens the same groups as a sheet. The homepage shows live counts from the manifest, a
-schema example read from the selected release, one card per release line (the latest patch of the
-four newest lines, newest on the left, with the CRDs each line added, changed and removed, from
-`static/release-notes/index.json`), a _More releases_ menu with every other release
-(`src/lib/releaseLines.ts`), and one row per tool.
+menu button opens the same groups as a sheet. The homepage shows the CRD search, a releases panel
+with one row per major version (its four newest releases, newest first, each with its CRD changes
+from `static/release-notes/index.json`, and a menu with the rest; `src/lib/releaseLines.ts`), and
+the tools grouped by task. The API reference groups the application APIs into categories
+(`src/lib/openapi/apiCategories.ts`), selectable with `?category=`.
 
 ## Project layout
 

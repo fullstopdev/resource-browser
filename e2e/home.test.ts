@@ -8,39 +8,40 @@ test.beforeEach(async ({ page }) => {
 	);
 });
 
-test('homepage shows real counts, the schema example and release lines', async ({ page }) => {
+test('homepage shows search, releases by major and grouped tools', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1 })).toContainText(
 		'Every Nokia EDA resource schema'
 	);
-	await expect(page.locator('.rb-stats')).toContainText(/CRDs\s*\d{3}\b/);
-	const specimen = page.getByRole('complementary', { name: /Example schema: BridgeDomain/ });
-	await expect(specimen).toContainText('macLearning.');
-	await expect(specimen).toContainText('integer');
-	// The latest patch of the four newest release lines, newest on the left.
-	const lines = page.getByRole('list', { name: 'Release lines, newest first' }).locator('.rb-line');
-	await expect(lines).toHaveCount(4);
-	await expect(lines.first()).toContainText('26.8.2');
-	await expect(lines.nth(1)).toContainText('26.4.3');
-	await expect(lines.first()).toContainText(/vs 26\.4\s*\+\d+/);
-	await expect(page.locator('.rb-rail-note')).toContainText(
-		/added \d+, changed \d+ and removed \d+ CRDs/
-	);
+	await expect(page.locator('.rb-eyebrow')).toContainText(/\d{3} CRDs/);
+	// Four releases per major version, newest on the left.
+	const v26 = page.getByRole('list', { name: 'EDA 26 releases, newest first' }).getByRole('button');
+	await expect(v26).toHaveCount(4);
+	await expect(v26.first()).toContainText('26.8.2');
+	await expect(v26.nth(1)).toContainText('26.8.1');
+	const v25 = page.getByRole('list', { name: 'EDA 25 releases, newest first' }).getByRole('button');
+	await expect(v25).toHaveCount(4);
+	await expect(v25.first()).toContainText('25.12.3');
+	await expect(page.locator('.rb-panel-note')).toContainText(/new, .* changed, .* removed/);
 	await expect(page.locator('.rb-tool')).toHaveCount(8);
+	await expect(page.getByRole('heading', { name: 'Check and compare' })).toBeVisible();
 });
 
-test('older releases are in the More releases menu', async ({ page }) => {
+test('older releases of each major are in its More menu', async ({ page }) => {
 	await page.goto('/');
-	const more = page.getByRole('button', { name: /More releases/ });
+	const more = page.getByRole('button', { name: /More EDA 25 releases/ });
 	await more.click();
-	const menu = page.locator('#rb-more-menu');
+	const menu = page.locator('#rb-more-25');
 	await expect(menu).toContainText('25.4.2');
-	await expect(menu).not.toContainText('26.8.2');
+	await expect(menu).not.toContainText('25.12.3');
 	await page.keyboard.press('Escape');
 	await expect(menu).toBeHidden();
 	await expect(more).toBeFocused();
-	await more.click();
-	await menu.getByRole('button', { name: /^26\.4\.1/ }).click();
+	await page.getByRole('button', { name: /More EDA 26 releases/ }).click();
+	await page
+		.locator('#rb-more-26')
+		.getByRole('button', { name: /^26\.4\.1/ })
+		.click();
 	await expect(page).toHaveURL(/release=26\.4\.1/);
 });
 
