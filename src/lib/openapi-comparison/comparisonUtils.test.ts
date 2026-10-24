@@ -21,14 +21,9 @@ function stubEntry(status: OpenApiDiffStatus): OpenApiDiffEntry {
 }
 
 describe('comparisonUtils filters (Shared must not reclassify)', () => {
-	it('exposes CRD-aligned filter chips including Shared and Unchanged', () => {
-		expect(STATUS_FILTERS.map((f) => f.status)).toEqual([
-			'added',
-			'removed',
-			'modified',
-			'shared',
-			'unchanged'
-		]);
+	it('exposes Added, Removed, Modified and Unchanged (shared) filter chips', () => {
+		expect(STATUS_FILTERS.map((f) => f.status)).toEqual(['added', 'removed', 'modified', 'shared']);
+		expect(STATUS_FILTERS.find((f) => f.status === 'shared')?.label).toBe('Unchanged');
 	});
 
 	it('folds legacy api_version into shared for display only', () => {

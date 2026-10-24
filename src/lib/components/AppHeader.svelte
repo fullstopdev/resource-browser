@@ -10,6 +10,7 @@
 	import { fetchManifest, type ManifestResource } from '$lib/manifest';
 	import { searchResources } from '$lib/resourceSearch';
 	import Theme from '$lib/components/Theme.svelte';
+	import { getHeaderReleases } from '$lib/headerReleases';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 	import openapiReleasesYaml from '$lib/openapi-releases.yaml?raw';
 	import releasesYaml from '$lib/releases.yaml?raw';
@@ -27,14 +28,19 @@
 	const releases = (loadStaticYaml(releasesYaml) as ReleasesConfig).releases;
 	const latestRelease = releases.find((r) => r.default) ?? releases[0]!;
 
-	/** Release trains (v26, v25, …), newest first, as in releases.yaml. */
-	const trains = releases.reduce<Array<{ label: string; releases: EdaRelease[] }>>((acc, r) => {
-		const label = `v${r.name.split('.')[0]}`;
-		const train = acc.find((t) => t.label === label);
-		if (train) train.releases.push(r);
-		else acc.push({ label, releases: [r] });
-		return acc;
-	}, []);
+	/** Release trains (v26, v25, …), newest first, in the order given. */
+	function trainsOf<T extends { name: string }>(list: T[]) {
+		return list.reduce<Array<{ label: string; releases: T[] }>>((acc, r) => {
+			const label = `v${r.name.split('.')[0]}`;
+			const train = acc.find((t) => t.label === label);
+			if (train) train.releases.push(r);
+			else acc.push({ label, releases: [r] });
+			return acc;
+		}, []);
+	}
+
+	/** A page's own release list (OpenAPI pages); otherwise the CRD releases. */
+	const pageReleases = getHeaderReleases();
 
 	type NavItem = {
 		href: string;
@@ -140,8 +146,12 @@
 	$: pathname = $page.url.pathname;
 	// Prerendered pages can't read the query string; the release is resolved again in the browser.
 	$: urlRelease = browser ? $page.url.searchParams.get('release') : null;
-	$: currentRelease = releases.find((r) => r.name === urlRelease) ?? latestRelease;
-	$: showReleaseSwitcher = RELEASE_AWARE.includes(pathname);
+	$: crdRelease = releases.find((r) => r.name === urlRelease) ?? latestRelease;
+	$: currentRelease = $pageReleases
+		? ($pageReleases.releases.find((r) => r.name === $pageReleases.current) ?? crdRelease)
+		: crdRelease;
+	$: trains = trainsOf($pageReleases ? $pageReleases.releases : releases);
+	$: showReleaseSwitcher = !!$pageReleases || RELEASE_AWARE.includes(pathname);
 	$: jumpResults = jumpQuery.trim() ? searchResources(manifest, jumpQuery, { limit: 8 }) : [];
 	$: if (jumpIndex >= jumpResults.length) jumpIndex = 0;
 
@@ -168,6 +178,7 @@
 
 	/** Same page with another `release` (other parameters kept). */
 	function releaseHref(name: string): string {
+		if ($pageReleases) return $pageReleases.href(name);
 		const params = new URLSearchParams(browser ? $page.url.searchParams : undefined);
 		params.set('release', name);
 		return `${pathname}?${params.toString()}`;
@@ -214,9 +225,9 @@
 	}
 
 	async function loadManifest() {
-		if (manifestFor === currentRelease.folder) return;
-		manifestFor = currentRelease.folder;
-		manifest = (await fetchManifest(currentRelease.folder)) ?? [];
+		if (manifestFor === crdRelease.folder) return;
+		manifestFor = crdRelease.folder;
+		manifest = (await fetchManifest(crdRelease.folder)) ?? [];
 	}
 
 	async function openJump() {
@@ -229,7 +240,7 @@
 
 	function jumpTo(resource: ManifestResource) {
 		const href = buildCatalogCrdPath({
-			release: currentRelease.name,
+			release: crdRelease.name,
 			kind: resource.kind,
 			name: resource.name
 		});
@@ -259,6 +270,8 @@
 			if (openMenu || mobileNavOpen) closeAll();
 			return;
 		}
+		// A page can claim `/` first (the API Explorer focuses its own filter).
+		if (event.defaultPrevented) return;
 		if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, select, [contenteditable="true"], .monaco-editor'))
@@ -383,7 +396,7 @@
 								on:keydown={jumpKeydown}
 								type="search"
 								autocomplete="off"
-								placeholder="Kind or group in {currentRelease.name}, e.g. BridgeDomain"
+								placeholder="Kind or group in {crdRelease.name}, e.g. BridgeDomain"
 								role="combobox"
 								aria-expanded={jumpResults.length > 0}
 								aria-controls="rb-jump-results"
@@ -442,7 +455,7 @@
 								{#each train.releases as release (release.name)}
 									<a
 										href={releaseHref(release.name)}
-										data-sveltekit-reload
+										data-sveltekit-reload={$pageReleases ? 'off' : true}
 										class="rb-release-option"
 										class:is-active={release.name === currentRelease.name}
 										aria-current={release.name === currentRelease.name ? 'true' : undefined}

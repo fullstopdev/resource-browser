@@ -46,7 +46,8 @@
 		onToggleStatusFilter = (_status: OpenApiDiffStatus) => {},
 		onToggleExpand = (_specId: string) => {},
 		onExpandAll = () => {},
-		onCollapseAll = () => {}
+		onCollapseAll = () => {},
+		showHeader = true
 	}: {
 		report: OpenApiBulkDiffReport;
 		sourceReleaseName?: string;
@@ -58,7 +59,17 @@
 		onToggleExpand?: (specId: string) => void;
 		onExpandAll?: () => void;
 		onCollapseAll?: () => void;
+		/** The page can show the release pair and share link itself (compare bar). */
+		showHeader?: boolean;
 	} = $props();
+
+	const hasChanges = $derived(
+		summaryCountsTotal(report) > 0
+	);
+
+	function summaryCountsTotal(r: OpenApiBulkDiffReport): number {
+		return r.summary.added + r.summary.removed + r.summary.modified + r.summary.error;
+	}
 
 	const summaryCounts = $derived(report.summary);
 
@@ -102,6 +113,8 @@
 	}
 
 	function changeCountLabel(entry: OpenApiDiffEntry): string {
+		if (entry.status === 'added') return 'New API';
+		if (entry.status === 'removed') return 'API removed';
 		if (entry.detailsLoaded) {
 			return entryChangeMetricsLabel(pathChangeCounts(entry.pathChanges), entry.schemaSummary);
 		}
@@ -119,13 +132,6 @@
 		const delta = to - from;
 		const deltaText = delta === 0 ? '' : delta > 0 ? ` (+${delta})` : ` (${delta})`;
 		return `${from} → ${to} paths${deltaText}`;
-	}
-
-	function handleHeaderKeydown(event: KeyboardEvent, specId: string) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			onToggleExpand(specId);
-		}
 	}
 
 	function operationHref(entry: OpenApiDiffEntry, pc: OpenApiPathChange): string {
@@ -238,6 +244,7 @@
 </script>
 
 <div class="spec-search-results-panel comparison-results">
+	{#if showHeader}
 	<div class="comparison-results__header">
 		<div>
 			<h2 class="comparison-results__title">Comparison results</h2>
@@ -275,6 +282,7 @@
 			</button>
 		</div>
 	</div>
+	{/if}
 
 	<div class="comparison-results__sticky-toolbar">
 		<div class="comparison-results__filters">
@@ -347,20 +355,28 @@
 
 	{#if filteredEntries.length === 0}
 		<div class="spec-search-empty">
-			<div class="spec-search-empty-icon">
-				<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-					/>
-				</svg>
-			</div>
-			<h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">No matching changes</h3>
-			<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-				Adjust status filters or search terms, or run a new comparison.
-			</p>
+			{#if !hasChanges && !searchQuery.trim()}
+				<h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">
+					No API changes between {report.sourceRelease} and {report.targetRelease}
+				</h3>
+				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+					All {report.summary.shared} APIs have the same paths and schemas in both releases.
+				</p>
+				{#if !statusFilter.includes('shared')}
+					<button
+						type="button"
+						class="comparison-results__expand-btn mt-3"
+						onclick={() => onToggleStatusFilter('shared')}
+					>
+						Show the {report.summary.shared} unchanged APIs
+					</button>
+				{/if}
+			{:else}
+				<h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">No matching changes</h3>
+				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+					Change the status filters or the search text.
+				</p>
+			{/if}
 		</div>
 	{:else}
 		<div class="comparison-results__sections">
@@ -398,14 +414,22 @@
 								class="comparison-crd-card"
 								class:comparison-crd-card--expanded={expanded}
 							>
+								<!-- The row toggles on click; the chevron button is the keyboard control. -->
+								<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 								<div
-									role="button"
-									tabindex="0"
 									class="comparison-crd-card__header"
 									onclick={() => onToggleExpand(entry.specId)}
-									onkeydown={(event) => handleHeaderKeydown(event, entry.specId)}
-									aria-expanded={expanded}
 								>
+									<button
+										type="button"
+										class="comparison-crd-card__toggle"
+										aria-expanded={expanded}
+										aria-label="{expanded ? 'Hide' : 'Show'} changes in {entry.title}"
+										onclick={(event) => {
+											event.stopPropagation();
+											onToggleExpand(entry.specId);
+										}}
+									>
 									<svg
 										class="comparison-crd-card__chevron"
 										class:comparison-crd-card__chevron--open={expanded}
@@ -421,6 +445,7 @@
 											d="M9 5l7 7-7 7"
 										/>
 									</svg>
+									</button>
 									<div class="comparison-crd-card__meta">
 										<span class={statusChipClass(entry.status)}
 											>{statusLabel(displayStatus)}</span
@@ -760,5 +785,20 @@
 
 	:global(.oa-op-diff-table__row:hover) {
 		background: color-mix(in srgb, #2563eb 6%, transparent);
+	}
+	.comparison-crd-card__toggle {
+		display: inline-grid;
+		place-items: center;
+		padding: 0.25rem;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	.comparison-crd-card__toggle:focus-visible {
+		outline: 2px solid var(--rb-signal, #0050e6);
+		outline-offset: 1px;
 	}
 </style>

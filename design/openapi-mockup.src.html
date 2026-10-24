@@ -1,0 +1,455 @@
+<title>EDA API Explorer Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: design-review document; a wide browser-frame stage holds the live mock, which carries
+   the product's own tokens (same --rb set as the homepage) and an "API reference workbench" layout:
+   sidebar / endpoint list / detail drawer. */
+:root {
+  --doc-bg: #f5f7fa; --doc-fg: #172033; --doc-muted: #55617a; --doc-line: #dfe4ec; --doc-panel: #ffffff;
+  --doc-accent: #0050e6; --doc-warn: #a35200; --doc-warn-bg: #fff3e3;
+  --p-bg: #f7f9fc; --p-surface: #ffffff; --p-raised: #f0f3f8; --p-line: #e1e6ee; --p-line-strong: #c9d1de;
+  --p-ink: #111a2c; --p-ink-2: #3c4860; --p-ink-3: #56627a; --p-signal: #0050e6; --p-signal-ink: #ffffff;
+  --p-signal-soft: #e7efff; --p-ok: #0d7a4f; --p-ok-soft: #e3f5ec; --p-removed: #b4400b; --p-removed-soft: #fdece3;
+  --p-warn: #946200; --p-warn-soft: #fdf3dc; --p-code: #6b3fb8;
+  --m-get: #1d5fd6; --m-get-bg: #e6eefc; --m-post: #0d7a4f; --m-post-bg: #e3f5ec; --m-put: #946200; --m-put-bg: #fdf3dc;
+  --m-patch: #6b3fb8; --m-patch-bg: #efe8fb; --m-delete: #b42318; --m-delete-bg: #fde7e5;
+  --font-ui: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --doc-bg: #0d121c; --doc-fg: #e6ebf4; --doc-muted: #9aa6bd; --doc-line: #243045; --doc-panel: #131a27;
+  --doc-accent: #6ea0ff; --doc-warn: #ffb35c; --doc-warn-bg: #2b1e0d; color-scheme: dark; } }
+:root[data-theme="dark"] { --doc-bg: #0d121c; --doc-fg: #e6ebf4; --doc-muted: #9aa6bd; --doc-line: #243045; --doc-panel: #131a27;
+  --doc-accent: #6ea0ff; --doc-warn: #ffb35c; --doc-warn-bg: #2b1e0d; color-scheme: dark; }
+.mock[data-mode="dark"] {
+  --p-bg: #0b1220; --p-surface: #111a2b; --p-raised: #162136; --p-line: #213049; --p-line-strong: #2e4060;
+  --p-ink: #e8eef8; --p-ink-2: #b9c4d8; --p-ink-3: #93a0b8; --p-signal: #5b93ff; --p-signal-ink: #06101f;
+  --p-signal-soft: #15284a; --p-ok: #4fd39a; --p-ok-soft: #0f2f22; --p-removed: #ff9a6b; --p-removed-soft: #3a1c10;
+  --p-warn: #f2c14e; --p-warn-soft: #33270b; --p-code: #c4a6ff;
+  --m-get: #7aa7ff; --m-get-bg: #13254a; --m-post: #4fd39a; --m-post-bg: #0f2f22; --m-put: #f2c14e; --m-put-bg: #33270b;
+  --m-patch: #c4a6ff; --m-patch-bg: #261a40; --m-delete: #ff8a80; --m-delete-bg: #3a1513;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--doc-bg); color: var(--doc-fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; }
+.doc { max-width: 1280px; margin: 0 auto; display: grid; gap: 56px; }
+.read { max-width: 70ch; }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-size: 1.35rem; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font: 600 0.72rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--doc-accent); }
+.lede { color: var(--doc-muted); font-size: 1.05rem; }
+.stack { display: grid; gap: 14px; }
+.section-head { display: grid; gap: 8px; margin-bottom: 20px; }
+.before { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.shot { border: 1px solid var(--doc-line); border-radius: 10px; overflow: hidden; background: var(--doc-panel); margin: 0; }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { font-size: 0.8rem; color: var(--doc-muted); padding: 8px 12px; border-top: 1px solid var(--doc-line); }
+.side { display: grid; gap: 16px; }
+.issues { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; counter-reset: i; }
+.issues li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: 0.92rem; }
+.issues li::before { counter-increment: i; content: counter(i); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font: 600 0.72rem/1 var(--font-mono); color: var(--doc-warn); background: var(--doc-warn-bg); }
+.stage-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--doc-line); border-radius: 8px; overflow: hidden; background: var(--doc-panel); }
+.seg button { font: 500 0.82rem var(--font-ui); color: var(--doc-muted); background: transparent; border: 0; padding: 7px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--doc-fg); color: var(--doc-bg); }
+:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+.stage { overflow-x: auto; padding-bottom: 6px; }
+.frame { margin: 0 auto; border: 1px solid var(--doc-line); border-radius: 12px; overflow: hidden; background: var(--doc-panel);
+  box-shadow: 0 18px 50px -24px rgba(16, 30, 60, 0.35); }
+.frame[data-device="desktop"] { width: 100%; min-width: 1100px; }
+.frame[data-device="mobile"] { width: 390px; }
+.chrome { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--doc-line); }
+.chrome i { width: 10px; height: 10px; border-radius: 50%; background: var(--doc-line); }
+.chrome span { margin-left: 10px; flex: 1; font: 0.75rem var(--font-mono); color: var(--doc-muted); background: var(--doc-bg); border-radius: 6px; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== product ===== */
+.mock { background: var(--p-bg); color: var(--p-ink); font-family: var(--font-ui); font-size: 14px; position: relative; min-height: 760px; }
+.mock button { font-family: inherit; }
+.nav { display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 22px; background: var(--p-surface); border-bottom: 1px solid var(--p-line); }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: 14px; font-weight: 700; font-size: 0.92rem; white-space: nowrap; }
+.brand i { width: 26px; height: 26px; border-radius: 7px; background: conic-gradient(from 200deg, #e94b35, #f5a623, #3d7bd9, #6b3fb8, #e94b35); }
+.nav a { text-decoration: none; padding: 0 11px; height: 56px; display: inline-flex; align-items: center; color: var(--p-ink-2); font-weight: 500; font-size: 0.88rem; border-bottom: 2px solid transparent; }
+.nav a.on { color: var(--p-ink); border-bottom-color: var(--p-signal); }
+.nav-r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-surface); color: var(--p-ink); font: 600 0.82rem var(--font-mono); cursor: pointer; }
+.latest { font: 600 0.6rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; padding: 4px 6px; border-radius: 4px; color: var(--p-ok); background: var(--p-ok-soft); }
+.cta { height: 34px; padding: 0 12px; border-radius: 8px; background: var(--p-signal); color: var(--p-signal-ink); font-weight: 600; font-size: 0.84rem; display: inline-flex; align-items: center; white-space: nowrap; }
+.frame[data-device="mobile"] .nav { padding: 0 12px; }
+.frame[data-device="mobile"] .nav a, .frame[data-device="mobile"] .cta, .frame[data-device="mobile"] .brand b { display: none; }
+
+/* page head */
+.head { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; justify-content: space-between; padding: 18px 24px 14px; border-bottom: 1px solid var(--p-line); background: var(--p-surface); }
+.crumb { font: 500 0.74rem var(--font-mono); color: var(--p-ink-3); }
+.crumb b { color: var(--p-ink-2); font-weight: 500; }
+.head h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.015em; margin: 4px 0 6px; color: var(--p-ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font: 500 0.72rem var(--font-mono); padding: 3px 8px; border-radius: 5px; background: var(--p-raised); color: var(--p-ink-2); border: 1px solid var(--p-line); }
+.chip.auth { color: var(--p-warn); background: var(--p-warn-soft); border-color: transparent; }
+.desc { color: var(--p-ink-3); font-size: 0.85rem; margin-top: 6px; }
+.segctl { display: inline-flex; padding: 3px; gap: 2px; background: var(--p-raised); border: 1px solid var(--p-line); border-radius: 9px; }
+.segctl button { border: 0; background: none; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.84rem; color: var(--p-ink-3); cursor: pointer; }
+.segctl button[aria-selected="true"] { background: var(--p-surface); color: var(--p-ink); box-shadow: 0 1px 2px rgba(10,20,40,.12); }
+
+/* workbench */
+.bench { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 640px; }
+.sidebar { border-right: 1px solid var(--p-line); background: var(--p-surface); padding: 14px 14px 20px; display: grid; gap: 14px; align-content: start; }
+.label { font: 600 0.66rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); margin-bottom: 6px; }
+.picker { width: 100%; display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--p-line-strong); border-radius: 8px; background: var(--p-surface); color: var(--p-ink); cursor: pointer; text-align: left; }
+.picker b { font-size: 0.85rem; display: block; }
+.picker small { font: 0.7rem var(--font-mono); color: var(--p-ink-3); }
+.picker-pop { position: absolute; z-index: 10; left: 14px; top: 182px; width: 320px; max-height: 380px; overflow: auto; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; box-shadow: 0 16px 40px -16px rgba(10,20,40,.4); padding: 6px; }
+.picker-pop input { width: 100%; height: 34px; border: 1px solid var(--p-line-strong); border-radius: 7px; padding: 0 10px; background: var(--p-surface); color: var(--p-ink); font: inherit; margin-bottom: 6px; }
+.picker-pop h5 { margin: 8px 6px 2px; font: 600 0.64rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); }
+.picker-pop button { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--p-ink); cursor: pointer; text-align: left; font-size: 0.84rem; }
+.picker-pop button:hover, .picker-pop button[aria-current="true"] { background: var(--p-raised); }
+.picker-pop span { font: 0.72rem var(--font-mono); color: var(--p-ink-3); }
+.filter { width: 100%; height: 34px; border: 1px solid var(--p-line); border-radius: 8px; padding: 0 10px; background: var(--p-raised); color: var(--p-ink); font: inherit; font-size: 0.84rem; }
+.methods { display: flex; flex-wrap: wrap; gap: 5px; }
+.mt { font: 600 0.68rem var(--font-mono); padding: 4px 7px; border-radius: 5px; border: 1px solid var(--p-line); background: var(--p-surface); color: var(--p-ink-3); cursor: pointer; }
+.mt[aria-pressed="true"] { border-color: transparent; }
+.mt[aria-pressed="true"][data-m="GET"] { background: var(--m-get-bg); color: var(--m-get); }
+.mt[aria-pressed="true"][data-m="POST"] { background: var(--m-post-bg); color: var(--m-post); }
+.mt[aria-pressed="true"][data-m="PUT"] { background: var(--m-put-bg); color: var(--m-put); }
+.mt[aria-pressed="true"][data-m="PATCH"] { background: var(--m-patch-bg); color: var(--m-patch); }
+.mt[aria-pressed="true"][data-m="DELETE"] { background: var(--m-delete-bg); color: var(--m-delete); }
+.tags { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; max-height: 360px; overflow: auto; }
+.tags a { display: flex; justify-content: space-between; padding: 5px 8px; border-radius: 6px; font-size: 0.84rem; color: var(--p-ink-2); text-decoration: none; }
+.tags a:hover { background: var(--p-raised); }
+.tags a.on { background: var(--p-signal-soft); color: var(--p-signal); font-weight: 600; }
+.tags span { font: 0.72rem var(--font-mono); color: var(--p-ink-3); }
+
+.list { padding: 8px 24px 24px; min-width: 0; }
+.group h3 { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; gap: 10px; padding: 14px 0 8px; background: var(--p-bg); font-size: 0.95rem; font-weight: 700; color: var(--p-ink); }
+.group h3 span { font: 500 0.72rem var(--font-mono); color: var(--p-ink-3); }
+.ops { list-style: none; margin: 0 0 6px; padding: 0; border: 1px solid var(--p-line); border-radius: 10px; background: var(--p-surface); overflow: hidden; }
+.ops li + li { border-top: 1px solid var(--p-line); }
+.op { width: 100%; display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 9px 12px; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.op:hover { background: var(--p-raised); }
+.op[aria-current="true"] { background: var(--p-signal-soft); box-shadow: inset 2px 0 0 var(--p-signal); }
+.mb { font: 700 0.66rem/1 var(--font-mono); text-align: center; padding: 5px 0; border-radius: 5px; letter-spacing: .02em; }
+.mb[data-m="GET"] { background: var(--m-get-bg); color: var(--m-get); } .mb[data-m="POST"] { background: var(--m-post-bg); color: var(--m-post); }
+.mb[data-m="PUT"] { background: var(--m-put-bg); color: var(--m-put); } .mb[data-m="PATCH"] { background: var(--m-patch-bg); color: var(--m-patch); }
+.mb[data-m="DELETE"] { background: var(--m-delete-bg); color: var(--m-delete); }
+.path { font: 500 0.83rem var(--font-mono); color: var(--p-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.path em { font-style: normal; color: var(--p-code); }
+.sum { grid-column: 2; font-size: 0.8rem; color: var(--p-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pub { grid-column: 3; grid-row: 1; font: 600 0.62rem var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--p-ok); background: var(--p-ok-soft); padding: 3px 6px; border-radius: 4px; }
+
+/* drawer */
+.bench.has-drawer { grid-template-columns: 250px minmax(0, 1fr) 500px; }
+.drawer { min-width: 0; background: var(--p-surface); border-left: 1px solid var(--p-line); max-height: 900px; overflow: auto; position: sticky; top: 0; align-self: start; }
+.dr-head { position: sticky; top: 0; background: var(--p-surface); border-bottom: 1px solid var(--p-line); padding: 14px 18px 12px; display: grid; gap: 8px; z-index: 1; }
+.dr-row { display: flex; gap: 10px; align-items: center; }
+.dr-row .mb { width: 58px; }
+.dr-path { font: 600 0.92rem var(--font-mono); color: var(--p-ink); word-break: break-all; }
+.close { margin-left: auto; width: 32px; height: 32px; border: 1px solid var(--p-line); border-radius: 7px; background: var(--p-surface); color: var(--p-ink-2); cursor: pointer; flex-shrink: 0; }
+.dr-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { height: 30px; padding: 0 10px; border: 1px solid var(--p-line); border-radius: 7px; background: var(--p-surface); color: var(--p-ink-2); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.btn.primary { border-color: transparent; background: var(--p-signal-soft); color: var(--p-signal); }
+.dr-body { padding: 14px 18px 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.dr-body > * { min-width: 0; }
+.dr-body h4 { margin: 0 0 8px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--p-ink-3); }
+.dr-body p { font-size: 0.86rem; color: var(--p-ink-2); }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--p-line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--p-line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 0.66rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--p-ink-3); background: var(--p-raised); }
+td code { font: 500 0.78rem var(--font-mono); color: var(--p-ink); }
+.req { color: var(--p-removed); font: 600 0.66rem var(--font-mono); }
+.in { font: 0.72rem var(--font-mono); color: var(--p-ink-3); }
+.ty { font: 0.74rem var(--font-mono); color: var(--p-code); }
+.status { display: flex; gap: 6px; margin-bottom: 8px; }
+.st { font: 600 0.74rem var(--font-mono); padding: 4px 9px; border-radius: 6px; border: 1px solid var(--p-line); background: var(--p-surface); color: var(--p-ink-2); cursor: pointer; }
+.st[data-c="2"] { color: var(--p-ok); } .st[data-c="4"] { color: var(--p-warn); } .st[data-c="5"], .st[data-c="d"] { color: var(--p-removed); }
+.st[aria-selected="true"] { background: var(--p-raised); border-color: var(--p-line-strong); }
+.schema { font: 0.78rem/1.7 var(--font-mono); background: var(--p-raised); border-radius: 8px; padding: 10px 12px; color: var(--p-ink-2); overflow-x: auto; white-space: pre; }
+.schema b { color: var(--p-ink); font-weight: 600; } .schema i { font-style: normal; color: var(--p-code); }
+.curl { font: 0.76rem/1.6 var(--font-mono); background: #0e1626; color: #d7e2f4; border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+.frame[data-device="mobile"] .bench { grid-template-columns: minmax(0, 1fr); }
+.frame[data-device="mobile"] .sidebar { display: none; }
+.frame[data-device="mobile"] .list { padding: 6px 14px 20px; }
+.frame[data-device="mobile"] .head { padding: 14px; }
+.frame[data-device="mobile"] .bench.has-drawer { grid-template-columns: minmax(0, 1fr); }
+.frame[data-device="mobile"] .drawer { position: absolute; inset: 0; z-index: 8; max-height: none; border-left: 0; }
+.frame[data-device="mobile"] .op { grid-template-columns: 56px minmax(0, 1fr); }
+.frame[data-device="mobile"] .pub { display: none; }
+.browse-btn { display: none; }
+.frame[data-device="mobile"] .browse-btn { display: inline-flex; }
+
+/* compare */
+.cbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 24px; background: var(--p-surface); border-bottom: 1px solid var(--p-line); }
+.cbar h1 { font-size: 1.2rem; margin-right: 10px; }
+.sel { height: 34px; padding: 0 10px; border: 1px solid var(--p-line-strong); border-radius: 8px; background: var(--p-surface); color: var(--p-ink); font: 600 0.84rem var(--font-mono); }
+.arrow { color: var(--p-ink-3); font-family: var(--font-mono); }
+.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 18px 24px 4px; }
+.tile { background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; padding: 12px 14px; }
+.tile b { display: block; font: 700 1.6rem/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.tile span { font-size: 0.78rem; color: var(--p-ink-3); }
+.tile.add b { color: var(--p-ok); } .tile.rem b { color: var(--p-removed); } .tile.mod b { color: var(--p-signal); }
+.results { padding: 14px 24px 24px; display: grid; gap: 8px; }
+.rfilter { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.rfilter input { flex: 1; height: 34px; border: 1px solid var(--p-line); border-radius: 8px; padding: 0 10px; background: var(--p-surface); color: var(--p-ink); font: inherit; }
+.api { border: 1px solid var(--p-line); border-radius: 10px; background: var(--p-surface); overflow: hidden; }
+.api summary { list-style: none; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; }
+.api summary::-webkit-details-marker { display: none; }
+.badge { font: 700 0.62rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: .05em; padding: 5px 7px; border-radius: 4px; }
+.badge.new { background: var(--p-ok-soft); color: var(--p-ok); } .badge.chg { background: var(--p-signal-soft); color: var(--p-signal); }
+.api-name b { font-weight: 600; } .api-name small { display: block; font: 0.72rem var(--font-mono); color: var(--p-ink-3); }
+.counts { font: 600 0.76rem var(--font-mono); } .counts .p { color: var(--p-ok); } .counts .m { color: var(--p-removed); }
+.diff { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--p-line); font: 0.78rem var(--font-mono); }
+.diff li { display: grid; grid-template-columns: 22px 56px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 14px; }
+.diff li.p { background: color-mix(in srgb, var(--p-ok-soft) 70%, transparent); } .diff li.m { background: color-mix(in srgb, var(--p-removed-soft) 70%, transparent); }
+.diff li.p::before { content: "+"; color: var(--p-ok); font-weight: 700; } .diff li.m::before { content: "−"; color: var(--p-removed); font-weight: 700; }
+.diff .path { font-size: 0.78rem; }
+.frame[data-device="mobile"] .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 14px; }
+.frame[data-device="mobile"] .results, .frame[data-device="mobile"] .cbar { padding-left: 14px; padding-right: 14px; }
+
+.changes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.card { background: var(--doc-panel); border: 1px solid var(--doc-line); border-radius: 10px; padding: 20px; display: grid; gap: 10px; align-content: start; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; }
+.card code { font: 0.82em var(--font-mono); }
+@media (max-width: 860px) { .before, .changes { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main class="doc">
+  <header class="read stack">
+    <p class="eyebrow">Design proposal · API Explorer and Compare APIs</p>
+    <h1>An API reference you can scan in seconds</h1>
+    <p class="lede">The current OpenAPI pages, what slows them down, and a working example of the proposed workbench built on real 26.8.2 API data. The built version is shown further down.</p>
+  </header>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">Before</p><h2>What the current pages get wrong</h2></div>
+    <div class="before">
+      <figure class="shot"><img src="__EXPLORER__" alt="Current API Explorer with the core API selected" width="1440" height="900"><figcaption>API Explorer today, core API, 1440 × 900</figcaption></figure>
+      <div class="side">
+        <ol class="issues">
+          <li><span><b>Five boxes before the first endpoint.</b> Page card, "Browse specs", API header, tab bar and list panel take about 400 px.</span></li>
+          <li><span><b>Endpoints are hidden.</b> Tags start collapsed, so no method or path is visible until you open each one.</span></li>
+          <li><span><b>The detail is a modal.</b> Opening an endpoint covers the list, so comparing two endpoints means closing and reopening.</span></li>
+          <li><span><b>Two release pickers</b> and two half-width blue tabs compete with the content.</span></li>
+          <li><span><b>Compare APIs starts with a stepper and two big boxes</b>, and shows "56 Shared · 0 Unchanged · 0 shown" when nothing changed.</span></li>
+        </ol>
+        <figure class="shot"><img src="__OPERATION__" alt="Current endpoint detail modal" width="1440" height="900"><figcaption>Endpoint detail opens in a modal over the list</figcaption></figure>
+        <figure class="shot"><img src="__COMPARE__" alt="Current Compare APIs results" width="1440" height="900"><figcaption>Compare APIs, 26.8.1 → 26.8.2</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read">
+      <p class="eyebrow">After</p><h2>Proposed design, working example</h2>
+      <p class="lede">Pick an API, filter by method, click an endpoint to open it in the side panel, switch to Compare APIs, and flip device and theme. Endpoints, parameters and the comparison counts are real.</p>
+    </div>
+    <div class="stage-bar">
+      <div class="seg" role="group" aria-label="Page"><button type="button" id="v-ex" aria-pressed="true" data-view="explorer">API Explorer</button><button type="button" id="v-cmp" aria-pressed="false" data-view="compare">Compare APIs</button></div>
+      <div class="seg" role="group" aria-label="Device"><button type="button" id="d-desk" aria-pressed="true" data-device="desktop">Desktop</button><button type="button" id="d-mob" aria-pressed="false" data-device="mobile">Phone</button></div>
+      <div class="seg" role="group" aria-label="Example theme"><button type="button" id="t-light" aria-pressed="true" data-mode="light">Light</button><button type="button" id="t-dark" aria-pressed="false" data-mode="dark">Dark</button></div>
+    </div>
+    <div class="stage">
+      <div class="frame" id="frame" data-device="desktop">
+        <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span id="url">eda-resource-browser.pages.dev/openapi?release=26.8.2&amp;spec=core</span></div>
+        <div class="mock" id="mock" data-mode="light">
+          <nav class="nav" aria-label="Main">
+            <span class="brand"><i aria-hidden="true"></i><b>EDA Resource Browser</b></span>
+            <a href="#x">CRDs ▾</a><a href="#x" class="on">API ▾</a><a href="#x">Docs</a>
+            <span class="nav-r"><button class="pill" type="button">26.8.2 <span class="latest">Latest</span></button><span class="cta">Validate YAML</span></span>
+          </nav>
+
+          <div id="view-explorer">
+            <div class="head">
+              <div>
+                <p class="crumb">API › <b>Explorer</b></p>
+                <h1 id="api-title">API Server (REST, Query &amp; EQL)</h1>
+                <div class="chips"><span class="chip">0.0.1</span><span class="chip">OAS 3.0.1</span><span class="chip" id="api-paths">126 paths</span><span class="chip auth">Bearer JWT</span><button class="btn browse-btn" type="button" id="browse-btn">Browse tags</button></div>
+                <p class="desc">This spec describes the basic core functionality of the EDA API server.</p>
+              </div>
+              <div class="segctl" role="tablist" aria-label="Reference view"><button role="tab" type="button" aria-selected="true">Paths</button><button role="tab" type="button" aria-selected="false">Schema graph</button></div>
+            </div>
+            <div class="bench">
+              <aside class="sidebar" aria-label="Browse the API">
+                <div><p class="label">API</p>
+                  <button class="picker" type="button" id="picker-btn" aria-expanded="false"><span><b id="picker-name">API Server (REST, Query &amp; EQL)</b><small id="picker-meta">core · 126 paths</small></span><span aria-hidden="true">▾</span></button>
+                </div>
+                <div><label class="label" for="ep-filter">Filter</label><input class="filter" id="ep-filter" type="search" placeholder="Path, operationId or summary"></div>
+                <div><p class="label">Methods</p><div class="methods" id="methods"></div></div>
+                <div><p class="label">Tags</p><ul class="tags" id="tags"></ul></div>
+              </aside>
+              <div class="list" id="list"></div>
+              <aside class="drawer" id="drawer" hidden aria-label="Endpoint detail"></aside>
+            </div>
+            <div class="picker-pop" id="picker-pop" hidden><input id="picker-q" type="search" placeholder="Search 58 APIs" aria-label="Search APIs"><div id="picker-list"></div></div>
+          </div>
+
+          <div id="view-compare" hidden>
+            <div class="cbar">
+              <h1>Compare APIs</h1>
+              <select class="sel" aria-label="Source release"><option>26.4.3</option></select><span class="arrow">→</span>
+              <select class="sel" aria-label="Target release"><option>26.8.1</option></select>
+              <button class="btn" type="button">⇄ Swap</button><span class="cta">Compare</span><button class="btn" type="button" style="margin-left:auto">Copy share link</button>
+            </div>
+            <div class="tiles">
+              <div class="tile add"><b>27</b><span>APIs added</span></div>
+              <div class="tile rem"><b>0</b><span>APIs removed</span></div>
+              <div class="tile mod"><b>17</b><span>APIs changed</span></div>
+              <div class="tile add"><b>+352</b><span>operations added</span></div>
+              <div class="tile rem"><b>−26</b><span>operations removed</span></div>
+            </div>
+            <div class="results">
+              <div class="rfilter"><input type="search" aria-label="Filter APIs" placeholder="Filter APIs, paths or operationIds"><button class="btn" type="button">Changed only ✓</button></div>
+              <details class="api" open><summary><span class="badge chg">Changed</span><span class="api-name"><b>API Server (REST, Query &amp; EQL)</b><small>core</small></span><span class="counts"><span class="p">+23</span> <span class="m">−2</span></span></summary>
+                <ul class="diff">
+                  <li class="p"><span class="mb" data-m="GET">GET</span><span class="path">/core/admin/clients</span></li>
+                  <li class="p"><span class="mb" data-m="DELETE">DELETE</span><span class="path">/core/admin/clients/<em>{uuid}</em></span></li>
+                  <li class="p"><span class="mb" data-m="DELETE">DELETE</span><span class="path">/core/admin/sessions/<em>{id}</em></span></li>
+                  <li class="m"><span class="mb" data-m="DELETE">DELETE</span><span class="path">/core/admin/sessions/<em>{uuid}</em></span></li>
+                  <li class="m"><span class="mb" data-m="POST">POST</span><span class="path">/core/autocomplete/v1/labels</span></li>
+                </ul></details>
+              <details class="api"><summary><span class="badge chg">Changed</span><span class="api-name"><b>Core Application APIs</b><small>core.eda.nokia.com/v1</small></span><span class="counts"><span class="p">+75</span> <span class="m">−12</span></span></summary>
+                <ul class="diff"><li class="p"><span class="mb" data-m="DELETE">DELETE</span><span class="path">/apps/core.eda.nokia.com/v1/clientproviders</span></li><li class="m"><span class="mb" data-m="DELETE">DELETE</span><span class="path">/apps/core.eda.nokia.com/v1/namespaces/<em>{namespace}</em>/transactionpipelines</span></li></ul></details>
+              <details class="api"><summary><span class="badge chg">Changed</span><span class="api-name"><b>Protocols Application APIs</b><small>protocols.eda.nokia.com/v2</small></span><span class="counts"><span class="p">+48</span> <span class="m">−0</span></span></summary>
+                <ul class="diff"><li class="p"><span class="mb" data-m="DELETE">DELETE</span><span class="path">/apps/protocols.eda.nokia.com/v2/namespaces/<em>{namespace}</em>/defaultisisinstances</span></li></ul></details>
+              <details class="api"><summary><span class="badge new">New</span><span class="api-name"><b>Kafka Application APIs</b><small>kafka.eda.nokia.com/v1</small></span><span class="counts"><span class="p">new API</span></span></summary></details>
+              <details class="api"><summary><span class="badge new">New</span><span class="api-name"><b>NetBox Application APIs</b><small>netbox.eda.nokia.com/v1alpha1</small></span><span class="counts"><span class="p">new API</span></span></summary></details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">Built</p><h2>The redesign running on the real site</h2>
+      <p class="lede">Screenshots from the production build after the change, 1440 × 900 and a 390 px phone.</p></div>
+    <div class="before">
+      <figure class="shot"><img src="__A_DETAIL__" alt="New API Explorer with an endpoint open in the side panel" width="1440" height="900"><figcaption>API Explorer, endpoint open beside the list</figcaption></figure>
+      <div class="side">
+        <figure class="shot"><img src="__A_COMPARE__" alt="New Compare APIs page" width="1440" height="900"><figcaption>Compare APIs, 26.4.3 → 26.8.1</figcaption></figure>
+        <figure class="shot"><img src="__A_DARK__" alt="New API Explorer in dark theme" width="1440" height="900"><figcaption>Dark theme</figcaption></figure>
+        <figure class="shot"><img src="__A_MOBILE__" alt="New API Explorer on a phone" width="390" height="900" style="max-width:220px;margin:0 auto"><figcaption>Phone, 390 px</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read"><p class="eyebrow">What changes</p><h2>Implementation outline</h2></div>
+    <div class="changes">
+      <div class="card"><h3>API Explorer</h3><ul>
+        <li>One head row: breadcrumb, API title, version, OAS, path count and auth chips, and a Paths / Schema graph switch.</li>
+        <li>Sidebar: searchable API picker (core first, then apps), a filter, method toggles and the tag list.</li>
+        <li>Endpoints listed by tag and expanded: method badge, path with <code>{params}</code> highlighted, summary.</li>
+        <li>Endpoint detail in a side panel: copy path and curl, parameters table, request body, responses by status, examples, show in schema graph. Full screen on phones.</li>
+        <li>Keyboard: arrows move between endpoints, Enter opens, Escape closes, <code>/</code> focuses the filter.</li>
+      </ul></div>
+      <div class="card"><h3>Compare APIs</h3><ul>
+        <li>One compare bar: source → target, swap, compare, share link. No stepper.</li>
+        <li>Summary tiles for APIs added, removed, changed and operations added and removed.</li>
+        <li>Results by API with diff-style lines: <code>+</code> added, <code>−</code> removed, method badges, mono paths.</li>
+        <li>A clear empty state when two releases have no API changes.</li>
+        <li>Everything uses the homepage's tokens, so the two themes match the rest of the site.</li>
+      </ul></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const TAGS = [["coreAbout",3],["coreAccess",2],["coreAdmin",54],["coreAlarms",14],["coreAutoComplete",13],["coreBranch",7],["coreChat",6],["coreDB",2],["coreFeatures",2],["coreI18n",3],["coreMRs",9],["coreNodeconfig",1],["coreQuery",7],["coreStore",11],["coreTopology",7],["coreTransaction",18],["coreUss",14],["coreWorkflows",1]];
+  const OPS = {
+    coreAbout: [["GET","/core/about/activity","Gets the cluster activity status.","activityGet",true],["GET","/core/about/health","Health check.","healthGet",true],["GET","/core/about/version","Returns version information for the EDA cluster.","versionGet",false]],
+    coreQuery: [["GET","/core/query/v1","Query request using the EDA query language","queryGetQuery",false],["POST","/core/query/v1/convert","Convert a query between languages","queryConvertRequest",false],["GET","/core/query/v1/eql","Query request using the EDA query language","queryGetEqlQuery",false],["GET","/core/query/v1/eql/autocomplete","Request auto-completion for the specified EDA query-language string.","queryGetEqlQueryAutoComplete",false],["GET","/core/query/v1/nql","Query request using the 'natural' query language","queryGetNqlQuery",false],["POST","/core/query/v1/parse/eql","Parse an EQL string","queryParseEqlRequest",false],["POST","/core/query/v1/parse/where","Parse a where clause","queryParseWhereRequest",false]],
+    coreTransaction: [["POST","/core/transaction/v2","Runs a transaction.","transPostTransaction",false],["POST","/core/transaction/v2/restore/{transactionId}","Restores the configuration of the system to the state at the time of the transaction.","transRestoreTransaction",false],["GET","/core/transaction/v2/result/diffs/nodecfg/{transactionId}","Get the diff view of a node configuration change from a transaction.","transGetNodeConfigDiff",false],["GET","/core/transaction/v2/result/diffs/resource/{transactionId}","Gets the diff view of a resource change from a posted transaction.","transGetResourceDiff",false],["GET","/core/transaction/v2/result/execution/{transactionId}","Gets the details of a posted transaction.","transGetResultExecution",false],["GET","/core/transaction/v2/result/summary","Lists transaction summaries.","transGetSummaryResultList",false],["GET","/core/transaction/v2/result/summary/{transactionId}","Gets summarized results of a single transaction.","transGetSummaryResult",false]]
+  };
+  const APIS = { core: [["API Server (REST, Query & EQL)","core",126],["OS Application APIs","os.eda.nokia.com/v1",32],["Environment Application APIs","environment.eda.nokia.com/v1",16],["CertChecker Application APIs","certchecker.eda.nokia.com/v1alpha1",15],["Support Application APIs","support.eda.nokia.com/v1",8],["Core Extensions Application APIs","coreext.eda.nokia.com/v1alpha1",7]],
+    apps: [["AAA Application APIs","aaa.eda.nokia.com/v1",52],["AI Application APIs","ai.core.eda.nokia.com/v1",39],["AIFabrics Application APIs","aifabrics.eda.nokia.com/v1",10],["Fabrics Application APIs","fabrics.eda.nokia.com/v1",18],["Interfaces Application APIs","interfaces.eda.nokia.com/v1",24],["Kafka Application APIs","kafka.eda.nokia.com/v1",12],["NetBox Application APIs","netbox.eda.nokia.com/v1alpha1",12],["Protocols Application APIs","protocols.eda.nokia.com/v2",96],["Services Application APIs","services.eda.nokia.com/v2",108]] };
+  const METHODS = ["GET","POST","PUT","PATCH","DELETE"];
+  const on = new Set(METHODS);
+  let current = "queryGetEqlQuery", query = "";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const hl = (p) => esc(p).replace(/\{[^}]+\}/g, (m) => `<em>${m}</em>`);
+
+  function renderMethods() {
+    const counts = {}; Object.values(OPS).flat().forEach(([m]) => counts[m] = (counts[m] || 0) + 1);
+    $("methods").innerHTML = METHODS.map((m) => `<button class="mt" type="button" data-m="${m}" aria-pressed="${on.has(m)}">${m} ${counts[m] || 0}</button>`).join("");
+  }
+  function renderTags() {
+    $("tags").innerHTML = TAGS.map(([t, n]) => `<li><a href="#g-${t}" class="${t === "coreQuery" ? "on" : ""}" data-tag="${t}">${t}<span>${n}</span></a></li>`).join("");
+  }
+  function renderList() {
+    const q = query.toLowerCase();
+    const html = Object.entries(OPS).map(([tag, ops]) => {
+      const rows = ops.filter(([m, p, s, id]) => on.has(m) && (!q || (p + s + id).toLowerCase().includes(q)));
+      if (!rows.length) return "";
+      return `<section class="group" id="g-${tag}"><h3>${tag}<span>${rows.length} of ${TAGS.find((t) => t[0] === tag)[1]}</span></h3><ul class="ops">` +
+        rows.map(([m, p, s, id, pub]) => `<li><button class="op" type="button" data-id="${id}" aria-current="${id === current}"><span class="mb" data-m="${m}">${m}</span><span class="path">${hl(p)}</span>${pub ? '<span class="pub">Public</span>' : ""}<span class="sum">${esc(s)}</span></button></li>`).join("") + `</ul></section>`;
+    }).join("");
+    $("list").innerHTML = html || `<p style="padding:24px 0;color:var(--p-ink-3)">No endpoint matches "${esc(query)}". <button class="btn" type="button" id="clear">Clear filters</button></p>`;
+  }
+  function openDrawer(id) {
+    current = id; renderList();
+    const op = Object.values(OPS).flat().find((o) => o[3] === id); if (!op) return;
+    const [m, p, s, , pub] = op;
+    const eql = id === "queryGetEqlQuery";
+    $("drawer").innerHTML = `<div class="dr-head"><div class="dr-row"><span class="mb" data-m="${m}">${m}</span><span class="dr-path">${hl(p)}</span><button class="close" type="button" id="close" aria-label="Close endpoint detail">✕</button></div>
+      <div class="dr-actions"><button class="btn" type="button">Copy path</button><button class="btn" type="button">Copy curl</button><button class="btn primary" type="button">Show in schema graph</button><span class="chip">${id}</span>${pub ? '<span class="chip">Public</span>' : '<span class="chip auth">Bearer JWT</span>'}</div></div>
+      <div class="dr-body"><p>${esc(s)}${eql ? " Streaming or one-shot: whenever the queried information changes, the result is sent to the client on the given stream." : ""}</p>
+      ${eql ? `<div><h4>Query parameters</h4><div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+        <tr><td><code>query</code> <span class="req">required</span></td><td class="ty">string</td><td>The information being queried, in the EDA query language</td></tr>
+        <tr><td><code>namespaces</code></td><td class="ty">string</td><td>Comma-separated namespaces to run the query against</td></tr>
+        <tr><td><code>eventclient</code></td><td class="ty">string</td><td>Client information for a streaming request</td></tr>
+        <tr><td><code>stream</code></td><td class="ty">string</td><td>Stream information for a streaming request</td></tr></tbody></table></div></div>` : ""}
+      <div><h4>Responses</h4><div class="status" role="tablist"><button class="st" type="button" role="tab" data-c="2" aria-selected="true">200</button><button class="st" type="button" role="tab" data-c="d" aria-selected="false">default</button></div>
+        <div class="schema"><b>QueryResponse</b>  <i>application/json · application/yaml</i>
+  <b>jsonSchema</b>   <i>object</i>
+  <b>op</b>           <i>array&lt;QueryOperation&gt;</i>
+  <b>schema</b>       <i>Schema</i></div></div>
+      <div><h4>Example</h4><div class="curl">curl -H "Authorization: Bearer $TOKEN" \\
+  "https://eda.example/core/query/v1/eql?query=.namespace.node.srl.interface"</div></div></div>`;
+    $("drawer").hidden = false; document.querySelector(".bench").classList.add("has-drawer");
+    $("close").addEventListener("click", closeDrawer);
+  }
+  function closeDrawer() { $("drawer").hidden = true; document.querySelector(".bench").classList.remove("has-drawer"); current = ""; renderList(); }
+  function renderPicker(q = "") {
+    const qq = q.toLowerCase();
+    const sec = (name, rows) => { const r = rows.filter(([t, g]) => !qq || (t + g).toLowerCase().includes(qq)); return r.length ? `<h5>${name}</h5>` + r.map(([t, g, n]) => `<button type="button" data-t="${esc(t)}" data-g="${g}" data-n="${n}" aria-current="${g === "core"}">${esc(t)}<span>${n}</span></button>`).join("") : ""; };
+    $("picker-list").innerHTML = sec("Core", APIS.core) + sec("Apps", APIS.apps) || `<p style="padding:8px;color:var(--p-ink-3)">No API matches.</p>`;
+  }
+
+  $("methods").addEventListener("click", (e) => { const b = e.target.closest(".mt"); if (!b) return; on.has(b.dataset.m) ? on.delete(b.dataset.m) : on.add(b.dataset.m); renderMethods(); renderList(); });
+  $("ep-filter").addEventListener("input", (e) => { query = e.target.value; renderList(); });
+  $("list").addEventListener("click", (e) => { const b = e.target.closest(".op"); if (b) openDrawer(b.dataset.id); if (e.target.id === "clear") { query = ""; $("ep-filter").value = ""; METHODS.forEach((m) => on.add(m)); renderMethods(); renderList(); } });
+  $("list").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const ops = [...document.querySelectorAll(".op")]; const i = ops.indexOf(document.activeElement); if (i < 0) return;
+    e.preventDefault(); ops[Math.max(0, Math.min(ops.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))].focus();
+  });
+  $("tags").addEventListener("click", (e) => { const a = e.target.closest("a"); if (!a) return; e.preventDefault(); document.querySelectorAll("#tags a").forEach((x) => x.classList.toggle("on", x === a)); $("g-" + a.dataset.tag)?.scrollIntoView({ block: "start", behavior: "smooth" }); });
+  $("picker-btn").addEventListener("click", (e) => { e.stopPropagation(); const p = $("picker-pop"); p.hidden = !p.hidden; $("picker-btn").setAttribute("aria-expanded", String(!p.hidden)); if (!p.hidden) { renderPicker(); $("picker-q").focus(); } });
+  $("picker-q").addEventListener("input", (e) => renderPicker(e.target.value));
+  $("picker-pop").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("button[data-g]"); if (!b) return; $("picker-name").textContent = b.dataset.t; $("picker-meta").textContent = `${b.dataset.g} · ${b.dataset.n} paths`; $("api-title").textContent = b.dataset.t; $("api-paths").textContent = `${b.dataset.n} paths`; $("picker-pop").hidden = true; });
+  document.addEventListener("click", () => { $("picker-pop").hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!$("drawer").hidden) closeDrawer(); $("picker-pop").hidden = true; } });
+  $("browse-btn").addEventListener("click", () => { const s = document.querySelector(".sidebar"); s.style.display = s.style.display === "grid" ? "" : "grid"; });
+
+  const press = (sel, btn) => document.querySelectorAll(sel).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  document.querySelectorAll("button[data-view]").forEach((b) => b.addEventListener("click", () => { press("button[data-view]", b); const ex = b.dataset.view === "explorer"; $("view-explorer").hidden = !ex; $("view-compare").hidden = ex; $("url").textContent = ex ? "eda-resource-browser.pages.dev/openapi?release=26.8.2&spec=core" : "eda-resource-browser.pages.dev/openapi-comparison?from=26.4.3&to=26.8.1"; }));
+  document.querySelectorAll("button[data-device]").forEach((b) => b.addEventListener("click", () => { press("button[data-device]", b); $("frame").dataset.device = b.dataset.device; }));
+  const setMode = (m) => { $("mock").dataset.mode = m; document.querySelectorAll("button[data-mode]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m))); };
+  document.querySelectorAll("button[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  if (matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light") setMode("dark");
+  document.querySelectorAll('.mock a[href="#x"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
+
+  renderMethods(); renderTags(); renderList(); openDrawer(current);
+})();
+</script>

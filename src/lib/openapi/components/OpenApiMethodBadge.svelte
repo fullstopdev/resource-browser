@@ -24,86 +24,47 @@
 >
 
 <style>
+	/* Fixed width, mono, tinted: the same badge in the list, the detail panel and the diff. */
 	.openapi-method-badge {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 3.25rem;
-		padding: 0.2rem 0.5rem;
-		border-radius: 0.375rem;
-		font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		min-width: 3.5rem;
+		padding: 0.3rem 0.4rem;
+		border-radius: 0.3125rem;
+		font-family: var(--rb-font-mono, 'Fira Code', ui-monospace, monospace);
 		font-size: 0.6875rem;
 		font-weight: 700;
+		line-height: 1;
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
-		border: 1px solid transparent;
+		color: var(--rb-ink-2, #3c4860);
+		background: var(--rb-raised, #f0f3f8);
 	}
 
 	.openapi-method-badge--compact {
-		min-width: 2.75rem;
-		padding: 0.1rem 0.35rem;
-		font-size: 0.625rem;
+		min-width: 3.25rem;
+		font-size: 0.65rem;
 	}
 
 	.openapi-method-badge--get {
-		background: rgba(37, 99, 235, 0.12);
-		border-color: rgba(37, 99, 235, 0.35);
-		color: #2563eb;
+		color: var(--oa-method-get, #1d5fd6);
+		background: var(--oa-method-get-bg, #e6eefc);
 	}
-
-	:global(.dark) .openapi-method-badge--get {
-		background: rgba(96, 165, 250, 0.15);
-		border-color: rgba(96, 165, 250, 0.4);
-		color: #93c5fd;
-	}
-
 	.openapi-method-badge--post {
-		background: rgba(22, 163, 74, 0.12);
-		border-color: rgba(22, 163, 74, 0.35);
-		color: #16a34a;
+		color: var(--oa-method-post, #0d7a4f);
+		background: var(--oa-method-post-bg, #e3f5ec);
 	}
-
-	:global(.dark) .openapi-method-badge--post {
-		background: rgba(74, 222, 128, 0.14);
-		border-color: rgba(74, 222, 128, 0.35);
-		color: #86efac;
+	.openapi-method-badge--put {
+		color: var(--oa-method-put, #946200);
+		background: var(--oa-method-put-bg, #fdf3dc);
 	}
-
-	.openapi-method-badge--put,
 	.openapi-method-badge--patch {
-		background: rgba(217, 119, 6, 0.12);
-		border-color: rgba(217, 119, 6, 0.35);
-		color: #d97706;
+		color: var(--oa-method-patch, #6b3fb8);
+		background: var(--oa-method-patch-bg, #efe8fb);
 	}
-
-	:global(.dark) .openapi-method-badge--put,
-	:global(.dark) .openapi-method-badge--patch {
-		background: rgba(251, 191, 36, 0.14);
-		border-color: rgba(251, 191, 36, 0.35);
-		color: #fcd34d;
-	}
-
 	.openapi-method-badge--delete {
-		background: rgba(220, 38, 38, 0.12);
-		border-color: rgba(220, 38, 38, 0.35);
-		color: #dc2626;
-	}
-
-	:global(.dark) .openapi-method-badge--delete {
-		background: rgba(248, 113, 113, 0.14);
-		border-color: rgba(248, 113, 113, 0.35);
-		color: #fca5a5;
-	}
-
-	.openapi-method-badge--other {
-		background: #f1f5f9;
-		border-color: #cbd5e1;
-		color: #475569;
-	}
-
-	:global(.dark) .openapi-method-badge--other {
-		background: rgba(30, 41, 59, 0.85);
-		border-color: rgba(71, 85, 105, 0.7);
-		color: #cbd5e1;
+		color: var(--oa-method-delete, #b42318);
+		background: var(--oa-method-delete-bg, #fde7e5);
 	}
 </style>

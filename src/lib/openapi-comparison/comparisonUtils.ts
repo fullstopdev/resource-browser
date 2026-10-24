@@ -13,8 +13,9 @@ export const STATUS_FILTERS: {
 	{ status: 'added', label: 'Added', chipClass: 'comparison-filter-chip--added' },
 	{ status: 'removed', label: 'Removed', chipClass: 'comparison-filter-chip--removed' },
 	{ status: 'modified', label: 'Modified', chipClass: 'comparison-filter-chip--modified' },
-	{ status: 'shared', label: 'Shared', chipClass: 'comparison-filter-chip--unchanged' },
-	{ status: 'unchanged', label: 'Unchanged', chipClass: 'comparison-filter-chip--unchanged' }
+	// `shared` = present in both releases with no content change; the classifier never assigns
+	// `unchanged`, so it has no chip (it was always 0).
+	{ status: 'shared', label: 'Unchanged', chipClass: 'comparison-filter-chip--unchanged' }
 ];
 
 export const STATUS_SECTIONS: {
@@ -43,8 +44,8 @@ export const STATUS_SECTIONS: {
 	},
 	{
 		status: 'shared',
-		title: 'Shared APIs',
-		description: 'Present in both — no path or schema content changes',
+		title: 'Unchanged APIs',
+		description: 'In both releases with no path or schema changes',
 		icon: 'check'
 	},
 	{

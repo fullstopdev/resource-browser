@@ -17,6 +17,9 @@ const PAGES: Array<[string, string, string, ('light' | 'dark')?]> = [
 	['Validate YAML', '/validate-yaml', '.monaco-editor'],
 	['docs', '/docs', 'h1'],
 	['docs (dark)', '/docs', 'h1', 'dark'],
+	['API Explorer', '/openapi?release=26.8.2&spec=core', '.oa-op'],
+	['API Explorer endpoint (dark)', '/openapi?release=26.8.2&spec=core#queryGetEqlQuery', '#oa-detail', 'dark'],
+	['Compare APIs', '/openapi-comparison?sr=26.4.3&tr=26.8.1', '.cmp-tile'],
 	['release notes', '/release-notes', 'h1']
 ];
 

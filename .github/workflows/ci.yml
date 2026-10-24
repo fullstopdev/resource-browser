@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: npx vite build
       - name: Playwright
-        run: npx playwright test e2e/docs.test.ts e2e/validate-yaml.test.ts e2e/a11y.test.ts e2e/home.test.ts
+        run: npx playwright test e2e/docs.test.ts e2e/validate-yaml.test.ts e2e/a11y.test.ts e2e/home.test.ts e2e/openapi.test.ts
         env:
           CI: 'true'
       - name: Upload Playwright report

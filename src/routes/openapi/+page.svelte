@@ -3,10 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import AppHeader from '$lib/components/AppHeader.svelte';
-	import HeaderReleaseSelect from '$lib/components/HeaderReleaseSelect.svelte';
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import OpenApiAppsDropdown from '$lib/openapi/components/OpenApiAppsDropdown.svelte';
-	import OpenApiBrowserHeader from '$lib/openapi/components/OpenApiBrowserHeader.svelte';
 	import OpenApiSpecPanel from '$lib/openapi/components/OpenApiSpecPanel.svelte';
 	import {
 		fetchOpenApiManifest,
@@ -21,6 +19,8 @@
 	import type { OpenApiDocView } from '$lib/openapi/swaggerUiConfig';
 	import { getOperationDeepLinkId, type OpenApiOperation } from '$lib/openapi/pathBrowser';
 	import { theme } from '$lib/theme';
+	import { setHeaderReleases, type HeaderReleaseOptions } from '$lib/headerReleases';
+	import { writable } from 'svelte/store';
 	import { loadStaticYaml } from '$lib/yaml/safeYaml';
 	import openapiReleasesYaml from '$lib/openapi-releases.yaml?raw';
 
@@ -30,7 +30,9 @@
 
 	let releaseName = $state(initialRelease?.name ?? '');
 	let selectedSpecId = $state('');
-	const release = $derived(resolveOpenApiRelease(releases, releaseName, initialRelease ?? undefined));
+	const release = $derived(
+		resolveOpenApiRelease(releases, releaseName, initialRelease ?? undefined)
+	);
 	let manifest = $state<OpenApiManifestEntry[]>([]);
 	let spec = $state<Record<string, unknown> | null>(null);
 
@@ -48,6 +50,19 @@
 	let focusOperationId = $state('');
 
 	const darkMode = $derived($theme === 'dark');
+
+	/** The header's release switcher lists the OpenAPI releases on this page. */
+	const headerReleases = writable<HeaderReleaseOptions | null>(null);
+	setHeaderReleases(headerReleases);
+	$effect(() => {
+		const spec = selectedSpecId;
+		headerReleases.set({
+			releases,
+			current: releaseName,
+			href: (name) =>
+				`/openapi?release=${encodeURIComponent(name)}${spec ? `&spec=${encodeURIComponent(spec)}` : ''}`
+		});
+	});
 
 	function fixMalformedQueryUrl(): void {
 		const sp = $page.url.searchParams;
@@ -178,8 +193,7 @@
 				selectedSpecId = '';
 			} else {
 				manifest = data;
-				const preferred =
-					selectedSpecId || $page.url.searchParams.get('spec') || '';
+				const preferred = selectedSpecId || $page.url.searchParams.get('spec') || '';
 				const resolved = resolveOpenApiSpecId(data, preferred);
 				if (selectedSpecId !== resolved) selectedSpecId = resolved;
 				updateUrl();
@@ -245,14 +259,8 @@
 		}
 	}
 
-	function onReleaseChange(name: string) {
-		releaseName = name;
-		// Keep selectedSpecId as a preference; loadManifest keeps it when present in
-		// the new release, otherwise falls back to core / first manifest entry.
-		viewerTab = 'paths';
-		highlightSchema = '';
-		focusOperationId = '';
-		updateUrl();
+	function retry() {
+		if (release) void loadManifest(release);
 	}
 
 	function onSpecChange(specId: string) {
@@ -293,304 +301,316 @@
 </script>
 
 <svelte:head>
-	<title>EDA Resource Browser | API Explorer</title>
+	<title
+		>{selectedEntry ? `${selectedEntry.title} · ` : ''}API Explorer | EDA Resource Browser</title
+	>
 	<meta
 		name="description"
 		content="Browse EDA API Server snapshots — core REST, Query & EQL, and application APIs by release."
 	/>
 </svelte:head>
 
+{#snippet appsCatalog()}
+	<OpenApiAppsDropdown
+		{manifest}
+		{selectedSpecId}
+		{darkMode}
+		loading={manifestLoading}
+		{onSpecChange}
+	/>
+{/snippet}
+
 <div class="oa-page oa-root page-shell min-h-full">
-	<AppHeader fixed={false}>
-		<svelte:fragment slot="actions">
-			{#if releases.length > 0}
-				<HeaderReleaseSelect
-					id="openapi-release"
-					value={releaseName}
-					releases={releases}
-					onChange={onReleaseChange}
-					ariaLabel="Select API Server release"
-				/>
-			{/if}
-		</svelte:fragment>
-	</AppHeader>
+	<AppHeader fixed={false} />
 
-	<div class="oa-page__main spec-search-main">
-		<OpenApiBrowserHeader />
-
+	<main class="oa-main">
 		{#if releases.length === 0}
-			<div class="oa-page__alert oa-page__alert--warn" role="status">
-				<p>
-					No API releases available. Sync specs with
-					<code>./static/sync-openapi.sh &lt;release&gt;</code>.
-				</p>
+			<div class="oa-state" role="status">
+				<p class="oa-state__title">No API releases available</p>
+				<p>Sync specs with <code>./static/sync-openapi.sh &lt;release&gt;</code>.</p>
 			</div>
 		{:else}
-			<section class="oa-workspace">
-				<header class="oa-workspace__header">
-					<div>
-						<h2 class="oa-workspace__title">Browse specs</h2>
-						<p class="oa-workspace__subtitle">
-							Choose an app, then browse paths and the schema graph.
-						</p>
-					</div>
-				</header>
-
-				{#if manifestError}
-					<p class="oa-workspace__error" role="alert">{manifestError}</p>
-				{/if}
-
-				<div class="oa-workspace__body">
-					{#if !selectedSpecId && (!manifestSettled || manifestLoading)}
-						<div class="oa-workspace__empty">
-							<p>Loading APIs…</p>
-						</div>
-					{:else if !selectedSpecId}
-						<div class="oa-workspace__empty">
-							<div class="oa-workspace__empty-apps">
-								<OpenApiAppsDropdown
-									{manifest}
-									{selectedSpecId}
-									{darkMode}
-									loading={manifestLoading}
-									onSpecChange={onSpecChange}
-								/>
-							</div>
-							{#if manifest.length === 0}
-								<p>
-									No APIs available for this release. Sync specs with
-									<code>./static/sync-openapi.sh {releaseName}</code>.
-								</p>
-							{:else}
-								<p>Select an API from Apps and Resources to view the API reference.</p>
-							{/if}
-						</div>
-					{:else if specLoading}
-						<div class="oa-workspace__empty">
-							<p>Loading specification…</p>
-						</div>
-					{:else if specError}
-						<div class="oa-workspace__empty">
-							<p class="oa-workspace__error" role="alert">{specError}</p>
-						</div>
-					{:else if spec && selectedEntry}
-						<header class="oa-viewer-header">
-							<div class="oa-viewer-header__title-wrap">
-								<div class="oa-viewer-header__title-row">
-									<h2 class="oa-viewer-header__title">{selectedEntry.title}</h2>
-									{#if specVersionBadge}
-										<span class="oa-viewer-badge">{specVersionBadge}</span>
-									{/if}
-									{#if openApiVersionBadge}
-										<span class="oa-viewer-badge oa-viewer-badge--oas">{openApiVersionBadge}</span>
-									{/if}
-								</div>
-								<p class="oa-viewer-header__meta">
-									<span class="font-mono">{selectedEntry.group}</span>
-									<span aria-hidden="true">·</span>
-									<span class="font-mono">{selectedEntry.apiVersion}</span>
-									<span aria-hidden="true">·</span>
-									<span>{selectedEntry.pathCount} paths</span>
-								</p>
-								{#if specInfoDescription}
-									<p class="oa-viewer-header__description">{specInfoDescription}</p>
-								{/if}
-							</div>
-						</header>
-						<div class="oa-viewer-body">
-							<OpenApiSpecPanel
-								{spec}
-								specId={selectedSpecId}
-								{darkMode}
-								bind:activeTab={viewerTab}
-								onTabChange={onViewerTabChange}
-								{highlightSchema}
-								{focusOperationId}
-								onSchemaGraphNavigate={onSchemaGraphNavigate}
-								onShowInSchemaGraph={onShowInSchemaGraph}
-								onOperationNavigate={onOperationNavigate}
-								resourcesReleaseFolder={release ? `resources/${release.name}` : ''}
-								apiGraphUrl={apiGraphUrl}
-							>
-								{#snippet appsCatalog()}
-									<OpenApiAppsDropdown
-										{manifest}
-										{selectedSpecId}
-										{darkMode}
-										loading={manifestLoading}
-										onSpecChange={onSpecChange}
-									/>
-								{/snippet}
-							</OpenApiSpecPanel>
-						</div>
-					{:else}
-						<div class="oa-workspace__empty">
-							<p>Preparing API reference…</p>
+			<header class="oa-head">
+				<div class="oa-head__text">
+					<p class="oa-head__crumb">API <span aria-hidden="true">›</span> <b>Explorer</b></p>
+					<h1 class="oa-head__title">{selectedEntry?.title ?? 'API Explorer'}</h1>
+					{#if selectedEntry}
+						<div class="oa-head__chips">
+							<span class="oa-chip">{selectedEntry.id}</span>
+							{#if specVersionBadge}<span class="oa-chip">{specVersionBadge}</span>{/if}
+							{#if openApiVersionBadge}<span class="oa-chip">{openApiVersionBadge}</span>{/if}
+							<span class="oa-chip">{selectedEntry.pathCount} paths</span>
+							<span class="oa-chip">EDA {releaseName}</span>
 						</div>
 					{/if}
+					{#if specInfoDescription}
+						<p class="oa-head__desc" title={specInfoDescription}>{specInfoDescription}</p>
+					{/if}
 				</div>
-			</section>
+				{#if spec && selectedEntry}
+					<div class="oa-seg" role="tablist" aria-label="Reference view">
+						<button
+							type="button"
+							role="tab"
+							aria-selected={viewerTab === 'paths'}
+							onclick={() => viewerTab !== 'paths' && onViewerTabChange('paths')}>Paths</button
+						>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={viewerTab === 'schemaGraph'}
+							onclick={() => viewerTab !== 'schemaGraph' && onViewerTabChange('schemaGraph')}
+							>Schema graph</button
+						>
+					</div>
+				{/if}
+			</header>
+
+			{#if manifestError}
+				<div class="oa-state oa-state--error" role="alert">
+					<p class="oa-state__title">The API list didn't load</p>
+					<p>{manifestError}</p>
+					<button type="button" class="oa-btn" onclick={retry}>Retry</button>
+				</div>
+			{:else if !selectedSpecId && (!manifestSettled || manifestLoading)}
+				<div class="oa-skeleton" aria-busy="true" aria-label="Loading APIs">
+					{#each Array(8) as _, i (i)}<span></span>{/each}
+				</div>
+			{:else if !selectedSpecId}
+				<div class="oa-state">
+					{#if manifest.length === 0}
+						<p class="oa-state__title">No APIs in EDA {releaseName}</p>
+						<p>Sync specs with <code>./static/sync-openapi.sh {releaseName}</code>.</p>
+					{:else}
+						<p class="oa-state__title">Pick an API to browse</p>
+						<div class="oa-state__apps">{@render appsCatalog()}</div>
+					{/if}
+				</div>
+			{:else if specLoading}
+				<div class="oa-skeleton" aria-busy="true" aria-label="Loading the API specification">
+					{#each Array(8) as _, i (i)}<span></span>{/each}
+				</div>
+			{:else if specError}
+				<div class="oa-state oa-state--error" role="alert">
+					<p class="oa-state__title">This API didn't load</p>
+					<p>{specError}</p>
+					<button type="button" class="oa-btn" onclick={retry}>Retry</button>
+				</div>
+			{:else if spec && selectedEntry}
+				<OpenApiSpecPanel
+					{spec}
+					specId={selectedSpecId}
+					{darkMode}
+					bind:activeTab={viewerTab}
+					onTabChange={onViewerTabChange}
+					showTabs={false}
+					{highlightSchema}
+					{focusOperationId}
+					{onSchemaGraphNavigate}
+					{onShowInSchemaGraph}
+					{onOperationNavigate}
+					resourcesReleaseFolder={release ? `resources/${release.name}` : ''}
+					{apiGraphUrl}
+					{appsCatalog}
+				/>
+			{/if}
 		{/if}
-	</div>
+	</main>
 
 	<PageCredits />
 </div>
 
 <style>
 	.oa-page {
-		background: var(--oa-bg);
-		color: var(--oa-text);
+		background: var(--rb-bg);
+		color: var(--rb-ink);
 	}
 
-	.oa-page__main {
-		padding-bottom: 2rem;
+	.oa-main {
+		max-width: 96rem;
+		margin: 0 auto;
+		padding: 0 max(1rem, env(safe-area-inset-right, 0px)) 1rem
+			max(1rem, env(safe-area-inset-left, 0px));
 	}
 
-	.oa-page__alert {
-		margin-top: 1.5rem;
-		border-radius: var(--oa-radius-xl);
-		border: 1px solid #fcd34d;
-		background: #fffbeb;
-		padding: 1.25rem 1.5rem;
-		font-size: 0.875rem;
-		color: #92400e;
+	@media (min-width: 1024px) {
+		.oa-main {
+			padding-left: 2rem;
+			padding-right: 2rem;
+		}
 	}
 
-	:global(.dark) .oa-page__alert {
-		border-color: rgba(180, 83, 9, 0.45);
-		background: rgba(69, 26, 3, 0.35);
-		color: #fde68a;
-	}
-
-	.oa-page__alert code {
-		border-radius: 0.25rem;
-		background: rgba(255, 255, 255, 0.7);
-		padding: 0.1rem 0.35rem;
-		font-family: var(--oa-font-code);
-		font-size: 0.8em;
-	}
-
-	.oa-workspace {
-		margin-top: 1.5rem;
-		border: 1px solid var(--oa-panel-border);
-		border-radius: var(--oa-radius-xl);
-		background: var(--oa-panel);
-		box-shadow: var(--oa-panel-shadow);
-		overflow: hidden;
-	}
-
-	.oa-workspace__header {
+	.oa-head {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;
 		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.85rem 1.15rem;
-		border-bottom: 1px solid var(--oa-panel-border);
-		background: linear-gradient(180deg, var(--oa-canvas-top), var(--oa-panel));
+		gap: 0.75rem 1.5rem;
+		padding: 1.25rem 0 1rem;
+		margin-bottom: 1rem;
+		border-bottom: 1px solid var(--rb-line);
 	}
 
-	.oa-workspace__title {
+	.oa-head__text {
+		min-width: 0;
+		flex: 1 1 32rem;
+	}
+
+	.oa-head__crumb {
 		margin: 0;
-		font-family: var(--oa-font-headline);
-		font-size: 1.125rem;
+		font: 500 0.75rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
+	}
+
+	.oa-head__crumb b {
+		font-weight: 500;
+		color: var(--rb-ink-2);
+	}
+
+	.oa-head__title {
+		margin: 0.25rem 0 0.5rem;
+		font-family: var(--rb-font-display);
+		font-size: clamp(1.3rem, 2.4vw, 1.6rem);
 		font-weight: 700;
-		color: var(--oa-text);
+		letter-spacing: -0.015em;
+		color: var(--rb-ink);
+		text-wrap: balance;
 	}
 
-	.oa-workspace__subtitle {
-		margin: 0.25rem 0 0;
-		font-size: 0.8125rem;
-		color: var(--oa-text-muted);
-		max-width: 36rem;
-	}
-
-	.oa-workspace__error {
-		margin: 0.75rem 1.15rem 0;
-		font-size: 0.875rem;
-		color: #dc2626;
-	}
-
-	:global(.dark) .oa-workspace__error {
-		color: #f87171;
-	}
-
-	.oa-workspace__body {
-		min-height: min(72vh, 920px);
-	}
-
-	.oa-workspace__empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 0.875rem;
-		padding: 3rem 1.25rem;
-		text-align: center;
-		font-size: 0.875rem;
-		color: var(--oa-text-muted);
-	}
-
-	.oa-workspace__empty-apps {
-		width: min(100%, 18rem);
-	}
-
-	.oa-viewer-header {
-		padding: 0.9rem 1.15rem;
-		border-bottom: 1px solid var(--oa-panel-border);
-		background: linear-gradient(180deg, var(--oa-canvas-top), var(--oa-panel));
-	}
-
-	.oa-viewer-header__title-row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.oa-viewer-header__title {
-		margin: 0;
-		font-family: var(--oa-font-headline);
-		font-size: 1.125rem;
-		font-weight: 700;
-		color: var(--oa-text);
-	}
-
-	.oa-viewer-badge {
-		border-radius: 9999px;
-		padding: 0.15rem 0.55rem;
-		font-family: var(--oa-font-code);
-		font-size: 0.6875rem;
-		font-weight: 700;
-		border: 1px solid var(--oa-panel-border);
-		background: color-mix(in srgb, var(--oa-chip-inactive) 70%, transparent);
-		color: var(--oa-text-muted);
-	}
-
-	.oa-viewer-badge--oas {
-		border-color: color-mix(in srgb, var(--oa-method-post) 45%, transparent);
-		background: color-mix(in srgb, var(--oa-method-post) 14%, transparent);
-		color: var(--oa-method-post);
-	}
-
-	.oa-viewer-header__meta {
-		margin: 0.3rem 0 0;
-		font-size: 0.75rem;
-		color: var(--oa-text-muted);
+	.oa-head__chips {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.375rem;
 	}
 
-	.oa-viewer-header__description {
-		margin: 0.45rem 0 0;
-		max-width: 52rem;
-		font-size: 0.8125rem;
-		line-height: 1.45;
-		color: var(--oa-text-muted);
+	.oa-chip {
+		padding: 0.1875rem 0.5rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.3125rem;
+		background: var(--rb-raised);
+		color: var(--rb-ink-2);
+		font: 500 0.72rem var(--rb-font-mono);
 	}
 
-	.oa-viewer-body {
-		padding: 0.85rem 1.15rem 1.15rem;
+	.oa-head__desc {
+		margin: 0.5rem 0 0;
+		max-width: 80ch;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.86rem;
+		color: var(--rb-ink-3);
+	}
+
+	.oa-seg {
+		display: inline-flex;
+		gap: 0.125rem;
+		padding: 0.1875rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.5625rem;
+		background: var(--rb-raised);
+	}
+
+	.oa-seg button {
+		padding: 0.4375rem 0.9375rem;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		color: var(--rb-ink-3);
+		font: 600 0.85rem var(--rb-font);
+		cursor: pointer;
+	}
+
+	.oa-seg button:hover {
+		color: var(--rb-ink);
+	}
+
+	.oa-seg button[aria-selected='true'] {
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		box-shadow: 0 1px 2px rgba(10, 20, 40, 0.12);
+	}
+
+	.oa-seg button:focus-visible,
+	.oa-btn:focus-visible {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
+	}
+
+	.oa-state {
+		display: grid;
+		justify-items: center;
+		gap: 0.5rem;
+		padding: 3rem 1rem;
+		text-align: center;
+		font-size: 0.9rem;
+		color: var(--rb-ink-3);
+	}
+
+	.oa-state p {
+		margin: 0;
+	}
+
+	.oa-state__title {
+		font-weight: 600;
+		font-size: 1rem;
+		color: var(--rb-ink);
+	}
+
+	.oa-state--error .oa-state__title {
+		color: var(--rb-removed);
+	}
+
+	.oa-state code {
+		font: 0.82em var(--rb-font-mono);
+		padding: 0.1rem 0.35rem;
+		border-radius: 0.25rem;
+		background: var(--rb-raised);
+	}
+
+	.oa-state__apps {
+		width: min(100%, 22rem);
+		text-align: left;
+	}
+
+	.oa-btn {
+		margin-top: 0.25rem;
+		height: 2.25rem;
+		padding: 0 0.875rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		font: 600 0.85rem var(--rb-font);
+		cursor: pointer;
+	}
+
+	.oa-skeleton {
+		display: grid;
+		gap: 0.5rem;
+		padding: 0.5rem 0 2rem;
+	}
+
+	.oa-skeleton span {
+		height: 2.75rem;
+		border-radius: 0.5rem;
+		background: linear-gradient(90deg, var(--rb-raised), var(--rb-surface), var(--rb-raised));
+		background-size: 200% 100%;
+		animation: oa-shimmer 1.4s ease-in-out infinite;
+	}
+
+	@keyframes oa-shimmer {
+		from {
+			background-position: 100% 0;
+		}
+		to {
+			background-position: -100% 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.oa-skeleton span {
+			animation: none;
+		}
 	}
 </style>

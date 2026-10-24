@@ -22,6 +22,8 @@
 		resourcesReleaseFolder?: string;
 		apiGraphUrl?: string;
 		appsCatalog?: Snippet;
+		/** The page can render the Paths / Schema graph switch itself (API Explorer head). */
+		showTabs?: boolean;
 	}
 
 	let {
@@ -37,7 +39,8 @@
 		onOperationNavigate,
 		resourcesReleaseFolder = '',
 		apiGraphUrl = '',
-		appsCatalog
+		appsCatalog,
+		showTabs = true
 	}: Props = $props();
 
 	const sanitizedSpec = $derived(sanitizeSpecForDisplay(spec));
@@ -61,13 +64,14 @@
 		</div>
 	{/if}
 
-	<div class="oa-spec-panel__top">
+	<div class="oa-spec-panel__top" class:oa-spec-panel__top--empty={!showTabs && activeTab === 'paths'}>
 		{#if appsCatalog && activeTab !== 'paths'}
 			<div class="oa-spec-panel__apps">
 				{@render appsCatalog()}
 			</div>
 		{/if}
 
+		{#if showTabs}
 		<div class="oa-spec-panel__tabs" role="tablist" aria-label="API reference sections">
 			<button
 				type="button"
@@ -87,9 +91,10 @@
 				class:oa-spec-panel__tab--active={activeTab === 'schemaGraph'}
 				onclick={() => selectTab('schemaGraph')}
 			>
-				Schema Graph
+				Schema graph
 			</button>
 		</div>
+		{/if}
 	</div>
 
 	<div class="oa-spec-panel__content" role="tabpanel">
@@ -125,86 +130,48 @@
 		margin-bottom: 0.875rem;
 	}
 
-	.oa-spec-panel__apps {
-		flex: 0 1 16rem;
-		min-width: min(100%, 11rem);
+	.oa-spec-panel__top--empty {
+		display: none;
 	}
 
+	.oa-spec-panel__apps {
+		flex: 0 1 20rem;
+		min-width: min(100%, 14rem);
+	}
+
+	/* Compact segmented control (also used by the Explorer head). */
 	.oa-spec-panel__tabs {
-		flex: 1 1 16rem;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.2rem;
-		margin-bottom: 0;
-		border-radius: var(--oa-radius-lg);
-		padding: 0.2rem;
-		border: 1px solid var(--oa-panel-border);
-		background: color-mix(in srgb, var(--oa-bg) 70%, var(--oa-panel));
-		box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent);
+		display: inline-flex;
+		gap: 0.125rem;
+		padding: 0.1875rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.5625rem;
+		background: var(--rb-raised);
 	}
 
 	.oa-spec-panel__tab {
-		position: relative;
-		flex: 1 1 auto;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.35rem;
-		min-height: 2.35rem;
-		padding: 0.45rem 0.85rem;
-		border: none;
-		border-radius: var(--oa-radius);
-		background: transparent;
-		color: var(--oa-text-muted);
-		font-family: inherit;
-		font-size: 0.8125rem;
-		font-weight: 650;
+		padding: 0.375rem 0.875rem;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		color: var(--rb-ink-3);
+		font: 600 0.84rem var(--rb-font);
 		cursor: pointer;
-		transition:
-			background 0.12s ease,
-			color 0.12s ease,
-			box-shadow 0.12s ease;
 	}
 
 	.oa-spec-panel__tab:hover {
-		color: var(--oa-text);
-		background: color-mix(in srgb, var(--oa-focus-ring) 8%, transparent);
+		color: var(--rb-ink);
 	}
 
 	.oa-spec-panel__tab:focus-visible {
-		outline: none;
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--oa-focus-ring) 30%, transparent);
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
 	}
 
 	.oa-spec-panel__tab--active {
-		background: var(--oa-chip-active);
-		color: #fff;
-		box-shadow:
-			0 1px 2px color-mix(in srgb, var(--oa-chip-active) 40%, transparent),
-			inset 0 -1px 0 rgba(15, 23, 42, 0.12);
-		font-weight: 750;
-	}
-
-	.oa-spec-panel__tab--active:hover {
-		background: color-mix(in srgb, var(--oa-chip-active) 88%, #000);
-		color: #fff;
-	}
-
-	:global(.dark) .oa-spec-panel__tab--active {
-		background: var(--oa-chip-active);
-		color: #0f172a;
-		box-shadow:
-			0 1px 3px color-mix(in srgb, var(--oa-chip-active) 45%, transparent),
-			inset 0 -1px 0 rgba(15, 23, 42, 0.2);
-	}
-
-	:global(.dark) .oa-spec-panel__tab--active:hover {
-		background: color-mix(in srgb, var(--oa-chip-active) 85%, #fff);
-		color: #0f172a;
-	}
-
-	.oa-spec-panel__content {
-		min-height: min(68vh, 860px);
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		box-shadow: 0 1px 2px rgba(10, 20, 40, 0.12);
 	}
 
 	.oa-spec-panel__extensions {

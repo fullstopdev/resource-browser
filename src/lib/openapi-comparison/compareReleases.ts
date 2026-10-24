@@ -274,12 +274,13 @@ export function statusLabel(status: OpenApiDiffStatus): string {
 		case 'modified':
 			return 'Modified';
 		case 'api_version':
-			// Legacy status — no longer assigned; fold into Shared for display.
-			return 'Shared';
+			// Legacy status — no longer assigned; shown like shared.
+			return 'Unchanged';
 		case 'unchanged':
 			return 'Unchanged';
 		case 'shared':
-			return 'Shared';
+			// In both releases with no content change.
+			return 'Unchanged';
 		case 'error':
 			return 'Error';
 		default:

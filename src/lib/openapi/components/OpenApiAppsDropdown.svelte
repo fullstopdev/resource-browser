@@ -107,7 +107,6 @@
 		class="openapi-apps-dropdown__trigger"
 		aria-haspopup="listbox"
 		aria-expanded={open}
-		aria-label="Apps and Resources"
 		disabled={disabled || loading || manifest.length === 0}
 		onclick={toggleOpen}
 	>
@@ -170,218 +169,140 @@
 <style>
 	.openapi-apps-dropdown {
 		position: relative;
-		flex: 0 1 16rem;
-		min-width: min(100%, 11rem);
-		max-width: 18rem;
-		font-family: var(--oa-font, 'NokiaPureText', ui-sans-serif, system-ui, sans-serif);
+		width: 100%;
+		font-family: var(--rb-font);
 	}
 
 	.openapi-apps-dropdown__trigger {
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: center;
-		gap: 0.375rem;
+		gap: 0 0.5rem;
 		width: 100%;
-		min-height: 2.375rem;
-		padding: 0.45rem 0.625rem;
-		border: 1px solid var(--oa-panel-border, #cbd5e1);
-		border-radius: var(--oa-radius, 0.5rem);
-		background: var(--oa-panel, #ffffff);
-		color: var(--oa-text, #0f172a);
-		cursor: pointer;
+		min-height: 2.75rem;
+		padding: 0.375rem 0.625rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
 		text-align: left;
-		font-family: inherit;
-		font-size: 0.8125rem;
-		font-weight: 650;
-		box-shadow: 0 1px 0 color-mix(in srgb, var(--oa-panel-border, #e2e8f0) 40%, transparent);
-		transition:
-			border-color 0.12s ease,
-			box-shadow 0.12s ease;
-	}
-
-	.openapi-apps-dropdown__trigger:hover:not(:disabled) {
-		border-color: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 40%, var(--oa-panel-border));
+		cursor: pointer;
 	}
 
 	.openapi-apps-dropdown__trigger:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+		cursor: default;
+		opacity: 0.7;
 	}
 
-	.openapi-apps-dropdown--dark .openapi-apps-dropdown__trigger {
-		border-color: var(--oa-panel-border, rgba(56, 100, 150, 0.35));
-		background: var(--oa-panel, #1e293b);
-		color: var(--oa-text, #e2e8f0);
-	}
-
-	.openapi-apps-dropdown--open .openapi-apps-dropdown__trigger {
-		border-color: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 45%, var(--oa-panel-border));
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--oa-focus-ring, #2563eb) 16%, transparent);
+	.openapi-apps-dropdown__trigger:focus-visible {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
 	}
 
 	.openapi-apps-dropdown__trigger-label {
-		flex: 1 1 auto;
-		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		font-size: 0.85rem;
+		font-weight: 600;
 	}
 
 	.openapi-apps-dropdown__trigger-meta {
-		flex-shrink: 0;
-		border-radius: 9999px;
-		background: color-mix(in srgb, var(--oa-chip-inactive, #e2e8f0) 90%, transparent);
-		padding: 0.1rem 0.4rem;
-		font-size: 0.625rem;
-		font-weight: 700;
-		color: var(--oa-text-muted, #475569);
-	}
-
-	.openapi-apps-dropdown--dark .openapi-apps-dropdown__trigger-meta {
-		background: color-mix(in srgb, var(--oa-panel-border) 70%, transparent);
-		color: var(--oa-text-muted, #cbd5e1);
+		grid-column: 1;
+		font: 0.7rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
 	}
 
 	.openapi-apps-dropdown__chevron {
-		flex-shrink: 0;
-		color: var(--oa-text-muted, #64748b);
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		color: var(--rb-ink-3);
 		font-size: 0.75rem;
 	}
 
 	.openapi-apps-dropdown__panel {
 		position: absolute;
-		top: calc(100% + 0.35rem);
+		top: calc(100% + 0.375rem);
 		left: 0;
-		z-index: 40;
-		display: flex;
-		flex-direction: column;
-		width: max(100%, 18rem);
-		max-width: min(22rem, 92vw);
-		max-height: min(24rem, 60vh);
-		overflow: hidden;
-		border: 1px solid var(--oa-panel-border, #e2e8f0);
-		border-radius: var(--oa-radius-lg, 0.625rem);
-		background: var(--oa-panel, #ffffff);
-		box-shadow: var(--oa-panel-shadow, 0 12px 28px rgba(15, 23, 42, 0.16));
-	}
-
-	.openapi-apps-dropdown--dark .openapi-apps-dropdown__panel {
-		border-color: var(--oa-panel-border, rgba(56, 100, 150, 0.45));
-		background: color-mix(in srgb, var(--oa-panel, #0f172a) 96%, transparent);
-		box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+		z-index: 60;
+		width: max(100%, 22rem);
+		max-width: calc(100vw - 2rem);
+		padding: 0.375rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.625rem;
+		background: var(--rb-surface);
+		box-shadow: var(--rb-shadow-pop);
 	}
 
 	.openapi-apps-dropdown__search {
-		margin: 0.625rem 0.625rem 0.375rem;
-		width: calc(100% - 1.25rem);
-		border: 1px solid var(--oa-panel-border, #cbd5e1);
-		border-radius: var(--oa-radius, 0.5rem);
-		padding: 0.45rem 0.625rem;
-		font-size: 0.8125rem;
-		font-family: inherit;
-		background: var(--oa-panel, #ffffff);
-		color: var(--oa-text, #0f172a);
+		width: 100%;
+		height: 2.25rem;
+		margin-bottom: 0.375rem;
+		padding: 0 0.625rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.4375rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		font: 0.85rem var(--rb-font);
 	}
 
-	.openapi-apps-dropdown--dark .openapi-apps-dropdown__search {
-		border-color: var(--oa-panel-border, rgba(56, 100, 150, 0.45));
-		background: color-mix(in srgb, var(--oa-panel) 90%, transparent);
-		color: var(--oa-text, #e2e8f0);
-	}
-
-	.openapi-apps-dropdown__list {
-		flex: 1 1 auto;
-		min-height: 0;
-		overflow: auto;
-		padding: 0.25rem 0.5rem 0.625rem;
+	.openapi-apps-dropdown__search:focus {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
 	}
 
 	.openapi-apps-dropdown__empty {
-		padding: 1rem 0.875rem;
-		font-size: 0.8125rem;
-		color: var(--oa-text-muted, #64748b);
-		text-align: center;
+		margin: 0;
+		padding: 0.5rem;
+		font-size: 0.85rem;
+		color: var(--rb-ink-3);
 	}
 
-	.openapi-apps-dropdown__group + .openapi-apps-dropdown__group {
-		margin-top: 0.5rem;
+	.openapi-apps-dropdown__list {
+		max-height: min(24rem, 60vh);
+		overflow: auto;
 	}
 
 	.openapi-apps-dropdown__group-label {
-		margin: 0 0 0.25rem 0.25rem;
-		font-size: 0.6875rem;
-		font-weight: 750;
-		letter-spacing: 0.03em;
+		margin: 0.5rem 0.375rem 0.125rem;
+		font: 600 0.64rem var(--rb-font-mono);
+		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var(--oa-text-muted, #64748b);
+		color: var(--rb-ink-3);
 	}
 
 	.openapi-apps-dropdown__item {
 		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.15rem;
+		justify-content: space-between;
+		gap: 0.75rem;
 		width: 100%;
-		margin-bottom: 0.2rem;
-		padding: 0.5rem 0.55rem;
-		border: 1px solid transparent;
-		border-radius: var(--oa-radius, 0.5rem);
-		background: transparent;
-		cursor: pointer;
+		padding: 0.375rem 0.5rem;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		color: var(--rb-ink);
 		text-align: left;
-		font-family: inherit;
-		transition:
-			background 0.12s ease,
-			border-color 0.12s ease,
-			box-shadow 0.12s ease;
+		font-size: 0.84rem;
+		cursor: pointer;
 	}
 
-	.openapi-apps-dropdown__item:hover {
-		background: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 7%, transparent);
-		border-color: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 18%, transparent);
+	.openapi-apps-dropdown__item:hover,
+	.openapi-apps-dropdown__item:focus-visible {
+		background: var(--rb-raised);
+		outline: none;
 	}
 
 	.openapi-apps-dropdown__item--selected {
-		background: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 12%, transparent);
-		border-color: color-mix(in srgb, var(--oa-focus-ring, #2563eb) 35%, transparent);
-		box-shadow: inset 3px 0 0 var(--oa-focus-ring, #2563eb);
-	}
-
-	.openapi-apps-dropdown__item-title {
-		font-size: 0.8125rem;
-		font-weight: 650;
-		color: var(--oa-text, #0f172a);
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font-weight: 600;
 	}
 
 	.openapi-apps-dropdown__item-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		font-size: 0.6875rem;
-		color: var(--oa-text-muted, #64748b);
-	}
-
-	.openapi-apps-dropdown__item-version {
-		font-family: var(--oa-font-code, 'Fira Code', ui-monospace, monospace);
-		border-radius: 9999px;
-		padding: 0.05rem 0.4rem;
-		background: color-mix(in srgb, var(--oa-chip-inactive, #e2e8f0) 90%, transparent);
-		color: var(--oa-text, #334155);
-	}
-
-	.openapi-apps-dropdown--dark .openapi-apps-dropdown__item-version {
-		background: color-mix(in srgb, var(--oa-panel-border) 70%, transparent);
-		color: var(--oa-text-muted, #cbd5e1);
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
+		display: inline-flex;
+		gap: 0.5rem;
+		flex-shrink: 0;
+		font: 0.72rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
 	}
 </style>

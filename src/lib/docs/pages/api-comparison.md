@@ -10,18 +10,23 @@ a target release.
 
 ## Using it
 
-1. Choose the **source** and **target** releases (`?sr=...&tr=...` in the URL).
-2. Run the comparison (button or <kbd>Enter</kbd>). Progress is shown per API family.
-3. Filter by status, swap the direction, and open an entry to see path and schema differences.
+1. In the compare bar, choose the **source** and **target** releases (`?sr=...&tr=...` in the URL;
+   a link with both runs the comparison on load), then press **Compare**.
+2. Summary tiles count the APIs added, removed and changed, and the operations and schemas that
+   changed inside them.
+3. Filter by status or text, swap the direction, and open an API to see its endpoint changes,
+   marked `+` added, `−` removed and changed. **Copy share link** copies the comparison's URL.
+
+When two releases have no API changes, the page says so and offers to list the unchanged APIs.
 
 ## Statuses
 
-| Status   | Meaning                                                                |
-| -------- | ---------------------------------------------------------------------- |
-| Added    | The API exists only in the target release                              |
-| Removed  | The API exists only in the source release                              |
-| Modified | Paths or schema content changed                                        |
-| Shared   | Same content (a change of version string alone still counts as shared) |
+| Status    | Meaning                                                                           |
+| --------- | --------------------------------------------------------------------------------- |
+| Added     | The API exists only in the target release                                         |
+| Removed   | The API exists only in the source release                                         |
+| Modified  | Paths or schema content changed                                                   |
+| Unchanged | Same content in both (a change of version string alone still counts as unchanged) |
 
 ## How it works
 

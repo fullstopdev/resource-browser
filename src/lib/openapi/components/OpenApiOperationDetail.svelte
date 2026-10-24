@@ -36,6 +36,7 @@
 	let descriptionExpanded = $state(false);
 	let activeResponseTab = $state('');
 	let copiedPath = $state(false);
+	let copiedCurl = $state(false);
 	let copyPathTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const descriptionCollapsible = $derived(
@@ -74,6 +75,29 @@
 			copiedPath = false;
 			copyPathTimer = undefined;
 		}, 1500);
+	}
+
+	/**
+	 * A curl starting point: method, bearer token unless the endpoint is public, required query
+	 * parameters as shell variables, and a JSON body header when the endpoint takes one.
+	 */
+	const curlCommand = $derived.by(() => {
+		const query = operation.parameters
+			.filter((p) => p.in === 'query' && p.required)
+			.map((p) => `${p.name}=$${p.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`)
+			.join('&');
+		const url = `https://$EDA_HOST${operation.path}${query ? `?${query}` : ''}`;
+		const lines = [`curl -X ${operation.method.toUpperCase()}`];
+		if (!operation.security.isPublic) lines.push(`  -H "Authorization: Bearer $TOKEN"`);
+		if (operation.requestBody) lines.push(`  -H "Content-Type: application/json" -d @body.json`);
+		lines.push(`  "${url}"`);
+		return lines.join(' \\\n');
+	});
+
+	async function handleCopyCurl() {
+		if (!(await copyToClipboard(curlCommand))) return;
+		copiedCurl = true;
+		setTimeout(() => (copiedCurl = false), 1500);
 	}
 
 	function handleSchemaRefClick(schemaName: string) {
@@ -155,6 +179,15 @@
 				</svg>
 				Copy path
 			{/if}
+		</button>
+		<button
+			type="button"
+			class="openapi-operation__action openapi-operation__action--secondary"
+			class:openapi-operation__action--copied={copiedCurl}
+			title={curlCommand}
+			onclick={() => void handleCopyCurl()}
+		>
+			{copiedCurl ? 'Copied' : 'Copy curl'}
 		</button>
 	</div>
 
@@ -937,5 +970,37 @@
 		.openapi-operation__card-head {
 			padding: 0.75rem;
 		}
+	}
+
+	/* Redesign: one level of boxes inside the detail panel. Sections are headed blocks. */
+	.openapi-operation__card,
+	.openapi-operation--dark .openapi-operation__card {
+		border: 0;
+		border-radius: 0;
+		background: none;
+		box-shadow: none;
+		overflow: visible;
+	}
+
+	.openapi-operation__card-head,
+	.openapi-operation--dark .openapi-operation__card-head {
+		padding: 0 0 0.5rem;
+		background: none;
+		border-bottom: 0;
+	}
+
+	.openapi-operation__card-title {
+		font: 700 0.75rem var(--rb-font-mono, 'Fira Code', monospace);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--rb-ink-3, #56627a);
+	}
+
+	.openapi-operation__actions,
+	.openapi-operation--dark .openapi-operation__actions {
+		background: none;
+		border: 0;
+		padding: 0;
+		margin: 0 0 0.875rem;
 	}
 </style>
