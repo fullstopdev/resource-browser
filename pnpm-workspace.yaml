@@ -6,3 +6,4 @@ allowBuilds:
   workerd: true
 overrides:
   '@sveltejs/kit>cookie': ^0.7.2
+  'miniflare>undici': 7.30.1
