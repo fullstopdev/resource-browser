@@ -425,7 +425,7 @@ export function curlForAction(action: ApiAction, section: ApiSection): string {
 	if (!op.security.isPublic) lines.push(`  -H "Authorization: Bearer $TOKEN"`);
 	if (op.requestBody) {
 		const file = section.type === 'platform' ? 'body.json' : `${name}.json`;
-		lines.push(`  -H "Content-Type: application/json" -d @${file}`);
+		lines.push(`  -H "Content-Type: application/json"`, `  -d @${file}`);
 	}
 	lines.push(`  "https://$EDA_HOST${path}${query ? `?${query}` : ''}"`);
 	return lines.join(' \\\n');

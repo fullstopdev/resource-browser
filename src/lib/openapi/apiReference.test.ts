@@ -118,7 +118,7 @@ describe('buildApiSections', () => {
 		const curl = curlForAction(hit.action, hit.section);
 		expect(curl).toContain('curl -X POST');
 		expect(curl).toContain('Authorization: Bearer $TOKEN');
-		expect(curl).toContain('-d @my-bridge-domain.json');
+		expect(curl).toContain('  -d @my-bridge-domain.json');
 		expect(curl).toContain('/apps/services.eda.nokia.com/v2/namespaces/eda/bridgedomains"');
 	});
 

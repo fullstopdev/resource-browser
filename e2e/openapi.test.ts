@@ -48,11 +48,11 @@ test.describe('API reference', () => {
 		]);
 		const panel = page.locator('#api-action-panel');
 		await expect(panel.getByRole('heading', { level: 2 })).toHaveText('Create a BridgeDomain');
-		await expect(panel.locator('pre[aria-label="Example request"]')).toContainText('curl -X POST');
-		await expect(panel.locator('pre[aria-label="Example request"]')).toContainText(
+		await expect(panel.locator('pre[aria-label="Request example"]')).toContainText('curl -X POST');
+		await expect(panel.locator('pre[aria-label="Request example"]')).toContainText(
 			'/apps/services.eda.nokia.com/v2/namespaces/eda/bridgedomains'
 		);
-		await expect(page.getByRole('link', { name: 'CRD schema' })).toHaveAttribute(
+		await expect(page.getByRole('link', { name: 'CRD schema' }).first()).toHaveAttribute(
 			'href',
 			/BridgeDomain/
 		);
@@ -63,7 +63,7 @@ test.describe('API reference', () => {
 		await page.getByRole('button', { name: /^Get GET/ }).click();
 		await expect(page).toHaveURL(/#readServicesEdaNokiaComV2NamespaceBridgedomains$/);
 		await expect(page.locator('#api-action-panel h2')).toHaveText('Get a BridgeDomain');
-		await expect(page.locator('#api-action-panel pre[aria-label="Example request"]')).toContainText(
+		await expect(page.locator('#api-action-panel pre[aria-label="Request example"]')).toContainText(
 			'/bridgedomains/my-bridge-domain'
 		);
 	});
@@ -82,7 +82,7 @@ test.describe('API reference', () => {
 			timeout: 15_000
 		});
 		await expect(page.locator('#api-action-panel')).toContainText('/core/query/v1/eql');
-		await expect(page.locator('#api-action-panel pre[aria-label="Example request"]')).toContainText(
+		await expect(page.locator('#api-action-panel pre[aria-label="Request example"]')).toContainText(
 			'query=$QUERY'
 		);
 	});

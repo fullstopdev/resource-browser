@@ -391,7 +391,15 @@
 			max-height: calc(100vh - 5.5rem);
 			overflow: auto;
 			margin-bottom: 0;
-			padding-right: 0.25rem;
+			padding-right: 0.5rem;
+			/* Quiet scrollbar: thin, and only the thumb. */
+			scrollbar-width: thin;
+			scrollbar-color: transparent transparent;
+		}
+
+		.ref-nav:hover,
+		.ref-nav:focus-within {
+			scrollbar-color: var(--rb-line-strong) transparent;
 		}
 	}
 
