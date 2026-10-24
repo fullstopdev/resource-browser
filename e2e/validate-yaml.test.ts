@@ -67,6 +67,16 @@ test('reports the enum error and explains the field from the schema', async ({ p
 	await expect(explain).toContainText('srl');
 });
 
+test('validates in a Web Worker', async ({ page }) => {
+	const workers: string[] = [];
+	page.on('worker', (w) => workers.push(w.url()));
+	await openWithYaml(page, BAD_TOPONODE);
+	await expect(
+		page.locator('.validate-yaml-issue-msg', { hasText: 'operatingSystem' }).first()
+	).toContainText("value 'SRL' is invalid", { timeout: 20_000 });
+	expect(workers.some((url) => url.includes('validation.worker'))).toBe(true);
+});
+
 test('inserts a curated example from the EDA documentation', async ({ page }) => {
 	await openWithYaml(page, BAD_TOPONODE);
 	const picker = page.locator('.validate-yaml-insert__select');

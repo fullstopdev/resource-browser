@@ -311,16 +311,6 @@ import {
 		goto('/', { replaceState: true });
 	}
 
-	async function handleBrowseReleaseChange(release: EdaRelease) {
-		selectedRelease.set(release);
-		await loadCrdsForRelease(release);
-		syncCatalogUrl({
-			release: release.name,
-			crd: catalogUrlCrd,
-			version: catalogUrlVersion
-		});
-	}
-
 	async function handleHomeResourceClick(resourceName: string) {
 		await loadCrdsForRelease($selectedRelease);
 		const resourceInRelease = $crdMetaStore.find((r) => r.name === resourceName);
@@ -607,7 +597,6 @@ import {
 					allReleases={releasesConfig.releases}
 					initialCrd={catalogUrlCrd ?? parseCatalogParams($page.url.searchParams).crd ?? null}
 					initialVersion={catalogUrlVersion ?? parseCatalogParams($page.url.searchParams).version ?? null}
-					onReleaseChange={handleBrowseReleaseChange}
 					onExitBrowse={exitBrowseMode}
 					onResourceModalClose={clearBrowseResourceFromUrl}
 					onResourceModalOpen={handleCatalogModalOpen}

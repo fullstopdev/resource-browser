@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	extractWorkersAIText,
 	FIX_AI_MODEL,
+	resolveAiGateway,
 	runWorkersAIMessages,
 	selectFixModel,
 	selectFixMaxTokens,
@@ -112,5 +113,29 @@ describe('runWorkersAI helpers', () => {
 		);
 		expect(status).toBe(500);
 		expect(error).toContain('deprecated');
+	});
+});
+
+describe('AI Gateway', () => {
+	it('reads AI_GATEWAY_ID and rejects malformed ids', () => {
+		expect(resolveAiGateway({ AI_GATEWAY_ID: ' eda-ai ' })).toBe('eda-ai');
+		expect(resolveAiGateway({})).toBeUndefined();
+		expect(resolveAiGateway({ AI_GATEWAY_ID: '../x' })).toBeUndefined();
+	});
+
+	it('passes the gateway (without its cache) to ai.run only when configured', async () => {
+		const prevAllow = process.env.WORKERS_AI_ALLOW;
+		process.env.WORKERS_AI_ALLOW = '1';
+		try {
+			const run = vi.fn(async () => ({ response: 'ok' }));
+			const ai = { run } as unknown as Ai;
+			await runWorkersAIMessages(ai, [{ role: 'user', content: 'q' }], { gateway: 'eda-ai' });
+			await runWorkersAIMessages(ai, [{ role: 'user', content: 'q' }]);
+			expect((run.mock.calls[0] as unknown[])[2]).toEqual({ gateway: { id: 'eda-ai', skipCache: true } });
+			expect((run.mock.calls[1] as unknown[])[2]).toBeUndefined();
+		} finally {
+			if (prevAllow === undefined) delete process.env.WORKERS_AI_ALLOW;
+			else process.env.WORKERS_AI_ALLOW = prevAllow;
+		}
 	});
 });

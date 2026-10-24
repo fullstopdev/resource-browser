@@ -53,21 +53,21 @@ flowchart TB
 
 ## Server routes
 
-| Route                     | Purpose                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `POST /api/ai`            | AI actions, mainly the YAML fix (see [AI & caching](ai.md))                     |
-| `GET /api/cache-status`   | Reports whether AI answers are cached for a CRD; the full summary needs a token |
-| `/google…html`            | Search Console verification                                                     |
-| `/index.xml`              | Redirect to `/sitemap.xml`                                                      |
+| Route                   | Purpose                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `POST /api/ai`          | AI actions, mainly the YAML fix (see [AI & caching](ai.md))                     |
+| `GET /api/cache-status` | Reports whether AI answers are cached for a CRD; the full summary needs a token |
+| `/google…html`          | Search Console verification                                                     |
+| `/index.xml`            | Redirect to `/sitemap.xml`                                                      |
 
 ## Cloudflare bindings
 
 Declared in `wrangler.toml`:
 
-| Binding                   | Type         | Used for                                |
-| ------------------------- | ------------ | --------------------------------------- |
-| `AI`                      | Workers AI   | LLM calls for AI Fix                    |
-| `AI_CACHE`                | KV namespace | Caching AI and deterministic answers    |
+| Binding    | Type         | Used for                             |
+| ---------- | ------------ | ------------------------------------ |
+| `AI`       | Workers AI   | LLM calls for AI Fix                 |
+| `AI_CACHE` | KV namespace | Caching AI and deterministic answers |
 
 The `nodejs_compat` compatibility flag is enabled.
 
@@ -96,6 +96,28 @@ An inline script in `src/app.html` applies the `dark` class before the first pai
 `localStorage` or the system preference), so there is no flash of the wrong theme.
 `src/lib/theme.ts` holds a store that keeps all theme toggles in sync; styles use Tailwind's
 `dark:` variants.
+
+The header and homepage use a small token set in `src/app.css` (`--rb-surface`, `--rb-ink`,
+`--rb-signal`, …) with light values on `:root` and dark values on `.dark`, so both themes come from
+one definition. The design reference, with before and after screenshots, is in `design/`.
+
+## Navigation
+
+`AppHeader.svelte` is one row on every page:
+
+| Part             | What it does                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **CRDs** menu    | Catalog, Spec Search, Dependency Map, Release Changes, Compare releases                                                        |
+| **API** menu     | API Explorer, Compare APIs                                                                                                     |
+| **Docs**         | This documentation                                                                                                             |
+| Jump to a CRD    | Press `/` anywhere (outside a text field) to search the current release's CRDs and open one                                    |
+| Release switcher | On pages that read `?release=` (catalog, Spec Search, Dependency Map, Validate YAML); reloads the page with the chosen release |
+| Validate YAML    | Always-visible button                                                                                                          |
+
+Menus open on click or with the Down arrow, arrows move between links, Escape closes. On phones a
+menu button opens the same groups as a sheet. The homepage shows live counts from the manifest, a
+schema example read from the selected release, the release trains with the latest change summary
+(from `static/release-notes/index.json`), and one tile per tool.
 
 ## Project layout
 

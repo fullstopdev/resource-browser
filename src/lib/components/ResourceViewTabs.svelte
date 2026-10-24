@@ -21,12 +21,10 @@
 	];
 </script>
 
-<div
-	class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-	role="tablist"
-	aria-label="Resource views"
->
+<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 	<div
+		role="tablist"
+		aria-label="Resource views"
 		class="-mx-1 flex snap-x snap-mandatory items-center gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:overflow-visible sm:pb-0"
 	>
 		{#each tabs as tab}

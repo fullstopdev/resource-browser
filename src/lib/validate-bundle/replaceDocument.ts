@@ -334,6 +334,23 @@ function isRequiredFieldIssue(issue: Pick<BundleIssue, 'message'>): boolean {
 	return /is required/i.test(issue.message);
 }
 
+/** Validator paths index lists as `links.0.speed`; structural diffs use `links[0].speed`. */
+function toDiffPath(path: string): string {
+	return path.replace(/\.(\d+)(?=\.|$)/g, '[$1]');
+}
+
+/**
+ * The missing field of a required-field issue. The validator reports the parent object as the
+ * field path (`spec`) and names the field in the message (`spec.group is required`).
+ */
+function requiredFieldPath(issue: Pick<BundleIssue, 'fieldPath' | 'message'>): string | null {
+	const named = /^(?:.*?:\s*)?([A-Za-z0-9_.[\]-]+) is required/.exec(issue.message)?.[1];
+	if (named && (!issue.fieldPath || pathMatchesOrUnder(toDiffPath(named), toDiffPath(issue.fieldPath)))) {
+		return toDiffPath(named);
+	}
+	return issue.fieldPath ? toDiffPath(issue.fieldPath) : null;
+}
+
 function validateRenameStructuralChanges(
 	changes: StructuralChange[],
 	issue: Pick<BundleIssue, 'fieldPath' | 'suggestedFix'>
@@ -389,21 +406,26 @@ function validateMinimalStructuralChanges(
 ): { ok: boolean; reason?: string } {
 	if (changes.length === 0) return { ok: true };
 
-	const fieldPath = issue.fieldPath;
-	if (!fieldPath) {
+	if (!issue.fieldPath) {
 		return {
 			ok: false,
 			reason: 'AI fix changed document structure but no field path was provided for the issue.'
 		};
 	}
+	const fieldPath = toDiffPath(issue.fieldPath);
 
 	const issueKind = inferIssueKind(issue as BundleIssue);
 	const isRequired = issueKind === 'required' || isRequiredFieldIssue(issue);
+	const missingPath = isRequired ? requiredFieldPath(issue) : null;
 
 	for (const change of changes) {
-		if (isRequired) {
+		if (isRequired && missingPath) {
+			// Adding the missing field (with any nested content) is the fix.
+			if (change.kind === 'add' && pathMatchesOrUnder(change.path, missingPath)) continue;
+			if (change.kind === 'modify' && pathMatchesOrUnder(change.path, missingPath)) continue;
+			// `localAS: {}` → `localAS: {autonomousSystem: …}` diffs as an add under the parent.
 			if (change.kind === 'add' && change.path === fieldPath) continue;
-			if (change.kind === 'modify' && pathMatchesOrUnder(change.path, fieldPath)) continue;
+			if (change.kind === 'modify' && pathMatchesOrUnder(change.path, fieldPath) && fieldPath !== 'spec') continue;
 			return {
 				ok: false,
 				reason: `Required-field fix must only add the missing field at ${fieldPath}, not change ${change.path}.`

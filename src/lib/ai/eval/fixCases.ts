@@ -4,6 +4,8 @@
  * Run with `npm run eval:fix` (scripts/eval-fix.ts) against a deployment with Workers AI.
  */
 
+import { CURATED_FIX_EVAL_CASES } from './fixCasesCurated';
+
 export type FixEvalCase = {
 	id: string;
 	kind: string;
@@ -92,7 +94,7 @@ ${Array.from({ length: 110 }, (_, i) => `    - interface: ethernet-1-${i + 1}\n 
   type: Ethernet`
 );
 
-export const FIX_EVAL_CASES: FixEvalCase[] = [
+const BASE_FIX_EVAL_CASES: FixEvalCase[] = [
 	// enum
 	{
 		id: 'enum-toponode-os-name',
@@ -308,3 +310,5 @@ export const FIX_EVAL_CASES: FixEvalCase[] = [
 				: 'members were lost while splicing the excerpt')
 	}
 ];
+
+export const FIX_EVAL_CASES: FixEvalCase[] = [...BASE_FIX_EVAL_CASES, ...CURATED_FIX_EVAL_CASES];

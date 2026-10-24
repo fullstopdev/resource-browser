@@ -5,7 +5,11 @@
  *   npm run eval:fix -- --base-url http://localhost:8788
  *   npm run eval:fix -- --base-url https://eda-resource-browser.pages.dev --only enum
  *
+ *   npm run eval:fix -- --base-url https://<preview>.eda-resource-browser.pages.dev --min-pass 0.85
+ *
  * Env: HTTPS_PROXY / NODE_EXTRA_CA_CERTS (corporate proxy), EVAL_CONCURRENCY (default 2).
+ * Exits 1 when the pass rate is below --min-pass (default 1, every case). With GITHUB_STEP_SUMMARY
+ * set (GitHub Actions), also writes a results table there.
  */
 import fs from 'fs';
 import yaml from 'js-yaml';
@@ -94,6 +98,28 @@ async function runCase(baseUrl: string, c: FixEvalCase): Promise<CaseResult> {
 	return { ...base, ok: problem === null, note: problem ?? '' };
 }
 
+function writeStepSummary(baseUrl: string, results: CaseResult[], rate: number): void {
+	const file = process.env.GITHUB_STEP_SUMMARY;
+	if (!file) return;
+	const rows = results.map(
+		(r) =>
+			`| ${r.ok ? '✅' : '❌'} | \`${r.id}\` | ${r.status} | ${r.ms} | ${r.cached ? 'cached' : (r.attempts ?? '?')} | ${r.note.replace(/\|/g, '\\|')} |`
+	);
+	fs.appendFileSync(
+		file,
+		[
+			`## AI Fix eval — ${Math.round(rate * 100)}% (${results.filter((r) => r.ok).length}/${results.length})`,
+			'',
+			`Target: ${baseUrl}, release ${FIX_EVAL_RELEASE}`,
+			'',
+			'| | Case | HTTP | ms | Tries | Note |',
+			'| --- | --- | --- | --- | --- | --- |',
+			...rows,
+			''
+		].join('\n')
+	);
+}
+
 async function main(): Promise<void> {
 	configureFetchDispatcher();
 	const baseUrl = (argValue('--base-url') ?? 'http://localhost:8788').replace(/\/$/, '');
@@ -135,7 +161,10 @@ async function main(): Promise<void> {
 		`\n${passed}/${results.length} passed (${Math.round((passed / Math.max(1, results.length)) * 100)}%) · ` +
 			`${fresh.length} uncached, avg ${avgMs}ms, ${retried} needed a retry`
 	);
-	if (passed < results.length) process.exitCode = 1;
+	const minPass = Number(argValue('--min-pass') ?? 1);
+	const rate = passed / Math.max(1, results.length);
+	writeStepSummary(baseUrl, results, rate);
+	if (rate < minPass) process.exitCode = 1;
 }
 
 main().catch((err) => {

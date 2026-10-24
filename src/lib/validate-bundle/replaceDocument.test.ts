@@ -417,3 +417,32 @@ spec:
 		expect(result.ok, result.reason).toBe(true);
 	});
 });
+
+describe('validateAiFixApply with validator-style paths', () => {
+	const peer = (extra: string) =>
+		`apiVersion: protocols.eda.nokia.com/v2\nkind: BGPPeer\nmetadata:\n  name: p\n  namespace: eda\nspec:\n  interface: i\n  interfaceKind: RoutedInterface\n${extra}`;
+
+	it('accepts adding the missing field when the issue path is the parent object', () => {
+		const issue = { id: 'x', fieldPath: 'spec', message: 'spec.group is required (Line 6, column 1)' };
+		expect(validateAiFixApply(peer(''), peer('  group: g\n'), issue).ok).toBe(true);
+		expect(validateAiFixApply(peer(''), peer('  group: g\n  bfd: true\n'), issue).ok).toBe(false);
+	});
+
+	it('accepts a required field added inside an empty parent', () => {
+		const doc = (las: string) =>
+			`apiVersion: protocols.eda.nokia.com/v2\nkind: BGPGroup\nmetadata:\n  name: g\n  namespace: eda\nspec:\n  localAS: ${las}\n`;
+		const issue = { id: 'x', fieldPath: 'spec.localAS', message: 'spec.localAS.autonomousSystem is required' };
+		expect(validateAiFixApply(doc('{}'), doc('\n    autonomousSystem: 100'), issue).ok).toBe(true);
+	});
+
+	it('matches list indexes written as `.0` against the document diff', () => {
+		const link = (speed: string) =>
+			`apiVersion: core.eda.nokia.com/v1\nkind: TopoLink\nmetadata:\n  name: l\n  namespace: eda\nspec:\n  links:\n    - type: edge\n      speed: ${speed}\n      local:\n        node: n\n        interfaceResource: r\n`;
+		const issue = {
+			id: 'x',
+			fieldPath: 'spec.links.0.speed',
+			message: "spec.links.0.speed: value '25Gbps' is invalid; must be one of: 25G, 10G (exact case)"
+		};
+		expect(validateAiFixApply(link('25Gbps'), link('25G'), issue).ok).toBe(true);
+	});
+});

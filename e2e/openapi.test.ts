@@ -152,11 +152,12 @@ test.describe('OpenAPI', () => {
 		await expect(page.getByRole('link', { name: 'Compare releases' })).toHaveCount(0);
 	});
 
-	test('nav includes API Server flat links', async ({ page }) => {
+	test('API menu lists the explorer and comparison', async ({ page }) => {
 		await page.goto('/openapi');
-		const toolsNav = page.getByRole('navigation', { name: 'Application tools' });
-		await expect(toolsNav.getByRole('link', { name: 'API Explorer' })).toBeVisible();
-		await expect(toolsNav.getByRole('link', { name: 'API Comparison' })).toBeVisible();
+		const nav = page.getByRole('navigation', { name: 'Main' });
+		await nav.getByRole('button', { name: 'API' }).click();
+		await expect(nav.getByRole('link', { name: /API Explorer/ })).toBeVisible();
+		await expect(nav.getByRole('link', { name: /Compare APIs/ })).toBeVisible();
 	});
 
 	test('legacy /api-browser redirects to /openapi', async ({ page }) => {

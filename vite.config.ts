@@ -70,6 +70,8 @@ const monacoSsrStub = (): Plugin => ({
 
 export default defineConfig(({ isSsrBuild }) => ({
 	plugins: [monacoSsrStub(), suppressCrdCheckLogs(), tailwindcss(), sveltekit(), devtoolsJson()],
+	// Module workers: the validation worker shares chunks (Ajv, yaml) with the page.
+	worker: { format: 'es' as const },
 	resolve: isSsrBuild
 		? {
 				alias: {

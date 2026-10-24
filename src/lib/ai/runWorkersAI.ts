@@ -44,6 +44,8 @@ export type RunWorkersAIOptions = {
 	temperature?: number;
 	seed?: number;
 	timeoutMs?: number;
+	/** Cloudflare AI Gateway id (logs, analytics, rate limits); omitted = call Workers AI directly. */
+	gateway?: string;
 };
 
 export type AiMessage = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -138,7 +140,13 @@ export async function runWorkersAIMessages(
 	}
 
 	const result = await withTimeout(
-		ai.run(model as Parameters<Ai['run']>[0], runOptions),
+		ai.run(
+			model as Parameters<Ai['run']>[0],
+			runOptions,
+			// skipCache: answers are verified and cached in KV by the app; the gateway must not
+			// replay an unverified one.
+			options.gateway ? { gateway: { id: options.gateway, skipCache: true } } : undefined
+		),
 		timeoutMs
 	);
 	const answer = extractWorkersAIText(result);
@@ -253,6 +261,12 @@ export function resolveAiModels(env: Record<string, string | undefined>): AiMode
 		default: env.AI_MODEL_DEFAULT?.trim() || WORKERS_AI_MODEL,
 		fix: env.AI_MODEL_FIX?.trim() || FIX_AI_MODEL
 	};
+}
+
+/** AI Gateway id from `AI_GATEWAY_ID` (letters, digits, dashes); undefined when unset or invalid. */
+export function resolveAiGateway(env: Record<string, string | undefined>): string | undefined {
+	const id = env.AI_GATEWAY_ID?.trim();
+	return id && /^[a-z0-9][a-z0-9-]{0,63}$/i.test(id) ? id : undefined;
 }
 
 /** Map selectFixModel's choice (small vs large tier) onto the configured models. */

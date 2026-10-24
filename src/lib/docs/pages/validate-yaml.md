@@ -45,6 +45,9 @@ keep it.
 
 ## What gets checked
 
+Checks run in a Web Worker, so typing stays smooth on large bundles; if the browser can't start
+the worker, the same checks run on the page.
+
 ```mermaid
 flowchart LR
   Y["Your YAML"] --> P["1. Parse every document"]

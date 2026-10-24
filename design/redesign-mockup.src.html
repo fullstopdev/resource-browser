@@ -1,0 +1,615 @@
+<title>EDA Resource Browser Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a design-review document. Narrow reading column for the brief; a wide "browser frame"
+   stage for the live mock; the mock carries its own token set (product), separate from the doc's. */
+:root {
+  /* document */
+  --doc-bg: #f5f7fa;
+  --doc-fg: #172033;
+  --doc-muted: #55617a;
+  --doc-line: #dfe4ec;
+  --doc-panel: #ffffff;
+  --doc-accent: #0050e6;
+  --doc-warn: #a35200;
+  --doc-warn-bg: #fff3e3;
+  /* product (mock) — light */
+  --p-bg: #f7f9fc;
+  --p-surface: #ffffff;
+  --p-raised: #f0f3f8;
+  --p-line: #e1e6ee;
+  --p-line-strong: #c9d1de;
+  --p-ink: #111a2c;
+  --p-ink-2: #3c4860;
+  --p-ink-3: #5b6780;
+  --p-signal: #0050e6;
+  --p-signal-ink: #ffffff;
+  --p-signal-soft: #e7efff;
+  --p-ok: #0d7a4f;
+  --p-ok-soft: #e3f5ec;
+  --p-code: #6b3fb8;
+  --font-ui: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --doc-bg: #0d121c; --doc-fg: #e6ebf4; --doc-muted: #9aa6bd; --doc-line: #243045;
+    --doc-panel: #131a27; --doc-accent: #6ea0ff; --doc-warn: #ffb35c; --doc-warn-bg: #2b1e0d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --doc-bg: #0d121c; --doc-fg: #e6ebf4; --doc-muted: #9aa6bd; --doc-line: #243045;
+  --doc-panel: #131a27; --doc-accent: #6ea0ff; --doc-warn: #ffb35c; --doc-warn-bg: #2b1e0d;
+  color-scheme: dark;
+}
+/* the mock's own dark theme, switched by its toggle */
+.mock[data-mode="dark"] {
+  --p-bg: #0b1220;
+  --p-surface: #111a2b;
+  --p-raised: #162136;
+  --p-line: #213049;
+  --p-line-strong: #2e4060;
+  --p-ink: #e8eef8;
+  --p-ink-2: #b9c4d8;
+  --p-ink-3: #8d9ab3;
+  --p-signal: #5b93ff;
+  --p-signal-ink: #06101f;
+  --p-signal-soft: #15284a;
+  --p-ok: #4fd39a;
+  --p-ok-soft: #0f2f22;
+  --p-code: #c4a6ff;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--doc-bg);
+  color: var(--doc-fg);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 72px;
+}
+.doc { max-width: 1240px; margin: 0 auto; display: grid; gap: 56px; }
+.read { max-width: 68ch; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); font-weight: 700; letter-spacing: -0.015em; }
+h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1rem; font-weight: 600; }
+p { margin: 0; }
+.eyebrow { font: 600 0.72rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--doc-accent); }
+.lede { color: var(--doc-muted); font-size: 1.05rem; }
+.stack { display: grid; gap: 14px; }
+.section-head { display: grid; gap: 8px; margin-bottom: 20px; }
+
+/* before */
+.before { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.shot { border: 1px solid var(--doc-line); border-radius: 10px; overflow: hidden; background: var(--doc-panel); }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { font-size: 0.8rem; color: var(--doc-muted); padding: 8px 12px; border-top: 1px solid var(--doc-line); }
+figure { margin: 0; }
+.issues { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; counter-reset: issue; }
+.issues li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: 0.92rem; }
+.issues li::before {
+  counter-increment: issue; content: counter(issue);
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font: 600 0.72rem/1 var(--font-mono); color: var(--doc-warn); background: var(--doc-warn-bg);
+}
+.issues b { font-weight: 600; }
+.shots-side { display: grid; gap: 16px; }
+
+/* stage controls */
+.stage-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--doc-line); border-radius: 8px; overflow: hidden; background: var(--doc-panel); }
+.seg button {
+  font: 500 0.82rem var(--font-ui); color: var(--doc-muted); background: transparent; border: 0;
+  padding: 7px 14px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--doc-fg); color: var(--doc-bg); }
+.seg button:focus-visible, .mock :focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+.stage { overflow-x: auto; padding-bottom: 6px; }
+.frame {
+  margin: 0 auto; border: 1px solid var(--doc-line); border-radius: 12px; overflow: hidden;
+  background: var(--doc-panel); box-shadow: 0 18px 50px -24px rgba(16, 30, 60, 0.35);
+  transition: width 0.25s ease;
+}
+.frame[data-device="desktop"] { width: 100%; min-width: 1020px; }
+.frame[data-device="mobile"] { width: 390px; }
+.chrome { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--doc-line); }
+.chrome i { width: 10px; height: 10px; border-radius: 50%; background: var(--doc-line); }
+.chrome span { margin-left: 10px; flex: 1; font: 0.75rem var(--font-mono); color: var(--doc-muted); background: var(--doc-bg); border-radius: 6px; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ MOCK: the product ============ */
+.mock { background: var(--p-bg); color: var(--p-ink); font-family: var(--font-ui); font-size: 14px; position: relative; }
+.mock a { color: inherit; text-decoration: none; }
+.mock button { font-family: inherit; }
+
+/* top menu */
+.nav {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 6px;
+  height: 58px; padding: 0 22px; background: color-mix(in srgb, var(--p-surface) 92%, transparent);
+  border-bottom: 1px solid var(--p-line); backdrop-filter: saturate(1.4) blur(8px);
+}
+.brand { display: flex; align-items: center; gap: 10px; margin-right: 18px; flex-shrink: 0; }
+.brand img { width: 28px; height: 28px; }
+.brand-name { display: grid; line-height: 1.05; }
+.brand-name b { font-size: 0.95rem; font-weight: 700; letter-spacing: -0.01em; }
+.brand-name small { font: 500 0.66rem var(--font-mono); color: var(--p-ink-3); letter-spacing: 0.04em; }
+.menu { display: flex; align-items: stretch; gap: 2px; height: 100%; }
+.menu > li { list-style: none; position: relative; display: flex; }
+.menu-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; height: 100%;
+  font-size: 0.88rem; font-weight: 500; color: var(--p-ink-2); background: none; border: 0; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+}
+.menu-btn:hover { color: var(--p-ink); }
+.menu-btn.is-active { color: var(--p-ink); border-bottom-color: var(--p-signal); }
+.menu-btn svg { width: 12px; height: 12px; transition: transform 0.15s; }
+.menu-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.menu ul { margin: 0; padding: 0; }
+.dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; width: 320px; padding: 6px;
+  background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px;
+  box-shadow: 0 16px 40px -16px rgba(10, 20, 40, 0.35); display: grid; gap: 2px;
+}
+.dropdown a { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 2px 10px; padding: 8px 10px; border-radius: 7px; }
+.dropdown a:hover { background: var(--p-raised); }
+.dropdown .ico { grid-row: span 2; width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; background: var(--p-signal-soft); color: var(--p-signal); }
+.dropdown .ico svg { width: 16px; height: 16px; }
+.dropdown b { font-size: 0.86rem; font-weight: 600; }
+.dropdown span { font-size: 0.78rem; color: var(--p-ink-3); }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.kbar {
+  display: inline-flex; align-items: center; gap: 8px; width: 210px; height: 34px; padding: 0 8px 0 10px;
+  border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-raised); color: var(--p-ink-3);
+  font-size: 0.82rem; cursor: text;
+}
+.kbar svg { width: 14px; height: 14px; flex-shrink: 0; }
+.kbar kbd, .kbd { margin-left: auto; font: 500 0.68rem var(--font-mono); border: 1px solid var(--p-line-strong); border-radius: 4px; padding: 1px 5px; color: var(--p-ink-3); background: var(--p-surface); }
+.rel {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--p-line); background: var(--p-surface); cursor: pointer; color: var(--p-ink);
+}
+.rel b { font: 600 0.84rem var(--font-mono); }
+.tag-latest { font: 600 0.62rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 6px; border-radius: 4px; color: var(--p-ok); background: var(--p-ok-soft); }
+.icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-surface); color: var(--p-ink-2); cursor: pointer; }
+.icon-btn svg { width: 16px; height: 16px; }
+.cta { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 8px; background: var(--p-signal); color: var(--p-signal-ink) !important; font-weight: 600; font-size: 0.84rem; white-space: nowrap; }
+.cta svg { width: 14px; height: 14px; }
+.rel-pop { position: absolute; right: 0; top: calc(100% + 6px); width: 260px; padding: 8px; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; box-shadow: 0 16px 40px -16px rgba(10,20,40,.35); }
+.rel-pop h4 { margin: 6px 6px 4px; font: 600 0.66rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); }
+.rel-pop button { display: flex; width: 100%; justify-content: space-between; align-items: center; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--p-ink-2); font: 500 0.82rem var(--font-mono); cursor: pointer; }
+.rel-pop button:hover { background: var(--p-raised); }
+.rel-pop button[aria-current="true"] { background: var(--p-signal-soft); color: var(--p-signal); }
+.rel-wrap { position: relative; }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px; padding: 48px 40px 36px; align-items: center; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 500 0.74rem var(--font-mono); color: var(--p-ink-3); letter-spacing: 0.02em; }
+.hero-eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--p-ok); box-shadow: 0 0 0 3px var(--p-ok-soft); }
+.hero h1 { font-size: 2.55rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.08; margin: 14px 0 12px; color: var(--p-ink); }
+.hero h1 em { font-style: normal; color: var(--p-signal); }
+.hero-sub { color: var(--p-ink-2); font-size: 1.02rem; max-width: 52ch; }
+.hero-sub b { font-family: var(--font-mono); font-weight: 600; color: var(--p-ink); font-size: 0.95em; }
+.search { margin-top: 24px; position: relative; }
+.search input {
+  width: 100%; height: 52px; padding: 0 92px 0 46px; border-radius: 10px; border: 1px solid var(--p-line-strong);
+  background: var(--p-surface); color: var(--p-ink); font: 500 0.98rem var(--font-ui);
+  box-shadow: 0 1px 0 rgba(10,20,40,.04), 0 10px 30px -18px rgba(10,30,80,.35);
+}
+.search input::placeholder { color: var(--p-ink-3); }
+.search input:focus { outline: 2px solid var(--p-signal); outline-offset: 1px; }
+.search > svg { position: absolute; left: 16px; top: 17px; width: 18px; height: 18px; color: var(--p-ink-3); }
+.search .kbd { position: absolute; right: 14px; top: 16px; }
+.results { position: absolute; left: 0; right: 0; top: 58px; z-index: 4; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 10px; padding: 6px; box-shadow: 0 16px 40px -16px rgba(10,20,40,.35); max-height: 260px; overflow: auto; }
+.results a { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; }
+.results a:hover, .results a.on { background: var(--p-raised); }
+.results b { font-weight: 600; }
+.results span { font: 0.76rem var(--font-mono); color: var(--p-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+.chips small { color: var(--p-ink-3); font-size: 0.78rem; margin-right: 2px; }
+.chip { font: 500 0.78rem var(--font-mono); padding: 4px 9px; border-radius: 999px; border: 1px solid var(--p-line); background: var(--p-surface); color: var(--p-ink-2); cursor: pointer; }
+.chip:hover { border-color: var(--p-signal); color: var(--p-signal); }
+
+/* schema specimen */
+.specimen { background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 12px; overflow: hidden; box-shadow: 0 24px 60px -32px rgba(10,30,80,.45); }
+.spec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--p-line); }
+.spec-head b { font-size: 0.95rem; }
+.spec-head span { font: 0.74rem var(--font-mono); color: var(--p-ink-3); }
+.spec-tabs { display: flex; gap: 4px; }
+.spec-tabs i { font: normal 500 0.7rem var(--font-mono); padding: 3px 8px; border-radius: 5px; color: var(--p-ink-3); }
+.spec-tabs i.on { background: var(--p-signal-soft); color: var(--p-signal); }
+.fields { margin: 0; padding: 6px 0; list-style: none; font-family: var(--font-mono); font-size: 0.8rem; }
+.fields li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 7px 16px; border-left: 2px solid transparent; }
+.fields li:hover { background: var(--p-raised); border-left-color: var(--p-signal); }
+.fields .k { color: var(--p-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fields .k s { text-decoration: none; color: var(--p-ink-3); }
+.fields .t { color: var(--p-code); }
+.fields .req { color: #c2410c; font-weight: 600; }
+.fields .meta { grid-column: 1 / -1; color: var(--p-ink-3); font-size: 0.72rem; margin-top: -3px; }
+.spec-foot { display: flex; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--p-line); font-size: 0.78rem; color: var(--p-ink-3); background: var(--p-raised); }
+.spec-foot a { color: var(--p-signal); font-weight: 600; }
+
+/* releases rail */
+.band { padding: 0 40px 36px; }
+.band-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.band-head h2 { font-size: 1.02rem; font-weight: 700; color: var(--p-ink); }
+.band-head a { font-size: 0.82rem; color: var(--p-signal); font-weight: 600; }
+.rail { display: grid; gap: 10px; background: var(--p-surface); border: 1px solid var(--p-line); border-radius: 12px; padding: 16px 18px; }
+.train { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 12px; align-items: center; }
+.train > b { font: 600 0.74rem var(--font-mono); color: var(--p-ink-3); letter-spacing: .04em; }
+.stops { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 4px 2px; }
+.stop { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 30px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--p-line); background: var(--p-bg); font: 500 0.8rem var(--font-mono); color: var(--p-ink-2); cursor: pointer; }
+.stop:hover { border-color: var(--p-signal); }
+.stop[aria-current="true"] { background: var(--p-signal); border-color: var(--p-signal); color: var(--p-signal-ink); }
+.stop[aria-current="true"] .tag-latest { background: color-mix(in srgb, var(--p-signal-ink) 18%, transparent); color: var(--p-signal-ink); }
+.link { width: 18px; height: 2px; background: var(--p-line-strong); flex-shrink: 0; }
+.rail-note { font-size: 0.8rem; color: var(--p-ink-3); border-top: 1px dashed var(--p-line); padding-top: 10px; }
+.rail-note b { color: var(--p-ink); font-family: var(--font-mono); font-weight: 600; }
+.delta { font-family: var(--font-mono); font-weight: 600; }
+.delta.add { color: var(--p-ok); } .delta.mod { color: var(--p-signal); } .delta.rem { color: #c2410c; }
+
+/* tools grid */
+.tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tool { display: grid; gap: 6px; align-content: start; padding: 16px; border: 1px solid var(--p-line); border-radius: 12px; background: var(--p-surface); transition: border-color .15s, transform .15s; }
+.tool:hover { border-color: var(--p-signal); transform: translateY(-1px); }
+.tool .ico { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--p-signal-soft); color: var(--p-signal); margin-bottom: 4px; }
+.tool .ico svg { width: 17px; height: 17px; }
+.tool b { font-size: 0.92rem; font-weight: 600; color: var(--p-ink); }
+.tool p { font-size: 0.8rem; color: var(--p-ink-3); }
+.tool small { font: 500 0.72rem var(--font-mono); color: var(--p-ink-2); margin-top: 4px; }
+.tool.primary { background: var(--p-signal-soft); border-color: color-mix(in srgb, var(--p-signal) 35%, var(--p-line)); }
+.footer-mock { display: flex; justify-content: space-between; gap: 12px; padding: 18px 40px; border-top: 1px solid var(--p-line); font-size: 0.78rem; color: var(--p-ink-3); }
+
+/* mobile frame */
+.frame[data-device="mobile"] .nav { padding: 0 14px; height: 54px; }
+.frame[data-device="mobile"] .menu, .frame[data-device="mobile"] .kbar, .frame[data-device="mobile"] .cta, .frame[data-device="mobile"] .brand-name small { display: none; }
+.frame[data-device="mobile"] .brand { margin-right: 0; }
+.frame:not([data-device="mobile"]) .only-mobile { display: none; }
+.frame[data-device="mobile"] .hero { grid-template-columns: minmax(0, 1fr); padding: 28px 16px 24px; gap: 24px; }
+.frame[data-device="mobile"] .hero h1 { font-size: 1.85rem; }
+.frame[data-device="mobile"] .band { padding: 0 16px 24px; }
+.frame[data-device="mobile"] .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.frame[data-device="mobile"] .tool p { display: none; }
+.frame[data-device="mobile"] .train { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.frame[data-device="mobile"] .footer-mock { padding: 16px; flex-direction: column; }
+.frame[data-device="mobile"] .search .kbd { display: none; }
+.frame[data-device="mobile"] .search input { padding-right: 14px; }
+.sheet { position: absolute; inset: 54px 0 auto 0; z-index: 6; background: var(--p-surface); border-bottom: 1px solid var(--p-line); padding: 10px 14px 16px; display: grid; gap: 14px; box-shadow: 0 20px 40px -20px rgba(10,20,40,.4); }
+.sheet h4 { margin: 0 0 4px; font: 600 0.66rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--p-ink-3); }
+.sheet a { display: block; padding: 9px 4px; border-bottom: 1px solid var(--p-line); font-weight: 500; }
+
+/* spec table */
+.changes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.card { background: var(--doc-panel); border: 1px solid var(--doc-line); border-radius: 10px; padding: 20px; display: grid; gap: 12px; align-content: start; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--doc-line); vertical-align: top; }
+th { font: 600 0.7rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--doc-muted); }
+td code, li code { font: 0.82em var(--font-mono); }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.9rem; }
+.note { font-size: 0.82rem; color: var(--doc-muted); }
+
+@media (max-width: 860px) {
+  .before, .changes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<main class="doc">
+  <header class="read stack">
+    <p class="eyebrow">Design proposal · homepage and top menu</p>
+    <h1>A cleaner front door for the EDA Resource Browser</h1>
+    <p class="lede">The current homepage and menu, with what holds them back, then a working example of the proposed design built on real 26.8.2 data. The built version is shown further down.</p>
+  </header>
+
+  <section>
+    <div class="section-head read">
+      <p class="eyebrow">Before</p>
+      <h2>What the current design gets wrong</h2>
+    </div>
+    <div class="before">
+      <figure class="shot">
+        <img src="__HOME_DESKTOP__" alt="Current homepage at 1440 pixels wide, light theme" width="1440" height="900">
+        <figcaption>Current homepage, 1440 × 900, light theme (captured from the production build)</figcaption>
+      </figure>
+      <div class="shots-side">
+        <figure class="shot">
+          <img src="__HEADER__" alt="Current two-row top menu" width="1440" height="95">
+          <figcaption>Current top menu</figcaption>
+        </figure>
+        <ol class="issues">
+          <li><span><b>Two-row menu with 10 flat links.</b> Tiny group labels (CRD, API, HELP) do the grouping, and "Comparison" appears twice.</span></li>
+          <li><span><b>The release is shown three times</b> (release card, Quick actions, the selected button) but can't be changed from other pages' menu.</span></li>
+          <li><span><b>No statement of what the site is.</b> "EDA CRD Schema Explorer" sits in a box with no description, counts or next step.</span></li>
+          <li><span><b>Quick actions repeat the menu</b> as a tall list, leaving a large empty area under the release picker.</span></li>
+          <li><span><b>Search lives only on the homepage.</b> Other pages have no way to jump to a CRD.</span></li>
+          <li><span><b>Generic name and weak brand.</b> "Resource Browser" doesn't say Nokia EDA, and the logo sits at 28 px with no product line.</span></li>
+        </ol>
+        <figure class="shot">
+          <img src="__HOME_MOBILE__" alt="Current homepage on a phone" width="390" height="844" style="max-width:220px;margin:0 auto">
+          <figcaption>Current homepage on a phone, 390 px</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read">
+      <p class="eyebrow">After</p>
+      <h2>Proposed design, working example</h2>
+      <p class="lede">Open the menus, switch the release, type in the search, and flip the device and theme. Counts, versions and schema fields are real 26.8.2 data. Fonts here stand in for the site's Nokia Pure fonts, which stay.</p>
+    </div>
+    <div class="stage-bar">
+      <div class="seg" role="group" aria-label="Device">
+        <button type="button" id="dev-desktop" aria-pressed="true" data-device="desktop">Desktop</button>
+        <button type="button" id="dev-mobile" aria-pressed="false" data-device="mobile">Phone</button>
+      </div>
+      <div class="seg" role="group" aria-label="Example theme">
+        <button type="button" id="mode-light" aria-pressed="true" data-mode="light">Light</button>
+        <button type="button" id="mode-dark" aria-pressed="false" data-mode="dark">Dark</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="frame" id="frame" data-device="desktop">
+        <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>eda-resource-browser.pages.dev</span></div>
+        <div class="mock" id="mock" data-mode="light">
+
+          <nav class="nav" aria-label="Main">
+            <a class="brand" href="#top" aria-label="EDA Resource Browser home">
+              <img src="__LOGO__" alt="" width="28" height="28">
+              <span class="brand-name"><b>EDA Resource Browser</b><small>NOKIA EVENT-DRIVEN AUTOMATION</small></span>
+            </a>
+            <ul class="menu">
+              <li>
+                <button class="menu-btn is-active" type="button" aria-expanded="false" data-menu="crds">CRDs <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>
+                <div class="dropdown" id="menu-crds" hidden>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6"/></svg></span><b>Catalog</b><span>All 358 CRDs in the selected release</span></a>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="m10 10 3 3"/></svg></span><b>Spec Search</b><span>Find a field across every schema</span></a>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><path d="M6 7.2 10 4.8M6 8.8l4 2.4"/></svg></span><b>Dependency Map</b><span>Which resources reference which</span></a>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h6l3 3v9H4z"/><path d="M6 8h5M6 11h3"/></svg></span><b>Release Changes</b><span>New, changed and deprecated CRDs</span></a>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h9l-2-2M13 11H4l2 2"/></svg></span><b>Compare releases</b><span>Schema diff between two versions</span></a>
+                </div>
+              </li>
+              <li>
+                <button class="menu-btn" type="button" aria-expanded="false" data-menu="api">API <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>
+                <div class="dropdown" id="menu-api" hidden>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m5 4-3 4 3 4M11 4l3 4-3 4"/></svg></span><b>API Explorer</b><span>OpenAPI paths for core and app APIs</span></a>
+                  <a href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h9l-2-2M13 11H4l2 2"/></svg></span><b>Compare APIs</b><span>Path and schema changes between releases</span></a>
+                </div>
+              </li>
+              <li><a class="menu-btn" href="#c">Docs</a></li>
+            </ul>
+            <div class="nav-right">
+              <label class="kbar" for="nav-search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><span>Jump to a CRD</span><kbd>/</kbd></label>
+              <div class="rel-wrap">
+                <button class="rel" type="button" id="rel-btn" aria-expanded="false" aria-haspopup="true"><b id="rel-label">26.8.2</b><span class="tag-latest" id="rel-tag">Latest</span><svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4.5 6 7.5 9 4.5"/></svg></button>
+                <div class="rel-pop" id="rel-pop" hidden></div>
+              </div>
+              <a class="cta" href="#c"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3.5 8.5 3 3 6-7"/></svg>Validate YAML</a>
+              <button class="icon-btn" type="button" id="mock-theme" aria-label="Switch theme"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/></svg></button>
+              <button class="icon-btn only-mobile" type="button" id="sheet-btn" aria-label="Open menu" aria-expanded="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+            </div>
+          </nav>
+          <div class="sheet" id="sheet" hidden>
+            <div><h4>CRDs</h4><a href="#c">Catalog</a><a href="#c">Spec Search</a><a href="#c">Dependency Map</a><a href="#c">Release Changes</a><a href="#c">Compare releases</a></div>
+            <div><h4>API</h4><a href="#c">API Explorer</a><a href="#c">Compare APIs</a></div>
+            <div><h4>Tools</h4><a href="#c">Validate YAML</a><a href="#c">Docs</a></div>
+          </div>
+
+          <section class="hero">
+            <div>
+              <span class="hero-eyebrow"><i></i><span id="hero-rel">EDA 26.8.2 · latest release</span></span>
+              <h1>Every Nokia EDA resource schema, <em>by release.</em></h1>
+              <p class="hero-sub">Browse <b>358</b> CRDs across <b>57</b> API groups, see what changed between <b>12</b> releases, and check your manifests before you apply them.</p>
+              <div class="search">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+                <label for="hero-search" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search CRDs</label>
+                <input id="hero-search" type="search" autocomplete="off" placeholder="Search 358 CRDs by kind or group" role="combobox" aria-expanded="false" aria-controls="hero-results">
+                <span class="kbd">/</span>
+                <div class="results" id="hero-results" role="listbox" hidden></div>
+              </div>
+              <div class="chips"><small>Popular</small>
+                <button class="chip" type="button">Fabric</button><button class="chip" type="button">BridgeDomain</button><button class="chip" type="button">TopoNode</button><button class="chip" type="button">Interface</button><button class="chip" type="button">BGPPeer</button><button class="chip" type="button">Router</button>
+              </div>
+            </div>
+
+            <aside class="specimen" aria-label="Example schema: BridgeDomain">
+              <div class="spec-head">
+                <div><b>BridgeDomain</b><br><span>services.eda.nokia.com/v2 · Namespaced</span></div>
+                <div class="spec-tabs"><i class="on">Spec</i><i>Status</i><i>YAML</i></div>
+              </div>
+              <ul class="fields">
+                <li><span class="k">spec.<b>type</b></span><span class="t">string</span><span class="meta">Simple | EVPNVXLAN | EVPNMPLS</span></li>
+                <li><span class="k">spec.<b>eviPool</b></span><span class="t">string</span><span class="meta">Allocation pool for the EVI</span></li>
+                <li><span class="k">spec.<b>evi</b></span><span class="t">integer</span><span class="meta">1 – 65535</span></li>
+                <li><span class="k">spec.encapOptions.vxlan.<b>vniPool</b></span><span class="t">string</span></li>
+                <li><span class="k">spec.macLearning.<b>enabled</b> <span class="req">*</span></span><span class="t">boolean</span><span class="meta">required when macLearning is set</span></li>
+                <li><span class="k">spec.macLearning.<b>agingTimeSeconds</b></span><span class="t">integer</span><span class="meta">60 – 86400</span></li>
+              </ul>
+              <div class="spec-foot"><span>One of 358 CRDs in 26.8.2</span><a href="#c">Open schema →</a></div>
+            </aside>
+          </section>
+
+          <section class="band" aria-labelledby="rel-h">
+            <div class="band-head"><h2 id="rel-h">Releases</h2><a href="#c">All release changes →</a></div>
+            <div class="rail" id="rail"></div>
+          </section>
+
+          <section class="band" aria-labelledby="tools-h">
+            <div class="band-head"><h2 id="tools-h">Tools</h2></div>
+            <div class="tools">
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6"/></svg></span><b>Catalog</b><p>Every CRD with its versions, fields and status.</p><small>358 CRDs · 57 groups</small></a>
+              <a class="tool primary" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3.5 8.5 3 3 6-7"/></svg></span><b>Validate YAML</b><p>Check manifests against the release's schemas, with fixes.</p><small>Schema, Kubernetes and EDA rules</small></a>
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h6l3 3v9H4z"/><path d="M6 8h5M6 11h3"/></svg></span><b>Release Changes</b><p>New, removed and changed CRDs between versions.</p><small>26.4.3 → 26.8.1: <span class="delta add">+40</span> <span class="delta mod">~61</span> <span class="delta rem">−7</span></small></a>
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="m10 10 3 3"/></svg></span><b>Spec Search</b><p>Find any field, like vlanID or asnPool, across schemas.</p><small>Field-level search</small></a>
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h9l-2-2M13 11H4l2 2"/></svg></span><b>Compare releases</b><p>Side-by-side schema diff for one CRD or all of them.</p><small>Any two of 12 releases</small></a>
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><path d="M6 7.2 10 4.8M6 8.8l4 2.4"/></svg></span><b>Dependency Map</b><p>See which resources a CRD references and is used by.</p><small>From schema references</small></a>
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m5 4-3 4 3 4M11 4l3 4-3 4"/></svg></span><b>API Explorer</b><p>OpenAPI paths and schemas for core and app APIs.</p><small>Core and app APIs</small></a>
+              <a class="tool" href="#c"><span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h4a2 2 0 0 1 2 2v8a1.5 1.5 0 0 0-1.5-1.5H3zM13 3H9"/><path d="M13 3v8.5H9"/></svg></span><b>Docs</b><p>How each tool works, with diagrams.</p><small>Guides and architecture</small></a>
+            </div>
+          </section>
+
+          <footer class="footer-mock"><span>Unofficial reference built from public EDA CRDs and OpenAPI specs.</span><span>Data for 12 releases, 25.4.2 to 26.8.2</span></footer>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read">
+      <p class="eyebrow">Built</p>
+      <h2>The redesign running on the real site</h2>
+      <p class="lede">Screenshots from the production build after the change, at the same sizes as the "before" captures.</p>
+    </div>
+    <div class="before">
+      <figure class="shot">
+        <img src="__AFTER_LIGHT__" alt="New homepage at 1440 pixels wide, light theme" width="1440" height="900">
+        <figcaption>New homepage, 1440 × 900, light theme</figcaption>
+      </figure>
+      <div class="shots-side">
+        <figure class="shot">
+          <img src="__AFTER_DARK__" alt="New homepage, dark theme" width="1440" height="900">
+          <figcaption>Dark theme</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="__AFTER_MOBILE__" alt="New homepage on a phone" width="390" height="844" style="max-width:220px;margin:0 auto">
+          <figcaption>Phone, 390 px</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head read">
+      <p class="eyebrow">What changes</p>
+      <h2>Implementation outline</h2>
+    </div>
+    <div class="changes">
+      <div class="card">
+        <h3>Top menu: one row instead of two</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Now</th><th>Proposed</th></tr></thead>
+            <tbody>
+              <tr><td>CRD label + 6 links</td><td><b>CRDs</b> menu: Catalog, Spec Search, Dependency Map, Release Changes, Compare releases</td></tr>
+              <tr><td>API label + Explorer, Comparison</td><td><b>API</b> menu: API Explorer, Compare APIs</td></tr>
+              <tr><td>Validate YAML in the list</td><td>Highlighted button, always visible</td></tr>
+              <tr><td>HELP label + Docs</td><td><b>Docs</b> top-level link</td></tr>
+              <tr><td>Release only on some pages</td><td>Release switcher on every page</td></tr>
+              <tr><td>Search only on the homepage</td><td>"Jump to a CRD" box, opened with <code>/</code></td></tr>
+              <tr><td>"Resource Browser"</td><td>"EDA Resource Browser" with a Nokia EDA product line</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Phone: logo, release, theme and a menu button that opens the same three groups as a sheet.</p>
+      </div>
+      <div class="card">
+        <h3>Homepage: says what it is, then gets out of the way</h3>
+        <ul>
+          <li>A heading and one line with real counts (CRDs, API groups, releases) from the manifest.</li>
+          <li>Search as the main action, with popular kinds as shortcuts.</li>
+          <li>A live schema example of one CRD, so the first screen shows the product.</li>
+          <li>Releases as two version trains (v25, v26), with the latest marked and the latest change summary.</li>
+          <li>Eight tool tiles with one fact each, replacing the Quick actions list and the duplicate release card.</li>
+        </ul>
+        <p class="note">Kept: Nokia Pure fonts, the logo, light and dark themes, existing routes and URLs. The accessibility scan stays in CI.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const KINDS = [["ASPathSet","routingpolicies.eda.nokia.com"],["Banner","siteinfo.eda.nokia.com"],["BGPGroup","protocols.eda.nokia.com"],["BGPPeer","protocols.eda.nokia.com"],["BridgeDomain","services.eda.nokia.com"],["BridgeInterface","services.eda.nokia.com"],["Configlet","config.eda.nokia.com"],["DefaultRouter","routing.eda.nokia.com"],["Fabric","fabrics.eda.nokia.com"],["IngressPolicy","qos.eda.nokia.com"],["Interface","interfaces.eda.nokia.com"],["IPAllocationPool","core.eda.nokia.com"],["IRBInterface","services.eda.nokia.com"],["ManagementRouter","bootstrap.eda.nokia.com"],["NodeProfile","core.eda.nokia.com"],["NodeUser","core.eda.nokia.com"],["Policy","routingpolicies.eda.nokia.com"],["PrefixSet","filters.eda.nokia.com"],["PrefixSet","routingpolicies.eda.nokia.com"],["RoutedInterface","services.eda.nokia.com"],["Router","services.eda.nokia.com"],["TopoLink","core.eda.nokia.com"],["Topology","topologies.eda.nokia.com"],["TopoNode","core.eda.nokia.com"],["VirtualNetwork","services.eda.nokia.com"],["VLAN","services.eda.nokia.com"]];
+  const TRAINS = [["v26", ["26.4.1","26.4.2","26.4.3","26.8.1","26.8.2"]], ["v25", ["25.4.2","25.8.1","25.8.2","25.8.3","25.12.1","25.12.2","25.12.3"]]];
+  const LATEST = "26.8.2";
+  let current = LATEST;
+
+  const $ = (id) => document.getElementById(id);
+  const frame = $("frame"), mock = $("mock");
+
+  function setPressed(groupSel, btn) {
+    btn.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }
+  document.querySelectorAll("[data-device]").forEach((b) => b.tagName === "BUTTON" && b.addEventListener("click", () => {
+    frame.dataset.device = b.dataset.device; setPressed(null, b); closeAll();
+  }));
+  function setMode(mode) {
+    mock.dataset.mode = mode;
+    document.querySelectorAll("button[data-mode]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === mode)));
+  }
+  document.querySelectorAll("button[data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  $("mock-theme").addEventListener("click", () => setMode(mock.dataset.mode === "dark" ? "light" : "dark"));
+  if (matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light") setMode("dark");
+
+  function closeAll(except) {
+    document.querySelectorAll(".menu-btn[data-menu]").forEach((b) => {
+      if (b === except) return;
+      b.setAttribute("aria-expanded", "false"); $("menu-" + b.dataset.menu).hidden = true;
+    });
+    if (except !== $("rel-btn")) { $("rel-pop").hidden = true; $("rel-btn").setAttribute("aria-expanded", "false"); }
+  }
+  document.querySelectorAll(".menu-btn[data-menu]").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = b.getAttribute("aria-expanded") !== "true";
+    closeAll(b); b.setAttribute("aria-expanded", String(open)); $("menu-" + b.dataset.menu).hidden = !open;
+  }));
+  document.addEventListener("click", () => closeAll());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeAll(); results.hidden = true; } });
+
+  function renderRelPop() {
+    $("rel-pop").innerHTML = TRAINS.map(([t, vs]) => `<h4>${t}</h4>` + vs.slice().reverse().map((v) =>
+      `<button type="button" data-v="${v}" aria-current="${v === current}">${v}${v === LATEST ? '<span class="tag-latest">Latest</span>' : ""}</button>`).join("")).join("");
+  }
+  function renderRail() {
+    $("rail").innerHTML = TRAINS.map(([t, vs]) => `<div class="train"><b>${t.toUpperCase()}</b><div class="stops">` +
+      vs.map((v, i) => `${i ? '<span class="link" aria-hidden="true"></span>' : ""}<button type="button" class="stop" data-v="${v}" aria-current="${v === current}">${v}${v === LATEST ? ' <span class="tag-latest">Latest</span>' : ""}</button>`).join("") +
+      `</div></div>`).join("") +
+      `<p class="rail-note">Latest changes: <b>26.4.3 → 26.8.1</b> added <span class="delta add">40</span>, changed <span class="delta mod">61</span> and removed <span class="delta rem">7</span> CRDs. 26.8.2 has no CRD schema changes.</p>`;
+  }
+  function select(v) {
+    current = v;
+    $("rel-label").textContent = v; $("rel-tag").hidden = v !== LATEST;
+    $("hero-rel").textContent = `EDA ${v}` + (v === LATEST ? " · latest release" : "");
+    renderRelPop(); renderRail();
+  }
+  $("rel-btn").addEventListener("click", (e) => {
+    e.stopPropagation(); const pop = $("rel-pop"); const open = pop.hidden;
+    closeAll($("rel-btn")); pop.hidden = !open; $("rel-btn").setAttribute("aria-expanded", String(open));
+  });
+  $("rel-pop").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) { e.stopPropagation(); select(b.dataset.v); closeAll(); } });
+  $("rail").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) select(b.dataset.v); });
+
+  $("sheet-btn").addEventListener("click", (e) => {
+    e.stopPropagation(); const s = $("sheet"); s.hidden = !s.hidden; $("sheet-btn").setAttribute("aria-expanded", String(!s.hidden));
+  });
+
+  const input = $("hero-search"), results = $("hero-results");
+  function search(q) {
+    q = q.trim().toLowerCase();
+    if (!q) { results.hidden = true; input.setAttribute("aria-expanded", "false"); return; }
+    const hits = KINDS.filter(([k, g]) => k.toLowerCase().includes(q) || g.includes(q)).slice(0, 8);
+    results.innerHTML = hits.length
+      ? hits.map(([k, g], i) => `<a href="#c" role="option" class="${i ? "" : "on"}"><b>${k}</b><span>${g}</span></a>`).join("")
+      : `<a href="#c" role="option"><b>No CRD named "${q.replace(/[<>&"]/g, "")}"</b><span>Try Spec Search for fields</span></a>`;
+    results.hidden = false; input.setAttribute("aria-expanded", "true");
+  }
+  input.addEventListener("input", () => search(input.value));
+  input.addEventListener("click", (e) => e.stopPropagation());
+  document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", (e) => { e.stopPropagation(); input.value = c.textContent; search(c.textContent); input.focus(); }));
+  document.addEventListener("click", () => { results.hidden = true; });
+  document.querySelectorAll('.mock a[href="#c"], .brand').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
+
+  select(LATEST);
+})();
+</script>

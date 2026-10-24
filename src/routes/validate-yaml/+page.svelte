@@ -9,8 +9,8 @@
 	import type { CrdResource, EdaRelease, ReleasesConfig } from '$lib/structure';
 	import { fetchManifest, getManifestCache, prefetchManifest, type ManifestResource } from '$lib/manifest';
 	import { getLatestVersion } from '$lib/versions';
+	import { validateBundleOffThread } from '$lib/validate-bundle/validateOffThread';
 	import {
-		validateBundle,
 		formatFixSummary,
 		type FixSummary,
 		applySuggestedFix,
@@ -392,7 +392,7 @@
 		upgradeChecking = true;
 		try {
 			const manifest = (await fetchManifest(target.folder, manifestCache)) || [];
-			const targetResult = await validateBundle({
+			const targetResult = await validateBundleOffThread({
 				yamlInput: snapshot,
 				releaseFolder: target.folder,
 				releaseLabel: target.label,
@@ -588,7 +588,7 @@
 	async function revalidateFixIssues(yaml: string): Promise<BundleIssue[]> {
 		if (!release) return [];
 		const manifest = (await fetchManifest(release.folder, manifestCache)) || [];
-		const validation = await validateBundle({
+		const validation = await validateBundleOffThread({
 			yamlInput: yaml,
 			releaseFolder: release.folder,
 			releaseLabel: release.label,
@@ -948,7 +948,7 @@
 			if (generation !== validationGeneration) return;
 
 			manifestResources = manifest;
-			const nextResult = await validateBundle({
+			const nextResult = await validateBundleOffThread({
 				yamlInput,
 				releaseFolder: release.folder,
 				releaseLabel: release.label,

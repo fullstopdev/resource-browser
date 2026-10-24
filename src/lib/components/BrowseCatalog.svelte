@@ -1,6 +1,5 @@
 <script lang="ts">
 	import AppHeader from '$lib/components/AppHeader.svelte';
-	import HeaderReleaseSelect from '$lib/components/HeaderReleaseSelect.svelte';
 	import ResourceModal from '$lib/components/ResourceModal.svelte';
 	import type { ResourceViewMode } from '$lib/resourceView';
 	import { displayGroup, displayKind } from '$lib/resourceSearch';
@@ -11,7 +10,6 @@
 	export let allResources: CrdResource[] = [];
 	export let selectedRelease: EdaRelease;
 	export let allReleases: EdaRelease[] = [];
-	export let onReleaseChange: (release: EdaRelease) => void | Promise<void> = () => {};
 	export let onExitBrowse: () => void = () => {};
 	/** Open ResourceModal for this CRD when catalog loads (from URL ?crd=). */
 	export let initialCrd: string | null = null;
@@ -137,25 +135,13 @@
 <div
 	class="page-shell flex min-h-full min-w-0 flex-col overflow-x-hidden bg-gray-50 text-sm text-gray-900 dark:text-gray-100"
 >
+	<!-- The header's release switcher changes the catalog's release. -->
 	<AppHeader
 		onLogoClick={(e) => {
 			e.preventDefault();
 			onExitBrowse();
 		}}
-	>
-		<svelte:fragment slot="actions">
-			<HeaderReleaseSelect
-				id="catalog-release"
-				value={selectedRelease.name}
-				releases={allReleases}
-				onChange={(name) => {
-					const release = allReleases.find((r) => r.name === name);
-					if (release) void onReleaseChange(release);
-				}}
-				ariaLabel="Select EDA release"
-			/>
-		</svelte:fragment>
-	</AppHeader>
+	/>
 
 	<!-- Toolbar -->
 	<div
@@ -315,7 +301,7 @@
 												{latest}
 											</span>
 											{#if resDef.versions.length > 1}
-												<span class="ml-2 text-xs text-slate-400">
+												<span class="ml-2 text-xs text-slate-500 dark:text-slate-400">
 													+{resDef.versions.length - 1} more
 												</span>
 											{/if}

@@ -1,0 +1,47 @@
+name: AI Fix eval
+
+# Sends the AI Fix eval cases (src/lib/ai/eval) to a deployment's /api/ai and reports the pass
+# rate in the job summary. Manual, because uncached cases use Workers AI quota; run it after a
+# preview or production deploy, or when trying another model (AI_MODEL_FIX).
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Deployment to test (production or a preview URL)
+        default: https://eda-resource-browser.pages.dev
+        required: true
+      only:
+        description: Only cases whose id contains this text, or of this issue kind (enum, type, required, unknownField, syntax)
+        required: false
+      min_pass:
+        description: Minimum pass rate (0-1) for the job to succeed
+        default: '0.85'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Run eval
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          ONLY: ${{ inputs.only }}
+          MIN_PASS: ${{ inputs.min_pass }}
+        run: |
+          case "$BASE_URL" in
+            https://eda-resource-browser.pages.dev|https://*.eda-resource-browser.pages.dev) ;;
+            *) echo "base_url must be this project's pages.dev deployment" >&2; exit 1 ;;
+          esac
+          args=(--base-url "$BASE_URL" --min-pass "$MIN_PASS")
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          npm run eval:fix -- "${args[@]}"

@@ -62,7 +62,7 @@ export function renderDocs(markdown: string): RenderedDocs {
 				if (depth === 2 || depth === 3) {
 					toc.push({ id, text: inner.replace(/<[^>]+>/g, ''), depth });
 				}
-				return `<h${depth} id="${id}"><a class="docs-anchor" href="#${id}" aria-hidden="true">#</a>${inner}</h${depth}>\n`;
+				return `<h${depth} id="${id}"><a class="docs-anchor" href="#${id}" aria-hidden="true" tabindex="-1">#</a>${inner}</h${depth}>\n`;
 			},
 			link({ href, title, tokens }: Tokens.Link) {
 				const target = rewriteDocsLink(href);

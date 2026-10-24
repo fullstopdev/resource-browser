@@ -35,6 +35,17 @@ Simple fixes start on the default model; batched, relocation, migration and deep
 on the fix model. Output token limits are sized from the document the model must return (about
 1.3× its tokens, at most 4,096). Timeouts are 90 s (120 s for fixes).
 
+Model trials on the 61-case eval (October 2026): `@cf/qwen/qwen2.5-coder-32b-instruct` as the fix
+model scored the same as the 70B default, and `@cf/meta/llama-4-scout-17b-16e-instruct` for both
+tiers scored one case lower at about twice the latency, so the defaults stay.
+
+## AI Gateway
+
+Set `AI_GATEWAY_ID` (a gateway in the same Cloudflare account) to send every Workers AI call through
+[AI Gateway](https://developers.cloudflare.com/ai-gateway/) for request logs, token and cost
+analytics, and optional rate limits. The gateway's own cache is skipped (`skipCache`): only fixes
+that pass verification are cached, in KV. Without the variable the app calls Workers AI directly.
+
 ## A fix request, step by step
 
 ```mermaid
@@ -128,16 +139,26 @@ latency. Read them in **Workers & Pages → your project → Logs** to track the
 
 ## Measuring fix quality
 
-`src/lib/ai/eval/fixCases.ts` holds 20 real cases (enum, type, required, unknown field, syntax, and a
-long document) built on the 26.8.2 schemas, each with an independent check. Run them against any
-deployment:
+`src/lib/ai/eval/` holds 61 cases built on the 26.8.2 schemas, each with an independent check of the
+returned document:
+
+- 20 hand-written ones (enum, type, required, unknown field, syntax, and a long document sent as an
+  excerpt);
+- 41 made by breaking the curated docs.eda.dev examples (`fixCasesCurated.ts`): Fabric, BGP peers
+  and groups, default routers, routing policy, services, topology, and multi-issue documents where
+  only the reported issue may change. A unit test checks that the validator reports exactly each
+  case's message and field path.
+
+Run them against any deployment:
 
 ```bash
-npm run eval:fix -- --base-url https://<preview>.eda-resource-browser.pages.dev
+npm run eval:fix -- --base-url https://<preview>.eda-resource-browser.pages.dev --min-pass 0.85
 ```
 
 The report lists pass/fail per case, latency, cache hits and retries. Use it before changing a
-model or a prompt.
+model or a prompt. On GitHub, **Actions → AI Fix eval → Run workflow** runs it against production
+or a preview URL and writes the table to the job summary. Uncached cases use Workers AI quota (a
+full uncached run is a sizeable share of the free daily allowance).
 
 ## Feature flags
 

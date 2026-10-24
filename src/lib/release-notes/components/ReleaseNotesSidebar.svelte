@@ -55,7 +55,7 @@
 								>
 							{/if}
 						</span>
-						<span class="block text-[0.68rem] text-slate-500 dark:text-slate-400"
+						<span class="block text-[0.68rem] text-slate-600 dark:text-slate-400"
 							>{entry.fromVer} → {entry.toVer}</span
 						>
 						{#if hasVisibleChanges(summary)}
@@ -80,7 +80,7 @@
 								{/if}
 							</span>
 						{:else}
-							<span class="block text-[0.65rem] text-slate-400 dark:text-slate-500"
+							<span class="block text-[0.65rem] text-slate-600 dark:text-slate-400"
 								>No CRD changes</span
 							>
 						{/if}

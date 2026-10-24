@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import yaml from 'js-yaml';
 import { buildFixInput } from '../fixInput';
-import { FIX_EVAL_CASES } from './fixCases';
+import { validateBundle } from '$lib/validate-bundle';
+import { FIX_EVAL_CASES, FIX_EVAL_RELEASE } from './fixCases';
+import { CURATED_FIX_EVAL_CASES } from './fixCasesCurated';
 
 describe('AI fix eval cases', () => {
 	it('have unique ids', () => {
@@ -22,4 +25,42 @@ describe('AI fix eval cases', () => {
 		const long = FIX_EVAL_CASES.find((c) => c.id === 'enum-long-interface-excerpt')!;
 		expect(buildFixInput(long.yaml, long.fieldPath).mode).toBe('excerpt');
 	});
+});
+
+describe('curated AI fix eval cases', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('bring the set to about 60 cases', () => {
+		expect(FIX_EVAL_CASES.length).toBeGreaterThanOrEqual(55);
+	});
+
+	it.each(CURATED_FIX_EVAL_CASES.map((c) => [c.id, c]))(
+		'%s: the validator reports exactly this issue on 26.8.2',
+		async (_, c) => {
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(async (input: RequestInfo | URL) => {
+					try {
+						return new Response(await readFile(`static${String(input)}`, 'utf8'));
+					} catch {
+						return new Response(null, { status: 404 });
+					}
+				})
+			);
+			const manifest = JSON.parse(
+				await readFile(`static/resources/${FIX_EVAL_RELEASE}/manifest.json`, 'utf8')
+			);
+			const result = await validateBundle({
+				yamlInput: c.yaml,
+				releaseFolder: `resources/${FIX_EVAL_RELEASE}`,
+				releaseLabel: `EDA ${FIX_EVAL_RELEASE}`,
+				manifest
+			});
+			const reported = result.issues.filter((i) => i.severity !== 'info');
+			expect(
+				reported.some((i) => i.fieldPath === c.fieldPath && i.message.startsWith(c.message)),
+				`the validator reports something else:\n${reported.map((i) => `${i.fieldPath} :: ${i.message}`).join('\n')}`
+			).toBe(true);
+		}
+	);
 });

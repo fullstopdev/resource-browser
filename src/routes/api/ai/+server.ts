@@ -55,6 +55,7 @@ import {
 	FIX_AI_REQUEST_TIMEOUT_MS,
 	fixMaxTokensForOutput,
 	modelForTier,
+	resolveAiGateway,
 	resolveAiModels,
 	selectFixModel
 } from '$lib/ai/runWorkersAI';
@@ -222,6 +223,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 
 	const ai = platform?.env?.AI;
 	const models = resolveAiModels(privateEnv);
+	const gateway = resolveAiGateway(privateEnv);
 
 	if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) {
 		return json({ error: 'Request body too large' }, { status: 413 });
@@ -496,7 +498,8 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 						maxTokens,
 						temperature: DETERMINISTIC_TEMPERATURE,
 						seed: DETERMINISTIC_SEED,
-						timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS
+						timeoutMs: FIX_AI_REQUEST_TIMEOUT_MS,
+						gateway
 					}),
 				toFullDocument: (fixedYaml) =>
 					input.mode === 'excerpt' ? spliceFixedExcerpt(input, fixedYaml) : fixedYaml,
@@ -723,7 +726,8 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 				model: models.default,
 				maxTokens: ACTION_MAX_TOKENS[action] ?? 512,
 				temperature: DETERMINISTIC_TEMPERATURE,
-				seed: DETERMINISTIC_SEED
+				seed: DETERMINISTIC_SEED,
+				gateway
 			}
 		);
 

@@ -124,6 +124,19 @@ Still open from this area: namespace rule for cluster-scoped kinds (static data 
 - SEO: the catalog page server-renders each CRD's real description and schema.org JSON-LD.
 - Curated Insert example: content-quality test (no shell/templates/placeholders/lab names, namespace eda); broken TopoNode replaced via the docs AI search.
 
+## Resolved (roadmap items 9–12, 14)
+
+- Validation runs in a Web Worker (`validation.worker.ts`), with a main-thread fallback.
+- AI Fix eval grown to 61 cases (Fabric, BGP, routing policy, multi-issue), with a manual GitHub
+  Actions workflow and a pass-rate threshold. It found a real guard bug: verified fixes for missing
+  required fields (issue path = parent object) and for list items (`links.0` vs `links[0]`) were
+  rejected. Fixed.
+- AI Gateway support (`AI_GATEWAY_ID`); model trials kept the current defaults.
+- Accessibility: an axe scan (WCAG 2.1 AA, serious and critical) of the catalog, a CRD page,
+  Validate YAML, docs and release notes runs in CI; contrast, ARIA and list-structure issues fixed.
+- Known stale e2e suites outside CI: `openapi`, `demo` and `release-notes-deprecated` still expect
+  release 26.4.3 and a removed background image.
+
 ## Recommendations (by priority)
 
 | #   | Action                                                                                                | Effort | Benefit                             |

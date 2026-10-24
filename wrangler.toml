@@ -17,3 +17,7 @@ remote = true
 binding = "AI_CACHE"
 id = "06b84b44600849429b8261860de24a8d"
 preview_id = "31bfde8f0dd04659a33f5cedac0ab9e9"
+
+# Route Workers AI through AI Gateway (logs, analytics). See /docs/ai.
+[vars]
+AI_GATEWAY_ID = "default"
