@@ -31,7 +31,6 @@
 
 	$: openApiReleaseName = resolveOpenApiReleaseName(openApiReleases, $selectedRelease.name);
 	$: allReleases = groupedReleases.flatMap((g) => g.releases);
-	$: oldestRelease = allReleases[allReleases.length - 1];
 	$: crdCount = $crdMetaStore.length;
 	$: groupCount = new Set($crdMetaStore.map((r) => r.group ?? r.name.split('.').slice(1).join('.')))
 		.size;
@@ -508,13 +507,6 @@
 			</ul>
 		</section>
 
-		<footer class="rb-home-foot">
-			<span>Unofficial reference built from public EDA CRDs and OpenAPI specs.</span>
-			{#if oldestRelease}<span
-					>Data for {allReleases.length} releases, {oldestRelease.name} to {allReleases[0]
-						?.name}</span
-				>{/if}
-		</footer>
 	</main>
 </div>
 
@@ -1019,16 +1011,6 @@
 		.rb-tool-desc {
 			display: none;
 		}
-	}
-	.rb-home-foot {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: space-between;
-		gap: 0.5rem 1rem;
-		padding-top: 1.25rem;
-		border-top: 1px solid var(--rb-line);
-		font-size: 0.8rem;
-		color: var(--rb-ink-3);
 	}
 	.rb-home :focus-visible {
 		outline: 2px solid var(--rb-signal);

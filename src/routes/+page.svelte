@@ -779,8 +779,6 @@ import {
 	</div>
 
 	{#if !showBrowseMode || selectedResource}
-		<div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-			<PageCredits />
-		</div>
+		<PageCredits />
 	{/if}
 </div>

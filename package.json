@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0",
 		"dev:ai": "PUBLIC_FIX_AI_ENABLED=true npm run build:cloudflare && wrangler pages dev .svelte-kit/cloudflare --ai AI --compatibility-date=2025-06-01 --compatibility-flag=nodejs_compat",
-		"build": "vite build",
+		"build": "vite build && node scripts/check-routes.mjs",
 		"build:vercel": "ADAPTER=vercel vite build",
 		"build:cloudflare": "node scripts/guard-static-dev-artifacts.mjs && npm run generate:all && PUBLIC_FIX_AI_ENABLED=true ADAPTER=cloudflare vite build && node scripts/prune-cloudflare-output.mjs",
 		"prune:cloudflare": "node scripts/prune-cloudflare-output.mjs",
