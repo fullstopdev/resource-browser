@@ -12,14 +12,19 @@ each one in a detail window with two tabs: **Schema** and **Compare**.
 
 ## Using the catalog
 
-- **Search** from the large search box. Arrow keys move through suggestions, <kbd>Enter</kbd>
-  opens one, <kbd>Esc</kbd> closes the list.
+- **API groups.** The sidebar lists the release's API groups (`aaa`, `core`, `protocols`,
+  `services`…) with their CRD counts. The list is built from the release's CRD manifest, so it
+  follows whatever groups that release has. Pick one to see only its CRDs; on a phone the groups
+  are a drop-down.
+- **Search** (<kbd>/</kbd>) always covers every CRD of the release, by kind, name or group, even
+  with a group selected.
 - **Filter** between _All_, _Config_ and _State_ CRDs. State CRDs (names containing `states`, such
   as `interfacestates.interfaces.eda.nokia.com`) hold status reported by EDA rather than
   configuration you write.
-- **Browse** the full table, sortable by kind, group or version. Deprecated versions carry a badge.
-- **Switch releases** with the release buttons: the three newest releases of each release train
-  are shown, the rest are under _more_.
+- **The table** is grouped by API group: kind, scope, versions (the latest first; deprecated ones
+  struck through) and full CRD name. Entries the manifest lists without versions, or without a
+  group, are still shown (under _other_).
+- **Switch releases** with the header's release switcher or from the homepage.
 
 ## The CRD window
 

@@ -10,10 +10,31 @@ you look things up: by resource (BridgeDomain, BGPPeer, Fabric…) and by what y
 
 ## Using it
 
-1. **Overview** (`/openapi`): how to call the API (paths, bearer token, namespaces), the platform
-   API's sections, and every application API with its resources.
-2. **Find a resource**: type in the sidebar search (for example `bgp` or `ping`) or open an API in
-   the sidebar. <kbd>/</kbd> focuses the search.
+1. **Overview** (`/openapi`): a search across every resource and API, the **categories** as tiles,
+   popular resources, every API from A to Z (including the **API Server**, `/core`), and how to call
+   the API (paths, bearer token, namespaces).
+2. **Category** (`?category=routing`): every resource and workflow of the category's APIs in one
+   table, with its scope, number of actions and collection path. Filter it, or show only resources or
+   only workflows.
+
+   | Category                 | APIs                                                             |
+   | ------------------------ | ---------------------------------------------------------------- |
+   | Core platform            | API Server (`/core`), Core, Core Extensions                      |
+   | Fabric and topology      | Fabrics, Topologies, Interface, Operating System, Components, …  |
+   | Routing and protocols    | Protocols, Routing, Routing Policies, MPLS, QoS, OAM, Filters    |
+   | Services                 | Services, Micro Segmentation                                     |
+   | Telemetry and export     | Kafka, NATS, InfluxDB, OTLP and Prometheus exporters, Logging, … |
+   | Alerts and notifications | Notifier, Pager Duty, Discord, ServiceNow                        |
+   | Integrations             | Cloud Connect, VMware, Nutanix, NSX, GitHub, GitLab, NetBox, AI  |
+   | Access and security      | AAA, Security, Cert Checker, Management                          |
+   | System and apps          | Configuration, Store, Bootstrap, Environment, Support            |
+
+   The mapping lives in `src/lib/openapi/apiCategories.ts`; a unit test fails if an API of any
+   synced release has no category.
+
+   The sidebar lists the categories; the current one opens to its APIs, and the current API to its
+   resources. Its search (<kbd>/</kbd>) finds any resource, for example `bgp` or `ping`.
+
 3. **Resource page**: the kind, its API group and version, its scope, links to the CRD schema and to
    Validate YAML, and its actions in plain words:
 
@@ -30,7 +51,7 @@ you look things up: by resource (BridgeDomain, BGPPeer, Fabric…) and by what y
 
 The release comes from the header's release switcher and is kept when you switch.
 
-Links: `?spec=<api id>&section=<resource plural or platform section>`, and `#operationId` to open an
+Links: `?category=<id>`, `?spec=<api id>&section=<resource plural or platform section>`, and `#operationId` to open an
 action. Older links (`?spec=…#operationId`, `tab=schemaGraph`) still open the matching page.
 
 ## How it loads

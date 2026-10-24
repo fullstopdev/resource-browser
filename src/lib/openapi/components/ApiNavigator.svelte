@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ApiIndex } from '$lib/openapi/apiReference';
-	import { apiCategory, groupApisByCategory } from '$lib/openapi/apiCategories';
+	import { apiCategory, groupApisByCategory, searchApiIndex } from '$lib/openapi/apiCategories';
 
 	interface Props {
 		index: ApiIndex | null;
@@ -26,66 +26,21 @@
 		onNavigate
 	}: Props = $props();
 
+	const OVERVIEW_ICON = 'M4 5h7v6H4zM13 5h7v14h-7zM4 13h7v6H4z';
+
 	let query = $state('');
 	let activeHit = $state(0);
-	let expanded = $state<Record<string, boolean>>({});
 
 	const groups = $derived(groupApisByCategory(index?.apis ?? []));
 	const currentApi = $derived(index?.apis.find((a) => a.id === apiId) ?? null);
-	const currentCategory = $derived(currentApi ? apiCategory(currentApi) : category);
-	let catOpen = $state<Record<string, boolean>>({});
-
-	function isCatOpen(id: string): boolean {
-		return catOpen[id] ?? id === currentCategory;
-	}
-
-	function toggleCat(id: string) {
-		catOpen = { ...catOpen, [id]: !isCatOpen(id) };
-	}
-
-	type Hit = { apiId: string; apiTitle: string; key: string; title: string; type: string };
-	const hits = $derived.by((): Hit[] => {
-		const q = query.trim().toLowerCase();
-		if (!q || !index) return [];
-		const out: Array<Hit & { rank: number }> = [];
-		for (const api of index.apis) {
-			const apiMatch = `${api.title} ${api.group}`.toLowerCase().includes(q);
-			for (const s of api.sections) {
-				const t = s.title.toLowerCase();
-				const rank = t === q ? 0 : t.startsWith(q) ? 1 : t.includes(q) ? 2 : apiMatch ? 3 : -1;
-				if (rank >= 0)
-					out.push({
-						apiId: api.id,
-						apiTitle: api.title,
-						key: s.key,
-						title: s.title,
-						type: s.type,
-						rank
-					});
-			}
-		}
-		return out.sort((a, b) => a.rank - b.rank || a.title.localeCompare(b.title)).slice(0, 12);
-	});
+	/** The open category: the current API's, or the one shown on the overview. */
+	const openCategory = $derived(currentApi ? apiCategory(currentApi) : category);
+	const hits = $derived(searchApiIndex(index?.apis ?? [], query, 12));
 
 	$effect(() => {
 		hits;
 		activeHit = 0;
 	});
-
-	function isOpen(id: string): boolean {
-		return expanded[id] ?? id === apiId;
-	}
-
-	function toggle(id: string) {
-		expanded = { ...expanded, [id]: !isOpen(id) };
-	}
-
-	const allOpen = $derived(groups.length > 0 && groups.every((g) => isCatOpen(g.category.id)));
-
-	function toggleAll() {
-		const open = !allOpen;
-		catOpen = Object.fromEntries(groups.map((g) => [g.category.id, open]));
-	}
 
 	function searchKeydown(event: KeyboardEvent) {
 		if (event.key === 'ArrowDown' && hits.length) {
@@ -108,12 +63,14 @@
 	}
 </script>
 
+{#snippet icon(path: string)}
+	<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d={path} /></svg>
+{/snippet}
+
 <nav class="nav" aria-label="API reference">
 	<div class="search">
 		<label for="api-search" class="sr-only">Find a resource or API</label>
-		<svg viewBox="0 0 24 24" aria-hidden="true"
-			><path d="M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" /></svg
-		>
+		{@render icon('M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z')}
 		<input
 			id="api-search"
 			type="search"
@@ -152,71 +109,52 @@
 	</div>
 
 	<a
-		class="overview"
+		class="row overview"
 		href={overviewHref}
-		aria-current={!apiId ? 'page' : undefined}
-		onclick={onNavigate}>API overview</a
+		aria-current={!apiId && !category ? 'page' : undefined}
+		onclick={onNavigate}>{@render icon(OVERVIEW_ICON)}<span>API overview</span></a
 	>
 
-	<div class="heading">
-		<span>Categories</span>
-		<button type="button" class="expand-all" onclick={toggleAll}
-			>{allOpen ? 'Collapse all' : 'Expand all'}</button
-		>
-	</div>
+	<p class="heading">Categories</p>
 	<ul class="cats">
 		{#each groups as g (g.category.id)}
-			{@const open = isCatOpen(g.category.id)}
-			<li class="cat" class:is-current={g.category.id === currentCategory}>
-				<div class="cat-row">
-					<button
-						type="button"
-						class="cat-toggle"
-						aria-expanded={open}
-						aria-controls="api-cat-{g.category.id}"
-						aria-label="{open ? 'Collapse' : 'Expand'} {g.category.title}"
-						onclick={() => toggleCat(g.category.id)}
+			{@const open = g.category.id === openCategory}
+			<li>
+				<a
+					class="row cat"
+					class:is-open={open}
+					href={categoryHref(g.category.id)}
+					aria-current={!apiId && category === g.category.id ? 'page' : undefined}
+					onclick={onNavigate}
+				>
+					{@render icon(g.category.icon)}<span>{g.category.title}</span><small
+						>{g.apis.length}</small
 					>
-						<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
-					</button>
-					<a
-						class="cat-link"
-						href={categoryHref(g.category.id)}
-						aria-current={!apiId && category === g.category.id ? 'page' : undefined}
-						onclick={onNavigate}
-					>
-						<span>{g.category.title}</span><span class="count">{g.apis.length}</span>
-					</a>
-				</div>
+				</a>
 				{#if open}
-					<ul class="list" id="api-cat-{g.category.id}">
+					<ul class="apis">
 						{#each g.apis as api (api.id)}
-							<li class="api">
-								<button
-									type="button"
-									class="api-toggle"
-									aria-expanded={isOpen(api.id)}
-									aria-controls="api-{api.id}"
-									onclick={() => toggle(api.id)}
+							{@const isCurrent = api.id === apiId}
+							<li>
+								<a
+									class="api"
+									class:is-current={isCurrent}
+									href={href(api.id)}
+									aria-current={isCurrent && !sectionKey ? 'page' : undefined}
+									onclick={onNavigate}
+									><span>{api.title}</span><small>{api.sections.length}</small></a
 								>
-									<span class="api-name">{api.platform ? 'Platform API' : api.title}</span>
-									<span class="count">{api.sections.length}</span>
-									<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
-								</button>
-								{#if isOpen(api.id)}
-									<ul class="sub" id="api-{api.id}">
+								{#if isCurrent}
+									<ul class="sections">
 										{#each api.sections as s (s.key)}
 											<li>
 												<a
 													href={href(api.id, s.key)}
-													aria-current={apiId === api.id && sectionKey === s.key
-														? 'page'
-														: undefined}
+													aria-current={sectionKey === s.key ? 'page' : undefined}
 													onclick={onNavigate}
 												>
 													<span>{s.title}</span>
-													{#if s.type === 'workflow'}<span class="tag">workflow</span
-														>{:else if api.platform}<span class="count">{s.actions}</span>{/if}
+													{#if s.type === 'workflow'}<span class="tag">workflow</span>{/if}
 												</a>
 											</li>
 										{/each}
@@ -234,33 +172,41 @@
 <style>
 	.nav {
 		display: grid;
-		gap: 0.375rem;
+		gap: 0.25rem;
 		align-content: start;
 		font-family: var(--rb-font);
 	}
 
-	.search {
-		position: relative;
-		margin-bottom: 0.375rem;
+	.i {
+		flex: none;
+		width: 1.125rem;
+		height: 1.125rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
-	.search svg {
+	.search {
+		position: relative;
+		margin-bottom: 0.5rem;
+	}
+
+	.search > .i {
 		position: absolute;
 		left: 0.625rem;
 		top: 0.6875rem;
 		width: 1rem;
 		height: 1rem;
-		fill: none;
-		stroke: var(--rb-ink-3);
-		stroke-width: 1.8;
-		stroke-linecap: round;
+		color: var(--rb-ink-3);
 		pointer-events: none;
 	}
 
 	.search input {
 		width: 100%;
 		height: 2.375rem;
-		padding: 0 2rem 0 2rem;
+		padding: 0 2rem;
 		border: 1px solid var(--rb-line-strong);
 		border-radius: 0.5rem;
 		background: var(--rb-surface);
@@ -332,215 +278,131 @@
 		color: var(--rb-ink-3);
 	}
 
-	.overview {
-		display: block;
-		padding: 0.5rem 0.625rem;
-		border: 1px solid var(--rb-line);
-		border-radius: 0.5rem;
-		background: var(--rb-surface);
-		color: var(--rb-ink);
-		font-weight: 600;
-		font-size: 0.85rem;
-		text-decoration: none;
-	}
-
-	.overview[aria-current='page'] {
-		border-color: var(--rb-signal);
-		color: var(--rb-signal);
-	}
-
 	.heading {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		margin: 0.75rem 0.5rem 0.125rem;
+		margin: 1rem 0.625rem 0.25rem;
 		font: 600 0.66rem var(--rb-font-mono);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--rb-ink-3);
 	}
 
+	ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
 	.cats {
 		display: grid;
-		gap: 0.125rem;
-		margin: 0;
-		padding: 0;
-		list-style: none;
+		gap: 0.0625rem;
 	}
 
-	.cat-row {
+	.row {
 		display: grid;
-		grid-template-columns: 1.75rem minmax(0, 1fr);
+		grid-template-columns: 1.125rem minmax(0, 1fr) auto;
 		align-items: center;
-	}
-
-	.cat-toggle {
-		display: grid;
-		place-items: center;
-		width: 1.75rem;
-		height: 2.125rem;
-		padding: 0;
-		border: 0;
-		border-radius: 0.375rem;
-		background: none;
-		cursor: pointer;
-	}
-
-	.cat-toggle:hover {
-		background: var(--rb-raised);
-	}
-
-	.cat-toggle svg {
-		width: 0.75rem;
-		height: 0.75rem;
-		fill: none;
-		stroke: var(--rb-ink-3);
-		stroke-width: 1.6;
-		transition: transform 0.15s;
-	}
-
-	.cat-toggle[aria-expanded='true'] svg {
-		transform: rotate(90deg);
-	}
-
-	.cat-link {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.5rem;
-		min-height: 2.125rem;
-		padding: 0.25rem 0.5rem 0.25rem 0.25rem;
-		border-radius: 0.375rem;
-		color: var(--rb-ink);
-		font: 600 0.88rem var(--rb-font);
-		text-decoration: none;
-	}
-
-	.cat-link:hover {
-		background: var(--rb-raised);
-	}
-
-	.cat-link[aria-current='page'] {
-		background: var(--rb-signal-soft);
-		color: var(--rb-signal);
-	}
-
-	.cat > .list {
-		margin: 0 0 0.375rem 0.875rem;
-		padding-left: 0.375rem;
-		border-left: 1px solid var(--rb-line);
-	}
-
-	.list,
-	.sub {
-		display: grid;
-		gap: 1px;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.sub {
-		margin: 0.125rem 0 0.375rem 0.75rem;
-		padding-left: 0.5rem;
-		border-left: 1px solid var(--rb-line);
-	}
-
-	.list a,
-	.api-toggle {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 0.5rem;
-		width: 100%;
-		min-height: 2rem;
-		padding: 0.3125rem 0.5rem;
-		border: 0;
-		border-radius: 0.375rem;
-		background: none;
+		gap: 0.625rem;
+		min-height: 2.25rem;
+		padding: 0.375rem 0.625rem;
+		border-radius: 0.4375rem;
 		color: var(--rb-ink-2);
-		font: 0.86rem var(--rb-font);
-		text-align: left;
+		font-size: 0.875rem;
+		font-weight: 500;
 		text-decoration: none;
-		cursor: pointer;
 	}
 
-	.list a:hover,
-	.api-toggle:hover {
+	.overview {
+		color: var(--rb-ink);
+		font-weight: 600;
+	}
+
+	.row:hover {
 		background: var(--rb-raised);
 		color: var(--rb-ink);
 	}
 
-	.list a[aria-current='page'] {
+	.row .i {
+		color: var(--rb-ink-3);
+	}
+
+	.cat.is-open {
+		color: var(--rb-ink);
+		font-weight: 600;
+	}
+
+	.row[aria-current='page'] {
 		background: var(--rb-signal-soft);
 		color: var(--rb-signal);
 		font-weight: 600;
 	}
 
-	.api-toggle {
-		font-weight: 500;
-		color: var(--rb-ink);
-	}
-
-	.api-toggle[aria-expanded='true'] {
-		font-weight: 600;
-	}
-
-	.api-toggle svg {
-		width: 0.75rem;
-		height: 0.75rem;
-		flex-shrink: 0;
-		fill: none;
-		stroke: var(--rb-ink-3);
-		stroke-width: 1.6;
-		transition: transform 0.15s;
-	}
-
-	.api-toggle[aria-expanded='true'] svg {
-		transform: rotate(90deg);
-	}
-
-	.expand-all {
-		padding: 0;
-		border: 0;
-		background: none;
+	.row[aria-current='page'] .i,
+	.cat.is-open .i {
 		color: var(--rb-signal);
-		font: 600 0.66rem var(--rb-font-mono);
-		letter-spacing: 0.04em;
-		text-transform: none;
-		cursor: pointer;
 	}
 
-	.expand-all:hover {
-		text-decoration: underline;
-	}
-
-	.api-name {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.count {
+	small {
 		font: 0.72rem var(--rb-font-mono);
 		color: var(--rb-ink-3);
 	}
 
+	.apis {
+		margin: 0.125rem 0 0.5rem 1.4375rem;
+		padding-left: 0.625rem;
+		border-left: 1px solid var(--rb-line);
+	}
+
+	.api,
+	.sections a {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		min-height: 1.875rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 0.375rem;
+		color: var(--rb-ink-2);
+		font-size: 0.85rem;
+		text-decoration: none;
+	}
+
+	.api:hover,
+	.sections a:hover {
+		background: var(--rb-raised);
+		color: var(--rb-ink);
+	}
+
+	.api.is-current {
+		color: var(--rb-ink);
+		font-weight: 600;
+	}
+
+	.api[aria-current='page'],
+	.sections a[aria-current='page'] {
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font-weight: 600;
+	}
+
+	.sections {
+		margin: 0.125rem 0 0.375rem 0.5rem;
+		padding-left: 0.5rem;
+		border-left: 1px solid var(--rb-line);
+	}
+
+	.sections a {
+		font-size: 0.82rem;
+	}
+
 	.tag {
-		font: 600 0.6rem var(--rb-font-mono);
-		text-transform: uppercase;
+		font: 600 0.58rem var(--rb-font-mono);
 		letter-spacing: 0.04em;
+		text-transform: uppercase;
 		color: var(--rb-ink-3);
 	}
 
-	.nav :focus-visible {
+	.nav a:focus-visible {
 		outline: 2px solid var(--rb-signal);
 		outline-offset: -2px;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.cat-toggle svg,
-		.api-toggle svg {
-			transition: none;
-		}
 	}
 </style>

@@ -1,0 +1,198 @@
+<title>EDA API Reference</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f6f7f9;--surface:#fff;--raised:#f0f2f5;--line:#e3e6eb;--line-strong:#cdd2da;--ink:#0f1726;--ink-2:#3a4456;--ink-3:#6a7385;--signal:#1450d8;--signal-soft:#e8effd;--signal-ink:#fff;--ok:#0e7a4a;
+--font:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c111a;--surface:#121926;--raised:#1a2232;--line:#232d3f;--line-strong:#344157;--ink:#e8edf5;--ink-2:#b4bdcc;--ink-3:#8590a3;--signal:#6c9bff;--signal-soft:#18264a;--signal-ink:#0c111a;--ok:#4cc68b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0c111a;--surface:#121926;--raised:#1a2232;--line:#232d3f;--line-strong:#344157;--ink:#e8edf5;--ink-2:#b4bdcc;--ink-3:#8590a3;--signal:#6c9bff;--signal-soft:#18264a;--signal-ink:#0c111a;--ok:#4cc68b;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font)}
+a{color:inherit}
+.note{padding-block:.75rem;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--signal-soft);color:var(--ink-2);font-size:.85rem;border-bottom:1px solid var(--line)}
+.note b{color:var(--ink)}
+.note button{margin-left:.5rem;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:6px;padding:.15rem .6rem;font:600 .8rem var(--font);cursor:pointer}
+.top{display:flex;align-items:center;gap:1.5rem;height:56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.top b{font-weight:700}.top span{color:var(--ink-3);font-size:.85rem}
+.shell{display:grid;grid-template-columns:minmax(0,1fr);max-width:90rem;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media(min-width:1000px){.shell{grid-template-columns:16.5rem minmax(0,1fr);gap:2.5rem}}
+nav.side{display:none;padding-block:1.5rem}
+@media(min-width:1000px){nav.side{display:block;position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto}}
+.side .ov{display:flex;align-items:center;gap:.6rem;padding:.45rem .6rem;border-radius:7px;font-weight:600;text-decoration:none}
+.side h4{margin:1.1rem .6rem .35rem;font:600 .66rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.side ul{list-style:none;margin:0;padding:0}
+.side .cat{display:grid;grid-template-columns:1.25rem minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.42rem .6rem;border-radius:7px;text-decoration:none;color:var(--ink-2);font-weight:500}
+.side .cat:hover,.side .ov:hover{background:var(--raised);color:var(--ink)}
+.side .cat[aria-current],.side .ov[aria-current]{background:var(--signal-soft);color:var(--signal);font-weight:600}
+.side .cat small{font:.72rem var(--mono);color:var(--ink-3)}
+.side .apis{margin:.15rem 0 .5rem 1.45rem;padding-left:.6rem;border-left:1px solid var(--line)}
+.side .apis a{display:flex;justify-content:space-between;padding:.28rem .5rem;border-radius:6px;text-decoration:none;color:var(--ink-2);font-size:.86rem}
+.side .apis a:hover{background:var(--raised)}
+.side .apis small{font:.7rem var(--mono);color:var(--ink-3)}
+svg.i{width:1.15rem;height:1.15rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+main{min-width:0;padding-block:1.75rem 3rem}
+.crumb{font:500 .75rem var(--mono);color:var(--ink-3);margin:0}
+.crumb a{color:var(--ink-3)}
+h1{margin:.35rem 0 .25rem;font:700 clamp(1.6rem,3vw,2.1rem)/1.15 var(--font);letter-spacing:-.02em;display:flex;flex-wrap:wrap;align-items:center;gap:.6rem}
+.rel{font:600 .78rem var(--mono);background:var(--signal-soft);color:var(--signal);padding:.15rem .45rem;border-radius:5px;letter-spacing:0}
+.lede{margin:0;color:var(--ink-2);max-width:68ch}
+.search{position:relative;margin-top:1.25rem;max-width:44rem}
+.search svg{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+.search input{width:100%;height:3.1rem;padding:0 1rem 0 2.9rem;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);color:var(--ink);font:500 1rem var(--font);box-shadow:0 10px 30px -20px rgba(10,30,80,.35)}
+.search input:focus{outline:2px solid var(--signal);outline-offset:1px}
+.hits{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:9;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 40px -18px rgba(10,30,80,.45)}
+.hits a{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 1rem;padding:.45rem .6rem;border-radius:6px;text-decoration:none}
+.hits a:hover,.hits a.on{background:var(--raised)}
+.hits b{font-weight:600}.hits span{font:.72rem var(--mono);color:var(--ink-3)}.hits em{grid-row:1/3;grid-column:2;align-self:center;font:normal .7rem var(--mono);color:var(--ink-3)}
+section{margin-top:2.25rem}
+h2{margin:0 0 .85rem;font:700 1.05rem var(--font)}
+.h2row{display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.h2row span{font:.75rem var(--mono);color:var(--ink-3)}
+.tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:.85rem;list-style:none;margin:0;padding:0}
+@media(min-width:640px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1180px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.tile{display:grid;grid-template-columns:2.5rem minmax(0,1fr);gap:.25rem .9rem;height:100%;padding:1.05rem 1.1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;text-decoration:none;transition:border-color .15s,box-shadow .15s,transform .15s}
+.tile:hover{border-color:var(--signal);box-shadow:0 16px 34px -26px rgba(10,30,80,.55);transform:translateY(-1px)}
+.tile .ic{grid-row:1/4;width:2.5rem;height:2.5rem;display:grid;place-items:center;border-radius:9px;background:var(--signal-soft);color:var(--signal)}
+.tile .ic svg{width:1.3rem;height:1.3rem}
+.tile b{font-size:1rem;font-weight:600}
+.tile p{margin:0;font-size:.84rem;color:var(--ink-3)}
+.tile .stats{font:500 .72rem var(--mono);color:var(--ink-2)}
+.tile .ex{grid-column:2;display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
+.tile .ex span{font:.72rem var(--mono);padding:.1rem .4rem;border-radius:4px;background:var(--raised);color:var(--ink-2)}
+.pop{display:flex;flex-wrap:wrap;gap:.4rem}
+.pop a{display:inline-flex;align-items:center;gap:.45rem;height:2.1rem;padding:0 .75rem;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:500 .82rem var(--mono);text-decoration:none}
+.pop a:hover{border-color:var(--signal);color:var(--signal)}
+.pop a small{font:.66rem var(--font);color:var(--ink-3)}
+.core{display:flex;flex-wrap:wrap;gap:.25rem .9rem;padding:.9rem 1.1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.core a{font-size:.86rem;color:var(--ink-2);text-decoration:none}
+.core a:hover{color:var(--signal);text-decoration:underline}
+.basics{display:grid;gap:.4rem;padding:1rem 1.1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;font-size:.85rem;color:var(--ink-3)}
+.basics div{display:grid;grid-template-columns:7rem minmax(0,1fr);gap:1rem}
+.basics dt{font:600 .66rem var(--mono);letter-spacing:.08em;text-transform:uppercase;padding-top:.15rem}
+.basics dd{margin:0}.basics code{font:.8rem var(--mono);color:var(--ink)}
+.catHead{display:flex;gap:1rem;align-items:flex-start}
+.catHead .ic{flex:none;width:3rem;height:3rem;display:grid;place-items:center;border-radius:11px;background:var(--signal-soft);color:var(--signal);margin-top:.4rem}
+.catHead .ic svg{width:1.5rem;height:1.5rem}
+.bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-top:1.25rem}
+.bar .search{margin:0;flex:1 1 18rem}
+.bar .search input{height:2.6rem;font-size:.92rem;box-shadow:none}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:0 .85rem;height:2.5rem;font:600 .82rem var(--font);color:var(--ink-2);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.tbl{margin-top:1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font:600 .66rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:.6rem 1rem;border-bottom:1px solid var(--line);background:var(--raised)}
+td{padding:.55rem 1rem;border-top:1px solid var(--line);vertical-align:baseline}
+tr.api td{background:var(--bg);padding-top:.75rem;padding-bottom:.45rem}
+tr.api b{font-weight:700}tr.api span{margin-left:.6rem;font:.72rem var(--mono);color:var(--ink-3)}
+tr.api a.all{float:right;font-size:.8rem;font-weight:600;color:var(--signal);text-decoration:none}
+td.k a{font:600 .86rem var(--mono);text-decoration:none}
+td.k a:hover{color:var(--signal);text-decoration:underline}
+.wf{margin-left:.45rem;font:600 .58rem var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:.05rem .3rem;border:1px dashed var(--line-strong);border-radius:4px;color:var(--ink-3)}
+td.sc{font-size:.8rem;color:var(--ink-2);white-space:nowrap}
+td.n{font:.8rem var(--mono);color:var(--ink-3);text-align:right}
+td.p{font:.76rem var(--mono);color:var(--ink-3);overflow-wrap:anywhere}
+td.p i{font-style:normal;color:#7a4cc2}
+@media(max-width:760px){thead{display:none}tr.res{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:.55rem 1rem;border-top:1px solid var(--line)}tr.res td{border:0;padding:0}td.sc{grid-column:2;grid-row:1}td.n{display:none}td.p{grid-column:1/-1}tr.api{display:block}tr.api td{display:block}}
+.pn{display:flex;justify-content:space-between;gap:1rem;margin-top:1.5rem}
+.pn a{display:grid;padding:.7rem 1rem;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-decoration:none;min-width:0}
+.pn a small{font:.7rem var(--mono);color:var(--ink-3)}.pn a b{font-weight:600}
+.pn a:hover{border-color:var(--signal)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.tile{transition:none}.tile:hover{transform:none}}
+</style>
+<div class="note"><b>Mockup</b> of the new API reference with real EDA 26.8.2 data. Click a category tile, a sidebar entry, or search for a resource. <button type="button" id="theme">Toggle dark</button></div>
+<header class="top"><b>EDA Resource Browser</b><span>CRDs · <b>API</b> · Docs</span></header>
+<div class="shell">
+  <nav class="side" id="side" aria-label="API reference"></nav>
+  <main id="main"></main>
+</div>
+<script>
+const DATA = [{"t":"Platform API","g":"API Server","v":"core","c":"platform","p":true,"s":[["Query (EQL & NQL)","p","",7,"coreQuery"],["Access","p","",2,"coreAccess"],["Administration","p","",54,"coreAdmin"],["Alarms","p","",14,"coreAlarms"],["App store","p","",11,"coreStore"],["Autocomplete","p","",13,"coreAutoComplete"],["Branches","p","",7,"coreBranch"],["Chat","p","",6,"coreChat"],["Cluster status","p","",3,"coreAbout"],["Database","p","",2,"coreDB"],["Features","p","",2,"coreFeatures"],["MRs","p","",9,"coreMRs"],["Node configuration","p","",1,"coreNodeconfig"],["Topology","p","",7,"coreTopology"],["Transactions","p","",18,"coreTransaction"],["Translations","p","",3,"coreI18n"],["Uss","p","",14,"coreUss"],["Workflows","p","",1,"coreWorkflows"]]},{"t":"AAA","g":"aaa.eda.nokia.com","v":"v1","c":"access","p":false,"s":[["AccountingPolicy","r","N",12,"accountingpolicies"],["AccountingPolicyState","r","N",12,"accountingpolicystates"],["AuthenticationPolicy","r","N",12,"authenticationpolicies"],["AuthenticationPolicyState","r","N",12,"authenticationpolicystates"],["NodeGroup","r","N",12,"nodegroups"],["ServerGroup","r","N",12,"servergroups"],["ServerGroupState","r","N",12,"servergroupstates"]]},{"t":"AI","g":"ai.core.eda.nokia.com","v":"v1","c":"integrations","p":false,"s":[["MCPClient","r","C",11,"mcpclients"],["MCPPromptTemplate","r","C",11,"mcpprompttemplates"],["MCPResourceDefinition","r","C",11,"mcpresourcedefinitions"],["MCPSettings","r","C",11,"mcpsettings"],["MCPToolDefinition","r","C",11,"mcptooldefinitions"],["Provider","r","C",11,"providers"]]},{"t":"AIFabrics","g":"aifabrics.eda.nokia.com","v":"v1","c":"integrations","p":false,"s":[["Backend","r","N",12,"backends"]]},{"t":"Bootstrap","g":"bootstrap.eda.nokia.com","v":"v1","c":"system","p":false,"s":[["Init","r","N",12,"inits"],["ManagementRouter","r","N",12,"managementrouters"],["Satellite","r","N",5,"satellites"],["RotateCertificate","w","N",11,"rotatecertificates"]]},{"t":"Cert Checker","g":"certcheck.eda.nokia.com","v":"v1alpha1","c":"access","p":false,"s":[["CertificateCheck","r","N",12,"certificatechecks"],["DNSCheck","r","N",12,"dnschecks"],["VolumeCheck","r","N",12,"volumechecks"]]},{"t":"CertChecker","g":"certchecker.eda.nokia.com","v":"v1alpha1","c":"access","p":false,"s":[["NodeCertificateAudit","w","N",11,"nodecertificateaudits"],["PlatformCertificateAudit","w","C",10,"platformcertificateaudits"]]},{"t":"Cloud Connect","g":"connect.eda.nokia.com","v":"v2","c":"integrations","p":false,"s":[["ConnectAudit","r","N",12,"connectaudits"],["ConnectInterface","r","N",12,"connectinterfaces"],["ConnectPlugin","r","N",12,"connectplugins"],["ConnectPluginActionable","r","N",12,"connectpluginactionables"]]},{"t":"Components","g":"components.eda.nokia.com","v":"v2","c":"fabric","p":false,"s":[["Chassis","r","N",5,"chassis"],["Component","r","N",5,"components"],["ControlModule","r","N",5,"controlmodules"],["FabricModule","r","N",5,"fabricmodules"],["Fan","r","N",5,"fans"],["InterfaceModule","r","N",5,"interfacemodules"],["Monitor","r","N",12,"monitors"],["PowerSupply","r","N",5,"powersupplies"],["Reboot","w","N",11,"reboots"]]},{"t":"Configuration","g":"config.eda.nokia.com","v":"v1","c":"system","p":false,"s":[["Configlet","r","N",12,"configlets"]]},{"t":"Connect Nutanix Prism Operator","g":"nutanix.eda.nokia.com","v":"v2","c":"integrations","p":false,"s":[["NutanixEDAManagedBridgeDomain","r","N",12,"nutanixedamanagedbridgedomains"],["NutanixPluginInstance","r","C",11,"nutanixplugininstances"]]},{"t":"Core","g":"core.eda.nokia.com","v":"v1","c":"system","p":false,"s":[["Alarm","r","C",4,"alarms"],["AlarmDefinition","r","C",4,"alarmdefinitions"],["AlarmPolicy","r","C",11,"alarmpolicies"],["Branch","r","C",11,"branches"],["ClientProvider","r","C",11,"clientproviders"],["ClientTable","r","C",11,"clienttables"],["ClusterProvider","r","C",11,"clusterproviders"],["ClusterRole","r","C",11,"clusterroles"],["ClusterSimLink","r","C",11,"clustersimlinks"],["ClusterTopoLink","r","C",11,"clustertopolinks"],["Deviation","r","N",12,"deviations"],["DeviationAction","r","N",12,"deviationactions"],["EdgeInterface","r","N",12,"edgeinterfaces"],["HttpProxy","r","C",11,"httpproxies"],["IndexAllocationPool","r","N",12,"indexallocationpools"],["IPAllocationPool","r","N",12,"ipallocationpools"],["IPInSubnetAllocationPool","r","N",12,"ipinsubnetallocationpools"],["License","r","C",4,"licenses"],["Logoutput","r","C",11,"logoutputs"],["NodeProfile","r","N",12,"nodeprofiles"],["NodeSecurityProfile","r","C",11,"nodesecurityprofiles"],["NodeUser","r","N",12,"nodeusers"],["Pipelinedefinition","r","C",11,"pipelinedefinitions"],["Role","r","N",12,"roles"],["Satelliteprofile","r","N",12,"satelliteprofiles"],["SimLink","r","N",12,"simlinks"],["SimNode","r","N",12,"simnodes"],["SubnetAllocationPool","r","N",12,"subnetallocationpools"],["TopoBreakout","r","N",12,"topobreakouts"],["TopoLink","r","N",12,"topolinks"],["TopoNode","r","N",12,"toponodes"],["UdpProxy","r","C",11,"udpproxies"],["WorkflowDefinition","r","C",11,"workflowdefinitions"],["Workflow","w","N",11,"workflows"]]},{"t":"Core Extensions","g":"coreext.eda.nokia.com","v":"v1alpha1","c":"system","p":false,"s":[["PlatformBackup","w","C",10,"platformbackups"]]},{"t":"Discord","g":"discord.eda.nokia.com","v":"v1alpha1","c":"alerts","p":false,"s":[["Bot","r","N",12,"bots"],["Notification","r","N",12,"notifications"],["SlashCommand","r","N",12,"slashcommands"]]},{"t":"Environment","g":"environment.eda.nokia.com","v":"v1","c":"system","p":false,"s":[["CliPlugin","w","N",11,"cliplugins"],["SetupEnv","w","N",11,"setupenvs"]]},{"t":"Fabrics","g":"fabrics.eda.nokia.com","v":"v1","c":"fabric","p":false,"s":[["Fabric","r","N",12,"fabrics"],["ISL","r","N",12,"isls"],["FabricTopology","w","N",11,"fabrictopologies"],["IslPing","w","N",11,"islpings"]]},{"t":"Filters","g":"filters.eda.nokia.com","v":"v1","c":"routing","p":false,"s":[["ControlPlaneFilter","r","N",12,"controlplanefilters"],["Filter","r","N",12,"filters"],["PrefixSet","r","N",12,"prefixsets"]]},{"t":"Flow Sampling","g":"flowsampling.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["SFlow","r","N",12,"sflows"]]},{"t":"GitHub","g":"github.eda.nokia.com","v":"v1alpha1","c":"integrations","p":false,"s":[["ClusterGitHubAction","r","C",11,"clustergithubactions"],["ClusterGitHubInstance","r","C",11,"clustergithubinstances"],["ClusterGitHubIssue","r","C",11,"clustergithubissues"],["GitHubAction","r","N",12,"githubactions"],["GitHubInstance","r","N",12,"githubinstances"],["GitHubIssue","r","N",12,"githubissues"],["CreateGithubIssue","w","N",11,"creategithubissues"],["RunGithubWorkflow","w","N",11,"rungithubworkflows"]]},{"t":"Gitlab","g":"gitlab.eda.nokia.com","v":"v1alpha1","c":"integrations","p":false,"s":[["ClusterGitlabInstance","r","C",11,"clustergitlabinstances"],["ClusterGitlabIssue","r","C",11,"clustergitlabissues"],["ClusterGitlabPipeline","r","C",11,"clustergitlabpipelines"],["GitlabInstance","r","N",12,"gitlabinstances"],["GitlabIssue","r","N",12,"gitlabissues"],["GitlabPipeline","r","N",12,"gitlabpipelines"],["CreateGitlabIssue","w","N",11,"creategitlabissues"],["RunGitlabPipeline","w","N",11,"rungitlabpipelines"]]},{"t":"InfluxDB Exporter","g":"influxdb.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["ClusterExport","r","C",11,"clusterexports"],["ClusterServer","r","C",11,"clusterservers"],["Export","r","N",12,"exports"],["Server","r","N",12,"servers"]]},{"t":"Interface","g":"interfaces.eda.nokia.com","v":"v1","c":"fabric","p":false,"s":[["Breakout","r","N",12,"breakouts"],["Interface","r","N",12,"interfaces"],["CheckInterfaces","w","N",11,"checkinterfacess"]]},{"t":"K8s Client Provider","g":"k8s-client-provider.eda.nokia.com","v":"v1alpha1","c":"integrations","p":false,"s":[["K8sClientProviderInstance","r","C",11,"k8sclientproviderinstances"]]},{"t":"Kafka Exporter","g":"kafka.eda.nokia.com","v":"v1","c":"telemetry","p":false,"s":[["ClusterProducer","r","C",11,"clusterproducers"],["Producer","r","N",12,"producers"]]},{"t":"Kafka Importer","g":"kafkaimporter.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["ClusterConsumer","r","C",11,"clusterconsumers"],["Consumer","r","N",12,"consumers"]]},{"t":"Logging","g":"logging.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["Destination","r","N",12,"destinations"],["Log","r","N",12,"logs"],["Source","r","N",12,"sources"]]},{"t":"Management","g":"management.eda.nokia.com","v":"v1","c":"access","p":false,"s":[["FTPServer","r","N",12,"ftpservers"],["GRPCServer","r","N",12,"grpcservers"],["HTTPServer","r","N",12,"httpservers"],["SNMPServer","r","N",12,"snmpservers"],["SNMPServerState","r","N",12,"snmpserverstates"],["SSHServer","r","N",12,"sshservers"]]},{"t":"Micro Segmentation","g":"microsegmentation.eda.nokia.com","v":"v1alpha1","c":"services","p":false,"s":[["AssociationPolicy","r","N",12,"associationpolicies"],["GroupTag","r","N",12,"grouptags"],["MicroSegmentationPolicy","r","N",12,"microsegmentationpolicies"],["GroupTagPoolSetup","w","N",11,"grouptagpoolsetups"]]},{"t":"MPLS","g":"mpls.eda.nokia.com","v":"v1alpha1","c":"routing","p":false,"s":[["DefaultLDPInterface","r","N",12,"defaultldpinterfaces"],["DefaultLDPRouter","r","N",12,"defaultldprouters"],["LabelBlock","r","N",12,"labelblocks"]]},{"t":"NATS Exporter","g":"nats.eda.nokia.com","v":"v1","c":"telemetry","p":false,"s":[["ClusterExport","r","C",11,"clusterexports"],["ClusterPublisher","r","C",11,"clusterpublishers"],["Export","r","N",12,"exports"],["Publisher","r","N",12,"publishers"]]},{"t":"NATS Importer","g":"natsimporter.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["ClusterSubscriber","r","C",11,"clustersubscribers"],["Subscriber","r","N",12,"subscribers"]]},{"t":"NetBox","g":"netbox.eda.nokia.com","v":"v1alpha1","c":"integrations","p":false,"s":[["Allocation","r","N",12,"allocations"],["Instance","r","N",12,"instances"],["ApplyAllocation","w","N",11,"applyallocations"],["ApplyTopology","w","N",11,"applytopologies"]]},{"t":"Notifier","g":"notifiers.eda.nokia.com","v":"v1","c":"alerts","p":false,"s":[["ClusterNotifier","r","C",11,"clusternotifiers"],["ClusterProvider","r","C",11,"clusterproviders"],["Notifier","r","N",12,"notifiers"],["Provider","r","N",12,"providers"]]},{"t":"NSX Plugin Operator","g":"nsx.eda.nokia.com","v":"v2","c":"integrations","p":false,"s":[["NSXEDAManagedBridgeDomain","r","N",12,"nsxedamanagedbridgedomains"],["NSXPluginInstance","r","C",11,"nsxplugininstances"]]},{"t":"OAM","g":"oam.eda.nokia.com","v":"v1","c":"routing","p":false,"s":[["Mirror","r","N",12,"mirrors"],["Threshold","r","N",12,"thresholds"],["Ping","w","N",11,"pings"],["TechSupport","w","N",11,"techsupports"],["TraceRoute","w","N",11,"traceroutes"]]},{"t":"Openstack Client Provider","g":"openstack-client-provider.eda.nokia.com","v":"v1alpha1","c":"integrations","p":false,"s":[["OpenStackClientProviderInstance","r","C",11,"openstackclientproviderinstances"]]},{"t":"Operating System","g":"os.eda.nokia.com","v":"v1","c":"fabric","p":false,"s":[["DeployImage","w","N",11,"deployimages"],["DeployImagePipeline","w","N",11,"deployimagepipelines"],["LoadImage","w","N",11,"loadimages"],["ZTP","w","N",11,"ztps"]]},{"t":"OTLP Exporter","g":"otlp.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["ClusterMetricExport","r","C",11,"clustermetricexports"],["ClusterReceiver","r","C",11,"clusterreceivers"],["MetricExport","r","N",12,"metricexports"],["Receiver","r","N",12,"receivers"]]},{"t":"Pager Duty","g":"pagers.eda.nokia.com","v":"v1alpha1","c":"alerts","p":false,"s":[["ClusterPager","r","C",11,"clusterpagers"],["Pager","r","N",12,"pagers"]]},{"t":"Prometheus Exporter","g":"prom.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["Export","r","C",11,"exports"]]},{"t":"Protocols","g":"protocols.eda.nokia.com","v":"v2","c":"routing","p":false,"s":[["AggregateRoute","r","N",12,"aggregateroutes"],["BGPGroup","r","N",12,"bgpgroups"],["BGPPeer","r","N",12,"bgppeers"],["DefaultAggregateRoute","r","N",12,"defaultaggregateroutes"],["DefaultBGPGroup","r","N",12,"defaultbgpgroups"],["DefaultBGPPeer","r","N",12,"defaultbgppeers"],["DefaultISISInstance","r","N",12,"defaultisisinstances"],["DefaultISISInterface","r","N",12,"defaultisisinterfaces"],["DefaultOSPFArea","r","N",12,"defaultospfareas"],["DefaultOSPFInstance","r","N",12,"defaultospfinstances"],["DefaultOSPFInterface","r","N",12,"defaultospfinterfaces"],["DefaultRouteReflector","r","N",12,"defaultroutereflectors"],["DefaultRouteReflectorClient","r","N",12,"defaultroutereflectorclients"],["DefaultStaticRoute","r","N",12,"defaultstaticroutes"],["ISISInstance","r","N",12,"isisinstances"],["ISISInterface","r","N",12,"isisinterfaces"],["OSPFArea","r","N",12,"ospfareas"],["OSPFInstance","r","N",12,"ospfinstances"],["OSPFInterface","r","N",12,"ospfinterfaces"],["RouteReflector","r","N",12,"routereflectors"],["RouteReflectorClient","r","N",12,"routereflectorclients"],["StaticRoute","r","N",12,"staticroutes"],["CheckDefaultBgpPeers","w","N",11,"checkdefaultbgppeerss"]]},{"t":"QoS","g":"qos.eda.nokia.com","v":"v2","c":"routing","p":false,"s":[["EgressPolicy","r","N",12,"egresspolicys"],["ForwardingClass","r","N",12,"forwardingclasss"],["IngressPolicy","r","N",12,"ingresspolicys"],["PolicyAttachment","r","N",12,"policyattachments"],["PolicyDeployment","r","N",12,"policydeployments"],["Queue","r","N",12,"queues"]]},{"t":"Remote Write","g":"remotewrite.eda.nokia.com","v":"v1","c":"telemetry","p":false,"s":[["ClusterDestination","r","C",11,"clusterdestinations"],["ClusterExport","r","C",11,"clusterexports"],["Destination","r","N",12,"destinations"],["Export","r","N",12,"exports"]]},{"t":"Routing","g":"routing.eda.nokia.com","v":"v1","c":"routing","p":false,"s":[["DefaultInterface","r","N",12,"defaultinterfaces"],["DefaultLoopbackInterface","r","N",12,"defaultloopbackinterfaces"],["DefaultRouter","r","N",12,"defaultrouters"],["Drain","r","N",12,"drains"],["SystemInterface","r","N",12,"systeminterfaces"],["AttachmentLookup","w","N",11,"attachmentlookups"],["RouteLookup","w","N",11,"routelookups"],["RouteTrace","w","N",11,"routetraces"],["SystemPing","w","N",11,"systempings"]]},{"t":"Routing Policies","g":"routingpolicies.eda.nokia.com","v":"v1","c":"routing","p":false,"s":[["ASPathSet","r","N",12,"aspathsets"],["CommunitySet","r","N",12,"communitysets"],["Policy","r","N",12,"policys"],["PrefixSet","r","N",12,"prefixsets"],["TagSet","r","N",12,"tagsets"]]},{"t":"Security","g":"security.eda.nokia.com","v":"v1","c":"access","p":false,"s":[["Keychain","r","N",12,"keychains"],["KeychainDeployment","r","N",12,"keychaindeployments"]]},{"t":"ServiceNow","g":"snow.eda.nokia.com","v":"v1alpha1","c":"alerts","p":false,"s":[["ClusterIncident","r","C",11,"clusterincidents"],["ClusterInstance","r","C",11,"clusterinstances"],["Incident","r","N",12,"incidents"],["Instance","r","N",12,"instances"],["CreateIncident","w","C",10,"createincidents"]]},{"t":"Services","g":"services.eda.nokia.com","v":"v2","c":"services","p":false,"s":[["BridgeDomain","r","N",12,"bridgedomains"],["BridgeDomainInterconnect","r","N",12,"bridgedomaininterconnects"],["BridgeInterface","r","N",12,"bridgeinterfaces"],["DHCPRelay","r","N",12,"dhcprelays"],["IRBInterface","r","N",12,"irbinterfaces"],["NetworksClientProviderInstance","r","C",11,"networksclientproviderinstances"],["RoutedInterface","r","N",12,"routedinterfaces"],["Router","r","N",12,"routers"],["RouterInterconnect","r","N",12,"routerinterconnects"],["VirtualNetwork","r","N",12,"virtualnetworks"],["VLAN","r","N",12,"vlans"],["EdgePing","w","N",11,"edgepings"]]},{"t":"Site Information","g":"siteinfo.eda.nokia.com","v":"v1","c":"fabric","p":false,"s":[["Banner","r","N",12,"banners"],["DefaultMTU","r","N",12,"defaultmtus"],["DNSClient","r","N",12,"dnsclients"],["DNSClientState","r","N",12,"dnsclientstates"],["SystemLoadBalancer","r","N",12,"systemloadbalancers"]]},{"t":"SNMP Traps","g":"snmp.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["ClusterDestination","r","C",11,"clusterdestinations"],["ClusterTrapGroup","r","C",11,"clustertrapgroups"],["Destination","r","N",12,"destinations"],["TrapGroup","r","N",12,"trapgroups"]]},{"t":"Standard Out Exporter","g":"stdout.eda.nokia.com","v":"v1alpha1","c":"telemetry","p":false,"s":[["ClusterStandardOut","r","C",11,"clusterstandardouts"],["StandardOut","r","N",12,"standardouts"]]},{"t":"Store","g":"appstore.eda.nokia.com","v":"v1","c":"system","p":false,"s":[["Catalog","r","C",11,"catalogs"],["Registry","r","C",11,"registries"],["SigningKey","r","C",11,"signingkeys"],["AppInstaller","w","C",10,"appinstallers"]]},{"t":"Support","g":"support.eda.nokia.com","v":"v1","c":"system","p":false,"s":[["Locator","w","N",11,"locators"]]},{"t":"Timing","g":"timing.eda.nokia.com","v":"v1","c":"fabric","p":false,"s":[["NTPClient","r","N",12,"ntpclients"],["TimeZone","r","N",12,"timezones"]]},{"t":"Topologies","g":"topologies.eda.nokia.com","v":"v1","c":"fabric","p":false,"s":[["AlarmOverlay","r","C",11,"alarmoverlays"],["DeviationOverlay","r","C",11,"deviationoverlays"],["LldpOverlay","r","C",11,"lldpoverlays"],["Topology","r","C",11,"topologies"],["TopologyGrouping","r","C",11,"topologygroupings"],["TrafficRateOverlay","r","C",11,"trafficrateoverlays"],["NetworkTopology","w","N",11,"networktopologies"]]},{"t":"Vmware Plugin Operator","g":"vmware.eda.nokia.com","v":"v2","c":"integrations","p":false,"s":[["VmwareEDAManagedBridgeDomain","r","N",12,"vmwareedamanagedbridgedomains"],["VmwarePluginInstance","r","C",11,"vmwareplugininstances"]]}];
+const CATS = [
+ ['platform','Platform','The /core API: queries, transactions, alarms, users.','M4 5h16v5H4zM4 14h16v5H4zM8 7.5h.01M8 16.5h.01'],
+ ['fabric','Fabric and topology','Fabrics, nodes, links, interfaces, OS images.','M5 4h4v4H5zM15 4h4v4h-4zM10 16h4v4h-4zM7 8v3h10V8M12 11v5'],
+ ['routing','Routing and protocols','BGP, OSPF, IS-IS, MPLS, policies, QoS, OAM.','M4 18h5l6-12h5M17 3l3 3-3 3M4 6h5'],
+ ['services','Services','Bridge domains, VLANs, routers, IRBs, segmentation.','M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5'],
+ ['telemetry','Telemetry and export','Exporters, importers, logging, flow sampling, SNMP.','M3 12h4l3-7 4 14 3-7h4'],
+ ['alerts','Alerts and notifications','Notifiers, pagers, Discord, ServiceNow.','M6 16v-5a6 6 0 1112 0v5l2 2H4l2-2zM10 20a2 2 0 004 0'],
+ ['integrations','Integrations','Cloud Connect, VMware, Nutanix, NSX, Git, NetBox, AI.','M10 14a4 4 0 005.7 0l3-3a4 4 0 10-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 105.7 5.7l1-1'],
+ ['access','Access and security','AAA, keychains, certificates, management servers.','M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4'],
+ ['system','System and apps','Core resources, app store, bootstrap, support.','M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4']
+].map(([id,title,blurb,icon])=>({id,title,blurb,icon}));
+const POPULAR=['BGPPeer','DefaultInterface','Interface','BridgeDomain','VLAN','Fabric','TopoNode','RoutedInterface','Router','IRBInterface'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const icon=p=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${p}"/></svg>`;
+const apisIn=id=>DATA.filter(a=>a.c===id);
+const short=g=>g.replace(/\.eda\.nokia\.com$/,'');
+const allRes=DATA.flatMap(a=>a.s.map(s=>({api:a,s})));
+let view={cat:'',api:''}, segMode='all', filter='';
+function path(a,s){ if(a.p) return '/core/…'; const base=s[1]==='w'?`/workflows/v1/${a.g}/${a.v}`:`/apps/${a.g}/${a.v}`; return base+(s[2]==='N'?'/namespaces/<i>{namespace}</i>/':'/')+s[4]; }
+function go(cat,api){ view={cat:cat||'',api:api||''}; filter=''; segMode='all'; location.hash=cat||'overview'; render(); window.scrollTo(0,0); }
+function search(q){ q=q.trim().toLowerCase(); if(!q) return [];
+  return allRes.map(({api,s})=>{const t=s[0].toLowerCase();const r=t===q?0:t.startsWith(q)?1:t.includes(q)?2:(api.t+' '+api.g).toLowerCase().includes(q)?3:-1;return {api,s,r}})
+   .filter(h=>h.r>=0).sort((a,b)=>a.r-b.r||a.s[0].localeCompare(b.s[0])).slice(0,8); }
+function side(){
+  let h=`<a class="ov" href="#overview" ${!view.cat?'aria-current="page"':''} data-go="">${icon('M4 5h7v6H4zM13 5h7v14h-7zM4 13h7v6H4z')}API overview</a><h4>Categories</h4><ul>`;
+  for(const c of CATS){ const apis=apisIn(c.id); const on=view.cat===c.id;
+    h+=`<li><a class="cat" href="#${c.id}" data-go="${c.id}" ${on?'aria-current="page"':''}>${icon(c.icon)}<span>${c.title}</span><small>${apis.length}</small></a>`;
+    if(on) h+=`<ul class="apis">${apis.map(a=>`<li><a href="#${c.id}"><span>${a.p?'Platform API':esc(a.t)}</span><small>${a.s.length}</small></a></li>`).join('')}</ul>`;
+    h+='</li>'; }
+  $('#side').innerHTML=h+'</ul>';
+}
+function searchBox(ph){ return `<div class="search">${icon('M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z')}<input id="q" type="search" placeholder="${ph}" autocomplete="off" aria-label="Search resources and APIs"><ul class="hits" id="hits" hidden></ul></div>`; }
+function landing(){
+  const nRes=allRes.length;
+  let h=`<p class="crumb">API › Overview</p><h1>EDA REST API <span class="rel">26.8.2</span></h1>
+  <p class="lede">${DATA.length} APIs · ${nRes} resources and workflows · every request with a ready curl example.</p>
+  ${searchBox(`Search ${nRes} resources and ${DATA.length} APIs, e.g. BGPPeer`)}
+  <section><div class="h2row"><h2>Browse by category</h2><span>${CATS.length} categories</span></div><ul class="tiles">`;
+  for(const c of CATS){ const apis=apisIn(c.id); const res=apis.reduce((n,a)=>n+a.s.length,0);
+    const ex=apis.flatMap(a=>a.s.filter(s=>s[1]==='r').map(s=>s[0]));
+    const pick=POPULAR.filter(p=>ex.includes(p)).concat(ex.filter(e=>!POPULAR.includes(e))).slice(0,4);
+    h+=`<li><a class="tile" href="#${c.id}" data-go="${c.id}"><span class="ic">${icon(c.icon)}</span><b>${c.title}</b><p>${c.blurb}</p><span class="stats">${apis.length} ${apis.length===1?'API':'APIs'} · ${res} ${c.id==='platform'?'sections':'resources'}</span><span class="ex">${pick.map(e=>`<span>${esc(e)}</span>`).join('')}</span></a></li>`; }
+  h+=`</ul></section><section><h2>Popular resources</h2><div class="pop">`;
+  for(const p of POPULAR){ const hit=allRes.find(r=>r.s[0]===p); if(hit) h+=`<a href="#${hit.api.c}" data-go="${hit.api.c}">${p}<small>${esc(hit.api.t)}</small></a>`; }
+  const core=DATA.find(a=>a.p);
+  h+=`</div></section><section><div class="h2row"><h2>Platform API</h2><span>/core · ${core.s.length} sections</span></div><div class="core">${core.s.map(s=>`<a href="#platform" data-go="platform">${esc(s[0])}</a>`).join('')}</div></section>
+  <section><h2>Calling the API</h2><dl class="basics"><div><dt>Paths</dt><dd>Resources <code>/apps/&lt;group&gt;/&lt;version&gt;/…</code>, workflows <code>/workflows/v1/…</code>, platform <code>/core/…</code></dd></div><div><dt>Auth</dt><dd><code>Authorization: Bearer $TOKEN</code> on every request</dd></div><div><dt>Namespaces</dt><dd><code>…/namespaces/eda/bridgedomains</code>; without it a list covers all namespaces</dd></div></dl></section>`;
+  return h;
+}
+function category(){
+  const i=CATS.findIndex(c=>c.id===view.cat), c=CATS[i], apis=apisIn(c.id);
+  const total=apis.reduce((n,a)=>n+a.s.length,0);
+  let h=`<p class="crumb"><a href="#overview" data-go="">API</a> › ${c.title}</p>
+  <div class="catHead"><span class="ic">${icon(c.icon)}</span><div><h1>${c.title} <span class="rel">26.8.2</span></h1><p class="lede">${c.blurb} ${apis.length} APIs, ${total} ${c.id==='platform'?'sections':'resources and workflows'}.</p></div></div>
+  <div class="bar"><div class="search">${icon('M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z')}<input id="f" type="search" placeholder="Filter ${total} in ${c.title}" value="${esc(filter)}" aria-label="Filter this category"></div>
+  <div class="seg" role="group" aria-label="Show">${['all','resources','workflows'].map(m=>`<button type="button" data-seg="${m}" aria-pressed="${segMode===m}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div></div>
+  <div class="tbl"><table><thead><tr><th>Resource</th><th>Scope</th><th style="text-align:right">Actions</th><th>Path</th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div class="pn">${i>0?`<a href="#${CATS[i-1].id}" data-go="${CATS[i-1].id}"><small>← Previous</small><b>${CATS[i-1].title}</b></a>`:'<span></span>'}${i<CATS.length-1?`<a href="#${CATS[i+1].id}" data-go="${CATS[i+1].id}" style="text-align:right"><small>Next →</small><b>${CATS[i+1].title}</b></a>`:''}</div>`;
+  return h;
+}
+function rows(){
+  const apis=apisIn(view.cat), q=filter.trim().toLowerCase(); let h='', n=0;
+  for(const a of apis){ const apiMatch=!q||(a.t+' '+a.g).toLowerCase().includes(q);
+    const list=a.s.filter(s=>(segMode==='all'||(segMode==='resources'?s[1]!=='w':s[1]==='w'))&&(apiMatch||s[0].toLowerCase().includes(q)));
+    if(!list.length) continue; n+=list.length;
+    h+=`<tr class="api"><td colspan="4"><b>${a.p?'Platform API':esc(a.t)}</b><span>${a.p?'/core':short(a.g)+'/'+a.v}</span></td></tr>`;
+    for(const s of list) h+=`<tr class="res"><td class="k"><a href="#${view.cat}">${esc(s[0])}</a>${s[1]==='w'?'<span class="wf">workflow</span>':''}</td><td class="sc">${s[2]==='N'?'Namespaced':s[2]==='C'?'Cluster':'—'}</td><td class="n">${s[3]}</td><td class="p">${path(a,s)}</td></tr>`; }
+  $('#rows').innerHTML=h||`<tr><td colspan="4" style="padding:1.5rem 1rem;color:var(--ink-3)">Nothing matches “${esc(filter)}”. <button type="button" id="clr" style="border:0;background:none;color:var(--signal);font:600 .9rem var(--font);cursor:pointer">Clear the filter</button></td></tr>`;
+}
+function render(){
+  side(); $('#main').innerHTML=view.cat?category():landing();
+  if(view.cat) rows();
+  const q=$('#q'); if(q){ let act=0; const hits=$('#hits');
+    const paint=()=>{const r=search(q.value); hits.hidden=!q.value.trim(); hits.innerHTML=r.length?r.map((h,i)=>`<li><a href="#${h.api.c}" data-go="${h.api.c}" class="${i===act?'on':''}"><b>${esc(h.s[0])}</b><span>${esc(h.api.p?'Platform API':h.api.t)} · ${CATS.find(c=>c.id===h.api.c).title}</span><em>${h.s[1]==='w'?'workflow':h.s[2]==='N'?'Namespaced':'Cluster'}</em></a></li>`).join(''):'<li style="padding:.6rem;color:var(--ink-3)">No match.</li>';};
+    q.oninput=()=>{act=0;paint()}; q.onkeydown=e=>{const n=hits.querySelectorAll('a').length; if(e.key==='ArrowDown'){e.preventDefault();act=(act+1)%Math.max(n,1);paint()} if(e.key==='ArrowUp'){e.preventDefault();act=(act-1+n)%Math.max(n,1);paint()} if(e.key==='Enter'){hits.querySelectorAll('a')[act]?.click()} if(e.key==='Escape'){q.value='';paint()}}; }
+  const f=$('#f'); if(f){ f.oninput=()=>{filter=f.value;rows()}; }
+}
+document.addEventListener('click',e=>{ const g=e.target.closest('[data-go]'); if(g){e.preventDefault();go(g.dataset.go);return}
+  const s=e.target.closest('[data-seg]'); if(s){segMode=s.dataset.seg;document.querySelectorAll('[data-seg]').forEach(b=>b.setAttribute('aria-pressed',b===s));rows();return}
+  if(e.target.id==='clr'){filter='';$('#f').value='';rows()} });
+$('#theme').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme==='dark'||(!r.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);r.dataset.theme=dark?'light':'dark'};
+const start=location.hash.slice(1); view.cat=CATS.some(c=>c.id===start)?start:''; render();
+</script>

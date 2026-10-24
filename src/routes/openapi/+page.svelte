@@ -7,6 +7,7 @@
 	import PageCredits from '$lib/components/PageCredits.svelte';
 	import ApiNavigator from '$lib/openapi/components/ApiNavigator.svelte';
 	import ApiOverview from '$lib/openapi/components/ApiOverview.svelte';
+	import { API_CATEGORIES, apiCategory } from '$lib/openapi/apiCategories';
 	import ApiSectionView from '$lib/openapi/components/ApiSectionView.svelte';
 	import {
 		fetchOpenApiManifest,
@@ -73,6 +74,10 @@
 		return `/openapi?${params.toString()}`;
 	}
 	const overviewHref = $derived(`/openapi?release=${encodeURIComponent(releaseName)}`);
+	function categoryOf(api: { group: string; platform: boolean }) {
+		const id = apiCategory(api);
+		return API_CATEGORIES.find((c) => c.id === id) ?? API_CATEGORIES[API_CATEGORIES.length - 1]!;
+	}
 	function categoryHref(category: string): string {
 		return category ? `${overviewHref}&category=${encodeURIComponent(category)}` : overviewHref;
 	}
@@ -310,7 +315,7 @@
 					{#each Array(8) as _, i (i)}<span></span>{/each}
 				</div>
 			{:else if !apiId}
-				<ApiOverview {index} {href} category={categoryParam} {categoryHref} />
+				<ApiOverview {index} {manifest} {href} category={categoryParam} {categoryHref} />
 			{:else if specError}
 				<div class="state state--error" role="alert">
 					<p class="state-title">{specError}</p>
@@ -330,6 +335,14 @@
 					{darkMode}
 					{crdHref}
 					{validateHref}
+					crumbs={apiEntry
+						? {
+								overview: overviewHref,
+								category: categoryOf(apiEntry).title,
+								categoryHref: categoryHref(categoryOf(apiEntry).id),
+								apiHref: href(apiEntry.id)
+							}
+						: undefined}
 				/>
 			{/if}
 		</main>

@@ -14,6 +14,8 @@
 		/** CRD catalog page for this resource, when the CRD exists in the release. */
 		crdHref?: string;
 		validateHref?: string;
+		/** Links for the breadcrumb: overview, the API's category and the API itself. */
+		crumbs?: { overview: string; category: string; categoryHref: string; apiHref: string };
 	}
 
 	let {
@@ -24,7 +26,8 @@
 		onSelect,
 		darkMode = false,
 		crdHref,
-		validateHref
+		validateHref,
+		crumbs
 	}: Props = $props();
 
 	const GROUPS: ApiActionGroup[] = ['Read', 'Write', 'Run', 'Other'];
@@ -71,7 +74,7 @@
 		section.type === 'workflow'
 			? 'Workflow'
 			: section.type === 'platform'
-				? 'Platform API'
+				? 'API Server'
 				: section.type === 'discovery'
 					? 'API discovery'
 					: 'Resource'
@@ -80,11 +83,15 @@
 
 <div class="view">
 	<header class="head">
-		<p class="crumb">
-			API <span aria-hidden="true">›</span>
-			{apiTitle} <span aria-hidden="true">›</span>
+		<nav class="crumb" aria-label="Breadcrumb">
+			{#if crumbs}<a href={crumbs.overview}>API</a>{:else}API{/if}
+			<span aria-hidden="true">›</span>
+			{#if crumbs}<a href={crumbs.categoryHref}>{crumbs.category}</a>
+				<span aria-hidden="true">›</span>
+				<a href={crumbs.apiHref}>{apiTitle}</a>{:else}{apiTitle}{/if}
+			<span aria-hidden="true">›</span>
 			<b>{section.title}</b>
-		</p>
+		</nav>
 		<div class="title-row">
 			<div class="title-text">
 				<h1>{section.title}</h1>
@@ -158,6 +165,14 @@
 		margin: 0;
 		font: 500 0.75rem var(--rb-font-mono);
 		color: var(--rb-ink-3);
+	}
+
+	.crumb a {
+		color: var(--rb-ink-3);
+	}
+
+	.crumb a:hover {
+		color: var(--rb-signal);
 	}
 
 	.crumb b {

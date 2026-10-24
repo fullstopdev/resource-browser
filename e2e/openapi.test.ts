@@ -15,48 +15,64 @@ async function openBridgeDomain(page: Page) {
 }
 
 test.describe('API reference', () => {
-	test('opens on the overview with every API', async ({ page }) => {
+	test('opens on the overview with category tiles and every API', async ({ page }) => {
 		await page.goto('/openapi');
 		await expect(page.getByRole('heading', { level: 1 })).toContainText(/EDA REST API\s*26\.8\.2/, {
 			timeout: 15_000
 		});
-		await expect(page.getByRole('heading', { name: 'Routing and protocols' })).toBeVisible();
-		// Every resource is listed: Core has more than 30, none hidden behind "+N more".
-		const core = page.getByRole('list', { name: 'Core resources' });
-		await expect(core.getByRole('link')).toHaveCount(34);
-		await expect(page.getByRole('list', { name: 'Services resources' })).toContainText(
-			'BridgeDomain'
-		);
+		const tiles = page.locator('.tile');
+		await expect(tiles).toHaveCount(9);
+		await expect(tiles.filter({ hasText: 'Routing and protocols' })).toContainText('7 APIs');
+		// Every API by name, including the API server and Core.
+		const az = page.locator('.az');
+		await expect(az.getByRole('link')).toHaveCount(56);
+		await expect(az).toContainText('API Server');
+		await expect(az).toContainText('Core');
 		await expect(
 			page.getByRole('button', { name: /^26\.8\.2 Latest, EDA release$/ })
 		).toBeVisible();
 	});
 
-	test('the overview filter narrows the directory', async ({ page }) => {
+	test('the overview search opens a resource', async ({ page }) => {
 		await page.goto('/openapi?release=26.8.2');
-		await page.getByRole('searchbox', { name: 'Filter APIs and resources' }).fill('bgp');
-		await expect(page.getByRole('list', { name: 'Protocols resources' })).toContainText('BGPPeer');
-		await expect(page.getByRole('list', { name: 'AAA resources' })).toHaveCount(0);
-		await page.getByRole('searchbox', { name: 'Filter APIs and resources' }).fill('zzzz');
-		await page.getByRole('button', { name: 'Clear the filter' }).click();
-		await expect(page.getByRole('list', { name: 'AAA resources' })).toBeVisible();
+		const search = page.getByRole('combobox', { name: 'Search resources and APIs' });
+		await search.fill('bgppeer');
+		await expect(page.getByRole('option').first()).toContainText('BGPPeer');
+		await search.press('Enter');
+		await expect(page).toHaveURL(/spec=protocols\.eda\.nokia\.com%2Fv2&section=bgppeers/);
 	});
 
-	test('categories narrow the overview and the sidebar', async ({ page }) => {
+	test('a category lists its resources in a table', async ({ page }) => {
 		await page.goto('/openapi?release=26.8.2');
-		const tabs = page.getByRole('navigation', { name: 'API categories' });
-		await tabs.getByRole('link', { name: /^Routing and protocols/ }).click();
+		await page.locator('.tile', { hasText: 'Routing and protocols' }).click();
 		await expect(page).toHaveURL(/category=routing/);
 		await expect(page.getByRole('heading', { level: 1 })).toContainText('Routing and protocols');
-		await expect(page.getByRole('list', { name: 'Protocols resources' })).toContainText('BGPPeer');
-		await expect(page.getByRole('list', { name: 'AAA resources' })).toHaveCount(0);
+		const row = page.getByRole('row', { name: /^BGPPeer Namespaced/ });
+		await expect(row).toContainText(
+			'/apps/protocols.eda.nokia.com/v2/namespaces/{namespace}/bgppeers'
+		);
+		await page.getByRole('button', { name: 'Workflows' }).click();
+		await expect(page.getByRole('row', { name: /^BGPPeer/ })).toHaveCount(0);
+		await expect(page.getByRole('row', { name: /^Ping\s*workflow/i })).toBeVisible();
+		await page.getByRole('searchbox', { name: 'Filter Routing and protocols' }).fill('zzzz');
+		await page.getByRole('button', { name: 'Clear the filter' }).click();
+		await expect(page.getByRole('row', { name: /^BGPPeer Namespaced/ })).toBeVisible();
+		// The sidebar opens the current category only.
 		const nav = page.getByRole('navigation', { name: 'API reference' });
 		await expect(nav.getByRole('link', { name: /^Routing and protocols/ })).toHaveAttribute(
 			'aria-current',
 			'page'
 		);
-		await nav.getByRole('button', { name: 'Expand all' }).click();
-		await expect(nav.getByRole('button', { name: /^Vmware Plugin Operator/ })).toBeVisible();
+		await expect(nav.getByRole('link', { name: /^Protocols 23$/ })).toBeVisible();
+		await expect(nav.getByRole('link', { name: /^Services 12$/ })).toHaveCount(0);
+	});
+
+	test('a resource page links back to its category', async ({ page }) => {
+		await page.goto('/openapi?release=26.8.2&spec=protocols.eda.nokia.com%2Fv2&section=bgppeers');
+		const crumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+		await expect(crumb).toContainText('Routing and protocols');
+		await crumb.getByRole('link', { name: 'Routing and protocols' }).click();
+		await expect(page).toHaveURL(/category=routing/);
 	});
 
 	test('search finds a resource across APIs', async ({ page }) => {

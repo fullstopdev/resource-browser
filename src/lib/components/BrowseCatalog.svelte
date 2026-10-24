@@ -6,6 +6,7 @@
 	import type { CrdResource, EdaRelease } from '$lib/structure';
 	import { crdParamForResource } from '$lib/urlState';
 	import { getLatestVersion } from '$lib/versions';
+	import { onMount } from 'svelte';
 
 	export let allResources: CrdResource[] = [];
 	export let selectedRelease: EdaRelease;
@@ -16,17 +17,13 @@
 	/** API version for the initial modal open (from URL ?version=). */
 	export let initialVersion: string | null = null;
 	export let onResourceModalClose: (() => void) | undefined = undefined;
-	export let onResourceModalOpen:
-		| ((crd: string, version?: string) => void)
-		| undefined = undefined;
+	export let onResourceModalOpen: ((crd: string, version?: string) => void) | undefined = undefined;
 	export let onResourceVersionChange: ((version: string) => void) | undefined = undefined;
 
 	let searchQuery = '';
-	let typeFilter: 'all' | 'state' | 'config' = 'all';
-
-	type SortKey = 'kind' | 'group' | 'version';
-	let sortKey: SortKey = 'kind';
-	let sortAsc = true;
+	let typeFilter: 'all' | 'config' | 'state' = 'all';
+	/** Sidebar selection: one API group, or '' for all. The search ignores it. */
+	let selGroup = '';
 
 	let modalOpen = false;
 	let modalResource: CrdResource | null = null;
@@ -54,49 +51,116 @@
 		}
 	}
 
-	$: filteredResources = allResources.filter((res) => {
-		const query = searchQuery.trim().toLowerCase();
-		if (query) {
-			const terms = query.split(/\s+/);
-			const haystack = `${res.name} ${displayKind(res)} ${displayGroup(res)}`.toLowerCase();
-			if (!terms.every((term) => haystack.includes(term))) return false;
+	/** `protocols.eda.nokia.com` → `protocols` */
+	const shortGroup = (group: string) => group.replace(/\.eda\.nokia\.com$/, '');
+
+	type Group = { group: string; short: string; title: string; resources: CrdResource[] };
+
+	/** API titles from the release's OpenAPI index (`Routing Policies`), when it has one. */
+	let groupTitles: Record<string, string> = {};
+	let titlesFor = '';
+	$: if (selectedRelease?.name && selectedRelease.name !== titlesFor) {
+		titlesFor = selectedRelease.name;
+		void loadTitles(selectedRelease.name);
+	}
+	async function loadTitles(release: string) {
+		try {
+			const resp = await fetch(`/openapi/${release}/api-index.json`);
+			if (!resp.ok) return;
+			const index = (await resp.json()) as { apis: Array<{ group: string; title: string }> };
+			if (release !== titlesFor) return;
+			groupTitles = Object.fromEntries(index.apis.map((a) => [a.group, a.title]));
+		} catch {
+			// Fall back to the group's first label.
 		}
-		if (typeFilter === 'state') return res.name.toLowerCase().includes('states');
-		if (typeFilter === 'config') return !res.name.toLowerCase().includes('states');
-		return true;
+	}
+
+	function groupTitle(group: string, titles: Record<string, string>): string {
+		if (!group) return 'No API group';
+		if (titles[group]) return titles[group]!;
+		const first = group.split('.')[0] ?? group;
+		return first.charAt(0).toUpperCase() + first.slice(1);
+	}
+
+	function isState(res: CrdResource) {
+		return res.name.toLowerCase().includes('states');
+	}
+
+	/**
+	 * Every CRD by API group, built from this release's CRD list, so the groups follow the release.
+	 * Groups A–Z by short name (`aaa`, `core`, `services`); CRDs A–Z. An entry with no group (and
+	 * CRDs listed without versions) still shows.
+	 */
+	$: groups = (() => {
+		const byGroup = new Map<string, CrdResource[]>();
+		for (const res of allResources) {
+			const g = displayGroup(res);
+			byGroup.set(g, [...(byGroup.get(g) ?? []), res]);
+		}
+		return [...byGroup]
+			.map(([group, resources]) => ({
+				group,
+				short: group ? shortGroup(group) : 'other',
+				title: groupTitle(group, groupTitles),
+				resources: resources.sort((a, b) => displayKind(a).localeCompare(displayKind(b)))
+			}))
+			.sort((a, b) => (a.group ? 0 : 1) - (b.group ? 0 : 1) || a.short.localeCompare(b.short));
+	})() as Group[];
+
+	$: query = searchQuery.trim().toLowerCase();
+	$: searching = query.length > 0;
+
+	function matches(res: CrdResource, group: Group): boolean {
+		if (typeFilter === 'state' && !isState(res)) return false;
+		if (typeFilter === 'config' && isState(res)) return false;
+		if (!searching) return true;
+		const haystack = `${res.name} ${displayKind(res)} ${group.group} ${group.title}`.toLowerCase();
+		return query.split(/\s+/).every((t) => haystack.includes(t));
+	}
+
+	// The search always covers every CRD; the group selection only applies when not searching.
+	$: shownGroups = groups
+		.filter((g) => searching || !selGroup || g.group === selGroup)
+		.map((g) => ({ ...g, resources: g.resources.filter((r) => matches(r, g)) }))
+		.filter((g) => g.resources.length > 0);
+	$: shownCount = shownGroups.reduce((n, g) => n + g.resources.length, 0);
+	$: current = groups.find((g) => g.group === selGroup) ?? null;
+
+	function pick(group: string) {
+		selGroup = group;
+		searchQuery = '';
+		document.getElementById('main-scroll')?.scrollTo({ top: 0 });
+	}
+
+	function resetFilters() {
+		searchQuery = '';
+		typeFilter = 'all';
+	}
+
+	/** `/` focuses the catalog search unless you're typing somewhere. */
+	onMount(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key !== '/' || event.defaultPrevented || modalOpen) return;
+			const t = event.target as HTMLElement | null;
+			if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+			event.preventDefault();
+			document.getElementById('crd-catalog-search')?.focus();
+		};
+		window.addEventListener('keydown', onKey, true);
+		return () => window.removeEventListener('keydown', onKey, true);
 	});
 
-	$: sortedResources = [...filteredResources].sort((a, b) => {
-		let cmp = 0;
-		if (sortKey === 'kind') {
-			cmp = displayKind(a).localeCompare(displayKind(b));
-		} else if (sortKey === 'group') {
-			cmp = displayGroup(a).localeCompare(displayGroup(b));
-		} else {
-			cmp = getLatestVersion(a).localeCompare(getLatestVersion(b));
-		}
-		return sortAsc ? cmp : -cmp;
-	});
+	const SEARCH_ICON = 'M21 21l-5-5m2-5.5a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z';
 
 	function isAllDeprecated(res: CrdResource) {
 		return res.versions.length > 0 && res.versions.every((v) => v.deprecated);
 	}
 
-	function toggleSort(key: SortKey) {
-		if (sortKey === key) {
-			sortAsc = !sortAsc;
-		} else {
-			sortKey = key;
-			sortAsc = true;
-		}
-	}
-
-	function sortIndicator(key: SortKey) {
-		if (sortKey !== key) return '';
-		return sortAsc ? '↑' : '↓';
-	}
-
-	function openResourceModal(res: CrdResource, event?: Event, viewMode: ResourceViewMode = 'schema') {
+	function openResourceModal(
+		res: CrdResource,
+		event?: Event,
+		viewMode: ResourceViewMode = 'schema'
+	) {
 		event?.preventDefault();
 		event?.stopPropagation();
 		modalResource = res;
@@ -132,9 +196,7 @@
 	}
 </script>
 
-<div
-	class="page-shell flex min-h-full min-w-0 flex-col overflow-x-hidden bg-gray-50 text-sm text-gray-900 dark:text-gray-100"
->
+<div class="page-shell cat-page min-h-full">
 	<!-- The header's release switcher changes the catalog's release. -->
 	<AppHeader
 		onLogoClick={(e) => {
@@ -143,247 +205,165 @@
 		}}
 	/>
 
-	<!-- Toolbar -->
-	<div
-		class="sticky top-14 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-sm sm:top-16 dark:border-slate-700 dark:bg-slate-900/95"
-	>
-		<div class="mx-auto max-w-7xl min-w-0 space-y-2.5 px-3 py-2.5 sm:space-y-3 sm:px-6 sm:py-3">
-			<div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-				<div class="relative min-w-0 flex-1">
-					<svg
-						class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-						aria-hidden="true"
+	<div class="cat-shell">
+		<aside class="cat-side" aria-label="API groups">
+			<button
+				type="button"
+				class="row all"
+				aria-current={!selGroup ? 'true' : undefined}
+				on:click={() => pick('')}
+			>
+				<svg class="i" viewBox="0 0 24 24" aria-hidden="true"
+					><path d="M4 5h7v6H4zM13 5h7v14h-7zM4 13h7v6H4z" /></svg
+				>
+				<span>All CRDs</span><small>{allResources.length}</small>
+			</button>
+			<p class="heading">API groups <span>{groups.length}</span></p>
+			<ul>
+				{#each groups as g (g.group)}
+					<li>
+						<button
+							type="button"
+							class="row grp"
+							aria-current={selGroup === g.group ? 'true' : undefined}
+							title={g.group || 'No API group'}
+							on:click={() => pick(g.group)}
+						>
+							<span class="grp-name">{g.short}</span><small>{g.resources.length}</small>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</aside>
+
+		<main class="cat-main">
+			<p class="crumb">
+				CRDs <span aria-hidden="true">›</span>
+				{#if current}<button type="button" class="crumb-link" on:click={() => pick('')}
+						>Catalog</button
 					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-						/>
-					</svg>
+					<span aria-hidden="true">›</span> <b>{current.short}</b>{:else}<b>Catalog</b>{/if}
+			</p>
+			<h1>
+				{current ? current.title : 'CRD catalog'}
+				<span class="rel">{selectedRelease?.name}</span>
+			</h1>
+			<p class="lede">
+				{#if current}
+					<code>{current.group || 'No API group'}</code> · {current.resources.length}
+					{current.resources.length === 1 ? 'CRD' : 'CRDs'}
+				{:else}
+					{allResources.length} CRDs in {groups.length} API groups. Pick a group, or search them all.
+				{/if}
+			</p>
+
+			<label class="sr-only" for="crd-group-select">API group</label>
+			<select
+				id="crd-group-select"
+				class="group-select"
+				value={selGroup}
+				on:change={(e) => pick(e.currentTarget.value)}
+			>
+				<option value="">All API groups ({allResources.length})</option>
+				{#each groups as g (g.group)}
+					<option value={g.group}>{g.short} ({g.resources.length})</option>
+				{/each}
+			</select>
+
+			<div class="bar">
+				<div class="search">
+					<label for="crd-catalog-search" class="sr-only">Search all CRDs</label>
+					<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d={SEARCH_ICON} /></svg>
 					<input
+						id="crd-catalog-search"
 						type="search"
 						bind:value={searchQuery}
-						placeholder="Search kind, name, or group…"
-						class="min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white py-2 pr-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
+						placeholder="Search all {allResources.length} CRDs by kind or group"
+						autocomplete="off"
+						spellcheck="false"
 					/>
+					<kbd aria-hidden="true">/</kbd>
 				</div>
-				<div
-					class="flex shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400"
-				>
-					<span class="tabular-nums">{filteredResources.length}</span>
-					<span>resource{filteredResources.length !== 1 ? 's' : ''}</span>
+				<div class="seg" role="group" aria-label="Resource type">
+					{#each [{ id: 'all', label: 'All' }, { id: 'config', label: 'Config' }, { id: 'state', label: 'State' }] as chip (chip.id)}
+						<button
+							type="button"
+							aria-pressed={typeFilter === chip.id}
+							on:click={() => (typeFilter = chip.id as typeof typeFilter)}>{chip.label}</button
+						>
+					{/each}
 				</div>
 			</div>
+			<p class="status" aria-live="polite">
+				{#if searching}
+					{shownCount}
+					{shownCount === 1 ? 'match' : 'matches'} in {shownGroups.length}
+					{shownGroups.length === 1 ? 'group' : 'groups'}{#if selGroup}&nbsp;· searching all API
+						groups, not only {current?.short}{/if}
+				{:else}
+					{shownCount} {shownCount === 1 ? 'CRD' : 'CRDs'}
+				{/if}
+			</p>
 
-			<div
-				class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 pb-0.5"
-				role="group"
-				aria-label="Resource type filter"
-			>
-				<span class="shrink-0 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400"
-					>Filter</span
-				>
-				{#each [{ id: 'all', label: 'All' }, { id: 'config', label: 'Config' }, { id: 'state', label: 'State' }] as chip}
-					<button
-						type="button"
-						on:click={() => (typeFilter = chip.id as typeof typeFilter)}
-						class="shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition-colors
-						       {typeFilter === chip.id
-							? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300'
-							: 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-500'}"
-					>
-						{chip.label}
-					</button>
-				{/each}
-			</div>
-		</div>
-	</div>
-
-	<!-- Main content -->
-	<main
-		class="mx-auto w-full min-w-0 max-w-7xl flex-1 overflow-x-hidden px-3 py-3 pb-[max(4rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6"
-	>
-		{#if sortedResources.length === 0}
-			<div
-				class="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center sm:px-6 sm:py-12 dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
-			>
-				<p class="text-sm text-slate-500 dark:text-slate-400">No resources match your search or filter.</p>
-				<button
-					type="button"
-					on:click={() => {
-						searchQuery = '';
-						typeFilter = 'all';
-					}}
-					class="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-				>
-					Clear filters
-				</button>
-			</div>
-		{:else}
-			<!-- Desktop table -->
-			<div
-				class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block dark:border-blue-900/40 dark:bg-[#0f2a48]/88"
-			>
-				<div class="overflow-x-auto">
-					<table class="w-full min-w-0 text-left text-sm">
+			{#if shownGroups.length === 0}
+				<div class="empty">
+					<p>No CRD matches your search or filter.</p>
+					<button type="button" on:click={resetFilters}>Clear filters</button>
+				</div>
+			{:else}
+				<div class="tbl">
+					<table>
 						<thead>
-							<tr class="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/50">
-								<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
-									<button
-										type="button"
-										on:click={() => toggleSort('kind')}
-										class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-									>
-										Kind <span class="text-xs opacity-60">{sortIndicator('kind')}</span>
-									</button>
-								</th>
-								<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
-									<button
-										type="button"
-										on:click={() => toggleSort('group')}
-										class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-									>
-										API Group <span class="text-xs opacity-60">{sortIndicator('group')}</span>
-									</button>
-								</th>
-								<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
-									<button
-										type="button"
-										on:click={() => toggleSort('version')}
-										class="inline-flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400"
-									>
-										Latest Version <span class="text-xs opacity-60">{sortIndicator('version')}</span>
-									</button>
-								</th>
-								<th class="w-10 px-4 py-3"></th>
+							<tr>
+								<th scope="col">Kind</th>
+								<th scope="col">Scope</th>
+								<th scope="col">Versions</th>
+								<th scope="col">Name</th>
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-							{#each sortedResources as resDef (resDef.name)}
-								{@const latest = getLatestVersion(resDef)}
-								<tr
-									class="group cursor-pointer transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-900/10"
-									role="button"
-									tabindex="0"
-									on:click={(e) => openResourceModal(resDef, e)}
-									on:keydown={(e) => e.key === 'Enter' && openResourceModal(resDef)}
-								>
-									<td class="px-4 py-3">
-										<div class="flex items-center gap-2">
-											<span
-												class="font-semibold text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400"
-											>
-												{displayKind(resDef)}
-											</span>
-											{#if isAllDeprecated(resDef)}
-												<span
-													class="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-												>
-													DEPRECATED
-												</span>
-											{/if}
-										</div>
-									</td>
-									<td class="max-w-[12rem] px-4 py-3">
-										<span class="block truncate font-mono text-xs text-slate-600 dark:text-slate-400">
-											{displayGroup(resDef)}
-										</span>
-									</td>
-									<td class="px-4 py-3">
-										{#if latest}
-											<span
-												class="inline-flex rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-											>
-												{latest}
-											</span>
-											{#if resDef.versions.length > 1}
-												<span class="ml-2 text-xs text-slate-500 dark:text-slate-400">
-													+{resDef.versions.length - 1} more
-												</span>
-											{/if}
+						{#each shownGroups as g (g.group)}
+							<tbody>
+								<tr class="grp-row">
+									<th scope="colgroup" colspan="4">
+										{#if !selGroup || searching}
+											<button type="button" on:click={() => pick(g.group)}>{g.title}</button>
+										{:else}
+											<b>{g.title}</b>
 										{/if}
-									</td>
-									<td class="px-4 py-3 text-right">
-										<svg
-											class="inline h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-500"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											aria-hidden="true"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M9 5l7 7-7 7"
-											/>
-										</svg>
-									</td>
+										<span>{g.group || 'No API group'}</span>
+										<small>{g.resources.length}</small>
+									</th>
 								</tr>
-							{/each}
-						</tbody>
+								{#each g.resources as res (res.name)}
+									{@const latest = getLatestVersion(res)}
+									<tr class="res">
+										<td class="k">
+											<button type="button" on:click={(e) => openResourceModal(res, e)}
+												>{displayKind(res)}</button
+											>{#if isAllDeprecated(res)}<span class="tag tag--dep">Deprecated</span
+												>{/if}{#if isState(res)}<span class="tag">State</span>{/if}
+										</td>
+										<td class="sc">{res.scope ?? '—'}</td>
+										<td class="v">
+											{#if latest}
+												<span class="ver">{latest}</span>
+												{#each res.versions.filter((v) => v.name !== latest) as v (v.name)}
+													<span class="ver ver--old" class:is-dep={v.deprecated}>{v.name}</span>
+												{/each}
+											{:else}
+												<span class="none">no versions</span>
+											{/if}
+										</td>
+										<td class="n">{res.name}</td>
+									</tr>
+								{/each}
+							</tbody>
+						{/each}
 					</table>
 				</div>
-			</div>
-
-			<!-- Mobile cards -->
-			<div class="space-y-2 md:hidden">
-				{#each sortedResources as resDef (resDef.name)}
-					{@const latest = getLatestVersion(resDef)}
-					<button
-						type="button"
-						on:click={(e) => openResourceModal(resDef, e)}
-						class="min-h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition-colors active:border-blue-300 active:bg-blue-50/40 dark:border-blue-900/40 dark:bg-[#0f2a48]/88 dark:active:border-blue-500 dark:active:bg-[#123a5c]/90"
-					>
-						<div class="flex min-w-0 items-start justify-between gap-2">
-							<div class="min-w-0 flex-1">
-								<div class="flex flex-wrap items-center gap-1.5">
-									<span class="text-sm font-semibold text-slate-900 dark:text-white">
-										{displayKind(resDef)}
-									</span>
-									{#if isAllDeprecated(resDef)}
-										<span
-											class="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-										>
-											DEPRECATED
-										</span>
-									{/if}
-								</div>
-								<p class="mt-0.5 break-all font-mono text-xs leading-snug text-slate-500 dark:text-slate-400">
-									{displayGroup(resDef)}
-								</p>
-								{#if resDef.versions.length > 1}
-									<p class="mt-0.5 text-xs text-slate-400">{resDef.versions.length} versions</p>
-								{/if}
-							</div>
-							<div class="flex shrink-0 flex-col items-end gap-1">
-								{#if latest}
-									<span
-										class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-200"
-									>
-										{latest}
-									</span>
-								{/if}
-								<svg
-									class="h-4 w-4 text-slate-400"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									aria-hidden="true"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-								</svg>
-							</div>
-						</div>
-					</button>
-				{/each}
-			</div>
-		{/if}
-	</main>
+			{/if}
+		</main>
+	</div>
 </div>
 
 <ResourceModal
@@ -391,9 +371,497 @@
 	resourceDef={modalResource}
 	{selectedRelease}
 	{allReleases}
-	initialVersion={initialVersion}
+	{initialVersion}
 	initialViewMode={modalInitialViewMode}
 	highlightPaths={modalHighlightPaths}
 	onActiveVersionChange={onResourceVersionChange}
 	onClose={closeResourceModal}
 />
+
+<style>
+	.cat-page {
+		background: var(--rb-bg);
+		color: var(--rb-ink);
+		font-family: var(--rb-font);
+	}
+
+	.cat-shell {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		max-width: 90rem;
+		margin: 0 auto;
+		padding: 0 max(1rem, env(safe-area-inset-right, 0px)) 3rem
+			max(1rem, env(safe-area-inset-left, 0px));
+	}
+
+	@media (min-width: 1024px) {
+		.cat-shell {
+			grid-template-columns: 15rem minmax(0, 1fr);
+			gap: 2.5rem;
+			padding-left: 2rem;
+			padding-right: 2rem;
+		}
+	}
+
+	.i {
+		flex: none;
+		width: 1.125rem;
+		height: 1.125rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	/* sidebar: API groups from the release's CRDs */
+	.cat-side {
+		display: none;
+	}
+
+	@media (min-width: 1024px) {
+		.cat-side {
+			position: sticky;
+			top: 0;
+			display: block;
+			align-self: start;
+			max-height: 100vh;
+			overflow-y: auto;
+			padding: 1.5rem 0.25rem 2rem 0;
+		}
+	}
+
+	.cat-side ul {
+		display: grid;
+		gap: 1px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.heading {
+		display: flex;
+		justify-content: space-between;
+		margin: 1rem 0.625rem 0.25rem;
+		font: 600 0.66rem var(--rb-font-mono);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--rb-ink-3);
+	}
+
+	.row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.625rem;
+		width: 100%;
+		min-height: 2rem;
+		padding: 0.3125rem 0.625rem;
+		border: 0;
+		border-radius: 0.4375rem;
+		background: none;
+		color: var(--rb-ink-2);
+		font: 500 0.86rem var(--rb-font);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.row.all {
+		grid-template-columns: 1.125rem minmax(0, 1fr) auto;
+		min-height: 2.25rem;
+		color: var(--rb-ink);
+		font-weight: 600;
+	}
+
+	.grp-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font: 500 0.82rem var(--rb-font-mono);
+	}
+
+	.row:hover {
+		background: var(--rb-raised);
+		color: var(--rb-ink);
+	}
+
+	.row[aria-current='true'] {
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font-weight: 600;
+	}
+
+	.row[aria-current='true'] .grp-name {
+		font-weight: 600;
+	}
+
+	small {
+		font: 0.72rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
+	}
+
+	/* main */
+	.cat-main {
+		min-width: 0;
+		padding-top: 1.75rem;
+		container-type: inline-size;
+	}
+
+	.crumb {
+		margin: 0;
+		font: 500 0.75rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
+	}
+
+	.crumb b {
+		font-weight: 500;
+		color: var(--rb-ink-2);
+	}
+
+	.crumb-link {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--rb-ink-3);
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+	h1 {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.25rem 0.625rem;
+		margin: 0.375rem 0 0.25rem;
+		font: 700 clamp(1.6rem, 3vw, 2.1rem) / 1.15 var(--rb-font-display);
+		letter-spacing: -0.02em;
+	}
+
+	.rel {
+		padding: 0.125rem 0.4375rem;
+		border-radius: 0.3125rem;
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font: 600 0.78rem var(--rb-font-mono);
+		letter-spacing: 0;
+	}
+
+	.lede {
+		margin: 0;
+		color: var(--rb-ink-2);
+		font-size: 0.95rem;
+	}
+
+	.lede code {
+		font: 0.85rem var(--rb-font-mono);
+		color: var(--rb-ink);
+	}
+
+	.group-select {
+		width: 100%;
+		height: 2.5rem;
+		margin-top: 1rem;
+		padding: 0 0.75rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		font: 500 0.9rem var(--rb-font);
+	}
+
+	@media (min-width: 1024px) {
+		.group-select {
+			display: none;
+		}
+	}
+
+	.bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.625rem;
+		margin-top: 1.25rem;
+	}
+
+	.search {
+		position: relative;
+		flex: 1 1 18rem;
+	}
+
+	.search > .i {
+		position: absolute;
+		left: 0.875rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--rb-ink-3);
+		pointer-events: none;
+	}
+
+	.search input {
+		width: 100%;
+		height: 2.75rem;
+		padding: 0 2.5rem 0 2.625rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		font: 0.94rem var(--rb-font);
+	}
+
+	.search input:focus {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 1px;
+	}
+
+	.search kbd {
+		position: absolute;
+		right: 0.75rem;
+		top: 50%;
+		transform: translateY(-50%);
+		padding: 0 0.3rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.25rem;
+		color: var(--rb-ink-3);
+		font: 500 0.66rem var(--rb-font-mono);
+	}
+
+	.seg {
+		display: inline-flex;
+		overflow: hidden;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.5rem;
+		background: var(--rb-surface);
+	}
+
+	.seg button {
+		height: 2.625rem;
+		padding: 0 0.875rem;
+		border: 0;
+		background: none;
+		color: var(--rb-ink-2);
+		font: 600 0.82rem var(--rb-font);
+		cursor: pointer;
+	}
+
+	.seg button + button {
+		border-left: 1px solid var(--rb-line);
+	}
+
+	.seg button[aria-pressed='true'] {
+		background: var(--rb-ink);
+		color: var(--rb-bg);
+	}
+
+	.status {
+		margin: 0.625rem 0 0;
+		font: 0.75rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
+	}
+
+	/* table grouped by API group */
+	.tbl {
+		margin-top: 0.75rem;
+		overflow: hidden;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.75rem;
+		background: var(--rb-surface);
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	thead th {
+		padding: 0.625rem 1rem;
+		border-bottom: 1px solid var(--rb-line);
+		background: var(--rb-raised);
+		color: var(--rb-ink-3);
+		font: 600 0.66rem var(--rb-font-mono);
+		letter-spacing: 0.08em;
+		text-align: left;
+		text-transform: uppercase;
+	}
+
+	td {
+		padding: 0.5rem 1rem;
+		border-top: 1px solid var(--rb-line);
+		vertical-align: baseline;
+	}
+
+	.grp-row th {
+		padding: 0.75rem 1rem 0.4375rem;
+		border-top: 1px solid var(--rb-line);
+		background: var(--rb-bg);
+		text-align: left;
+		font-weight: 400;
+	}
+
+	.grp-row button,
+	.grp-row b {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--rb-ink);
+		font: 700 0.92rem var(--rb-font);
+		cursor: pointer;
+	}
+
+	.grp-row b {
+		cursor: default;
+	}
+
+	.grp-row button:hover {
+		color: var(--rb-signal);
+		text-decoration: underline;
+	}
+
+	.grp-row span {
+		margin-left: 0.625rem;
+		color: var(--rb-ink-3);
+		font: 0.72rem var(--rb-font-mono);
+	}
+
+	.grp-row small {
+		float: right;
+	}
+
+	.k button {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--rb-ink);
+		font: 600 0.86rem var(--rb-font-mono);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.k button:hover {
+		color: var(--rb-signal);
+		text-decoration: underline;
+	}
+
+	.tag {
+		margin-left: 0.4375rem;
+		padding: 0.0625rem 0.3125rem;
+		border: 1px solid var(--rb-line-strong);
+		border-radius: 0.25rem;
+		color: var(--rb-ink-3);
+		font: 600 0.58rem var(--rb-font-mono);
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+	}
+
+	.tag--dep {
+		border-color: color-mix(in srgb, var(--rb-removed) 45%, transparent);
+		color: var(--rb-removed);
+	}
+
+	.sc {
+		color: var(--rb-ink-2);
+		font-size: 0.8rem;
+		white-space: nowrap;
+	}
+
+	.v {
+		white-space: nowrap;
+	}
+
+	.ver {
+		display: inline-block;
+		margin-right: 0.25rem;
+		padding: 0.0625rem 0.375rem;
+		border-radius: 0.25rem;
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font: 600 0.74rem var(--rb-font-mono);
+	}
+
+	.ver--old {
+		background: var(--rb-raised);
+		color: var(--rb-ink-3);
+		font-weight: 500;
+	}
+
+	.ver.is-dep {
+		text-decoration: line-through;
+	}
+
+	.none {
+		color: var(--rb-ink-3);
+		font: italic 0.76rem var(--rb-font);
+	}
+
+	.n {
+		color: var(--rb-ink-3);
+		font: 0.74rem var(--rb-font-mono);
+		overflow-wrap: anywhere;
+	}
+
+	@container (max-width: 47.99rem) {
+		thead {
+			display: none;
+		}
+
+		tr.res {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 0.125rem 0.75rem;
+			padding: 0.5625rem 1rem;
+			border-top: 1px solid var(--rb-line);
+		}
+
+		tr.res td {
+			padding: 0;
+			border: 0;
+		}
+
+		tr.res .v {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		tr.res .sc {
+			display: none;
+		}
+
+		tr.res .n {
+			grid-column: 1 / -1;
+		}
+
+		.grp-row,
+		.grp-row th {
+			display: block;
+		}
+	}
+
+	.empty {
+		margin-top: 1rem;
+		padding: 2.5rem 1rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.75rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink-3);
+		text-align: center;
+	}
+
+	.empty p {
+		margin: 0;
+	}
+
+	.empty button {
+		margin-top: 0.5rem;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--rb-signal);
+		font: 600 0.9rem var(--rb-font);
+		cursor: pointer;
+	}
+
+	.cat-page :focus-visible {
+		outline: 2px solid var(--rb-signal);
+		outline-offset: 2px;
+	}
+</style>

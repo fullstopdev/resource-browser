@@ -93,3 +93,30 @@ test('phone menu opens the navigation sheet', async ({ page }) => {
 	await sheet.getByRole('link', { name: 'Docs' }).click();
 	await expect(page).toHaveURL(/\/docs/);
 });
+
+test('catalog groups CRDs by API group and searches them all', async ({ page }) => {
+	await page.goto('/?release=26.8.2');
+	const side = page.getByRole('complementary', { name: 'API groups' });
+	await expect(side.getByRole('button', { name: /^protocols\s*\d+$/ })).toBeVisible({
+		timeout: 15_000
+	});
+	await side.getByRole('button', { name: /^protocols\s*\d+$/ }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Protocols');
+	await expect(page.getByRole('button', { name: 'BGPPeer', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'AccountingPolicy', exact: true })).toHaveCount(0);
+	// The search covers every group, not only the selected one.
+	await page.getByRole('searchbox', { name: 'Search all CRDs' }).fill('accountingpolicy');
+	await expect(page.getByRole('button', { name: 'AccountingPolicy', exact: true })).toBeVisible();
+	await expect(page.locator('.status')).toContainText('searching all API groups');
+	await page.getByRole('button', { name: 'AccountingPolicy', exact: true }).click();
+	await expect(page).toHaveURL(/crd=AccountingPolicy/);
+});
+
+test('catalog shows CRDs listed without versions or a group', async ({ page }) => {
+	await page.goto('/?release=25.12.1');
+	const side = page.getByRole('complementary', { name: 'API groups' });
+	await side.getByRole('button', { name: /^other\s*\d+$/ }).click({ timeout: 15_000 });
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('No API group');
+	await expect(page.getByRole('button', { name: 'Resource', exact: true })).toBeVisible();
+	await expect(page.locator('.none')).toContainText('no versions');
+});

@@ -17,7 +17,9 @@ const PAGES: Array<[string, string, string, ('light' | 'dark')?]> = [
 	['Validate YAML', '/validate-yaml', '.monaco-editor'],
 	['docs', '/docs', 'h1'],
 	['docs (dark)', '/docs', 'h1', 'dark'],
-	['API overview', '/openapi?release=26.8.2', '.card'],
+	['API overview', '/openapi?release=26.8.2', '.tile'],
+	['API category', '/openapi?release=26.8.2&category=routing', 'table'],
+	['API category (dark)', '/openapi?release=26.8.2&category=services', 'table', 'dark'],
 	[
 		'API resource',
 		'/openapi?release=26.8.2&spec=services.eda.nokia.com/v2&section=bridgedomains',

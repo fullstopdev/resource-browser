@@ -6,13 +6,11 @@ import type {
 	OpenApiManifestEntry,
 	OpenApiRelease
 } from '$lib/openapi/types';
-import {
-	buildManifestDiffEntries,
-	summarizeOpenApiEntries
-} from './compareReleases';
+import { buildManifestDiffEntries, summarizeOpenApiEntries } from './compareReleases';
 import { classifyOpenApiDiffStatus, compareOpenApiSpecs } from './openapiDiff';
 
-const BATCH_SIZE = 8;
+/** Specs loaded and compared at the same time. */
+const CONCURRENCY = 6;
 
 export function mergeOpenApiCatalogs(
 	source: OpenApiManifestEntry[],
@@ -32,6 +30,8 @@ export type OpenApiDiffLoadOptions = {
 	specCache?: Map<string, Record<string, unknown>>;
 	fetcher?: typeof fetch;
 	onProgress?: (current: number, total: number) => void;
+	/** Per-request timeout for spec files (tests use a short one). */
+	timeoutMs?: number;
 };
 
 /** Fast path: compare manifests only (no OpenAPI JSON). Dual-present specs stay provisional shared. */
@@ -94,12 +94,16 @@ export async function enrichOpenApiDiffEntry(
 
 	let sourceSpec = specCache.get(sourceKey);
 	if (!sourceSpec) {
-		sourceSpec = (await loadOpenApiSpec(sourceRelease.folder, sourceFile, fetcher)) ?? undefined;
+		sourceSpec =
+			(await loadOpenApiSpec(sourceRelease.folder, sourceFile, fetcher, options?.timeoutMs)) ??
+			undefined;
 		if (sourceSpec) specCache.set(sourceKey, sourceSpec);
 	}
 	let targetSpec = specCache.get(targetKey);
 	if (!targetSpec) {
-		targetSpec = (await loadOpenApiSpec(targetRelease.folder, targetFile, fetcher)) ?? undefined;
+		targetSpec =
+			(await loadOpenApiSpec(targetRelease.folder, targetFile, fetcher, options?.timeoutMs)) ??
+			undefined;
 		if (targetSpec) specCache.set(targetKey, targetSpec);
 	}
 
@@ -130,7 +134,7 @@ export async function enrichOpenApiDiffEntry(
 }
 
 /**
- * Full report (CRD-style): manifest-first, then enrich every dual-present spec in batches.
+ * Full report (CRD-style): manifest-first, then enrich every dual-present spec.
  * After enrich, status is stable `modified` | `shared` | `error` — filters never reclassify.
  */
 export async function generateOpenApiBulkDiffReport(
@@ -144,19 +148,32 @@ export async function generateOpenApiBulkDiffReport(
 	const enriched: OpenApiDiffEntry[] = [...others];
 	const specCache = options?.specCache ?? new Map();
 
-	for (let i = 0; i < pending.length; i += BATCH_SIZE) {
-		const batch = pending.slice(i, i + BATCH_SIZE);
-		const results = await Promise.all(
-			batch.map((entry) =>
-				enrichOpenApiDiffEntry(entry, sourceRelease, targetRelease, {
+	// A small pool rather than fixed batches: one slow spec never holds up the others, and progress
+	// moves with every spec. A spec that fails becomes an `error` entry instead of stopping the run.
+	let next = 0;
+	let done = 0;
+	const worker = async () => {
+		while (next < pending.length) {
+			const entry = pending[next++]!;
+			let result: OpenApiDiffEntry;
+			try {
+				result = await enrichOpenApiDiffEntry(entry, sourceRelease, targetRelease, {
 					...options,
 					specCache
-				})
-			)
-		);
-		enriched.push(...results);
-		options?.onProgress?.(Math.min(i + batch.length, pending.length), pending.length);
-	}
+				});
+			} catch (err) {
+				result = {
+					...entry,
+					status: 'error',
+					detailsLoaded: true,
+					error: err instanceof Error ? err.message : 'Comparison failed for this API'
+				};
+			}
+			enriched.push(result);
+			options?.onProgress?.(++done, pending.length);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
 
 	enriched.sort((a, b) => a.title.localeCompare(b.title) || a.specId.localeCompare(b.specId));
 

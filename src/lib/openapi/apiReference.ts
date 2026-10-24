@@ -431,9 +431,9 @@ export function curlForAction(action: ApiAction, section: ApiSection): string {
 	return lines.join(' \\\n');
 }
 
-/** `Services` from "Services Application APIs."; the platform API keeps a fixed name. */
+/** `Services` from "Services Application APIs."; the API server (`/core`) keeps a fixed name. */
 export function apiShortTitle(title: string, id: string): string {
-	if (id === 'core') return 'Platform API';
+	if (id === 'core') return 'API Server';
 	return (
 		title
 			.replace(/\s*Application APIs\.?$/i, '')

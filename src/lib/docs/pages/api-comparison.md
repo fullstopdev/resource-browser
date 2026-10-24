@@ -37,7 +37,11 @@ flowchart LR
   D --> FAM["Group specs by API family"]
   FAM --> BOTH{"In both releases?"}
   BOTH -->|"no"| AR["Added or removed"]
-  BOTH -->|"yes"| LOAD["Load both specs, 8 at a time"]
+  BOTH -->|"yes"| LOAD["Load both specs, 6 at a time"]
   LOAD --> CMP["Compare paths and schemas"]
   CMP --> ST["Modified or shared"]
 ```
+
+Each spec download gives up after 30 seconds and is tried once more. An API whose specs still don't
+load is shown as **Error** and the rest of the comparison carries on; the progress bar counts every
+spec as it finishes.

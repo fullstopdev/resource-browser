@@ -10,6 +10,8 @@ export interface CrdResource {
 	group: string;
 	kind: string;
 	versions: CrdVersions[];
+	/** `Namespaced` or `Cluster`, from the CRD manifest. */
+	scope?: string;
 	edaRelease?: string; // EDA release this resource belongs to
 }
 
