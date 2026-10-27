@@ -12,10 +12,12 @@ each one in a detail window with two tabs: **Schema** and **Compare**.
 
 ## Using the catalog
 
-- **API groups.** The sidebar lists the release's API groups (`aaa`, `core`, `protocols`,
-  `services`…) with their CRD counts. The list is built from the release's CRD manifest, so it
-  follows whatever groups that release has. Pick one to see only its CRDs; on a phone the groups
-  are a drop-down.
+- **Categories and API groups.** The catalog opens on the categories (the same ones as the API
+  reference: Core platform, Fabric and topology, Routing and protocols…) as tiles. The sidebar lists
+  them with their CRD counts; a category opens to its API groups (`aaa`, `core`, `protocols`…). The
+  groups come from the release's CRD manifest, so they follow whatever a release ships; the mapping
+  of groups to categories is `src/lib/openapi/apiCategories.ts`, and a unit test fails if a group
+  of any release has none. On a phone, categories and groups are a drop-down.
 - **Search** (<kbd>/</kbd>) always covers every CRD of the release, by kind, name or group, even
   with a group selected.
 - **Filter** between _All_, _Config_ and _State_ CRDs. State CRDs (names containing `states`, such

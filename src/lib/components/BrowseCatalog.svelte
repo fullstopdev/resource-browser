@@ -7,6 +7,13 @@
 	import { crdParamForResource } from '$lib/urlState';
 	import { getLatestVersion } from '$lib/versions';
 	import { onMount } from 'svelte';
+	import {
+		buildCatalogGroups,
+		catalogCategories,
+		filterCatalog,
+		isStateCrd,
+		type CatalogGroup
+	} from '$lib/catalogGroups';
 
 	export let allResources: CrdResource[] = [];
 	export let selectedRelease: EdaRelease;
@@ -22,7 +29,8 @@
 
 	let searchQuery = '';
 	let typeFilter: 'all' | 'config' | 'state' = 'all';
-	/** Sidebar selection: one API group, or '' for all. The search ignores it. */
+	/** Sidebar selection: a category and/or one API group ('' for none). The search ignores it. */
+	let selCategory = '';
 	let selGroup = '';
 
 	let modalOpen = false;
@@ -51,11 +59,6 @@
 		}
 	}
 
-	/** `protocols.eda.nokia.com` → `protocols` */
-	const shortGroup = (group: string) => group.replace(/\.eda\.nokia\.com$/, '');
-
-	type Group = { group: string; short: string; title: string; resources: CrdResource[] };
-
 	/** API titles from the release's OpenAPI index (`Routing Policies`), when it has one. */
 	let groupTitles: Record<string, string> = {};
 	let titlesFor = '';
@@ -75,58 +78,26 @@
 		}
 	}
 
-	function groupTitle(group: string, titles: Record<string, string>): string {
-		if (!group) return 'No API group';
-		if (titles[group]) return titles[group]!;
-		const first = group.split('.')[0] ?? group;
-		return first.charAt(0).toUpperCase() + first.slice(1);
-	}
-
-	function isState(res: CrdResource) {
-		return res.name.toLowerCase().includes('states');
-	}
-
-	/**
-	 * Every CRD by API group, built from this release's CRD list, so the groups follow the release.
-	 * Groups A–Z by short name (`aaa`, `core`, `services`); CRDs A–Z. An entry with no group (and
-	 * CRDs listed without versions) still shows.
-	 */
-	$: groups = (() => {
-		const byGroup = new Map<string, CrdResource[]>();
-		for (const res of allResources) {
-			const g = displayGroup(res);
-			byGroup.set(g, [...(byGroup.get(g) ?? []), res]);
-		}
-		return [...byGroup]
-			.map(([group, resources]) => ({
-				group,
-				short: group ? shortGroup(group) : 'other',
-				title: groupTitle(group, groupTitles),
-				resources: resources.sort((a, b) => displayKind(a).localeCompare(displayKind(b)))
-			}))
-			.sort((a, b) => (a.group ? 0 : 1) - (b.group ? 0 : 1) || a.short.localeCompare(b.short));
-	})() as Group[];
-
-	$: query = searchQuery.trim().toLowerCase();
-	$: searching = query.length > 0;
-
-	function matches(res: CrdResource, group: Group): boolean {
-		if (typeFilter === 'state' && !isState(res)) return false;
-		if (typeFilter === 'config' && isState(res)) return false;
-		if (!searching) return true;
-		const haystack = `${res.name} ${displayKind(res)} ${group.group} ${group.title}`.toLowerCase();
-		return query.split(/\s+/).every((t) => haystack.includes(t));
-	}
-
-	// The search always covers every CRD; the group selection only applies when not searching.
-	$: shownGroups = groups
-		.filter((g) => searching || !selGroup || g.group === selGroup)
-		.map((g) => ({ ...g, resources: g.resources.filter((r) => matches(r, g)) }))
-		.filter((g) => g.resources.length > 0);
+	$: groups = buildCatalogGroups(allResources, groupTitles);
+	$: categories = catalogCategories(groups);
+	$: searching = searchQuery.trim().length > 0;
+	// Every filter input is passed in, so the list updates on each keystroke.
+	$: shownGroups = filterCatalog(groups, {
+		query: searchQuery,
+		type: typeFilter,
+		category: selCategory,
+		group: selGroup
+	});
 	$: shownCount = shownGroups.reduce((n, g) => n + g.resources.length, 0);
-	$: current = groups.find((g) => g.group === selGroup) ?? null;
+	$: currentGroup = groups.find((g) => g.group === selGroup) ?? null;
+	$: currentCategory = categories.find((c) => c.category.id === selCategory) ?? null;
+	/** The landing (tiles) shows when nothing is picked and nothing is typed. */
+	$: landing = !searching && !selCategory && !selGroup;
+	/** Sidebar: the open category is the selected one, or the selected group's. */
+	$: openCategory = currentGroup ? currentGroup.category.id : selCategory;
 
-	function pick(group: string) {
+	function pick(category: string, group = '') {
+		selCategory = category;
 		selGroup = group;
 		searchQuery = '';
 		document.getElementById('main-scroll')?.scrollTo({ top: 0 });
@@ -135,6 +106,15 @@
 	function resetFilters() {
 		searchQuery = '';
 		typeFilter = 'all';
+	}
+
+	const POPULAR = ['Fabric', 'TopoNode', 'Interface', 'BGPPeer', 'BridgeDomain', 'VLAN', 'Router'];
+	function examples(list: CatalogGroup[]): string[] {
+		const all = list.flatMap((g) => g.resources.filter((r) => !isStateCrd(r)).map(displayKind));
+		return [
+			...POPULAR.filter((p) => all.includes(p)),
+			...all.filter((k) => !POPULAR.includes(k))
+		].slice(0, 4);
 	}
 
 	/** `/` focuses the catalog search unless you're typing somewhere. */
@@ -206,31 +186,55 @@
 	/>
 
 	<div class="cat-shell">
-		<aside class="cat-side" aria-label="API groups">
+		<aside class="cat-side" aria-label="CRD categories">
 			<button
 				type="button"
 				class="row all"
-				aria-current={!selGroup ? 'true' : undefined}
+				aria-current={landing ? 'true' : undefined}
 				on:click={() => pick('')}
 			>
 				<svg class="i" viewBox="0 0 24 24" aria-hidden="true"
 					><path d="M4 5h7v6H4zM13 5h7v14h-7zM4 13h7v6H4z" /></svg
 				>
-				<span>All CRDs</span><small>{allResources.length}</small>
+				<span>Catalog overview</span><small>{allResources.length}</small>
 			</button>
-			<p class="heading">API groups <span>{groups.length}</span></p>
-			<ul>
-				{#each groups as g (g.group)}
+			<p class="heading">Categories</p>
+			<ul class="cats">
+				{#each categories as c (c.category.id)}
+					{@const open = c.category.id === openCategory}
 					<li>
 						<button
 							type="button"
-							class="row grp"
-							aria-current={selGroup === g.group ? 'true' : undefined}
-							title={g.group || 'No API group'}
-							on:click={() => pick(g.group)}
+							class="row cat"
+							class:is-open={open}
+							aria-current={selCategory === c.category.id && !selGroup && !searching
+								? 'true'
+								: undefined}
+							aria-expanded={open}
+							on:click={() => pick(c.category.id)}
 						>
-							<span class="grp-name">{g.short}</span><small>{g.resources.length}</small>
+							<svg class="i" viewBox="0 0 24 24" aria-hidden="true"
+								><path d={c.category.icon} /></svg
+							>
+							<span>{c.category.title}</span><small>{c.crds}</small>
 						</button>
+						{#if open}
+							<ul class="grps">
+								{#each c.groups as g (g.group)}
+									<li>
+										<button
+											type="button"
+											class="grp"
+											aria-current={selGroup === g.group && !searching ? 'true' : undefined}
+											title={g.group || 'No API group'}
+											on:click={() => pick(c.category.id, g.group)}
+										>
+											<span>{g.short}</span><small>{g.resources.length}</small>
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -239,34 +243,73 @@
 		<main class="cat-main">
 			<p class="crumb">
 				CRDs <span aria-hidden="true">›</span>
-				{#if current}<button type="button" class="crumb-link" on:click={() => pick('')}
-						>Catalog</button
+				{#if currentCategory || currentGroup}
+					<button type="button" class="crumb-link" on:click={() => pick('')}>Catalog</button>
+					<span aria-hidden="true">›</span>
+					{#if currentGroup}
+						<button
+							type="button"
+							class="crumb-link"
+							on:click={() => pick(currentGroup?.category.id ?? '')}
+							>{currentGroup.category.title}</button
+						>
+						<span aria-hidden="true">›</span> <b>{currentGroup.short}</b>
+					{:else if currentCategory}
+						<b>{currentCategory.category.title}</b>
+					{/if}
+				{:else}<b>Catalog</b>{/if}
+			</p>
+			<div class="title">
+				{#if currentGroup || currentCategory}
+					<span class="title-icon"
+						><svg class="i" viewBox="0 0 24 24" aria-hidden="true"
+							><path d={(currentGroup?.category ?? currentCategory?.category)?.icon ?? ''} /></svg
+						></span
 					>
-					<span aria-hidden="true">›</span> <b>{current.short}</b>{:else}<b>Catalog</b>{/if}
-			</p>
-			<h1>
-				{current ? current.title : 'CRD catalog'}
-				<span class="rel">{selectedRelease?.name}</span>
-			</h1>
-			<p class="lede">
-				{#if current}
-					<code>{current.group || 'No API group'}</code> · {current.resources.length}
-					{current.resources.length === 1 ? 'CRD' : 'CRDs'}
-				{:else}
-					{allResources.length} CRDs in {groups.length} API groups. Pick a group, or search them all.
 				{/if}
-			</p>
+				<div>
+					<h1>
+						{currentGroup
+							? currentGroup.title
+							: currentCategory
+								? currentCategory.category.title
+								: 'CRD catalog'}
+						<span class="rel">{selectedRelease?.name}</span>
+					</h1>
+					<p class="lede">
+						{#if currentGroup}
+							<code>{currentGroup.group || 'No API group'}</code> · {currentGroup.resources.length}
+							{currentGroup.resources.length === 1 ? 'CRD' : 'CRDs'}
+						{:else if currentCategory}
+							{currentCategory.category.blurb}
+							{currentCategory.groups.length} API groups, {currentCategory.crds} CRDs.
+						{:else}
+							{allResources.length} CRDs in {groups.length} API groups. Search them all, or browse by
+							category.
+						{/if}
+					</p>
+				</div>
+			</div>
 
-			<label class="sr-only" for="crd-group-select">API group</label>
+			<label class="sr-only" for="crd-group-select">Category or API group</label>
 			<select
 				id="crd-group-select"
 				class="group-select"
-				value={selGroup}
-				on:change={(e) => pick(e.currentTarget.value)}
+				value={selGroup ? `g:${selGroup}` : selCategory ? `c:${selCategory}` : ''}
+				on:change={(e) => {
+					const v = e.currentTarget.value;
+					if (v.startsWith('g:')) {
+						const g = groups.find((x) => x.group === v.slice(2));
+						pick(g?.category.id ?? '', v.slice(2));
+					} else pick(v.slice(2));
+				}}
 			>
-				<option value="">All API groups ({allResources.length})</option>
-				{#each groups as g (g.group)}
-					<option value={g.group}>{g.short} ({g.resources.length})</option>
+				<option value="">All categories ({allResources.length})</option>
+				{#each categories as c (c.category.id)}
+					<option value="c:{c.category.id}">{c.category.title} ({c.crds})</option>
+					{#each c.groups as g (g.group)}
+						<option value="g:{g.group}">&nbsp;&nbsp;{g.short} ({g.resources.length})</option>
+					{/each}
 				{/each}
 			</select>
 
@@ -278,89 +321,132 @@
 						id="crd-catalog-search"
 						type="search"
 						bind:value={searchQuery}
-						placeholder="Search all {allResources.length} CRDs by kind or group"
+						placeholder="Search all {allResources.length} CRDs by kind or group, e.g. BGPPeer"
 						autocomplete="off"
 						spellcheck="false"
 					/>
 					<kbd aria-hidden="true">/</kbd>
 				</div>
-				<div class="seg" role="group" aria-label="Resource type">
-					{#each [{ id: 'all', label: 'All' }, { id: 'config', label: 'Config' }, { id: 'state', label: 'State' }] as chip (chip.id)}
-						<button
-							type="button"
-							aria-pressed={typeFilter === chip.id}
-							on:click={() => (typeFilter = chip.id as typeof typeFilter)}>{chip.label}</button
-						>
-					{/each}
-				</div>
-			</div>
-			<p class="status" aria-live="polite">
-				{#if searching}
-					{shownCount}
-					{shownCount === 1 ? 'match' : 'matches'} in {shownGroups.length}
-					{shownGroups.length === 1 ? 'group' : 'groups'}{#if selGroup}&nbsp;· searching all API
-						groups, not only {current?.short}{/if}
-				{:else}
-					{shownCount} {shownCount === 1 ? 'CRD' : 'CRDs'}
-				{/if}
-			</p>
-
-			{#if shownGroups.length === 0}
-				<div class="empty">
-					<p>No CRD matches your search or filter.</p>
-					<button type="button" on:click={resetFilters}>Clear filters</button>
-				</div>
-			{:else}
-				<div class="tbl">
-					<table>
-						<thead>
-							<tr>
-								<th scope="col">Kind</th>
-								<th scope="col">Scope</th>
-								<th scope="col">Versions</th>
-								<th scope="col">Name</th>
-							</tr>
-						</thead>
-						{#each shownGroups as g (g.group)}
-							<tbody>
-								<tr class="grp-row">
-									<th scope="colgroup" colspan="4">
-										{#if !selGroup || searching}
-											<button type="button" on:click={() => pick(g.group)}>{g.title}</button>
-										{:else}
-											<b>{g.title}</b>
-										{/if}
-										<span>{g.group || 'No API group'}</span>
-										<small>{g.resources.length}</small>
-									</th>
-								</tr>
-								{#each g.resources as res (res.name)}
-									{@const latest = getLatestVersion(res)}
-									<tr class="res">
-										<td class="k">
-											<button type="button" on:click={(e) => openResourceModal(res, e)}
-												>{displayKind(res)}</button
-											>{#if isAllDeprecated(res)}<span class="tag tag--dep">Deprecated</span
-												>{/if}{#if isState(res)}<span class="tag">State</span>{/if}
-										</td>
-										<td class="sc">{res.scope ?? '—'}</td>
-										<td class="v">
-											{#if latest}
-												<span class="ver">{latest}</span>
-												{#each res.versions.filter((v) => v.name !== latest) as v (v.name)}
-													<span class="ver ver--old" class:is-dep={v.deprecated}>{v.name}</span>
-												{/each}
-											{:else}
-												<span class="none">no versions</span>
-											{/if}
-										</td>
-										<td class="n">{res.name}</td>
-									</tr>
-								{/each}
-							</tbody>
+				{#if !landing}
+					<div class="seg" role="group" aria-label="Resource type">
+						{#each [{ id: 'all', label: 'All' }, { id: 'config', label: 'Config' }, { id: 'state', label: 'State' }] as chip (chip.id)}
+							<button
+								type="button"
+								aria-pressed={typeFilter === chip.id}
+								on:click={() => (typeFilter = chip.id as typeof typeFilter)}>{chip.label}</button
+							>
 						{/each}
-					</table>
-				</div>
+					</div>
+				{/if}
+			</div>
+
+			{#if landing}
+				<section aria-labelledby="cat-tiles-h">
+					<div class="h2row">
+						<h2 id="cat-tiles-h">Browse by category</h2>
+						<span>{categories.length} categories · {groups.length} API groups</span>
+					</div>
+					<ul class="tiles">
+						{#each categories as c (c.category.id)}
+							{@const ex = examples(c.groups)}
+							<li>
+								<button type="button" class="tile" on:click={() => pick(c.category.id)}>
+									<span class="tile-icon"
+										><svg class="i" viewBox="0 0 24 24" aria-hidden="true"
+											><path d={c.category.icon} /></svg
+										></span
+									>
+									<b>{c.category.title}</b>
+									<span class="tile-groups">{c.groups.map((g) => g.short).join(' · ')}</span>
+									<span class="tile-stats"
+										>{c.groups.length}
+										{c.groups.length === 1 ? 'API group' : 'API groups'} · {c.crds}
+										{c.crds === 1 ? 'CRD' : 'CRDs'}</span
+									>
+									{#if ex.length}
+										<span class="tile-ex"
+											>{#each ex as e (e)}<span>{e}</span>{/each}</span
+										>
+									{/if}
+								</button>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{:else}
+				<p class="status" aria-live="polite">
+					{#if searching}
+						{shownCount}
+						{shownCount === 1 ? 'match' : 'matches'} in {shownGroups.length}
+						{shownGroups.length === 1 ? 'group' : 'groups'}{#if selGroup || selCategory}&nbsp;·
+							searching all API groups{/if}
+					{:else}
+						{shownCount}
+						{shownCount === 1 ? 'CRD' : 'CRDs'}{#if !selGroup}&nbsp;in {shownGroups.length}
+							API groups{/if}
+					{/if}
+				</p>
+
+				{#if shownGroups.length === 0}
+					<div class="empty">
+						<p>No CRD matches "{searchQuery.trim()}".</p>
+						<button type="button" on:click={resetFilters}>Clear the search</button>
+					</div>
+				{:else}
+					<div class="tbl">
+						<table>
+							<thead>
+								<tr>
+									<th scope="col">Kind</th>
+									<th scope="col">Scope</th>
+									<th scope="col">Versions</th>
+									<th scope="col">Name</th>
+								</tr>
+							</thead>
+							{#each shownGroups as g (g.group)}
+								<tbody>
+									<tr class="grp-row">
+										<th scope="colgroup" colspan="4">
+											{#if selGroup !== g.group || searching}
+												<button type="button" on:click={() => pick(g.category.id, g.group)}
+													>{g.title}</button
+												>
+											{:else}
+												<b>{g.title}</b>
+											{/if}
+											<span>{g.group || 'No API group'}</span>
+											{#if searching}<em>{g.category.title}</em>{/if}
+											<small>{g.resources.length}</small>
+										</th>
+									</tr>
+									{#each g.resources as res (res.name)}
+										{@const latest = getLatestVersion(res)}
+										<tr class="res">
+											<td class="k">
+												<button type="button" on:click={(e) => openResourceModal(res, e)}
+													>{displayKind(res)}</button
+												>{#if isAllDeprecated(res)}<span class="tag tag--dep">Deprecated</span
+													>{/if}{#if isStateCrd(res)}<span class="tag">State</span>{/if}
+											</td>
+											<td class="sc">{res.scope ?? '—'}</td>
+											<td class="v">
+												{#if latest}
+													<span class="ver">{latest}</span>
+													{#each res.versions.filter((v) => v.name !== latest) as v (v.name)}
+														<span class="ver ver--old" class:is-dep={v.deprecated}>{v.name}</span>
+													{/each}
+												{:else}
+													<span class="none">no versions</span>
+												{/if}
+											</td>
+											<td class="n">{res.name}</td>
+										</tr>
+									{/each}
+								</tbody>
+							{/each}
+						</table>
+					</div>
+				{/if}
 			{/if}
 		</main>
 	</div>
@@ -466,18 +552,74 @@
 		cursor: pointer;
 	}
 
+	.cats {
+		gap: 0.0625rem;
+	}
+
+	.row.cat {
+		grid-template-columns: 1.125rem minmax(0, 1fr) auto;
+		min-height: 2.25rem;
+	}
+
+	.row .i {
+		color: var(--rb-ink-3);
+	}
+
+	.row.cat.is-open {
+		color: var(--rb-ink);
+		font-weight: 600;
+	}
+
+	.row.cat.is-open .i,
+	.row[aria-current='true'] .i {
+		color: var(--rb-signal);
+	}
+
+	.grps {
+		margin: 0.125rem 0 0.5rem 1.4375rem !important;
+		padding-left: 0.625rem !important;
+		border-left: 1px solid var(--rb-line);
+	}
+
+	.grp {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		width: 100%;
+		min-height: 1.875rem;
+		padding: 0.25rem 0.5rem;
+		border: 0;
+		border-radius: 0.375rem;
+		background: none;
+		color: var(--rb-ink-2);
+		font: 500 0.82rem var(--rb-font-mono);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.grp span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.grp:hover {
+		background: var(--rb-raised);
+		color: var(--rb-ink);
+	}
+
+	.grp[aria-current='true'] {
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+		font-weight: 600;
+	}
+
 	.row.all {
 		grid-template-columns: 1.125rem minmax(0, 1fr) auto;
 		min-height: 2.25rem;
 		color: var(--rb-ink);
 		font-weight: 600;
-	}
-
-	.grp-name {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font: 500 0.82rem var(--rb-font-mono);
 	}
 
 	.row:hover {
@@ -488,10 +630,6 @@
 	.row[aria-current='true'] {
 		background: var(--rb-signal-soft);
 		color: var(--rb-signal);
-		font-weight: 600;
-	}
-
-	.row[aria-current='true'] .grp-name {
 		font-weight: 600;
 	}
 
@@ -526,6 +664,170 @@
 		font: inherit;
 		text-decoration: underline;
 		cursor: pointer;
+	}
+
+	.title {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.title-icon {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 3rem;
+		height: 3rem;
+		margin-top: 0.375rem;
+		border-radius: 0.6875rem;
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+	}
+
+	.title-icon .i {
+		width: 1.5rem;
+		height: 1.5rem;
+	}
+
+	section {
+		margin-top: 2rem;
+	}
+
+	h2 {
+		margin: 0 0 0.875rem;
+		font: 700 1.05rem var(--rb-font-display);
+	}
+
+	.h2row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.25rem 1rem;
+	}
+
+	.h2row span {
+		margin-bottom: 0.875rem;
+		font: 0.75rem var(--rb-font-mono);
+		color: var(--rb-ink-3);
+	}
+
+	.tiles {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.875rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	@container (min-width: 36rem) {
+		.tiles {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@container (min-width: 60rem) {
+		.tiles {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	.tiles li {
+		display: flex;
+	}
+
+	.tile {
+		display: grid;
+		grid-template-columns: 2.5rem minmax(0, 1fr);
+		align-content: start;
+		gap: 0.25rem 0.875rem;
+		width: 100%;
+		padding: 1.0625rem 1.125rem;
+		border: 1px solid var(--rb-line);
+		border-radius: 0.75rem;
+		background: var(--rb-surface);
+		color: var(--rb-ink);
+		text-align: left;
+		font: inherit;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			box-shadow 0.15s,
+			transform 0.15s;
+	}
+
+	.tile:hover {
+		border-color: var(--rb-signal);
+		box-shadow: 0 16px 34px -26px rgba(10, 30, 80, 0.55);
+		transform: translateY(-1px);
+	}
+
+	.tile-icon {
+		grid-row: 1 / 4;
+		display: grid;
+		place-items: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 0.5625rem;
+		background: var(--rb-signal-soft);
+		color: var(--rb-signal);
+	}
+
+	.tile-icon .i {
+		width: 1.3rem;
+		height: 1.3rem;
+	}
+
+	.tile b {
+		font-size: 1rem;
+		font-weight: 600;
+	}
+
+	.tile-groups {
+		font: 0.76rem var(--rb-font-mono);
+		line-height: 1.5;
+		color: var(--rb-ink-3);
+	}
+
+	.tile-stats {
+		font: 500 0.72rem var(--rb-font-mono);
+		color: var(--rb-ink-2);
+	}
+
+	.tile-ex {
+		grid-column: 2;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3125rem;
+		margin-top: 0.5rem;
+	}
+
+	.tile-ex span {
+		padding: 0.0625rem 0.375rem;
+		border-radius: 0.25rem;
+		background: var(--rb-raised);
+		color: var(--rb-ink-2);
+		font: 0.72rem var(--rb-font-mono);
+	}
+
+	.grp-row em {
+		margin-left: 0.625rem;
+		padding: 0.0625rem 0.375rem;
+		border-radius: 0.25rem;
+		background: var(--rb-raised);
+		color: var(--rb-ink-3);
+		font: normal 0.66rem var(--rb-font);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tile {
+			transition: none;
+		}
+
+		.tile:hover {
+			transform: none;
+		}
 	}
 
 	h1 {
